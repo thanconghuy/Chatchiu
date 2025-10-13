@@ -40,6 +40,24 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Routes for HTML pages (without .html extension)
+const pages = ['login', 'register', 'dashboard', 'history', 'index'];
+pages.forEach(page => {
+  app.get(`/${page}`, (req, res) => {
+    res.sendFile(path.join(__dirname, 'frontend', `${page}.html`));
+  });
+});
+
+// Admin routes
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend', 'admin', 'index.html'));
+});
+
+app.get('/admin/:page', (req, res) => {
+  const page = req.params.page;
+  res.sendFile(path.join(__dirname, 'frontend', 'admin', `${page}.html`));
+});
+
 // Default route - serve dashboard
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend', 'dashboard.html'));

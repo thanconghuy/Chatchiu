@@ -43,7 +43,7 @@ function isLoggedIn() {
 function logout() {
     localStorage.removeItem(CONFIG.STORAGE_KEYS.TOKEN);
     localStorage.removeItem(CONFIG.STORAGE_KEYS.USER);
-    window.location.href = 'login.html';
+    window.location.href = '/login';
 }
 
 /**
@@ -52,7 +52,7 @@ function logout() {
  */
 function requireAuth() {
     if (!isLoggedIn()) {
-        window.location.href = 'login.html';
+        window.location.href = '/login';
         return false;
     }
     return true;
