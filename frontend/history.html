@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lịch sử - Cashback System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <span class="logo-icon">🎯</span>
+                <span class="logo-text">Cashback</span>
+            </div>
+
+            <nav class="nav">
+                <a href="dashboard.html" class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+                <a href="history.html" class="nav-item active">
+                    <span class="nav-icon">📜</span>
+                    <span class="nav-text">Lịch sử</span>
+                </a>
+                <a href="#" class="nav-item" id="logoutBtn">
+                    <span class="nav-icon">🚪</span>
+                    <span class="nav-text">Đăng xuất</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-header">
+                <h1>Lịch sử giao dịch</h1>
+                <div class="user-info">
+                    <span id="userName">User</span>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="conversions">Đơn hàng</button>
+                <button class="tab-btn" data-tab="clicks">Lượt click</button>
+            </div>
+
+            <!-- Conversions Tab -->
+            <div class="tab-content active" id="conversionsTab">
+                <div class="filter-bar">
+                    <div class="filter-group">
+                        <label for="statusFilter">Trạng thái:</label>
+                        <select id="statusFilter" class="filter-select">
+                            <option value="">Tất cả</option>
+                            <option value="approved">Đã duyệt</option>
+                            <option value="pending">Chờ duyệt</option>
+                            <option value="rejected">Từ chối</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Merchant</th>
+                                <th>Mã đơn</th>
+                                <th>Giá trị đơn</th>
+                                <th>Hoa hồng</th>
+                                <th>Cashback</th>
+                                <th>Trạng thái</th>
+                                <th>Thời gian đặt</th>
+                                <th>Thời gian duyệt</th>
+                            </tr>
+                        </thead>
+                        <tbody id="conversionsTable">
+                            <tr class="loading-state">
+                                <td colspan="8">
+                                    <div class="loading">Đang tải...</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="pagination" id="conversionsPagination">
+                    <button class="btn-secondary" id="prevConversions" disabled>« Trước</button>
+                    <span id="conversionsPageInfo">Trang 1</span>
+                    <button class="btn-secondary" id="nextConversions">Sau »</button>
+                </div>
+            </div>
+
+            <!-- Clicks Tab -->
+            <div class="tab-content" id="clicksTab">
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Merchant</th>
+                                <th>Loại</th>
+                                <th>Thời gian click</th>
+                                <th>Có mua hàng?</th>
+                                <th>Trạng thái</th>
+                                <th>Cashback</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clicksTable">
+                            <tr class="loading-state">
+                                <td colspan="6">
+                                    <div class="loading">Đang tải...</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="pagination" id="clicksPagination">
+                    <button class="btn-secondary" id="prevClicks" disabled>« Trước</button>
+                    <span id="clicksPageInfo">Trang 1</span>
+                    <button class="btn-secondary" id="nextClicks">Sau »</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/history.js"></script>
+</body>
+</html>

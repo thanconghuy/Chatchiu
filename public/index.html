@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AccessTrade Dashboard - POC</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>🚀 AccessTrade Dashboard</h1>
+            <p class="subtitle">Proof of Concept - API Integration</p>
+
+            <!-- Navigation Menu -->
+            <nav class="nav-menu">
+                <a href="index.html" class="nav-item active">📦 Đơn hàng (Orders)</a>
+                <a href="transactions.html" class="nav-item">💰 Giao dịch (Transactions)</a>
+            </nav>
+        </header>
+
+        <!-- Connection Test Section -->
+        <section class="test-section">
+            <button id="testConnectionBtn" class="btn btn-primary">
+                <span class="btn-text">Test Connection</span>
+                <span class="loader" style="display: none;"></span>
+            </button>
+            <div id="connectionStatus" class="status-message"></div>
+        </section>
+
+        <!-- Date Range Picker Section -->
+        <section class="date-section">
+            <div class="date-inputs">
+                <div class="input-group">
+                    <label for="startDate">Start Date</label>
+                    <input type="date" id="startDate" class="date-input">
+                </div>
+                <div class="input-group">
+                    <label for="endDate">End Date</label>
+                    <input type="date" id="endDate" class="date-input">
+                </div>
+                <button id="fetchConversionsBtn" class="btn btn-secondary">
+                    <span class="btn-text">Fetch Conversions</span>
+                    <span class="loader" style="display: none;"></span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Stats Cards -->
+        <section class="stats-section">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-content">
+                        <h3 class="stat-value" id="totalOrders">0</h3>
+                        <p class="stat-label">Tổng đơn hàng</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">💰</div>
+                    <div class="stat-content">
+                        <h3 class="stat-value" id="totalCommission">0 VNĐ</h3>
+                        <p class="stat-label">Tổng hoa hồng</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-content">
+                        <h3 class="stat-value" id="approvedOrders">0</h3>
+                        <p class="stat-label">Đã duyệt</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⏳</div>
+                    <div class="stat-content">
+                        <h3 class="stat-value" id="pendingOrders">0</h3>
+                        <p class="stat-label">Chờ duyệt</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Conversions Table -->
+        <section class="table-section">
+            <h2>Danh sách Conversions</h2>
+            <div class="table-container">
+                <table class="conversions-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Order</th>
+                            <th>Chiến dịch</th>
+                            <th>Giá trị ĐH</th>
+                            <th>Hoa hồng</th>
+                            <th>Status</th>
+                            <th>Ngày Click</th>
+                            <th>Sub ID</th>
+                            <th>Chi tiết</th>
+                        </tr>
+                    </thead>
+                    <tbody id="conversionsTableBody">
+                        <tr class="empty-state">
+                            <td colspan="9">
+                                <div class="empty-message">
+                                    <p>📋 Chưa có dữ liệu</p>
+                                    <p class="empty-sub">Chọn khoảng thời gian và nhấn "Fetch Conversions"</p>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>© 2024 AccessTrade Dashboard POC</p>
+        </footer>
+    </div>
+
+    <!-- Order Detail Modal -->
+    <div id="orderModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Chi tiết đơn hàng</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Content will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

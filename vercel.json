@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "server-cashback.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "server-cashback.js"
+    },
+    {
+      "src": "/health",
+      "dest": "server-cashback.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "server-cashback.js"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
+}

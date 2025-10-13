@@ -1,0 +1,134 @@
+const { pool } = require('../config/database');
+
+/**
+ * Merchant Model
+ * Handles merchant information
+ */
+
+class Merchant {
+  /**
+   * Find merchant by ID
+   * @param {string} merchantId
+   * @returns {Object|null} Merchant object or null
+   */
+  static async findById(merchantId) {
+    const query = `
+      SELECT *
+      FROM merchants
+      WHERE id = $1
+    `;
+
+    const result = await pool.query(query, [merchantId]);
+    return result.rows[0] || null;
+  }
+
+  /**
+   * Get all merchants
+   * @param {boolean} activeOnly - Return only active merchants
+   * @returns {Array} Array of merchants
+   */
+  static async getAll(activeOnly = true) {
+    const query = activeOnly
+      ? `SELECT * FROM merchants WHERE is_active = true ORDER BY name`
+      : `SELECT * FROM merchants ORDER BY name`;
+
+    const result = await pool.query(query);
+    return result.rows;
+  }
+
+  /**
+   * Check if a URL belongs to a merchant's domain
+   * @param {string} merchantId
+   * @param {string} url
+   * @returns {boolean} True if URL matches merchant domain
+   */
+  static async validateUrl(merchantId, url) {
+    const merchant = await this.findById(merchantId);
+    if (!merchant || !merchant.deep_link_base) {
+      return false;
+    }
+
+    try {
+      const urlObj = new URL(url);
+      const merchantUrlObj = new URL(merchant.deep_link_base);
+
+      // Extract domain without subdomain for flexible matching
+      const getDomain = (hostname) => {
+        const parts = hostname.split('.');
+        return parts.length > 2 ? parts.slice(-2).join('.') : hostname;
+      };
+
+      const urlDomain = getDomain(urlObj.hostname);
+      const merchantDomain = getDomain(merchantUrlObj.hostname);
+
+      return urlDomain === merchantDomain;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Update merchant
+   * @param {string} merchantId
+   * @param {Object} updates
+   * @returns {Object} Updated merchant
+   */
+  static async update(merchantId, updates) {
+    const allowedFields = ['name', 'logo_url', 'campaign_id', 'offer_id', 'commission_rate', 'is_active', 'deep_link_base'];
+    const fields = [];
+    const values = [];
+    let paramCount = 1;
+
+    Object.keys(updates).forEach(key => {
+      if (allowedFields.includes(key)) {
+        fields.push(`${key} = $${paramCount}`);
+        values.push(updates[key]);
+        paramCount++;
+      }
+    });
+
+    if (fields.length === 0) {
+      throw new Error('No valid fields to update');
+    }
+
+    values.push(merchantId);
+
+    const query = `
+      UPDATE merchants
+      SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $${paramCount}
+      RETURNING *
+    `;
+
+    const result = await pool.query(query, values);
+    return result.rows[0];
+  }
+
+  /**
+   * Get merchant statistics
+   * @param {string} merchantId
+   * @returns {Object} Merchant statistics
+   */
+  static async getStats(merchantId) {
+    const query = `
+      SELECT
+        m.id,
+        m.name,
+        COUNT(DISTINCT c.id) as total_clicks,
+        COUNT(DISTINCT co.id) as total_conversions,
+        COUNT(DISTINCT CASE WHEN co.status = 'approved' THEN co.id END) as approved_conversions,
+        COALESCE(SUM(CASE WHEN co.status = 'approved' THEN co.order_value ELSE 0 END), 0) as total_order_value,
+        COALESCE(SUM(CASE WHEN co.status = 'approved' THEN co.user_cashback ELSE 0 END), 0) as total_cashback_paid
+      FROM merchants m
+      LEFT JOIN clicks c ON m.id = c.merchant_id
+      LEFT JOIN conversions co ON c.aff_sid = co.aff_sid
+      WHERE m.id = $1
+      GROUP BY m.id, m.name
+    `;
+
+    const result = await pool.query(query, [merchantId]);
+    return result.rows[0];
+  }
+}
+
+module.exports = Merchant;
