@@ -18,7 +18,10 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(vercel:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(for file in users.html conversions.html tools.html)",
+      "Bash(do echo \"Processing $file\")",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Merchants Management - Admin</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <span class="logo-icon">⚡</span>
+                <span class="logo-text">Admin</span>
+            </div>
+
+            <nav class="nav">
+                <a href="/admin" class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+                <a href="/admin/users" class="nav-item">
+                    <span class="nav-icon">👥</span>
+                    <span class="nav-text">Users</span>
+                </a>
+                <a href="/admin/conversions" class="nav-item">
+                    <span class="nav-icon">💰</span>
+                    <span class="nav-text">Conversions</span>
+                </a>
+                <a href="/admin/merchants" class="nav-item active">
+                    <span class="nav-icon">🏪</span>
+                    <span class="nav-text">Merchants</span>
+                </a>
+                <a href="/admin/tools" class="nav-item">
+                    <span class="nav-icon">🔧</span>
+                    <span class="nav-text">Tools</span>
+                </a>
+                <a href="#" class="nav-item" id="logoutBtn">
+                    <span class="nav-icon">🚪</span>
+                    <span class="nav-text">Logout</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-header">
+                <h1>Merchants Management</h1>
+                <div class="user-info">
+                    <span id="userName">Admin</span>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="stats-grid admin-stats">
+                <div class="stat-card stat-primary">
+                    <div class="stat-icon">🏪</div>
+                    <div class="stat-info">
+                        <div class="stat-label">Total Merchants</div>
+                        <div class="stat-value" id="totalMerchants">0</div>
+                    </div>
+                </div>
+                <div class="stat-card stat-success">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-info">
+                        <div class="stat-label">Active Merchants</div>
+                        <div class="stat-value" id="activeMerchants">0</div>
+                    </div>
+                </div>
+                <div class="stat-card stat-warning">
+                    <div class="stat-icon">📈</div>
+                    <div class="stat-info">
+                        <div class="stat-label">Total Clicks</div>
+                        <div class="stat-value" id="totalClicks">0</div>
+                    </div>
+                </div>
+                <div class="stat-card stat-info">
+                    <div class="stat-icon">💸</div>
+                    <div class="stat-info">
+                        <div class="stat-label">Total Commission</div>
+                        <div class="stat-value" id="totalCommission">0đ</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="table-actions">
+                <button class="btn btn-primary" id="syncMerchantsBtn">
+                    <span>🔄</span> Sync Merchants from AccessTrade
+                </button>
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="Tìm kiếm merchant..." class="search-input">
+                </div>
+            </div>
+
+            <!-- Merchants Table -->
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Logo</th>
+                            <th>Name</th>
+                            <th>Domain</th>
+                            <th>Commission Rate</th>
+                            <th>Status</th>
+                            <th>Total Clicks</th>
+                            <th>Conversions</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="merchantsTable">
+                        <tr class="empty-state">
+                            <td colspan="8">
+                                <div class="empty-message">
+                                    <p>Đang tải merchants...</p>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            <div class="pagination" id="pagination">
+                <button class="btn btn-secondary" id="prevBtn">« Previous</button>
+                <span id="pageInfo">Page 1</span>
+                <button class="btn btn-secondary" id="nextBtn">Next »</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Edit Merchant Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Merchant</h2>
+                <button class="modal-close" id="closeModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="editMerchantForm">
+                    <input type="hidden" id="merchantId">
+
+                    <div class="form-group">
+                        <label>Merchant Name</label>
+                        <input type="text" id="merchantName" class="input-field" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Commission Rate (%)</label>
+                        <input type="number" id="commissionRate" class="input-field" step="0.01" min="0" max="100">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select id="merchantStatus" class="input-field">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" id="cancelBtn">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/config.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="merchants.js"></script>
+</body>
+</html>
