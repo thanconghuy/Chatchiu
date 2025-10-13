@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Cashback System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2 class="logo">🎯 Cashback</h2>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="dashboard.html" class="nav-item active">
+                <span class="icon">📊</span>
+                <span>Dashboard</span>
+            </a>
+            <a href="history.html" class="nav-item">
+                <span class="icon">📜</span>
+                <span>Lịch sử</span>
+            </a>
+            <a href="#" class="nav-item" id="logoutBtn">
+                <span class="icon">🚪</span>
+                <span>Đăng xuất</span>
+            </a>
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div class="welcome">
+                <h1>Xin chào, <span id="userName">User</span>! 👋</h1>
+                <p class="subtitle">Chào mừng bạn quay trở lại</p>
+            </div>
+        </header>
+
+        <!-- Stats Cards -->
+        <section class="stats-section">
+            <div class="stats-grid">
+                <div class="stat-card gradient-green">
+                    <div class="stat-icon">💰</div>
+                    <div class="stat-content">
+                        <h3 class="stat-value" id="availableBalance">0 đ</h3>
+                        <p class="stat-label">Số dư khả dụng</p>
+                    </div>
+                </div>
+                <div class="stat-card gradient-orange">
+                    <div class="stat-icon">⏳</div>
+                    <div class="stat-content">
+                        <h3 class="stat-value" id="pendingBalance">0 đ</h3>
+                        <p class="stat-label">Đang chờ duyệt</p>
+                    </div>
+                </div>
+                <div class="stat-card gradient-blue">
+                    <div class="stat-icon">📦</div>
+                    <div class="stat-content">
+                        <h3 class="stat-value" id="totalOrders">0</h3>
+                        <p class="stat-label">Tổng đơn hàng</p>
+                    </div>
+                </div>
+                <div class="stat-card gradient-purple">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-content">
+                        <h3 class="stat-value" id="approvedOrders">0</h3>
+                        <p class="stat-label">Đã duyệt</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Merchants Section -->
+        <section class="section">
+            <h2 class="section-title">🛍️ Mua sắm và nhận hoàn tiền</h2>
+            <div class="merchants-grid" id="merchantsGrid">
+                <!-- Merchants will be loaded here -->
+                <div class="loading">Đang tải...</div>
+            </div>
+        </section>
+
+        <!-- Recent Orders Section -->
+        <section class="section">
+            <h2 class="section-title">📦 Đơn hàng gần đây</h2>
+            <div class="table-container">
+                <table class="orders-table">
+                    <thead>
+                        <tr>
+                            <th>Merchant</th>
+                            <th>Loại</th>
+                            <th>Thời gian</th>
+                            <th>Trạng thái</th>
+                            <th>Cashback</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recentOrdersTable">
+                        <tr class="empty-state">
+                            <td colspan="5">
+                                <p>Chưa có đơn hàng nào</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- Merchant Modal -->
+    <div id="merchantModal" class="modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <button class="modal-close" id="closeModal">&times;</button>
+
+            <div class="modal-header">
+                <img id="modalMerchantLogo" src="" alt="" class="modal-merchant-logo">
+                <h2 id="modalMerchantName">Merchant</h2>
+            </div>
+
+            <div class="modal-body">
+                <!-- Option 1: Free Shopping -->
+                <div class="option-card">
+                    <div class="option-header">
+                        <span class="option-icon">🎯</span>
+                        <h3>Mua sắm tự do</h3>
+                    </div>
+                    <p class="option-description">
+                        Vào trang chủ <strong id="merchantNameOption1">Merchant</strong> để chọn sản phẩm bất kỳ
+                    </p>
+                    <button class="btn btn-primary" id="freeShoppingBtn">
+                        Đi đến <span id="merchantNameBtn1">Merchant</span>
+                    </button>
+                </div>
+
+                <!-- Option 2: Have Product Link -->
+                <div class="option-card">
+                    <div class="option-header">
+                        <span class="option-icon">🔗</span>
+                        <h3>Có link sản phẩm rồi</h3>
+                    </div>
+                    <p class="option-description">
+                        Paste link sản phẩm từ <strong id="merchantNameOption2">Merchant</strong> vào đây
+                    </p>
+                    <input
+                        type="url"
+                        id="productUrlInput"
+                        class="input-field"
+                        placeholder="https://shopee.vn/product/..."
+                    >
+                    <button class="btn btn-secondary" id="generateLinkBtn">
+                        Tạo link mua hàng
+                    </button>
+                </div>
+
+                <div class="modal-note">
+                    <span class="note-icon">ℹ️</span>
+                    <span>Bạn sẽ nhận hoàn tiền khi đơn hàng được duyệt (~7-30 ngày)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/dashboard.js"></script>
+</body>
+</html>

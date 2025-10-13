@@ -18,8 +18,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve static files from frontend and public directories
-app.use(express.static('frontend'));
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'frontend')));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Import routes
 const authRoutes = require('./backend/routes/auth');

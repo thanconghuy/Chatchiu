@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Tools - Import Data</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="admin.css">
+    <style>
+        .tools-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .tool-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .tool-card h2 {
+            margin: 0 0 16px 0;
+            color: var(--gray-900);
+            font-size: 1.3rem;
+        }
+
+        .date-inputs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .date-inputs input {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 0.95rem;
+        }
+
+        .date-inputs input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .btn-fetch {
+            width: 100%;
+            padding: 12px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 16px;
+        }
+
+        .btn-fetch:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-fetch:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .result-box {
+            background: var(--gray-50);
+            border-radius: 8px;
+            padding: 16px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+            font-family: 'Courier New', monospace;
+        }
+
+        .result-box.empty {
+            color: var(--gray-500);
+            text-align: center;
+        }
+
+        .import-section {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .import-section h2 {
+            margin: 0 0 16px 0;
+            color: var(--gray-900);
+            font-size: 1.3rem;
+        }
+
+        .import-info {
+            background: #e6f7ff;
+            border-left: 4px solid var(--primary);
+            padding: 16px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+        }
+
+        .import-info ul {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+
+        .import-info li {
+            margin: 4px 0;
+        }
+
+        .btn-import {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-import:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+        }
+
+        .btn-import:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .import-result {
+            margin-top: 16px;
+            padding: 16px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .import-result.success {
+            background: #d1fae5;
+            border-left: 4px solid var(--success);
+            color: #065f46;
+            display: block;
+        }
+
+        .import-result.error {
+            background: #fee2e2;
+            border-left: 4px solid var(--danger);
+            color: #991b1b;
+            display: block;
+        }
+
+        .result-item {
+            padding: 8px;
+            margin: 4px 0;
+            background: white;
+            border-radius: 4px;
+            border-left: 3px solid var(--gray-300);
+        }
+
+        .result-item.new {
+            border-left-color: var(--success);
+        }
+
+        .result-item.duplicate {
+            border-left-color: var(--warning);
+        }
+
+        @media (max-width: 1024px) {
+            .tools-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <span class="logo-icon">⚡</span>
+                <span class="logo-text">Admin</span>
+            </div>
+
+            <nav class="nav">
+                <a href="index.html" class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+                <a href="users.html" class="nav-item">
+                    <span class="nav-icon">👥</span>
+                    <span class="nav-text">Users</span>
+                </a>
+                <a href="conversions.html" class="nav-item">
+                    <span class="nav-icon">💰</span>
+                    <span class="nav-text">Conversions</span>
+                </a>
+                <a href="tools.html" class="nav-item active">
+                    <span class="nav-icon">🔧</span>
+                    <span class="nav-text">Tools</span>
+                </a>
+                <a href="#" class="nav-item" id="logoutBtn">
+                    <span class="nav-icon">🚪</span>
+                    <span class="nav-text">Logout</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-header">
+                <h1>Admin Tools - Import Data</h1>
+                <div class="user-info">
+                    <span id="userName">Admin</span>
+                </div>
+            </div>
+
+            <!-- Fetch Tools -->
+            <div class="tools-container">
+                <!-- Transactions Tool -->
+                <div class="tool-card">
+                    <h2>🔍 Lấy Transactions</h2>
+                    <div class="date-inputs">
+                        <input type="text" id="txStartDate" placeholder="dd/mm/yyyy" pattern="\d{2}/\d{2}/\d{4}">
+                        <input type="text" id="txEndDate" placeholder="dd/mm/yyyy" pattern="\d{2}/\d{2}/\d{4}">
+                    </div>
+                    <button class="btn-fetch" id="fetchTransactionsBtn">Lấy Transactions</button>
+                    <div class="result-box empty" id="txResult">
+                        Chưa có dữ liệu
+                    </div>
+                    <div style="margin-top: 12px; color: var(--gray-600); font-size: 0.9rem;">
+                        <strong>Tổng:</strong> <span id="txCount">0</span> transactions
+                    </div>
+                </div>
+
+                <!-- Conversions Tool -->
+                <div class="tool-card">
+                    <h2>🔍 Lấy Conversions</h2>
+                    <div class="date-inputs">
+                        <input type="text" id="convStartDate" placeholder="dd/mm/yyyy" pattern="\d{2}/\d{2}/\d{4}">
+                        <input type="text" id="convEndDate" placeholder="dd/mm/yyyy" pattern="\d{2}/\d{2}/\d{4}">
+                    </div>
+                    <button class="btn-fetch" id="fetchConversionsBtn">Lấy Conversions</button>
+                    <div class="result-box empty" id="convResult">
+                        Chưa có dữ liệu
+                    </div>
+                    <div style="margin-top: 12px; color: var(--gray-600); font-size: 0.9rem;">
+                        <strong>Tổng:</strong> <span id="convCount">0</span> conversions
+                    </div>
+                </div>
+            </div>
+
+            <!-- Manual Sync Section -->
+            <div class="import-section" style="margin-bottom: 24px;">
+                <h2>🔄 Đồng Bộ Conversions Thủ Công</h2>
+
+                <div class="import-info">
+                    <strong>ℹ️ Chức năng:</strong>
+                    <ul>
+                        <li>Lấy conversions từ AccessTrade API (7 ngày gần nhất)</li>
+                        <li>Tự động match với clicks để tìm user</li>
+                        <li>Tính cashback (70% commission) và cập nhật balance</li>
+                        <li>Lọc trùng theo <code>accesstrade_id</code></li>
+                        <li>Cập nhật status nếu có thay đổi (pending → approved)</li>
+                    </ul>
+                </div>
+
+                <button class="btn-import" id="syncBtn">
+                    🔄 Đồng Bộ Ngay
+                </button>
+
+                <div class="import-result" id="syncResult"></div>
+            </div>
+
+            <!-- Import Section -->
+            <div class="import-section">
+                <h2>📥 Nạp Dữ Liệu Vào Database</h2>
+
+                <div class="import-info">
+                    <strong>ℹ️ Chức năng:</strong>
+                    <ul>
+                        <li>Tự động lọc trùng theo <code>accesstrade_id</code></li>
+                        <li>Chỉ import đơn hàng mới chưa có trong DB</li>
+                        <li>Tự động tính cashback (70% commission cho user)</li>
+                        <li>Cập nhật balance user tự động</li>
+                        <li>Match với clicks đã có để tìm user</li>
+                    </ul>
+                </div>
+
+                <button class="btn-import" id="importBtn" disabled>
+                    📥 Nạp Dữ Liệu Vào Database
+                </button>
+
+                <div class="import-result" id="importResult"></div>
+            </div>
+        </main>
+    </div>
+
+    <script src="../js/config.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="tools.js"></script>
+</body>
+</html>

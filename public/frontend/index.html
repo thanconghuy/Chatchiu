@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cashback System - Kiếm tiền khi mua sắm online</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .navbar {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 16px 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .btn-outline {
+            border: 2px solid #667eea;
+            color: #667eea;
+            background: transparent;
+        }
+
+        .btn-outline:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            border: 2px solid #667eea;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            border-color: #5568d3;
+        }
+
+        .hero {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 80px 24px;
+            text-align: center;
+            color: white;
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 24px;
+            line-height: 1.2;
+        }
+
+        .hero p {
+            font-size: 1.3rem;
+            margin-bottom: 40px;
+            opacity: 0.95;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .hero .btn {
+            padding: 16px 40px;
+            font-size: 1.1rem;
+        }
+
+        .features {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 60px 24px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 32px;
+        }
+
+        .feature-card {
+            background: white;
+            padding: 32px;
+            border-radius: 16px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 16px;
+        }
+
+        .feature-card h3 {
+            color: #1f2937;
+            margin-bottom: 12px;
+            font-size: 1.3rem;
+        }
+
+        .feature-card p {
+            color: #6b7280;
+            line-height: 1.6;
+        }
+
+        .merchants {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 60px 24px;
+            text-align: center;
+        }
+
+        .merchants h2 {
+            color: white;
+            font-size: 2.5rem;
+            margin-bottom: 40px;
+        }
+
+        .merchants-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 24px;
+        }
+
+        .merchant-card {
+            background: white;
+            padding: 32px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .merchant-logo {
+            width: 100%;
+            max-width: 120px;
+            height: 60px;
+            object-fit: contain;
+            margin-bottom: 16px;
+        }
+
+        .merchant-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 8px;
+        }
+
+        .merchant-rate {
+            color: #48bb78;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .hero p {
+                font-size: 1.1rem;
+            }
+
+            .hero-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">
+                🎯 Cashback System
+            </div>
+            <div class="nav-buttons">
+                <a href="login.html" class="btn btn-outline">Đăng nhập</a>
+                <a href="register.html" class="btn btn-primary">Đăng ký ngay</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <h1>💰 Mua Sắm & Nhận Cashback</h1>
+        <p>Kiếm tiền hoàn lại khi mua sắm tại các sàn thương mại điện tử hàng đầu Việt Nam</p>
+        <div class="hero-buttons">
+            <a href="register.html" class="btn btn-primary">Bắt đầu miễn phí</a>
+            <a href="#features" class="btn btn-outline">Tìm hiểu thêm</a>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features" id="features">
+        <div class="feature-card">
+            <div class="feature-icon">🎁</div>
+            <h3>Hoàn tiền tự động</h3>
+            <p>Nhận 70% hoa hồng từ mọi đơn hàng được duyệt. Tiền về tài khoản tự động.</p>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon">🏪</div>
+            <h3>Nhiều merchant</h3>
+            <p>Liên kết với Shopee, Lazada, Tiki, Sendo và nhiều sàn TMĐT khác.</p>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon">📊</div>
+            <h3>Theo dõi chi tiết</h3>
+            <p>Dashboard trực quan giúp bạn theo dõi đơn hàng, cashback và lịch sử giao dịch.</p>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon">⚡</div>
+            <h3>Tạo link nhanh</h3>
+            <p>Tạo link affiliate chỉ trong 1 click, chia sẻ và kiếm tiền dễ dàng.</p>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon">🔒</div>
+            <h3>An toàn & bảo mật</h3>
+            <p>Dữ liệu được mã hóa, bảo vệ thông tin cá nhân tuyệt đối.</p>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon">💳</div>
+            <h3>Rút tiền dễ dàng</h3>
+            <p>Rút cashback về tài khoản ngân hàng nhanh chóng, minh bạch.</p>
+        </div>
+    </section>
+
+    <!-- Merchants -->
+    <section class="merchants">
+        <h2>🛒 Merchant Partners</h2>
+        <div class="merchants-grid">
+            <div class="merchant-card">
+                <img src="https://down-vn.img.susercontent.com/file/vn-50009109-159200e3e365de418aae52b840f24185" alt="Shopee" class="merchant-logo">
+                <div class="merchant-name">Shopee</div>
+                <div class="merchant-rate">3-8% Cashback</div>
+            </div>
+
+            <div class="merchant-card">
+                <img src="https://laz-img-cdn.alicdn.com/images/ims-web/TB1T7D3dpXXXXXMXFXXXXXXXXXX.png" alt="Lazada" class="merchant-logo">
+                <div class="merchant-name">Lazada</div>
+                <div class="merchant-rate">2-6% Cashback</div>
+            </div>
+
+            <div class="merchant-card">
+                <img src="https://salt.tikicdn.com/ts/upload/0e/07/78/ee828743c9afa9792cf20d75995e134e.png" alt="Tiki" class="merchant-logo">
+                <div class="merchant-name">Tiki</div>
+                <div class="merchant-rate">2-5% Cashback</div>
+            </div>
+
+            <div class="merchant-card">
+                <img src="https://media.sendo.vn/image/png/sendo_logo.png" alt="Sendo" class="merchant-logo">
+                <div class="merchant-name">Sendo</div>
+                <div class="merchant-rate">1-4% Cashback</div>
+            </div>
+        </div>
+    </section>
+
+    <script src="js/auth.js"></script>
+    <script>
+        // Redirect if already logged in
+        if (isLoggedIn()) {
+            const user = getUser();
+            if (user && user.is_admin) {
+                window.location.href = 'admin/index.html';
+            } else {
+                window.location.href = 'dashboard.html';
+            }
+        }
+    </script>
+</body>
+</html>
