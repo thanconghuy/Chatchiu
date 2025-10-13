@@ -80,33 +80,38 @@ app.use((error, req, res, next) => {
 // logger.info(`Cron job scheduled: ${cronSchedule}`);
 logger.info('Auto sync DISABLED - Use manual sync from admin panel');
 
-// Start server
-app.listen(PORT, async () => {
-  console.log('='.repeat(60));
-  console.log(`🚀 Cashback Server is running`);
-  console.log(`📍 URL: http://localhost:${PORT}`);
-  console.log(`🗄️  Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
-  console.log(`🔑 JWT Secret: ${process.env.JWT_SECRET ? 'Configured' : 'Using default'}`);
-  console.log(`⏰ Auto Sync: DISABLED (Manual sync only)`);
-  console.log('='.repeat(60));
+// Start server (only if not running on Vercel)
+if (process.env.VERCEL !== '1') {
+  app.listen(PORT, async () => {
+    console.log('='.repeat(60));
+    console.log(`🚀 Cashback Server is running`);
+    console.log(`📍 URL: http://localhost:${PORT}`);
+    console.log(`🗄️  Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
+    console.log(`🔑 JWT Secret: ${process.env.JWT_SECRET ? 'Configured' : 'Using default'}`);
+    console.log(`⏰ Auto Sync: DISABLED (Manual sync only)`);
+    console.log('='.repeat(60));
 
-  // Initial sync DISABLED - Use manual sync from admin panel
-  // Run initial sync on server start (DISABLED)
-  // if (process.env.SYNC_ON_START !== 'false') {
-  //   logger.info('Running initial conversion sync...');
-  //   try {
-  //     await syncConversions();
-  //   } catch (error) {
-  //     logger.error('Initial sync failed', { error: error.message });
-  //   }
-  // }
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received. Shutting down gracefully...');
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
+    // Initial sync DISABLED - Use manual sync from admin panel
+    // Run initial sync on server start (DISABLED)
+    // if (process.env.SYNC_ON_START !== 'false') {
+    //   logger.info('Running initial conversion sync...');
+    //   try {
+    //     await syncConversions();
+    //   } catch (error) {
+    //     logger.error('Initial sync failed', { error: error.message });
+    //   }
+    // }
   });
-});
+
+  // Graceful shutdown
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM received. Shutting down gracefully...');
+    server.close(() => {
+      console.log('Server closed');
+      process.exit(0);
+    });
+  });
+}
+
+// Export for Vercel
+module.exports = app;

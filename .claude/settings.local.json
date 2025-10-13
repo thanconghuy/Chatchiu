@@ -17,7 +17,8 @@
       "Bash(psql:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(vercel:*)"
+      "Bash(vercel:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []

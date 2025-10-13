@@ -1,34 +1,9 @@
 {
   "version": 2,
-  "builds": [
+  "rewrites": [
     {
-      "src": "server-cashback.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "frontend/**",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "public/**",
-      "use": "@vercel/static"
+      "source": "/api/(.*)",
+      "destination": "/api"
     }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "server-cashback.js"
-    },
-    {
-      "src": "/health",
-      "dest": "server-cashback.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "server-cashback.js"
-    }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  ]
 }
