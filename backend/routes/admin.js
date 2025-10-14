@@ -551,16 +551,25 @@ router.post('/import-conversions', authenticateAdmin, async (req, res) => {
     for (const conversion of conversions) {
       try {
         logger.info('Processing conversion', {
-          orderId: conversion._id,
+          orderId: conversion.order_id || conversion._id,
           affSid: conversion.aff_sid,
           merchantId: conversion.merchant_id,
-          status: conversion.status
+          status: conversion.is_confirmed
         });
 
-        const result = await trackingService.processConversion(conversion);
+        // First try normal processing (requires matching click)
+        let result = await trackingService.processConversion(conversion);
+
+        // If skipped due to no matching click, try direct import
+        if (result.status === 'skipped' && result.reason === 'no_matching_click') {
+          logger.info('No matching click found, attempting direct import', {
+            orderId: conversion.order_id || conversion._id
+          });
+          result = await trackingService.createConversionDirect(conversion, null);
+        }
 
         logger.info('Conversion processed', {
-          orderId: conversion._id,
+          orderId: conversion.order_id || conversion._id,
           result: result.status,
           reason: result.reason
         });
@@ -570,7 +579,7 @@ router.post('/import-conversions', authenticateAdmin, async (req, res) => {
             results.created++;
             results.details.push({
               status: 'created',
-              orderId: conversion._id,
+              orderId: conversion.order_id || conversion._id,
               conversionId: result.conversionId
             });
             break;
@@ -578,7 +587,7 @@ router.post('/import-conversions', authenticateAdmin, async (req, res) => {
             results.updated++;
             results.details.push({
               status: 'updated',
-              orderId: conversion._id,
+              orderId: conversion.order_id || conversion._id,
               conversionId: result.conversionId,
               oldStatus: result.oldStatus,
               newStatus: result.newStatus
@@ -588,7 +597,7 @@ router.post('/import-conversions', authenticateAdmin, async (req, res) => {
             results.skipped++;
             results.details.push({
               status: 'skipped',
-              orderId: conversion._id,
+              orderId: conversion.order_id || conversion._id,
               reason: result.reason
             });
             break;
@@ -596,7 +605,7 @@ router.post('/import-conversions', authenticateAdmin, async (req, res) => {
             results.errors++;
             results.details.push({
               status: 'error',
-              orderId: conversion._id,
+              orderId: conversion.order_id || conversion._id,
               reason: result.reason
             });
             break;
@@ -608,7 +617,7 @@ router.post('/import-conversions', authenticateAdmin, async (req, res) => {
         results.errors++;
         results.details.push({
           status: 'error',
-          orderId: conversion._id,
+          orderId: conversion.order_id || conversion._id,
           reason: error.message
         });
       }

@@ -70,7 +70,7 @@ class TrackingService {
    * @returns {Promise<Object>}
    */
   async handleExistingConversion(existingConversion, accesstradeData) {
-    const newStatus = this.mapAccessTradeStatus(accesstradeData.status);
+    const newStatus = this.mapAccessTradeStatus(accesstradeData.is_confirmed || accesstradeData.status);
 
     // Check if status changed from pending to approved
     if (existingConversion.status === 'pending' && newStatus === 'approved') {
@@ -138,7 +138,7 @@ class TrackingService {
     if (utmContent) {
       logger.info('Attempting to match by utm_content (click_id)', {
         utmContent,
-        orderId: accesstradeData._id
+        orderId: accesstradeData.order_id || accesstradeData._id
       });
       click = await Click.findByUtmContent(utmContent);
     }
@@ -147,18 +147,19 @@ class TrackingService {
     if (!click) {
       logger.info('No match by utm_content, trying aff_sid', {
         affSid,
-        orderId: accesstradeData._id
+        orderId: accesstradeData.order_id || accesstradeData._id
       });
       click = await Click.findByAffSid(affSid);
     }
 
     if (!click) {
-      logger.warn('No matching click found', {
+      logger.warn('No matching click found - conversion will be skipped', {
         affSid,
         utmContent,
-        orderId: accesstradeData._id
+        orderId: accesstradeData.order_id || accesstradeData._id,
+        hint: 'Use createConversionDirect() to create without click match'
       });
-      return { status: 'skipped', reason: 'no_matching_click' };
+      return { status: 'skipped', reason: 'no_matching_click', orderId: accesstradeData.order_id || accesstradeData._id };
     }
 
     logger.info('Found matching click', {
@@ -307,6 +308,93 @@ class TrackingService {
     }
 
     return 'pending';
+  }
+
+  /**
+   * Create conversion directly without requiring a click match
+   * Useful for importing historical conversions
+   * @param {Object} accesstradeData - Raw conversion data from AccessTrade API
+   * @param {string} userId - User ID to assign the conversion to (optional)
+   * @returns {Promise<Object>}
+   */
+  async createConversionDirect(accesstradeData, userId = null) {
+    try {
+      const orderId = accesstradeData.order_id || accesstradeData._id;
+
+      logger.info('Creating conversion directly (without click match)', {
+        orderId,
+        userId
+      });
+
+      // Check if conversion already exists
+      const existingConversion = await Conversion.findByAccessTradeId(orderId);
+      if (existingConversion) {
+        logger.info('Conversion already exists', { orderId, existingId: existingConversion.id });
+        return { status: 'skipped', reason: 'already_exists', conversionId: existingConversion.id };
+      }
+
+      // Calculate cashback
+      const commissionAmount = parseFloat(accesstradeData.pub_commission || accesstradeData.commission || 0);
+      const platformCut = commissionAmount * (1 - this.commissionSplit);
+      const userCashback = commissionAmount * this.commissionSplit;
+
+      // Map status
+      const status = this.mapAccessTradeStatus(accesstradeData.is_confirmed || accesstradeData.status);
+
+      // Parse timestamps
+      const orderTime = new Date(accesstradeData.sales_time || accesstradeData.click_time || accesstradeData.order_time);
+      const approvalTime = status === 'approved' ? new Date() : null;
+
+      // Get merchant ID
+      const merchantId = accesstradeData.merchant_id || accesstradeData.merchant;
+
+      // Create conversion record (with null click_id since we don't have a match)
+      const conversion = await Conversion.create({
+        clickId: null, // No click match
+        accesstradeId: orderId,
+        merchantId: merchantId,
+        orderCode: accesstradeData.order_code || orderId,
+        orderAmount: parseFloat(accesstradeData.billing || 0),
+        commission: commissionAmount,
+        cashbackAmount: userCashback,
+        status: status,
+        orderTime: orderTime,
+        approvalTime: approvalTime
+      });
+
+      logger.success('Created conversion directly', {
+        conversionId: conversion.id,
+        cashbackAmount: userCashback,
+        status,
+        hasUserId: !!userId
+      });
+
+      // Update user balance if userId is provided
+      if (userId) {
+        if (status === 'approved') {
+          await User.updateBalance(userId, 'add_pending', userCashback);
+          await User.updateBalance(userId, 'pending_to_available', userCashback);
+          logger.success('Updated user balance (approved)', { userId, amount: userCashback });
+        } else if (status === 'pending') {
+          await User.updateBalance(userId, 'add_pending', userCashback);
+          logger.success('Updated user pending balance', { userId, amount: userCashback });
+        }
+      }
+
+      return {
+        status: 'created',
+        conversionId: conversion.id,
+        userId: userId,
+        cashbackAmount: userCashback
+      };
+    } catch (error) {
+      logger.error('Error creating conversion directly', {
+        orderId: accesstradeData.order_id || accesstradeData._id,
+        error: error.message,
+        stack: error.stack
+      });
+      return { status: 'error', reason: error.message };
+    }
   }
 }
 
