@@ -236,31 +236,61 @@ function displayTransactions(transactions) {
 }
 
 /**
- * Display conversions
+ * Display conversions in table
  */
 function displayConversions(conversions) {
+    const tableContainer = document.getElementById('conversionsTableContainer');
+    const tableBody = document.getElementById('conversionsTableBody');
+
     if (conversions.length === 0) {
-        convResult.classList.add('empty');
-        convResult.textContent = 'Không có conversions nào';
+        tableContainer.style.display = 'none';
         convCount.textContent = '0';
         return;
     }
 
-    convResult.classList.remove('empty');
-    convResult.innerHTML = conversions.slice(0, 10).map(conv => `
-        <div class="result-item">
-            <strong>ID:</strong> ${conv._id}<br>
-            <strong>Merchant:</strong> ${conv.merchant_name || conv.merchant_id}<br>
-            <strong>Commission:</strong> ${conv.commission ? formatCurrency(parseFloat(conv.commission)) : '0đ'}<br>
-            <strong>Status:</strong> ${conv.status || 'N/A'}<br>
-            <strong>aff_sid:</strong> ${conv.aff_sid || conv.sub_id || 'N/A'}
-        </div>
+    // Format status badge
+    const getStatusBadge = (status) => {
+        const statusMap = {
+            '0': { text: 'Pending', color: '#f59e0b', bg: '#fef3c7' },
+            '1': { text: 'Approved', color: '#10b981', bg: '#d1fae5' },
+            '2': { text: 'Rejected', color: '#ef4444', bg: '#fee2e2' }
+        };
+        const s = statusMap[status] || { text: 'Unknown', color: '#6b7280', bg: '#f3f4f6' };
+        return `<span style="background: ${s.bg}; color: ${s.color}; padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">${s.text}</span>`;
+    };
+
+    // Format date
+    const formatDateTime = (dateStr) => {
+        if (!dateStr) return '-';
+        try {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('vi-VN', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch {
+            return dateStr;
+        }
+    };
+
+    // Render table rows
+    tableBody.innerHTML = conversions.map(conv => `
+        <tr style="border-bottom: 1px solid #f1f1f1;">
+            <td style="padding: 10px 8px;">${conv.order_id || conv._id || '-'}</td>
+            <td style="padding: 10px 8px;">${conv.merchant || '-'}</td>
+            <td style="padding: 10px 8px; text-align: right; font-weight: 600;">${conv.billing ? formatCurrency(parseFloat(conv.billing)) : '-'}</td>
+            <td style="padding: 10px 8px; text-align: right; font-weight: 600; color: #10b981;">${conv.pub_commission ? formatCurrency(parseFloat(conv.pub_commission)) : '-'}</td>
+            <td style="padding: 10px 8px; text-align: center;">${getStatusBadge(conv.is_confirmed)}</td>
+            <td style="padding: 10px 8px; font-size: 0.8rem;">${formatDateTime(conv.click_time)}</td>
+            <td style="padding: 10px 8px; font-size: 0.8rem;">${formatDateTime(conv.sales_time)}</td>
+            <td style="padding: 10px 8px;">${conv.utm_source || '-'}</td>
+        </tr>
     `).join('');
 
-    if (conversions.length > 10) {
-        convResult.innerHTML += `<div style="text-align: center; padding: 8px; color: var(--gray-600);">... và ${conversions.length - 10} conversions nữa</div>`;
-    }
-
+    tableContainer.style.display = 'block';
     convCount.textContent = conversions.length;
 }
 
