@@ -7,7 +7,7 @@ const logger = require('../utils/logger');
  */
 class AccessTradeService {
   constructor() {
-    this.accessToken = process.env.ACCESSTRADE_ACCESS_TOKEN;
+    this.accessToken = process.env.ACCESSTRADE_ACCESS_TOKEN || process.env.ACCESSTRADE_API_TOKEN;
     this.baseURL = 'https://api.accesstrade.vn/v1';
 
     if (!this.accessToken) {
@@ -17,10 +17,16 @@ class AccessTradeService {
     this.axiosInstance = axios.create({
       baseURL: this.baseURL,
       headers: {
-        'Authorization': `Bearer ${this.accessToken}`,
+        'Authorization': `Token ${this.accessToken}`,  // AccessTrade uses "Token" not "Bearer"
         'Content-Type': 'application/json'
       },
       timeout: 30000 // 30 seconds
+    });
+
+    logger.info('AccessTrade Service initialized', {
+      hasToken: !!this.accessToken,
+      tokenPreview: this.accessToken ? this.accessToken.substring(0, 10) + '...' : 'N/A',
+      baseURL: this.baseURL
     });
   }
 
