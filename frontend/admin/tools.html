@@ -256,8 +256,13 @@
                     <div class="result-box empty" id="convResult">
                         Chưa có dữ liệu
                     </div>
-                    <div style="margin-top: 12px; color: var(--gray-600); font-size: 0.9rem;">
-                        <strong>Tổng:</strong> <span id="convCount">0</span> conversions
+                    <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center;">
+                        <div style="color: var(--gray-600); font-size: 0.9rem;">
+                            <strong>Tổng:</strong> <span id="convCount">0</span> conversions
+                        </div>
+                        <button class="btn-fetch" id="importFetchedConversionsBtn" style="width: auto; padding: 8px 16px; font-size: 0.9rem; display: none;">
+                            📥 Import vào Database
+                        </button>
                     </div>
                 </div>
             </div>

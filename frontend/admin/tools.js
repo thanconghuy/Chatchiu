@@ -32,6 +32,7 @@ const convEndDate = document.getElementById('convEndDate');
 const fetchConversionsBtn = document.getElementById('fetchConversionsBtn');
 const convResult = document.getElementById('convResult');
 const convCount = document.getElementById('convCount');
+const importFetchedConversionsBtn = document.getElementById('importFetchedConversionsBtn');
 
 // Manual Sync
 const syncBtn = document.getElementById('syncBtn');
@@ -127,6 +128,7 @@ function parseDateInput(dateStr) {
 function setupEventListeners() {
     fetchTransactionsBtn.addEventListener('click', fetchTransactions);
     fetchConversionsBtn.addEventListener('click', fetchConversions);
+    importFetchedConversionsBtn.addEventListener('click', importFetchedConversions);
     syncBtn.addEventListener('click', manualSync);
     importBtn.addEventListener('click', importData);
 
@@ -186,7 +188,12 @@ async function fetchConversions() {
         if (response.success) {
             fetchedConversions = response.data;
             displayConversions(response.data);
-            checkImportReady();
+
+            // Show import button if we have data
+            if (response.data && response.data.length > 0) {
+                importFetchedConversionsBtn.style.display = 'block';
+            }
+
             showToast(`Loaded ${response.data.length} conversions`, 'success');
         }
     } catch (error) {
@@ -269,7 +276,49 @@ function checkImportReady() {
 }
 
 /**
- * Import data to database
+ * Import fetched conversions to database
+ */
+async function importFetchedConversions() {
+    if (!fetchedConversions || fetchedConversions.length === 0) {
+        showToast('Không có data để import', 'error');
+        return;
+    }
+
+    if (!confirm(`Import ${fetchedConversions.length} conversions vào database?\n\nHệ thống sẽ:\n- Lọc trùng theo accesstrade_id\n- Match với clicks để tìm user\n- Tính cashback và cập nhật balance`)) {
+        return;
+    }
+
+    try {
+        importFetchedConversionsBtn.disabled = true;
+        importFetchedConversionsBtn.textContent = '⏳ Đang import...';
+
+        const response = await apiRequest('/admin/import-conversions', {
+            method: 'POST',
+            body: JSON.stringify({
+                conversions: fetchedConversions
+            })
+        });
+
+        if (response.success) {
+            const result = response.result;
+
+            showToast(`Import thành công! Created: ${result.created}, Updated: ${result.updated}, Skipped: ${result.skipped}`, 'success');
+
+            // Clear and hide button
+            fetchedConversions = null;
+            importFetchedConversionsBtn.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error importing conversions:', error);
+        showToast('Failed to import conversions: ' + error.message, 'error');
+    } finally {
+        importFetchedConversionsBtn.disabled = false;
+        importFetchedConversionsBtn.textContent = '📥 Import vào Database';
+    }
+}
+
+/**
+ * Import data to database (old function for manual import section)
  */
 async function importData() {
     if (!fetchedConversions || fetchedConversions.length === 0) {
