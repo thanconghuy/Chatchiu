@@ -19,23 +19,34 @@ class TrackingService {
    */
   async processConversion(accesstradeData) {
     try {
-      // Extract aff_sid from conversion data
-      const affSid = accesstradeData.aff_sid || accesstradeData.sub_id;
+      // AccessTrade API uses different field names
+      // Map to consistent format
+      const orderId = accesstradeData.order_id || accesstradeData._id;
+      const affSid = accesstradeData.aff_sid || accesstradeData.sub_id || accesstradeData.utm_campaign;
+      const merchantId = accesstradeData.merchant_id || accesstradeData.merchant;
+
+      logger.info('Processing conversion with data:', {
+        orderId,
+        affSid,
+        merchantId,
+        rawKeys: Object.keys(accesstradeData)
+      });
 
       if (!affSid) {
         logger.warn('Conversion missing aff_sid/sub_id', {
-          orderId: accesstradeData._id
+          orderId,
+          availableFields: Object.keys(accesstradeData)
         });
         return { status: 'skipped', reason: 'missing_aff_sid' };
       }
 
       logger.info(`Processing conversion for aff_sid: ${affSid}`, {
-        orderId: accesstradeData._id,
-        merchantId: accesstradeData.merchant_id
+        orderId,
+        merchantId
       });
 
       // Check if conversion already exists
-      const existingConversion = await Conversion.findByAccessTradeId(accesstradeData._id);
+      const existingConversion = await Conversion.findByAccessTradeId(orderId);
 
       if (existingConversion) {
         return await this.handleExistingConversion(existingConversion, accesstradeData);
@@ -44,8 +55,9 @@ class TrackingService {
       }
     } catch (error) {
       logger.error('Error processing conversion', {
-        orderId: accesstradeData._id,
-        error: error.message
+        orderId: accesstradeData.order_id || accesstradeData._id,
+        error: error.message,
+        stack: error.stack
       });
       return { status: 'error', reason: error.message };
     }
@@ -155,8 +167,8 @@ class TrackingService {
       userId: click.user_id
     });
 
-    // Calculate cashback
-    const commissionAmount = parseFloat(accesstradeData.commission || 0);
+    // Calculate cashback - AccessTrade uses pub_commission field
+    const commissionAmount = parseFloat(accesstradeData.pub_commission || accesstradeData.commission || 0);
     const platformCut = commissionAmount * (1 - this.commissionSplit);
     const userCashback = commissionAmount * this.commissionSplit;
 
@@ -167,19 +179,23 @@ class TrackingService {
       split: this.commissionSplit
     });
 
-    // Map AccessTrade status to our status
-    const status = this.mapAccessTradeStatus(accesstradeData.status);
+    // Map AccessTrade status to our status (is_confirmed: 0=pending, 1=approved, 2=rejected)
+    const status = this.mapAccessTradeStatus(accesstradeData.is_confirmed || accesstradeData.status);
 
-    // Parse order time
-    const orderTime = new Date(accesstradeData.click_time || accesstradeData.order_time);
+    // Parse order time - AccessTrade uses sales_time and click_time
+    const orderTime = new Date(accesstradeData.sales_time || accesstradeData.click_time || accesstradeData.order_time);
     const approvalTime = status === 'approved' ? new Date() : null;
+
+    // Get order ID and merchant ID
+    const orderId = accesstradeData.order_id || accesstradeData._id;
+    const merchantId = click.merchant_id || accesstradeData.merchant_id || accesstradeData.merchant;
 
     // Create conversion record
     const conversion = await Conversion.create({
       clickId: click.id,
-      accesstradeId: accesstradeData._id,
-      merchantId: click.merchant_id,
-      orderCode: accesstradeData.order_code || accesstradeData._id,
+      accesstradeId: orderId,
+      merchantId: merchantId,
+      orderCode: accesstradeData.order_code || orderId,
       orderAmount: parseFloat(accesstradeData.billing || 0),
       commission: commissionAmount,
       cashbackAmount: userCashback,
@@ -256,27 +272,37 @@ class TrackingService {
 
   /**
    * Map AccessTrade status to our status
-   * @param {string} accesstradeStatus
+   * @param {string|number} accesstradeStatus
    * @returns {string}
    */
   mapAccessTradeStatus(accesstradeStatus) {
-    // AccessTrade statuses:
-    // - pending: Order is pending approval
-    // - approved: Order is approved
-    // - rejected: Order is rejected
-    // - cancelled: Order is cancelled
+    // AccessTrade API uses numeric status (is_confirmed):
+    // 0 = Pending
+    // 1 = Approved
+    // 2 = Rejected
 
-    if (!accesstradeStatus) {
+    // Also handle string statuses for backward compatibility
+
+    if (accesstradeStatus === null || accesstradeStatus === undefined) {
       return 'pending';
     }
 
-    const statusLower = accesstradeStatus.toLowerCase();
+    // Handle numeric status
+    const numStatus = parseInt(accesstradeStatus);
+    if (!isNaN(numStatus)) {
+      if (numStatus === 1) return 'approved';
+      if (numStatus === 2) return 'rejected';
+      return 'pending';
+    }
 
-    if (statusLower === 'approved' || statusLower === 'success') {
+    // Handle string status
+    const statusLower = String(accesstradeStatus).toLowerCase();
+
+    if (statusLower === 'approved' || statusLower === 'success' || statusLower === '1') {
       return 'approved';
     }
 
-    if (statusLower === 'rejected' || statusLower === 'cancelled') {
+    if (statusLower === 'rejected' || statusLower === 'cancelled' || statusLower === '2') {
       return 'rejected';
     }
 
