@@ -314,96 +314,35 @@ router.get('/user/:id', authenticateAdmin, async (req, res) => {
 });
 
 /**
- * POST /api/admin/sync-conversions
- * Manual trigger for conversion sync
- */
-router.post('/sync-conversions', authenticateAdmin, async (req, res) => {
-  try {
-    logger.info('Manual sync triggered by admin', {
-      adminId: req.userId,
-      adminEmail: req.user.email
-    });
-
-    // Run sync in background
-    syncConversions()
-      .then((results) => {
-        logger.success('Manual sync completed', results);
-      })
-      .catch((error) => {
-        logger.error('Manual sync failed', { error: error.message });
-      });
-
-    res.json({
-      success: true,
-      message: 'Sync started in background'
-    });
-  } catch (error) {
-    console.error('Trigger sync error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to trigger sync'
-    });
-  }
-});
-
-/**
- * GET /api/admin/fetch-transactions
- * Fetch transactions from AccessTrade API
- */
-router.get('/fetch-transactions', authenticateAdmin, async (req, res) => {
-  try {
-    const { since, until } = req.query;
-
-    if (!since || !until) {
-      return res.status(400).json({
-        success: false,
-        message: 'since and until parameters are required'
-      });
-    }
-
-    const startDate = new Date(since);
-    const endDate = new Date(until);
-
-    const transactions = await accessTradeService.getConversions(startDate, endDate);
-
-    res.json({
-      success: true,
-      data: transactions,
-      count: transactions.length
-    });
-  } catch (error) {
-    console.error('Fetch transactions error:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message || 'Failed to fetch transactions'
-    });
-  }
-});
-
-/**
  * GET /api/admin/fetch-conversions
- * Fetch conversions from AccessTrade API
+ * Fetch conversions from AccessTrade API với pagination
  */
 router.get('/fetch-conversions', authenticateAdmin, async (req, res) => {
   try {
-    const { since, until } = req.query;
+    const { since, until, status, page, limit } = req.query;
 
     if (!since || !until) {
       return res.status(400).json({
         success: false,
-        message: 'since and until parameters are required'
+        message: 'since and until parameters are required (ISO format: 2021-01-01T00:00:00Z)'
       });
     }
 
     const startDate = new Date(since);
     const endDate = new Date(until);
 
-    const conversions = await accessTradeService.getConversions(startDate, endDate);
+    const options = {
+      page: parseInt(page) || 1,
+      limit: parseInt(limit) || 300,
+      ...(status && { status: parseInt(status) }) // 0: Pending, 1: Approved, 2: Rejected
+    };
+
+    const response = await accessTradeService.getConversions(startDate, endDate, options);
 
     res.json({
       success: true,
-      data: conversions,
-      count: conversions.length
+      data: response.data,
+      pagination: response.pagination
     });
   } catch (error) {
     console.error('Fetch conversions error:', error);

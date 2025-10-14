@@ -23,8 +23,9 @@ async function syncConversions() {
       endDate: endDate.toISOString()
     });
 
-    // Fetch conversions from AccessTrade
-    const conversions = await accessTradeService.getConversions(startDate, endDate);
+    // Fetch conversions from AccessTrade (với limit tối đa)
+    const response = await accessTradeService.getConversions(startDate, endDate, { limit: 300 });
+    const conversions = response.data || [];
 
     if (conversions.length === 0) {
       logger.info('No conversions found in the specified period');
@@ -37,7 +38,7 @@ async function syncConversions() {
       };
     }
 
-    logger.info(`Processing ${conversions.length} conversions...`);
+    logger.info(`Processing ${conversions.length} conversions (Total: ${response.pagination.total})...`);
 
     // Process each conversion
     const results = {

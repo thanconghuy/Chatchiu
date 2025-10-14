@@ -28,30 +28,62 @@ class AccessTradeService {
    * Get conversions from AccessTrade API
    * @param {Date} startDate
    * @param {Date} endDate
+   * @param {Object} options - Additional query parameters
    * @returns {Promise<Array>}
    */
-  async getConversions(startDate, endDate) {
+  async getConversions(startDate, endDate, options = {}) {
     try {
       // Format dates to ISO string with Z timezone
       const since = startDate.toISOString();
       const until = endDate.toISOString();
 
-      logger.info(`Fetching conversions from AccessTrade`, { since, until });
+      const params = {
+        since,
+        until,
+        limit: options.limit || 300, // Tối đa 300
+        page: options.page || 1,
+        ...options.status && { status: options.status }, // 0: Pending, 1: Approved, 2: Rejected
+        ...options.merchant && { merchant: options.merchant },
+        ...options.utm_source && { utm_source: options.utm_source },
+        ...options.utm_campaign && { utm_campaign: options.utm_campaign },
+        ...options.utm_medium && { utm_medium: options.utm_medium },
+        ...options.utm_content && { utm_content: options.utm_content }
+      };
+
+      logger.info(`Fetching conversions from AccessTrade`, params);
 
       const response = await this.axiosInstance.get('/order-list', {
-        params: {
-          since,
-          until
-        }
+        params
       });
 
       if (response.data && response.data.data) {
         const conversions = response.data.data;
-        logger.success(`Fetched ${conversions.length} conversions from AccessTrade`);
-        return conversions;
+        const total = response.data.total || conversions.length;
+        const currentPage = response.data.page || 1;
+        const totalPages = response.data.total_page || 1;
+
+        logger.success(`Fetched ${conversions.length} conversions from AccessTrade (Page ${currentPage}/${totalPages}, Total: ${total})`);
+
+        return {
+          data: conversions,
+          pagination: {
+            total,
+            page: currentPage,
+            total_page: totalPages,
+            limit: params.limit
+          }
+        };
       }
 
-      return [];
+      return {
+        data: [],
+        pagination: {
+          total: 0,
+          page: 1,
+          total_page: 0,
+          limit: params.limit
+        }
+      };
     } catch (error) {
       logger.error('Failed to fetch conversions from AccessTrade', {
         message: error.message,
@@ -61,7 +93,7 @@ class AccessTradeService {
 
       // Handle rate limiting
       if (error.response?.status === 429) {
-        logger.warn('AccessTrade API rate limit exceeded');
+        logger.warn('AccessTrade API rate limit exceeded - waiting 60 seconds');
         throw new Error('Rate limit exceeded');
       }
 
