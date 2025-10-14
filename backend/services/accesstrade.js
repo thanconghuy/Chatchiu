@@ -56,6 +56,29 @@ class AccessTradeService {
         params
       });
 
+      // Debug: Log full response structure
+      logger.info('AccessTrade API Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        hasData: !!response.data,
+        dataKeys: response.data ? Object.keys(response.data) : [],
+        dataType: typeof response.data
+      });
+
+      // Debug: Log response data structure
+      if (response.data) {
+        logger.info('Response data structure:', {
+          hasDataField: 'data' in response.data,
+          dataLength: response.data.data ? response.data.data.length : 0,
+          sampleData: response.data.data ? response.data.data[0] : null,
+          pagination: {
+            total: response.data.total,
+            page: response.data.page,
+            total_page: response.data.total_page
+          }
+        });
+      }
+
       if (response.data && response.data.data) {
         const conversions = response.data.data;
         const total = response.data.total || conversions.length;
@@ -75,6 +98,8 @@ class AccessTradeService {
         };
       }
 
+      logger.warn('No data found in response');
+
       return {
         data: [],
         pagination: {
@@ -85,16 +110,28 @@ class AccessTradeService {
         }
       };
     } catch (error) {
+      // Debug: Log detailed error info
       logger.error('Failed to fetch conversions from AccessTrade', {
         message: error.message,
         status: error.response?.status,
-        data: error.response?.data
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        headers: error.response?.headers,
+        requestUrl: error.config?.url,
+        requestParams: error.config?.params,
+        hasAccessToken: !!this.accessToken,
+        accessTokenPrefix: this.accessToken ? this.accessToken.substring(0, 10) + '...' : 'N/A'
       });
 
       // Handle rate limiting
       if (error.response?.status === 429) {
         logger.warn('AccessTrade API rate limit exceeded - waiting 60 seconds');
-        throw new Error('Rate limit exceeded');
+        throw new Error('Rate limit exceeded: Please wait 60 seconds before trying again');
+      }
+
+      // Handle authentication errors
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        throw new Error('Authentication failed: Please check ACCESSTRADE_ACCESS_TOKEN');
       }
 
       throw error;

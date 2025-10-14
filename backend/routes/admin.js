@@ -314,6 +314,58 @@ router.get('/user/:id', authenticateAdmin, async (req, res) => {
 });
 
 /**
+ * GET /api/admin/test-accesstrade
+ * Test AccessTrade API connection with debug info
+ */
+router.get('/test-accesstrade', authenticateAdmin, async (req, res) => {
+  try {
+    logger.info('Testing AccessTrade API connection', {
+      adminId: req.userId,
+      hasToken: !!process.env.ACCESSTRADE_ACCESS_TOKEN
+    });
+
+    // Test với 7 ngày gần nhất
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 7);
+
+    const response = await accessTradeService.getConversions(startDate, endDate, { limit: 10 });
+
+    res.json({
+      success: true,
+      message: 'AccessTrade API test successful',
+      config: {
+        baseURL: 'https://api.accesstrade.vn/v1',
+        hasToken: !!process.env.ACCESSTRADE_ACCESS_TOKEN,
+        tokenPrefix: process.env.ACCESSTRADE_ACCESS_TOKEN ?
+          process.env.ACCESSTRADE_ACCESS_TOKEN.substring(0, 10) + '...' : 'N/A'
+      },
+      request: {
+        since: startDate.toISOString(),
+        until: endDate.toISOString(),
+        limit: 10
+      },
+      response: {
+        dataCount: response.data.length,
+        pagination: response.pagination,
+        sampleData: response.data[0] || null
+      }
+    });
+  } catch (error) {
+    logger.error('AccessTrade API test failed', {
+      error: error.message
+    });
+
+    res.status(500).json({
+      success: false,
+      message: 'AccessTrade API test failed',
+      error: error.message,
+      details: error.response?.data || null
+    });
+  }
+});
+
+/**
  * GET /api/admin/fetch-conversions
  * Fetch conversions from AccessTrade API với pagination
  */
