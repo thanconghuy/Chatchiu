@@ -314,6 +314,55 @@ router.get('/user/:id', authenticateAdmin, async (req, res) => {
 });
 
 /**
+ * GET /api/admin/check-database
+ * Check database connection and tables
+ */
+router.get('/check-database', authenticateAdmin, async (req, res) => {
+  try {
+    const dbCheck = {
+      connected: false,
+      tables: {},
+      error: null
+    };
+
+    // Test connection
+    const testQuery = await pool.query('SELECT NOW()');
+    dbCheck.connected = true;
+    dbCheck.serverTime = testQuery.rows[0].now;
+
+    // Check tables
+    const tables = ['users', 'clicks', 'conversions', 'merchants'];
+
+    for (const table of tables) {
+      try {
+        const countQuery = await pool.query(`SELECT COUNT(*) as count FROM ${table}`);
+        dbCheck.tables[table] = {
+          exists: true,
+          count: parseInt(countQuery.rows[0].count)
+        };
+      } catch (error) {
+        dbCheck.tables[table] = {
+          exists: false,
+          error: error.message
+        };
+      }
+    }
+
+    res.json({
+      success: true,
+      database: dbCheck
+    });
+  } catch (error) {
+    logger.error('Database check error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Database check failed',
+      error: error.message
+    });
+  }
+});
+
+/**
  * GET /api/admin/check-env
  * Check environment variables configuration
  */
@@ -485,7 +534,8 @@ router.post('/import-conversions', authenticateAdmin, async (req, res) => {
 
     logger.info('Import conversions triggered by admin', {
       adminId: req.userId,
-      count: conversions.length
+      count: conversions.length,
+      sampleConversion: conversions[0] || null
     });
 
     const results = {
@@ -500,7 +550,20 @@ router.post('/import-conversions', authenticateAdmin, async (req, res) => {
     // Process each conversion
     for (const conversion of conversions) {
       try {
+        logger.info('Processing conversion', {
+          orderId: conversion._id,
+          affSid: conversion.aff_sid,
+          merchantId: conversion.merchant_id,
+          status: conversion.status
+        });
+
         const result = await trackingService.processConversion(conversion);
+
+        logger.info('Conversion processed', {
+          orderId: conversion._id,
+          result: result.status,
+          reason: result.reason
+        });
 
         switch (result.status) {
           case 'created':
