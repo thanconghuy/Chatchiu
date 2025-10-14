@@ -314,6 +314,69 @@ router.get('/user/:id', authenticateAdmin, async (req, res) => {
 });
 
 /**
+ * GET /api/admin/check-env
+ * Check environment variables configuration
+ */
+router.get('/check-env', authenticateAdmin, async (req, res) => {
+  try {
+    const envStatus = {
+      ACCESSTRADE_ACCESS_TOKEN: {
+        configured: !!process.env.ACCESSTRADE_ACCESS_TOKEN,
+        preview: process.env.ACCESSTRADE_ACCESS_TOKEN ?
+          process.env.ACCESSTRADE_ACCESS_TOKEN.substring(0, 10) + '...' : 'NOT SET'
+      },
+      ACCESSTRADE_API_TOKEN: {
+        configured: !!process.env.ACCESSTRADE_API_TOKEN,
+        preview: process.env.ACCESSTRADE_API_TOKEN ?
+          process.env.ACCESSTRADE_API_TOKEN.substring(0, 10) + '...' : 'NOT SET'
+      },
+      DATABASE_URL: {
+        configured: !!process.env.DATABASE_URL,
+        preview: process.env.DATABASE_URL ?
+          'postgresql://...' + process.env.DATABASE_URL.split('@')[1]?.substring(0, 20) + '...' : 'NOT SET'
+      },
+      JWT_SECRET: {
+        configured: !!process.env.JWT_SECRET,
+        preview: process.env.JWT_SECRET ?
+          process.env.JWT_SECRET.substring(0, 10) + '...' : 'NOT SET'
+      },
+      JWT_EXPIRES_IN: {
+        configured: !!process.env.JWT_EXPIRES_IN,
+        value: process.env.JWT_EXPIRES_IN || 'NOT SET'
+      },
+      COMMISSION_SPLIT: {
+        configured: !!process.env.COMMISSION_SPLIT,
+        value: process.env.COMMISSION_SPLIT || 'NOT SET'
+      },
+      NODE_ENV: {
+        configured: !!process.env.NODE_ENV,
+        value: process.env.NODE_ENV || 'NOT SET'
+      },
+      VERCEL: {
+        configured: !!process.env.VERCEL,
+        value: process.env.VERCEL || 'NOT SET'
+      }
+    };
+
+    const allConfigured = Object.values(envStatus).every(env => env.configured);
+
+    res.json({
+      success: true,
+      allConfigured,
+      environment: envStatus,
+      warnings: !allConfigured ?
+        'Some environment variables are not configured. Please check Vercel dashboard.' : null
+    });
+  } catch (error) {
+    logger.error('Check env error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check environment variables'
+    });
+  }
+});
+
+/**
  * GET /api/admin/test-accesstrade
  * Test AccessTrade API connection with debug info
  */
