@@ -30,7 +30,6 @@ const txCount = document.getElementById('txCount');
 const convStartDate = document.getElementById('convStartDate');
 const convEndDate = document.getElementById('convEndDate');
 const fetchConversionsBtn = document.getElementById('fetchConversionsBtn');
-const convResult = document.getElementById('convResult');
 const convCount = document.getElementById('convCount');
 const importFetchedConversionsBtn = document.getElementById('importFetchedConversionsBtn');
 
@@ -175,13 +174,19 @@ async function fetchTransactions() {
  */
 async function fetchConversions() {
     try {
+        // Validate inputs
+        if (!convStartDate.value || !convEndDate.value) {
+            showToast('Vui lòng nhập ngày bắt đầu và kết thúc', 'error');
+            return;
+        }
+
         fetchConversionsBtn.disabled = true;
         fetchConversionsBtn.textContent = 'Đang tải...';
-        convResult.classList.add('empty');
-        convResult.textContent = 'Đang tải dữ liệu...';
 
         const startDate = parseDateInput(convStartDate.value).toISOString();
         const endDate = parseDateInput(convEndDate.value).toISOString();
+
+        console.log('Fetching conversions:', { startDate, endDate });
 
         const response = await apiRequest(`/admin/fetch-conversions?since=${startDate}&until=${endDate}`);
 
@@ -198,9 +203,13 @@ async function fetchConversions() {
         }
     } catch (error) {
         console.error('Error fetching conversions:', error);
-        convResult.classList.add('empty');
-        convResult.innerHTML = `<span style="color: var(--danger);">Error: ${error.message}</span>`;
-        showToast('Failed to fetch conversions', 'error');
+
+        const tableContainer = document.getElementById('conversionsTableContainer');
+        if (tableContainer) {
+            tableContainer.style.display = 'none';
+        }
+
+        showToast('Lỗi: ' + error.message, 'error');
     } finally {
         fetchConversionsBtn.disabled = false;
         fetchConversionsBtn.textContent = 'Lấy Conversions';
