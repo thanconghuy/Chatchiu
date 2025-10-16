@@ -3,7 +3,8 @@
     "allow": [
       "Bash(do echo \"=== $file ===\")",
       "Bash(for file in users.html conversions.html transactions.html)",
-      "Bash(do echo \"Processing $file...\")"
+      "Bash(do echo \"Processing $file...\")",
+      "Bash(node -e \"\nconst Merchant = require(''./models/Merchant'');\n(async () => {\n  const m = await Merchant.findById(''lazada'');\n  console.log(JSON.stringify(m, null, 2));\n  process.exit(0);\n})();\n\")"
     ],
     "deny": [],
     "ask": []

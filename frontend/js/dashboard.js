@@ -168,11 +168,44 @@ function openMerchantModal(merchantId) {
     document.getElementById('merchantNameBtn1').textContent = merchant.name;
     document.getElementById('merchantNameOption2').textContent = merchant.name;
 
+    // Update placeholder with merchant's domain
+    const placeholderUrl = getMerchantPlaceholder(merchant.id, merchant.deepLinkBase);
+    productUrlInput.placeholder = placeholderUrl;
+
     // Clear input
     productUrlInput.value = '';
 
     // Show modal
     merchantModal.classList.add('show');
+}
+
+/**
+ * Get placeholder URL for merchant
+ */
+function getMerchantPlaceholder(merchantId, deepLinkBase) {
+    const placeholders = {
+        'shopee': 'https://shopee.vn/product/...',
+        'lazada': 'https://www.lazada.vn/products/...',
+        'tiki': 'https://tiki.vn/product/...',
+        'sendo': 'https://www.sendo.vn/...'
+    };
+
+    // Try to get specific placeholder, otherwise extract domain from deepLinkBase
+    if (placeholders[merchantId]) {
+        return placeholders[merchantId];
+    }
+
+    // Extract domain from deep link base
+    if (deepLinkBase) {
+        try {
+            const url = new URL(deepLinkBase);
+            return `${url.protocol}//${url.host}/...`;
+        } catch (e) {
+            return 'https://example.com/product/...';
+        }
+    }
+
+    return 'https://example.com/product/...';
 }
 
 /**

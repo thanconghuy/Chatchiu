@@ -2,15 +2,19 @@ const crypto = require('crypto');
 
 /**
  * Link Generator Service
- * Generates affiliate links with UTM tracking
+ * Generates iSclix/AccessTrade affiliate links with UTM tracking
+ *
+ * Format: https://go.isclix.com/deep_link/{campaign_id}/{offer_id}?utm_params&url={destination}
  */
 
-const DEEP_LINK_BASE = process.env.DEEP_LINK_BASE || 'https://go.isclix.com/deep_link/v6';
+const ISCLIX_BASE = 'https://go.isclix.com/deep_link';
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
 
 /**
- * Generate random string
- * @param {number} length
- * @returns {string}
+ * Generate random hex string
  */
 function randomString(length = 5) {
   return crypto.randomBytes(Math.ceil(length / 2))
@@ -21,113 +25,81 @@ function randomString(length = 5) {
 /**
  * Generate unique aff_sid
  * Format: {userId}_{timestamp}_{random}
- * @param {string} userId
- * @returns {string}
  */
 function generateAffSid(userId) {
-  const timestamp = Date.now();
-  const random = randomString(5);
-  return `${userId}_${timestamp}_${random}`;
+  return `${userId}_${Date.now()}_${randomString(5)}`;
 }
 
 /**
- * Build UTM parameters
- * @param {Object} user
- * @param {string} clickId - Click ID from database
- * @returns {Object} UTM parameters
+ * Build UTM parameters object
  */
 function buildUtmParams(user, clickId) {
   return {
     utm_source: 'cashback',
-    utm_medium: user.username, // Username của user
+    utm_medium: user.username,
     utm_campaign: 'lammmo',
-    utm_content: clickId, // Click ID để track conversion
+    utm_content: clickId, // For conversion tracking
     sub4: 'oneatweb'
   };
 }
 
 /**
- * Encode URL to base64
- * @param {string} url
- * @returns {string}
- */
-function encodeUrl(url) {
-  return Buffer.from(url).toString('base64');
-}
-
-/**
- * Build query string from params
- * @param {Object} params
- * @returns {string}
+ * Build URL query string from params object
  */
 function buildQueryString(params) {
   return Object.entries(params)
+    .filter(([_, value]) => value != null) // Skip null/undefined
     .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
     .join('&');
 }
 
+// ============================================================================
+// MAIN LINK GENERATION
+// ============================================================================
+
 /**
- * Generate affiliate link (NEW: requires clickId)
- * @param {Object} user - User object
- * @param {Object} merchant - Merchant object
- * @param {string} clickId - Click ID from database
+ * Generate iSclix affiliate link
+ *
+ * @param {Object} user - User object { id, username }
+ * @param {Object} merchant - Merchant object { campaign_id, offer_id, deep_link_base }
+ * @param {string} clickId - Click UUID from database
  * @param {string} clickType - 'button' or 'link'
- * @param {string|null} productUrl - Product URL (for clickType='link')
- * @returns {Object} {affiliateUrl, affSid, utmParams}
+ * @param {string|null} productUrl - Product URL (required for 'link' type)
+ *
+ * @returns {Object} {
+ *   affiliateUrl: string,
+ *   affSid: string,
+ *   utmParams: object,
+ *   originalUrl: string,
+ *   clickId: string
+ * }
+ *
+ * @throws {Error} If validation fails
  */
 function generateAffiliateLink(user, merchant, clickId, clickType, productUrl = null) {
-  // Validate inputs
-  if (!user || !user.id || !user.username) {
-    throw new Error('Invalid user object');
-  }
+  // ========== VALIDATION ==========
+  validateInputs(user, merchant, clickId, clickType, productUrl);
 
-  if (!merchant || !merchant.campaign_id) {
-    throw new Error('Invalid merchant object or missing campaign_id');
-  }
-
-  if (!clickId) {
-    throw new Error('Click ID is required');
-  }
-
-  if (!['button', 'link'].includes(clickType)) {
-    throw new Error('Invalid click type. Must be "button" or "link"');
-  }
-
-  if (clickType === 'link' && !productUrl) {
-    throw new Error('Product URL required for click type "link"');
-  }
-
-  // Generate unique aff_sid (vẫn giữ để fallback tracking)
+  // ========== GENERATE TRACKING IDs ==========
   const affSid = generateAffSid(user.id);
-
-  // Build UTM parameters with clickId as utm_content
   const utmParams = buildUtmParams(user, clickId);
 
-  // Determine destination URL
-  let destinationUrl;
+  // ========== DETERMINE DESTINATION URL ==========
+  const destinationUrl = getDestinationUrl(clickType, merchant, productUrl);
 
-  if (clickType === 'button') {
-    // For button type, use merchant homepage (deep_link_base)
-    destinationUrl = merchant.deep_link_base || merchant.website_url;
-  } else {
-    // For link type, use provided product URL
-    destinationUrl = productUrl;
+  // ========== BUILD AFFILIATE URL ==========
+  const affiliateUrl = buildAffiliateUrl(merchant, destinationUrl, utmParams, affSid);
+
+  // ========== DEBUG LOG ==========
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🔗 Link Generated:', {
+      merchant: merchant.name || merchant.id,
+      clickType,
+      affSid,
+      destinationUrl: destinationUrl.substring(0, 50) + '...',
+      affiliateUrl: affiliateUrl.substring(0, 100) + '...'
+    });
   }
-
-  // Build deep link with format:
-  // https://go.isclix.com/deep_link/{campaign_id}?url={encoded_url}&utm_params&aff_sid
-  let affiliateUrl = `https://go.isclix.com/deep_link/${merchant.campaign_id}`;
-
-  // Build query parameters
-  const allParams = {
-    url: encodeURIComponent(destinationUrl),
-    ...utmParams,
-    aff_sid: affSid
-  };
-
-  // Append query string
-  const queryString = buildQueryString(allParams);
-  affiliateUrl += `?${queryString}`;
 
   return {
     affiliateUrl,
@@ -138,31 +110,103 @@ function generateAffiliateLink(user, merchant, clickId, clickType, productUrl = 
   };
 }
 
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
 /**
- * Validate product URL belongs to merchant
- * @param {string} productUrl
- * @param {string} merchantDomain
- * @returns {boolean}
+ * Validate all inputs
+ * @throws {Error} If validation fails
+ */
+function validateInputs(user, merchant, clickId, clickType, productUrl) {
+  if (!user?.id || !user?.username) {
+    throw new Error('Invalid user object - missing id or username');
+  }
+
+  if (!merchant?.campaign_id) {
+    throw new Error('Invalid merchant - missing campaign_id');
+  }
+
+  if (!merchant?.offer_id) {
+    throw new Error('Invalid merchant - missing offer_id');
+  }
+
+  if (!clickId) {
+    throw new Error('Click ID is required');
+  }
+
+  if (!['button', 'link'].includes(clickType)) {
+    throw new Error(`Invalid click type: ${clickType}. Must be 'button' or 'link'`);
+  }
+
+  if (clickType === 'link' && !productUrl) {
+    throw new Error('Product URL required for click type "link"');
+  }
+}
+
+/**
+ * Get destination URL based on click type
+ */
+function getDestinationUrl(clickType, merchant, productUrl) {
+  if (clickType === 'button') {
+    // Homepage shopping - use merchant's deep link base
+    return merchant.deep_link_base || `https://${merchant.id}.vn`;
+  } else {
+    // Product link - use provided URL
+    return productUrl;
+  }
+}
+
+/**
+ * Build iSclix affiliate URL with correct format
+ * Format: https://go.isclix.com/deep_link/{campaign_id}/{offer_id}?utm_params&url={destination}
+ */
+function buildAffiliateUrl(merchant, destinationUrl, utmParams, affSid) {
+  // Build base path: /deep_link/{campaign_id}/{offer_id}
+  const basePath = `${ISCLIX_BASE}/${merchant.campaign_id}/${merchant.offer_id}`;
+
+  // Build query params
+  const queryParams = {
+    ...utmParams,
+    aff_sid: affSid,
+    url: destinationUrl  // Destination URL goes LAST
+  };
+
+  const queryString = buildQueryString(queryParams);
+
+  return `${basePath}?${queryString}`;
+}
+
+// ============================================================================
+// URL VALIDATION
+// ============================================================================
+
+/**
+ * Validate product URL belongs to merchant domain
+ *
+ * @param {string} productUrl - URL to validate
+ * @param {string} merchantDomain - Expected domain (e.g., 'lazada.vn')
+ * @returns {boolean} True if URL is from merchant domain
  */
 function validateProductUrl(productUrl, merchantDomain) {
   try {
     const url = new URL(productUrl);
-    const domain = url.hostname.toLowerCase();
+    const urlDomain = url.hostname.toLowerCase().replace(/^www\./, '');
+    const expectedDomain = merchantDomain.toLowerCase().replace(/^www\./, '');
 
-    // Remove 'www.' prefix
-    const cleanDomain = domain.replace(/^www\./, '');
-    const cleanMerchantDomain = merchantDomain.toLowerCase().replace(/^www\./, '');
-
-    return cleanDomain.includes(cleanMerchantDomain) || cleanMerchantDomain.includes(cleanDomain);
+    // Check if domains match (exact or subdomain)
+    return urlDomain === expectedDomain || urlDomain.endsWith(`.${expectedDomain}`);
   } catch (error) {
+    console.error('Invalid URL:', productUrl, error.message);
     return false;
   }
 }
 
 /**
  * Extract domain from URL
- * @param {string} url
- * @returns {string|null}
+ *
+ * @param {string} url - URL to extract domain from
+ * @returns {string|null} Domain or null if invalid
  */
 function extractDomain(url) {
   try {
@@ -173,12 +217,16 @@ function extractDomain(url) {
   }
 }
 
+// ============================================================================
+// EXPORTS
+// ============================================================================
+
 module.exports = {
   generateAffiliateLink,
   generateAffSid,
   buildUtmParams,
   validateProductUrl,
   extractDomain,
-  encodeUrl,
-  randomString
+  randomString,
+  buildQueryString
 };
