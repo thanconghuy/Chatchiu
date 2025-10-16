@@ -29,6 +29,10 @@
                     <span class="nav-icon">💰</span>
                     <span class="nav-text">Conversions</span>
                 </a>
+                <a href="/admin/at-orders" class="nav-item">
+                    <span class="nav-icon">📦</span>
+                    <span class="nav-text">Dữ liệu đơn AT</span>
+                </a>
                 <a href="/admin/merchants" class="nav-item active">
                     <span class="nav-icon">🏪</span>
                     <span class="nav-text">Merchants</span>
@@ -132,25 +136,59 @@
     </div>
 
     <!-- Edit Merchant Modal -->
-    <div id="editModal" class="modal">
+    <div id="editModal" class="modal" style="display: none;">
         <div class="modal-overlay"></div>
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 600px; max-height: 90vh; overflow-y: auto;">
             <div class="modal-header">
-                <h2>Edit Merchant</h2>
+                <h2 id="modalTitle">Edit Merchant</h2>
                 <button class="modal-close" id="closeModal">&times;</button>
             </div>
             <div class="modal-body">
                 <form id="editMerchantForm">
                     <input type="hidden" id="merchantId">
+                    <input type="hidden" id="isEditMode" value="true">
 
                     <div class="form-group">
-                        <label>Merchant Name</label>
-                        <input type="text" id="merchantName" class="input-field" readonly>
+                        <label>Merchant ID *</label>
+                        <input type="text" id="merchantIdInput" class="input-field" readonly>
+                        <small style="color: var(--gray-600);">ID không thể thay đổi</small>
                     </div>
 
                     <div class="form-group">
-                        <label>Commission Rate (%)</label>
-                        <input type="number" id="commissionRate" class="input-field" step="0.01" min="0" max="100">
+                        <label>Merchant Name *</label>
+                        <input type="text" id="merchantName" class="input-field" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Logo URL</label>
+                        <input type="url" id="logoUrl" class="input-field" placeholder="https://...">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Campaign ID</label>
+                        <input type="text" id="campaignId" class="input-field" placeholder="e.g. LAZADA_CAMPAIGN_ID">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Offer ID</label>
+                        <input type="text" id="offerId" class="input-field" placeholder="e.g. LAZADA_OFFER_ID">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Commission Rate</label>
+                        <input type="text" id="commissionRate" class="input-field" placeholder="e.g. 2-6%">
+                        <small style="color: var(--gray-600);">Ví dụ: 2-6%, 3-8%</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Deep Link Base URL</label>
+                        <input type="url" id="deepLinkBase" class="input-field" placeholder="https://www.lazada.vn/">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Policy Note (Chính sách cho user)</label>
+                        <textarea id="policyNote" class="input-field" rows="3" placeholder="Hoàn tiền 2-6% giá trị đơn hàng. Duyệt sau 45-60 ngày..."></textarea>
+                        <small style="color: var(--gray-600);">Ghi chú chính sách hoàn tiền cho người dùng</small>
                     </div>
 
                     <div class="form-group">
@@ -163,7 +201,7 @@
 
                     <div class="form-actions">
                         <button type="button" class="btn btn-secondary" id="cancelBtn">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                        <button type="submit" class="btn btn-primary" id="submitBtn">Save Changes</button>
                     </div>
                 </form>
             </div>

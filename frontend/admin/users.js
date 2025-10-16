@@ -109,7 +109,21 @@ function setupEventListeners() {
  */
 async function loadUsers() {
     try {
-        usersTable.innerHTML = '<tr class="loading-state"><td colspan="9"><div class="loading">Loading...</div></td></tr>';
+        // Show skeleton rows
+        const skeletonRows = Array(5).fill(0).map(() => `
+            <tr class="skeleton-row">
+                <td><div class="skeleton skeleton-text"></div></td>
+                <td><div class="skeleton skeleton-text"></div></td>
+                <td><div class="skeleton skeleton-text"></div></td>
+                <td><div class="skeleton skeleton-text"></div></td>
+                <td><div class="skeleton skeleton-text"></div></td>
+                <td><div class="skeleton skeleton-text"></div></td>
+                <td><div class="skeleton skeleton-text"></div></td>
+                <td><div class="skeleton skeleton-text"></div></td>
+                <td><div class="skeleton skeleton-text"></div></td>
+            </tr>
+        `).join('');
+        usersTable.innerHTML = skeletonRows;
 
         const offset = currentPage * ITEMS_PER_PAGE;
         let url = `/admin/users?limit=${ITEMS_PER_PAGE}&offset=${offset}`;
@@ -144,7 +158,15 @@ function renderUsers(users) {
         usersTable.innerHTML = `
             <tr class="empty-state">
                 <td colspan="9">
-                    <p>No users found</p>
+                    <div style="padding: 60px 20px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto 24px; display: block; color: var(--gray-400);">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="8.5" cy="7" r="4"></circle>
+                            <path d="M20 8v6M23 11h-6"></path>
+                        </svg>
+                        <h3 style="font-size: 1.25rem; color: var(--gray-700); margin-bottom: 12px; font-weight: 600;">Không tìm thấy người dùng</h3>
+                        <p style="font-size: 1rem; color: var(--gray-500);">Thử tìm kiếm với từ khóa khác</p>
+                    </div>
                 </td>
             </tr>
         `;

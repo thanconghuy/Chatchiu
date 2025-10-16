@@ -12,6 +12,7 @@ async function dropTables() {
   console.log('🗑️  Dropping existing tables...');
 
   const dropQueries = [
+    'DROP TABLE IF EXISTS system_conversions CASCADE',
     'DROP TABLE IF EXISTS conversions CASCADE',
     'DROP TABLE IF EXISTS clicks CASCADE',
     'DROP TABLE IF EXISTS merchants CASCADE',
@@ -95,14 +96,16 @@ async function createMerchantsTable() {
       campaign_id VARCHAR(100),
       offer_id VARCHAR(100),
       commission_rate VARCHAR(50),
+      policy_note TEXT,
       is_active BOOLEAN DEFAULT true,
       deep_link_base TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
-    -- Create index
+    -- Create indexes
     CREATE INDEX idx_merchants_active ON merchants(is_active);
+    CREATE INDEX idx_merchants_name ON merchants(name);
 
     -- Trigger for updated_at
     CREATE TRIGGER update_merchants_updated_at
@@ -194,6 +197,50 @@ async function createConversionsTable() {
   console.log('✅ Conversions table created');
 }
 
+// Create system_conversions table
+async function createSystemConversionsTable() {
+  console.log('⚡ Creating system_conversions table...');
+
+  await pool.query(`
+    CREATE TABLE system_conversions (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      at_conversion_id UUID NOT NULL REFERENCES conversions(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      click_id UUID NOT NULL REFERENCES clicks(id) ON DELETE CASCADE,
+      merchant_id VARCHAR(50) REFERENCES merchants(id) ON DELETE SET NULL,
+      merchant_name VARCHAR(255),
+      order_code VARCHAR(100),
+      order_amount DECIMAL(15, 2) DEFAULT 0.00,
+      commission DECIMAL(15, 2) DEFAULT 0.00,
+      cashback_amount DECIMAL(15, 2) DEFAULT 0.00,
+      status conversion_status_enum DEFAULT 'pending',
+      order_time TIMESTAMP,
+      approval_time TIMESTAMP,
+      matched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT unique_at_conversion UNIQUE (at_conversion_id)
+    );
+
+    -- Create indexes
+    CREATE INDEX idx_system_conversions_user_id ON system_conversions(user_id);
+    CREATE INDEX idx_system_conversions_click_id ON system_conversions(click_id);
+    CREATE INDEX idx_system_conversions_merchant_id ON system_conversions(merchant_id);
+    CREATE INDEX idx_system_conversions_status ON system_conversions(status);
+    CREATE INDEX idx_system_conversions_order_time ON system_conversions(order_time DESC);
+    CREATE INDEX idx_system_conversions_matched_at ON system_conversions(matched_at DESC);
+    CREATE INDEX idx_system_conversions_user_status ON system_conversions(user_id, status);
+
+    -- Trigger for updated_at
+    CREATE TRIGGER update_system_conversions_updated_at
+      BEFORE UPDATE ON system_conversions
+      FOR EACH ROW
+      EXECUTE FUNCTION update_updated_at_column();
+  `);
+
+  console.log('✅ System conversions table created');
+}
+
 // Seed merchants data
 async function seedMerchants() {
   console.log('🌱 Seeding merchants data...');
@@ -206,6 +253,7 @@ async function seedMerchants() {
       campaign_id: '4790392958945222748',
       offer_id: '4751584435713464237',
       commission_rate: '3-8%',
+      policy_note: 'Hoàn tiền 3-8% giá trị đơn hàng. Đơn hàng được duyệt sau 30-45 ngày khi giao dịch hoàn tất và không có khiếu nại.',
       is_active: true,
       deep_link_base: 'https://shope.ee/'
     },
@@ -216,6 +264,7 @@ async function seedMerchants() {
       campaign_id: 'LAZADA_CAMPAIGN_ID',
       offer_id: 'LAZADA_OFFER_ID',
       commission_rate: '2-6%',
+      policy_note: 'Hoàn tiền 2-6% giá trị đơn hàng. Đơn hàng được duyệt sau 45-60 ngày khi giao dịch hoàn tất và không có khiếu nại.',
       is_active: true,
       deep_link_base: 'https://www.lazada.vn/'
     },
@@ -226,6 +275,7 @@ async function seedMerchants() {
       campaign_id: 'TIKI_CAMPAIGN_ID',
       offer_id: 'TIKI_OFFER_ID',
       commission_rate: '2-5%',
+      policy_note: 'Hoàn tiền 2-5% giá trị đơn hàng. Đơn hàng được duyệt sau 30 ngày khi giao dịch hoàn tất và không có khiếu nại.',
       is_active: true,
       deep_link_base: 'https://tiki.vn/'
     },
@@ -236,6 +286,7 @@ async function seedMerchants() {
       campaign_id: 'SENDO_CAMPAIGN_ID',
       offer_id: 'SENDO_OFFER_ID',
       commission_rate: '1-4%',
+      policy_note: 'Hoàn tiền 1-4% giá trị đơn hàng. Đơn hàng được duyệt sau 30 ngày khi giao dịch hoàn tất và không có khiếu nại.',
       is_active: true,
       deep_link_base: 'https://www.sendo.vn/'
     }
@@ -243,8 +294,8 @@ async function seedMerchants() {
 
   for (const merchant of merchants) {
     await pool.query(
-      `INSERT INTO merchants (id, name, logo_url, campaign_id, offer_id, commission_rate, is_active, deep_link_base)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      `INSERT INTO merchants (id, name, logo_url, campaign_id, offer_id, commission_rate, policy_note, is_active, deep_link_base)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
         merchant.id,
         merchant.name,
@@ -252,6 +303,7 @@ async function seedMerchants() {
         merchant.campaign_id,
         merchant.offer_id,
         merchant.commission_rate,
+        merchant.policy_note,
         merchant.is_active,
         merchant.deep_link_base
       ]
@@ -303,6 +355,7 @@ async function initializeDatabase() {
     await createMerchantsTable();
     await createClicksTable();
     await createConversionsTable();
+    await createSystemConversionsTable();
 
     // Seed data
     await seedMerchants();
@@ -344,5 +397,6 @@ module.exports = {
   createMerchantsTable,
   createClicksTable,
   createConversionsTable,
+  createSystemConversionsTable,
   seedMerchants
 };

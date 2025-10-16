@@ -7,7 +7,7 @@ const Click = require('../models/Click');
 const Merchant = require('../models/Merchant');
 const Transaction = require('../models/Transaction');
 const { pool } = require('../config/database');
-const { syncConversions } = require('../jobs/syncConversions');
+const SystemConversion = require('../models/SystemConversion');
 const accessTradeService = require('../services/accesstrade');
 const trackingService = require('../services/trackingService');
 const logger = require('../utils/logger');
@@ -21,14 +21,14 @@ router.get('/stats', authenticateAdmin, async (req, res) => {
     const statsQuery = `
       SELECT
         (SELECT COUNT(*) FROM users WHERE is_admin = false) as total_users,
-        (SELECT COUNT(*) FROM conversions) as total_conversions,
-        (SELECT COUNT(*) FROM conversions WHERE status = 'pending') as pending_conversions,
-        (SELECT COUNT(*) FROM conversions WHERE status = 'approved') as approved_conversions,
-        (SELECT COUNT(*) FROM conversions WHERE status = 'rejected') as rejected_conversions,
-        (SELECT COALESCE(SUM(order_amount), 0) FROM conversions WHERE status = 'approved') as total_order_value,
-        (SELECT COALESCE(SUM(commission), 0) FROM conversions WHERE status = 'approved') as total_commission,
-        (SELECT COALESCE(SUM(cashback_amount), 0) FROM conversions WHERE status = 'approved') as total_cashback_paid,
-        (SELECT COALESCE(SUM(cashback_amount), 0) FROM conversions WHERE status = 'pending') as pending_cashback,
+        (SELECT COUNT(*) FROM system_conversions) as total_conversions,
+        (SELECT COUNT(*) FROM system_conversions WHERE status = 'pending') as pending_conversions,
+        (SELECT COUNT(*) FROM system_conversions WHERE status = 'approved') as approved_conversions,
+        (SELECT COUNT(*) FROM system_conversions WHERE status = 'rejected') as rejected_conversions,
+        (SELECT COALESCE(SUM(order_amount), 0) FROM system_conversions WHERE status = 'approved') as total_order_value,
+        (SELECT COALESCE(SUM(commission), 0) FROM system_conversions WHERE status = 'approved') as total_commission,
+        (SELECT COALESCE(SUM(cashback_amount), 0) FROM system_conversions WHERE status = 'approved') as total_cashback_paid,
+        (SELECT COALESCE(SUM(cashback_amount), 0) FROM system_conversions WHERE status = 'pending') as pending_cashback,
         (SELECT COALESCE(SUM(available_balance), 0) FROM users) as total_user_balance,
         (SELECT COALESCE(SUM(pending_balance), 0) FROM users) as total_pending_balance,
         (SELECT COUNT(*) FROM clicks) as total_clicks
@@ -132,7 +132,7 @@ router.get('/users', authenticateAdmin, async (req, res) => {
 
 /**
  * GET /api/admin/conversions
- * Get all conversions with filters
+ * Get all system conversions (matched conversions only) with filters
  */
 router.get('/conversions', authenticateAdmin, async (req, res) => {
   try {
@@ -143,17 +143,20 @@ router.get('/conversions', authenticateAdmin, async (req, res) => {
 
     let query = `
       SELECT
-        c.*,
-        m.name as merchant_name,
-        m.logo_url as merchant_logo,
-        cl.user_id,
+        sc.*,
         u.username,
         u.email,
-        cl.aff_sid
-      FROM conversions c
-      JOIN clicks cl ON c.click_id = cl.id
-      JOIN users u ON cl.user_id = u.id
-      JOIN merchants m ON c.merchant_id = m.id
+        u.full_name,
+        m.logo_url as merchant_logo,
+        c.aff_sid,
+        c.utm_source,
+        c.utm_medium,
+        c.utm_campaign,
+        c.utm_content
+      FROM system_conversions sc
+      JOIN users u ON sc.user_id = u.id
+      LEFT JOIN merchants m ON sc.merchant_id = m.id
+      LEFT JOIN conversions c ON sc.at_conversion_id = c.id
       WHERE 1=1
     `;
 
@@ -161,37 +164,44 @@ router.get('/conversions', authenticateAdmin, async (req, res) => {
 
     if (status) {
       values.push(status);
-      query += ` AND c.status = $${values.length}`;
+      query += ` AND sc.status = $${values.length}`;
     }
 
     if (userId) {
       values.push(userId);
-      query += ` AND cl.user_id = $${values.length}`;
+      query += ` AND sc.user_id = $${values.length}`;
     }
 
-    query += ` ORDER BY c.created_at DESC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`;
+    query += ` ORDER BY sc.order_time DESC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`;
     values.push(limit, offset);
 
     const result = await pool.query(query, values);
 
     res.json({
       success: true,
-      conversions: result.rows.map(c => ({
-        id: c.id,
-        userId: c.user_id,
-        username: c.username,
-        email: c.email,
-        merchantName: c.merchant_name,
-        merchantLogo: c.merchant_logo,
-        orderCode: c.order_code,
-        orderAmount: parseFloat(c.order_amount),
-        commission: parseFloat(c.commission),
-        cashbackAmount: parseFloat(c.cashback_amount),
-        status: c.status,
-        orderTime: c.order_time,
-        approvalTime: c.approval_time,
-        affSid: c.aff_sid,
-        createdAt: c.created_at
+      conversions: result.rows.map(sc => ({
+        id: sc.id,
+        userId: sc.user_id,
+        username: sc.username,
+        email: sc.email,
+        fullName: sc.full_name,
+        merchantId: sc.merchant_id,
+        merchantName: sc.merchant_name,
+        merchantLogo: sc.merchant_logo,
+        orderCode: sc.order_code,
+        orderAmount: parseFloat(sc.order_amount),
+        commission: parseFloat(sc.commission),
+        cashbackAmount: parseFloat(sc.cashback_amount),
+        status: sc.status,
+        orderTime: sc.order_time,
+        approvalTime: sc.approval_time,
+        matchedAt: sc.matched_at,
+        affSid: sc.aff_sid,
+        utmSource: sc.utm_source,
+        utmMedium: sc.utm_medium,
+        utmCampaign: sc.utm_campaign,
+        utmContent: sc.utm_content,
+        createdAt: sc.created_at
       }))
     });
   } catch (error) {
@@ -1245,6 +1255,216 @@ router.post('/check-conversions', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to check conversions'
+    });
+  }
+});
+
+// ============================================
+// MERCHANTS CRUD OPERATIONS
+// ============================================
+
+/**
+ * GET /api/admin/merchants
+ * Get all merchants
+ */
+router.get('/merchants', authenticateAdmin, async (req, res) => {
+  try {
+    const activeOnly = req.query.activeOnly === 'true';
+    const merchants = await Merchant.getAll(activeOnly);
+
+    res.json({
+      success: true,
+      merchants
+    });
+  } catch (error) {
+    logger.error('Get merchants error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get merchants'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/merchant/:id
+ * Get merchant by ID
+ */
+router.get('/merchant/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const merchant = await Merchant.findById(id);
+
+    if (!merchant) {
+      return res.status(404).json({
+        success: false,
+        message: 'Merchant not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      merchant
+    });
+  } catch (error) {
+    logger.error('Get merchant error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get merchant'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/merchant
+ * Create new merchant
+ */
+router.post('/merchant', authenticateAdmin, async (req, res) => {
+  try {
+    const {
+      id,
+      name,
+      logo_url,
+      campaign_id,
+      offer_id,
+      commission_rate,
+      policy_note,
+      is_active,
+      deep_link_base
+    } = req.body;
+
+    if (!id || !name) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID and name are required'
+      });
+    }
+
+    const merchant = await Merchant.create({
+      id,
+      name,
+      logo_url,
+      campaign_id,
+      offer_id,
+      commission_rate,
+      policy_note,
+      is_active,
+      deep_link_base
+    });
+
+    logger.success('Merchant created', {
+      merchantId: merchant.id,
+      merchantName: merchant.name,
+      adminId: req.userId
+    });
+
+    res.json({
+      success: true,
+      message: 'Merchant created successfully',
+      merchant
+    });
+  } catch (error) {
+    logger.error('Create merchant error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to create merchant'
+    });
+  }
+});
+
+/**
+ * PUT /api/admin/merchant/:id
+ * Update merchant
+ */
+router.put('/merchant/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    const merchant = await Merchant.update(id, updates);
+
+    if (!merchant) {
+      return res.status(404).json({
+        success: false,
+        message: 'Merchant not found'
+      });
+    }
+
+    logger.success('Merchant updated', {
+      merchantId: id,
+      merchantName: merchant.name,
+      updates: Object.keys(updates),
+      adminId: req.userId
+    });
+
+    res.json({
+      success: true,
+      message: 'Merchant updated successfully',
+      merchant
+    });
+  } catch (error) {
+    logger.error('Update merchant error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to update merchant'
+    });
+  }
+});
+
+/**
+ * DELETE /api/admin/merchant/:id
+ * Delete merchant
+ */
+router.delete('/merchant/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if merchant exists
+    const merchant = await Merchant.findById(id);
+    if (!merchant) {
+      return res.status(404).json({
+        success: false,
+        message: 'Merchant not found'
+      });
+    }
+
+    // Check if there are associated clicks or conversions
+    const clicksQuery = await pool.query(
+      'SELECT COUNT(*) as count FROM clicks WHERE merchant_id = $1',
+      [id]
+    );
+    const clickCount = parseInt(clicksQuery.rows[0].count);
+
+    if (clickCount > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot delete merchant with ${clickCount} associated clicks. Set as inactive instead.`
+      });
+    }
+
+    const deleted = await Merchant.delete(id);
+
+    if (!deleted) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to delete merchant'
+      });
+    }
+
+    logger.success('Merchant deleted', {
+      merchantId: id,
+      merchantName: merchant.name,
+      adminId: req.userId
+    });
+
+    res.json({
+      success: true,
+      message: 'Merchant deleted successfully'
+    });
+  } catch (error) {
+    logger.error('Delete merchant error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to delete merchant'
     });
   }
 });

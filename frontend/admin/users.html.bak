@@ -29,10 +29,6 @@
                     <span class="nav-icon">💰</span>
                     <span class="nav-text">Conversions</span>
                 </a>
-                <a href="/admin/at-orders" class="nav-item">
-                    <span class="nav-icon">📦</span>
-                    <span class="nav-text">Dữ liệu đơn AT</span>
-                </a>
                 <a href="/admin/merchants" class="nav-item">
                     <span class="nav-icon">🏪</span>
                     <span class="nav-text">Merchants</span>
@@ -80,39 +76,10 @@
                         </tr>
                     </thead>
                     <tbody id="usersTable">
-                        <!-- Initial skeleton rows -->
-                        <tr class="skeleton-row">
-                            <td><div class="skeleton skeleton-text"></div></td>
-                            <td><div class="skeleton skeleton-text"></div></td>
-                            <td><div class="skeleton skeleton-text"></div></td>
-                            <td><div class="skeleton skeleton-text"></div></td>
-                            <td><div class="skeleton skeleton-text"></div></td>
-                            <td><div class="skeleton skeleton-text"></div></td>
-                            <td><div class="skeleton skeleton-text"></div></td>
-                            <td><div class="skeleton skeleton-text"></div></td>
-                            <td><div class="skeleton skeleton-text"></div></td>
-                        </tr>
-                        <tr class="skeleton-row">
-                            <td><div class="skeleton skeleton-text"></div></td>
-                            <td><div class="skeleton skeleton-text"></div></td>
-                            <td><div class="skeleton skeleton-text"></div></td>
-                            <td><div class="skeleton skeleton-text"></div></td>
-                            <td><div class="skeleton skeleton-text"></div></td>
-                            <td><div class="skeleton skeleton-text"></div></td>
-                            <td><div class="skeleton skeleton-text"></div></td>
-                            <td><div class="skeleton skeleton-text"></div></td>
-                            <td><div class="skeleton skeleton-text"></div></td>
-                        </tr>
-                        <tr class="skeleton-row">
-                            <td><div class="skeleton skeleton-text"></div></td>
-                            <td><div class="skeleton skeleton-text"></div></td>
-                            <td><div class="skeleton skeleton-text"></div></td>
-                            <td><div class="skeleton skeleton-text"></div></td>
-                            <td><div class="skeleton skeleton-text"></div></td>
-                            <td><div class="skeleton skeleton-text"></div></td>
-                            <td><div class="skeleton skeleton-text"></div></td>
-                            <td><div class="skeleton skeleton-text"></div></td>
-                            <td><div class="skeleton skeleton-text"></div></td>
+                        <tr class="loading-state">
+                            <td colspan="9">
+                                <div class="loading">Loading...</div>
+                            </td>
                         </tr>
                     </tbody>
                 </table>

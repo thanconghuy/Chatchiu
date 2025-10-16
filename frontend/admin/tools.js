@@ -81,6 +81,9 @@ function init() {
     if (convStartDate) convStartDate.value = formatDateForPicker(lastWeek);
 
     setupEventListeners();
+
+    // Auto-load conversions on page load
+    fetchConversions();
 }
 
 /**

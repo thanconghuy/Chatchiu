@@ -222,17 +222,24 @@ async function loadOrders() {
 }
 
 /**
- * Show loading state
+ * Show loading state with skeleton rows
  */
 function showLoading() {
-    ordersTableBody.innerHTML = `
-        <tr class="loading-state">
-            <td colspan="9">
-                <div class="spinner"></div>
-                <div>Đang tải dữ liệu...</div>
-            </td>
+    const skeletonRows = Array(5).fill(0).map(() => `
+        <tr class="skeleton-row">
+            <td><div class="skeleton skeleton-text"></div></td>
+            <td><div class="skeleton skeleton-text"></div></td>
+            <td><div class="skeleton skeleton-text"></div></td>
+            <td><div class="skeleton skeleton-text"></div></td>
+            <td><div class="skeleton skeleton-text"></div></td>
+            <td><div class="skeleton skeleton-text"></div></td>
+            <td><div class="skeleton skeleton-badge"></div></td>
+            <td><div class="skeleton skeleton-text"></div></td>
+            <td><div class="skeleton skeleton-text"></div></td>
         </tr>
-    `;
+    `).join('');
+
+    ordersTableBody.innerHTML = skeletonRows;
 }
 
 /**
@@ -256,11 +263,17 @@ function renderOrders(orders) {
         ordersTableBody.innerHTML = `
             <tr class="empty-state">
                 <td colspan="9">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                    </svg>
-                    <p>Không tìm thấy đơn hàng nào</p>
-                    <p style="font-size: 0.9rem; margin-top: 8px;">Thử thay đổi bộ lọc hoặc tìm kiếm</p>
+                    <div style="padding: 60px 20px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto 24px; display: block; color: var(--gray-400);">
+                            <circle cx="9" cy="21" r="1"></circle>
+                            <circle cx="20" cy="21" r="1"></circle>
+                            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                            <line x1="10" y1="11" x2="10" y2="11" stroke-width="3"></line>
+                        </svg>
+                        <h3 style="font-size: 1.25rem; color: var(--gray-700); margin-bottom: 12px; font-weight: 600;">Không tìm thấy đơn hàng</h3>
+                        <p style="font-size: 1rem; color: var(--gray-500); margin-bottom: 8px;">Chưa có dữ liệu trong khoảng thời gian này</p>
+                        <p style="font-size: 0.9rem; color: var(--gray-400);">Thử thay đổi bộ lọc hoặc khoảng thời gian khác</p>
+                    </div>
                 </td>
             </tr>
         `;

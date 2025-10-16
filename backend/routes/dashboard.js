@@ -5,6 +5,7 @@ const User = require('../models/User');
 const Click = require('../models/Click');
 const Merchant = require('../models/Merchant');
 const Conversion = require('../models/Conversion');
+const SystemConversion = require('../models/SystemConversion');
 const { generateAffiliateLink } = require('../services/linkGenerator');
 
 /**
@@ -212,7 +213,7 @@ router.get('/recent-clicks', authenticateToken, async (req, res) => {
 
 /**
  * GET /api/dashboard/conversions
- * Get user's conversions with optional status filter
+ * Get user's system conversions (matched conversions only) with optional status filter
  */
 router.get('/conversions', authenticateToken, async (req, res) => {
   try {
@@ -228,25 +229,22 @@ router.get('/conversions', authenticateToken, async (req, res) => {
       });
     }
 
-    const conversions = await Conversion.getUserConversions(req.userId, status, limit, offset);
+    const conversions = await SystemConversion.getUserConversions(req.userId, status, limit, offset);
 
     res.json({
       success: true,
-      conversions: conversions.map(c => ({
-        id: c.id,
-        merchantName: c.merchant_name,
-        merchantLogo: c.merchant_logo,
-        orderCode: c.order_code,
-        orderAmount: parseFloat(c.order_amount),
-        commission: parseFloat(c.commission),
-        cashbackAmount: parseFloat(c.cashback_amount),
-        status: c.status,
-        orderTime: c.order_time,
-        approvalTime: c.approval_time,
-        clickType: c.click_type,
-        productUrl: c.product_url,
-        clickedAt: c.clicked_at,
-        createdAt: c.created_at
+      conversions: conversions.map(sc => ({
+        id: sc.id,
+        merchantName: sc.merchant_name,
+        orderCode: sc.order_code,
+        orderAmount: parseFloat(sc.order_amount),
+        commission: parseFloat(sc.commission),
+        cashbackAmount: parseFloat(sc.cashback_amount),
+        status: sc.status,
+        orderTime: sc.order_time,
+        approvalTime: sc.approval_time,
+        matchedAt: sc.matched_at,
+        createdAt: sc.created_at
       }))
     });
   } catch (error) {

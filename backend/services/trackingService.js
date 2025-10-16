@@ -1,6 +1,7 @@
 const Conversion = require('../models/Conversion');
 const Click = require('../models/Click');
 const User = require('../models/User');
+const SystemConversion = require('../models/SystemConversion');
 const logger = require('../utils/logger');
 
 /**
@@ -233,6 +234,19 @@ class TrackingService {
       cashbackAmount: userCashback,
       status
     });
+
+    // Create system conversion (for fast lookup)
+    try {
+      await SystemConversion.createFromATConversion(conversion);
+      logger.success('Created system conversion record', {
+        conversionId: conversion.id
+      });
+    } catch (error) {
+      logger.warn('Failed to create system conversion (non-fatal)', {
+        conversionId: conversion.id,
+        error: error.message
+      });
+    }
 
     // Update user balance
     if (status === 'approved') {
@@ -508,6 +522,21 @@ class TrackingService {
         clickId: click.id,
         userId: click.user_id
       });
+
+      // Create system conversion record (for fast lookup in Conversions Management)
+      try {
+        // Reload conversion to get updated click_id and user_id
+        const updatedConversion = await Conversion.findById(conversion.id);
+        await SystemConversion.createFromATConversion(updatedConversion);
+        logger.success('Created system conversion record after matching', {
+          conversionId: conversion.id
+        });
+      } catch (error) {
+        logger.warn('Failed to create system conversion (non-fatal)', {
+          conversionId: conversion.id,
+          error: error.message
+        });
+      }
 
       // If conversion is approved or pending, update user balance
       if (conversion.status === 'approved' && conversion.cashback_amount > 0) {

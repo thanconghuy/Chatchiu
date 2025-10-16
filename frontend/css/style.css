@@ -665,25 +665,15 @@ body {
 
 /* Responsive */
 @media (max-width: 768px) {
-    .sidebar {
-        width: 60px;
-    }
-
-    .sidebar-header,
-    .nav-item span:not(.icon) {
-        display: none;
-    }
-
-    .main-content {
-        margin-left: 60px;
-        padding: 20px;
-    }
-
     .stats-grid {
         grid-template-columns: 1fr;
     }
 
     .merchants-grid {
         grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+
+    .main-content {
+        padding: 20px;
     }
 }

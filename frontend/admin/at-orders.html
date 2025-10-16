@@ -238,6 +238,47 @@
             100% { transform: rotate(360deg); }
         }
 
+        /* Skeleton Loading Styles */
+        .skeleton-row {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+        }
+
+        .skeleton-text {
+            height: 16px;
+            width: 80%;
+        }
+
+        .skeleton-badge {
+            height: 24px;
+            width: 80px;
+            border-radius: 12px;
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: -200% 0;
+            }
+            100% {
+                background-position: 200% 0;
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+
         @media (max-width: 1200px) {
             .search-row {
                 grid-template-columns: 1fr 1fr;
@@ -290,10 +331,6 @@
                 <a href="/admin/tools" class="nav-item">
                     <span class="nav-icon">🔧</span>
                     <span class="nav-text">Tools</span>
-                </a>
-                <a href="/dashboard" class="nav-item">
-                    <span class="nav-icon">👤</span>
-                    <span class="nav-text">User View</span>
                 </a>
                 <a href="#" class="nav-item" id="logoutBtn">
                     <span class="nav-icon">🚪</span>
@@ -385,11 +422,39 @@
                         </tr>
                     </thead>
                     <tbody id="ordersTableBody">
-                        <tr class="loading-state">
-                            <td colspan="9">
-                                <div class="spinner"></div>
-                                <div>Đang tải dữ liệu...</div>
-                            </td>
+                        <!-- Initial skeleton rows -->
+                        <tr class="skeleton-row">
+                            <td><div class="skeleton skeleton-text"></div></td>
+                            <td><div class="skeleton skeleton-text"></div></td>
+                            <td><div class="skeleton skeleton-text"></div></td>
+                            <td><div class="skeleton skeleton-text"></div></td>
+                            <td><div class="skeleton skeleton-text"></div></td>
+                            <td><div class="skeleton skeleton-text"></div></td>
+                            <td><div class="skeleton skeleton-badge"></div></td>
+                            <td><div class="skeleton skeleton-text"></div></td>
+                            <td><div class="skeleton skeleton-text"></div></td>
+                        </tr>
+                        <tr class="skeleton-row">
+                            <td><div class="skeleton skeleton-text"></div></td>
+                            <td><div class="skeleton skeleton-text"></div></td>
+                            <td><div class="skeleton skeleton-text"></div></td>
+                            <td><div class="skeleton skeleton-text"></div></td>
+                            <td><div class="skeleton skeleton-text"></div></td>
+                            <td><div class="skeleton skeleton-text"></div></td>
+                            <td><div class="skeleton skeleton-badge"></div></td>
+                            <td><div class="skeleton skeleton-text"></div></td>
+                            <td><div class="skeleton skeleton-text"></div></td>
+                        </tr>
+                        <tr class="skeleton-row">
+                            <td><div class="skeleton skeleton-text"></div></td>
+                            <td><div class="skeleton skeleton-text"></div></td>
+                            <td><div class="skeleton skeleton-text"></div></td>
+                            <td><div class="skeleton skeleton-text"></div></td>
+                            <td><div class="skeleton skeleton-text"></div></td>
+                            <td><div class="skeleton skeleton-text"></div></td>
+                            <td><div class="skeleton skeleton-badge"></div></td>
+                            <td><div class="skeleton skeleton-text"></div></td>
+                            <td><div class="skeleton skeleton-text"></div></td>
                         </tr>
                     </tbody>
                 </table>

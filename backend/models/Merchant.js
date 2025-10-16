@@ -7,6 +7,46 @@ const { pool } = require('../config/database');
 
 class Merchant {
   /**
+   * Create new merchant
+   * @param {Object} merchantData
+   * @returns {Object} Created merchant
+   */
+  static async create(merchantData) {
+    const {
+      id,
+      name,
+      logo_url = null,
+      campaign_id = null,
+      offer_id = null,
+      commission_rate = null,
+      policy_note = null,
+      is_active = true,
+      deep_link_base = null
+    } = merchantData;
+
+    if (!id || !name) {
+      throw new Error('ID and name are required');
+    }
+
+    const query = `
+      INSERT INTO merchants (
+        id, name, logo_url, campaign_id, offer_id, commission_rate,
+        policy_note, is_active, deep_link_base
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING *
+    `;
+
+    const values = [
+      id, name, logo_url, campaign_id, offer_id,
+      commission_rate, policy_note, is_active, deep_link_base
+    ];
+
+    const result = await pool.query(query, values);
+    return result.rows[0];
+  }
+
+  /**
    * Find merchant by ID
    * @param {string} merchantId
    * @returns {Object|null} Merchant object or null
@@ -74,7 +114,7 @@ class Merchant {
    * @returns {Object} Updated merchant
    */
   static async update(merchantId, updates) {
-    const allowedFields = ['name', 'logo_url', 'campaign_id', 'offer_id', 'commission_rate', 'is_active', 'deep_link_base'];
+    const allowedFields = ['name', 'logo_url', 'campaign_id', 'offer_id', 'commission_rate', 'policy_note', 'is_active', 'deep_link_base'];
     const fields = [];
     const values = [];
     let paramCount = 1;
@@ -102,6 +142,22 @@ class Merchant {
 
     const result = await pool.query(query, values);
     return result.rows[0];
+  }
+
+  /**
+   * Delete merchant
+   * @param {string} merchantId
+   * @returns {boolean} True if deleted
+   */
+  static async delete(merchantId) {
+    const query = `
+      DELETE FROM merchants
+      WHERE id = $1
+      RETURNING id
+    `;
+
+    const result = await pool.query(query, [merchantId]);
+    return result.rows.length > 0;
   }
 
   /**

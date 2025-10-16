@@ -462,3 +462,76 @@
 .stat-info.badge-info {
     background: linear-gradient(135deg, #36d1dc 0%, #5b86e5 100%);
 }
+
+/* Skeleton Loading Styles */
+.skeleton-row {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 4px;
+}
+
+.skeleton-text {
+    height: 16px;
+    width: 80%;
+}
+
+.skeleton-text-sm {
+    height: 14px;
+    width: 60%;
+}
+
+.skeleton-text-lg {
+    height: 20px;
+    width: 90%;
+}
+
+.skeleton-badge {
+    height: 24px;
+    width: 80px;
+    border-radius: 12px;
+}
+
+.skeleton-avatar {
+    height: 40px;
+    width: 40px;
+    border-radius: 50%;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+/* Enhanced Empty State */
+.empty-state svg {
+    opacity: 0.3;
+    margin-bottom: 16px;
+}
+
+.empty-state h3 {
+    color: var(--gray-700);
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.empty-state p {
+    color: var(--gray-500);
+}

@@ -10,14 +10,44 @@ if (!requireAuth()) {
     window.location.href = '/login';
 }
 
-// Load user info
-const user = getUser();
-if (!user || user.role !== 'admin') {
-    alert('Unauthorized access');
-    window.location.href = '/dashboard';
-}
+// Check admin access (async)
+(async () => {
+    await checkAdminAccess();
+    loadMerchants();
+})();
 
-document.getElementById('userName').textContent = user.username || user.email;
+/**
+ * Check if user is admin
+ */
+async function checkAdminAccess() {
+    try {
+        const response = await apiRequest('/auth/me');
+        if (response.success && response.user) {
+            saveAuth(getToken(), response.user);
+
+            const user = response.user;
+            document.getElementById('userName').textContent = user.username || user.email;
+
+            if (!user.is_admin) {
+                showToast('Access denied: Admin only', 'error');
+                setTimeout(() => {
+                    window.location.href = '../dashboard.html';
+                }, 2000);
+                return false;
+            }
+            return true;
+        } else {
+            throw new Error('Failed to verify admin status');
+        }
+    } catch (error) {
+        console.error('Admin check error:', error);
+        showToast('Access denied: Admin only', 'error');
+        setTimeout(() => {
+            window.location.href = '../dashboard.html';
+        }, 2000);
+        return false;
+    }
+}
 
 // Logout handler
 document.getElementById('logoutBtn').addEventListener('click', (e) => {
@@ -25,15 +55,12 @@ document.getElementById('logoutBtn').addEventListener('click', (e) => {
     logout();
 });
 
-// Load merchants on page load
-loadMerchants();
-
 /**
  * Load merchants from API
  */
 async function loadMerchants() {
     try {
-        const response = await apiRequest('/dashboard/merchants');
+        const response = await apiRequest('/admin/merchants?activeOnly=false');
 
         if (response.success) {
             merchants = response.merchants || [];
@@ -51,7 +78,7 @@ async function loadMerchants() {
  */
 function updateStats() {
     const totalMerchants = merchants.length;
-    const activeMerchants = merchants.filter(m => m.status === 'active').length;
+    const activeMerchants = merchants.filter(m => m.is_active === true).length;
 
     document.getElementById('totalMerchants').textContent = totalMerchants;
     document.getElementById('activeMerchants').textContent = activeMerchants;
@@ -64,13 +91,15 @@ function updateStats() {
  */
 function renderMerchants() {
     const tbody = document.getElementById('merchantsTable');
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const searchInput = document.getElementById('searchInput');
+    const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
 
     // Filter merchants
-    const filtered = merchants.filter(m =>
-        m.name.toLowerCase().includes(searchTerm) ||
-        m.domain.toLowerCase().includes(searchTerm)
-    );
+    const filtered = merchants.filter(m => {
+        const nameMatch = m.name.toLowerCase().includes(searchTerm);
+        const idMatch = m.id.toLowerCase().includes(searchTerm);
+        return nameMatch || idMatch;
+    });
 
     if (filtered.length === 0) {
         tbody.innerHTML = `
@@ -90,20 +119,23 @@ function renderMerchants() {
     const endIndex = startIndex + itemsPerPage;
     const pageItems = filtered.slice(startIndex, endIndex);
 
-    tbody.innerHTML = pageItems.map(merchant => `
+    tbody.innerHTML = pageItems.map(merchant => {
+        const domainUrl = merchant.deep_link_base || '#';
+        const domain = domainUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
+
+        return `
         <tr>
             <td>
                 <img src="${merchant.logo_url || 'https://via.placeholder.com/50'}"
                      alt="${merchant.name}"
-                     style="width: 50px; height: 50px; object-fit: contain; border-radius: 8px;">
+                     style="width: 50px; height: 50px; object-fit: contain; border-radius: 8px; background: #f5f5f5; padding: 4px;">
             </td>
             <td>
-                <strong>${merchant.name}</strong>
+                <strong>${merchant.name}</strong><br>
+                <small style="color: var(--gray-600);">${merchant.id}</small>
             </td>
             <td>
-                <a href="https://${merchant.domain}" target="_blank" style="color: var(--primary);">
-                    ${merchant.domain}
-                </a>
+                ${domainUrl !== '#' ? `<a href="${domainUrl}" target="_blank" style="color: var(--primary);">${domain}</a>` : 'N/A'}
             </td>
             <td>
                 <span class="badge badge-success">
@@ -111,19 +143,19 @@ function renderMerchants() {
                 </span>
             </td>
             <td>
-                <span class="badge badge-${merchant.status === 'active' ? 'success' : 'secondary'}">
-                    ${merchant.status || 'active'}
+                <span class="badge badge-${merchant.is_active ? 'success' : 'secondary'}">
+                    ${merchant.is_active ? 'Active' : 'Inactive'}
                 </span>
             </td>
             <td>0</td>
             <td>0</td>
             <td>
-                <button class="btn btn-sm btn-primary" onclick="editMerchant(${merchant.id})">
+                <button class="btn btn-sm btn-primary" onclick="editMerchant('${merchant.id}')">
                     Edit
                 </button>
             </td>
         </tr>
-    `).join('');
+    `}).join('');
 
     updatePagination(filtered.length, itemsPerPage);
 }
@@ -132,11 +164,11 @@ function renderMerchants() {
  * Update pagination
  */
 function updatePagination(totalItems, itemsPerPage) {
-    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
     document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
 
     document.getElementById('prevBtn').disabled = currentPage === 1;
-    document.getElementById('nextBtn').disabled = currentPage === totalPages;
+    document.getElementById('nextBtn').disabled = currentPage >= totalPages;
 }
 
 /**
@@ -146,12 +178,26 @@ function editMerchant(merchantId) {
     const merchant = merchants.find(m => m.id === merchantId);
     if (!merchant) return;
 
+    // Populate form
     document.getElementById('merchantId').value = merchant.id;
-    document.getElementById('merchantName').value = merchant.name;
+    document.getElementById('merchantIdInput').value = merchant.id;
+    document.getElementById('merchantName').value = merchant.name || '';
+    document.getElementById('logoUrl').value = merchant.logo_url || '';
+    document.getElementById('campaignId').value = merchant.campaign_id || '';
+    document.getElementById('offerId').value = merchant.offer_id || '';
     document.getElementById('commissionRate').value = merchant.commission_rate || '';
-    document.getElementById('merchantStatus').value = merchant.status || 'active';
+    document.getElementById('deepLinkBase').value = merchant.deep_link_base || '';
+    document.getElementById('policyNote').value = merchant.policy_note || '';
+    document.getElementById('merchantStatus').value = merchant.is_active ? 'active' : 'inactive';
 
-    document.getElementById('editModal').classList.add('show');
+    // Update modal title
+    document.getElementById('modalTitle').textContent = 'Edit Merchant';
+    document.getElementById('isEditMode').value = 'true';
+
+    // Show modal
+    const modal = document.getElementById('editModal');
+    modal.style.display = 'flex';
+    modal.classList.add('show');
 }
 
 /**
@@ -171,7 +217,7 @@ async function syncMerchants() {
             showToast('Merchants synced successfully', 'success');
             await loadMerchants();
         } else {
-            throw new Error(response.message);
+            throw new Error(response.message || 'Sync failed');
         }
     } catch (error) {
         console.error('Sync failed:', error);
@@ -185,10 +231,13 @@ async function syncMerchants() {
 // Event Listeners
 document.getElementById('syncMerchantsBtn').addEventListener('click', syncMerchants);
 
-document.getElementById('searchInput').addEventListener('input', () => {
-    currentPage = 1;
-    renderMerchants();
-});
+const searchInput = document.getElementById('searchInput');
+if (searchInput) {
+    searchInput.addEventListener('input', () => {
+        currentPage = 1;
+        renderMerchants();
+    });
+}
 
 document.getElementById('prevBtn').addEventListener('click', () => {
     if (currentPage > 1) {
@@ -204,38 +253,63 @@ document.getElementById('nextBtn').addEventListener('click', () => {
 
 // Modal handlers
 document.getElementById('closeModal').addEventListener('click', () => {
-    document.getElementById('editModal').classList.remove('show');
+    const modal = document.getElementById('editModal');
+    modal.style.display = 'none';
+    modal.classList.remove('show');
 });
 
 document.getElementById('cancelBtn').addEventListener('click', () => {
-    document.getElementById('editModal').classList.remove('show');
+    const modal = document.getElementById('editModal');
+    modal.style.display = 'none';
+    modal.classList.remove('show');
 });
 
 document.getElementById('editMerchantForm').addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const merchantId = document.getElementById('merchantId').value;
+    const merchantName = document.getElementById('merchantName').value;
+    const logoUrl = document.getElementById('logoUrl').value;
+    const campaignId = document.getElementById('campaignId').value;
+    const offerId = document.getElementById('offerId').value;
     const commissionRate = document.getElementById('commissionRate').value;
-    const status = document.getElementById('merchantStatus').value;
+    const deepLinkBase = document.getElementById('deepLinkBase').value;
+    const policyNote = document.getElementById('policyNote').value;
+    const statusValue = document.getElementById('merchantStatus').value;
+
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving...';
 
     try {
-        const response = await apiRequest(`/admin/merchants/${merchantId}`, {
+        const response = await apiRequest(`/admin/merchant/${merchantId}`, {
             method: 'PUT',
             body: JSON.stringify({
-                commission_rate: commissionRate,
-                status: status
+                name: merchantName,
+                logo_url: logoUrl || null,
+                campaign_id: campaignId || null,
+                offer_id: offerId || null,
+                commission_rate: commissionRate || null,
+                deep_link_base: deepLinkBase || null,
+                policy_note: policyNote || null,
+                is_active: statusValue === 'active'
             })
         });
 
         if (response.success) {
             showToast('Merchant updated successfully', 'success');
-            document.getElementById('editModal').classList.remove('show');
+            const modal = document.getElementById('editModal');
+            modal.style.display = 'none';
+            modal.classList.remove('show');
             await loadMerchants();
         } else {
-            throw new Error(response.message);
+            throw new Error(response.message || 'Update failed');
         }
     } catch (error) {
         console.error('Update failed:', error);
         showToast('Failed to update merchant: ' + error.message, 'error');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Save Changes';
     }
 });
