@@ -5,6 +5,7 @@ const User = require('../models/User');
 const Conversion = require('../models/Conversion');
 const Click = require('../models/Click');
 const Merchant = require('../models/Merchant');
+const Transaction = require('../models/Transaction');
 const { pool } = require('../config/database');
 const { syncConversions } = require('../jobs/syncConversions');
 const accessTradeService = require('../services/accesstrade');
@@ -674,6 +675,576 @@ router.post('/sync-conversions', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to sync conversions'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/fetch-transactions
+ * Fetch transactions from AccessTrade API
+ */
+router.get('/fetch-transactions', authenticateAdmin, async (req, res) => {
+  try {
+    const { since, until, type, page, limit } = req.query;
+
+    if (!since || !until) {
+      return res.status(400).json({
+        success: false,
+        message: 'since and until parameters are required (ISO format: 2021-01-01T00:00:00Z)'
+      });
+    }
+
+    const startDate = new Date(since);
+    const endDate = new Date(until);
+
+    const options = {
+      page: parseInt(page) || 1,
+      limit: parseInt(limit) || 300,
+      ...(type && { type })
+    };
+
+    logger.info('Fetching transactions from AccessTrade', {
+      adminId: req.userId,
+      since,
+      until,
+      options
+    });
+
+    const response = await accessTradeService.getTransactions(startDate, endDate, options);
+
+    res.json({
+      success: true,
+      data: response.data,
+      pagination: response.pagination
+    });
+  } catch (error) {
+    logger.error('Fetch transactions error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to fetch transactions'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/import-transactions
+ * Import transactions to database
+ */
+router.post('/import-transactions', authenticateAdmin, async (req, res) => {
+  try {
+    const { transactions } = req.body;
+
+    if (!transactions || !Array.isArray(transactions)) {
+      return res.status(400).json({
+        success: false,
+        message: 'transactions array is required'
+      });
+    }
+
+    logger.info('Import transactions triggered by admin', {
+      adminId: req.userId,
+      count: transactions.length
+    });
+
+    // Ensure transactions table exists
+    await Transaction.createTable();
+
+    const results = {
+      total: transactions.length,
+      created: 0,
+      updated: 0,
+      skipped: 0,
+      errors: 0,
+      details: []
+    };
+
+    // Process each transaction
+    for (const tx of transactions) {
+      try {
+        // Check if transaction already exists
+        const existing = await Transaction.findByTransactionId(tx._id);
+
+        // Find merchant by name or ID if available
+        let merchantId = null;
+        if (tx.merchant_name) {
+          const merchantQuery = await pool.query(
+            'SELECT id FROM merchants WHERE name ILIKE $1 LIMIT 1',
+            [tx.merchant_name]
+          );
+          if (merchantQuery.rows.length > 0) {
+            merchantId = merchantQuery.rows[0].id;
+          }
+        }
+
+        const transactionData = {
+          transactionId: tx._id,
+          type: tx.type || null,
+          merchantId,
+          orderId: tx.order_id || null,
+          amount: parseFloat(tx.amount) || 0,
+          commission: parseFloat(tx.commission) || 0,
+          description: tx.description || null,
+          status: tx.status || null,
+          time: tx.time || null,
+          affSid: tx.aff_sid || null,
+          utmSource: tx.utm_source || null,
+          utmMedium: tx.utm_medium || null,
+          utmCampaign: tx.utm_campaign || null,
+          utmContent: tx.utm_content || null,
+          rawData: tx
+        };
+
+        await Transaction.upsert(transactionData);
+
+        if (existing) {
+          results.updated++;
+          results.details.push({
+            status: 'updated',
+            transactionId: tx._id
+          });
+        } else {
+          results.created++;
+          results.details.push({
+            status: 'created',
+            transactionId: tx._id
+          });
+        }
+
+        // Small delay to avoid overwhelming database
+        await new Promise(resolve => setTimeout(resolve, 50));
+      } catch (error) {
+        results.errors++;
+        results.details.push({
+          status: 'error',
+          transactionId: tx._id,
+          reason: error.message
+        });
+        logger.error('Error processing transaction', {
+          transactionId: tx._id,
+          error: error.message
+        });
+      }
+    }
+
+    logger.success('Import transactions completed', results);
+
+    res.json({
+      success: true,
+      message: 'Import completed',
+      result: results
+    });
+  } catch (error) {
+    logger.error('Import transactions error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to import transactions'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/transactions
+ * Get stored transactions with filters
+ */
+router.get('/transactions', authenticateAdmin, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = parseInt(req.query.offset) || 0;
+    const { type, merchantId, status, affSid } = req.query;
+
+    const filters = {};
+    if (type) filters.type = type;
+    if (merchantId) filters.merchantId = merchantId;
+    if (status) filters.status = status;
+    if (affSid) filters.affSid = affSid;
+
+    const transactions = await Transaction.getTransactions(filters, limit, offset);
+    const total = await Transaction.getCount(filters);
+
+    res.json({
+      success: true,
+      transactions,
+      pagination: {
+        total,
+        limit,
+        offset,
+        hasMore: offset + transactions.length < total
+      }
+    });
+  } catch (error) {
+    logger.error('Get transactions error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to get transactions'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/at-order/:id
+ * Get single order detail by ID
+ */
+router.get('/at-order/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const query = `
+      SELECT
+        c.id,
+        c.accesstrade_id,
+        c.order_code,
+        c.merchant_id,
+        c.merchant_name,
+        c.order_amount,
+        c.commission,
+        c.cashback_amount,
+        c.status,
+        c.aff_sid,
+        c.utm_source,
+        c.utm_medium,
+        c.utm_campaign,
+        c.utm_content,
+        c.order_time,
+        c.approval_time,
+        c.created_at,
+        c.updated_at,
+        c.user_id,
+        c.click_id,
+        u.email as user_email,
+        u.username as user_username,
+        u.full_name as user_full_name,
+        cl.aff_sid as click_aff_sid,
+        cl.clicked_at
+      FROM conversions c
+      LEFT JOIN users u ON c.user_id = u.id
+      LEFT JOIN clicks cl ON c.click_id = cl.id
+      WHERE c.id = $1
+    `;
+
+    const result = await pool.query(query, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    const row = result.rows[0];
+
+    res.json({
+      success: true,
+      order: {
+        id: row.id,
+        accesstradeId: row.accesstrade_id,
+        orderCode: row.order_code,
+        merchantId: row.merchant_id,
+        merchantName: row.merchant_name,
+        orderAmount: parseFloat(row.order_amount),
+        commission: parseFloat(row.commission),
+        cashbackAmount: parseFloat(row.cashback_amount),
+        status: row.status,
+        affSid: row.aff_sid,
+        utmSource: row.utm_source,
+        utmMedium: row.utm_medium,
+        utmCampaign: row.utm_campaign,
+        utmContent: row.utm_content,
+        orderTime: row.order_time,
+        approvalTime: row.approval_time,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        userId: row.user_id,
+        userEmail: row.user_email,
+        userUsername: row.user_username,
+        userFullName: row.user_full_name,
+        clickId: row.click_id,
+        clickAffSid: row.click_aff_sid,
+        clickedAt: row.clicked_at
+      }
+    });
+  } catch (error) {
+    logger.error('Get order detail error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get order detail',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/admin/at-orders
+ * Get all AccessTrade orders (conversions) with smart search and filters
+ * This is for lookup purposes - different from user conversions view
+ */
+router.get('/at-orders', authenticateAdmin, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = (page - 1) * limit;
+
+    // Build filter conditions
+    const conditions = [];
+    const values = [];
+    let paramCount = 1;
+
+    // Smart search - search across multiple fields
+    if (req.query.search) {
+      const searchTerm = `%${req.query.search}%`;
+      conditions.push(`(
+        c.order_code ILIKE $${paramCount} OR
+        c.accesstrade_id ILIKE $${paramCount} OR
+        c.merchant_name ILIKE $${paramCount} OR
+        c.aff_sid ILIKE $${paramCount} OR
+        u.email ILIKE $${paramCount} OR
+        u.username ILIKE $${paramCount}
+      )`);
+      values.push(searchTerm);
+      paramCount++;
+    }
+
+    // Status filter
+    if (req.query.status) {
+      conditions.push(`c.status = $${paramCount}`);
+      values.push(req.query.status);
+      paramCount++;
+    }
+
+    // Merchant filter
+    if (req.query.merchant) {
+      conditions.push(`c.merchant_name ILIKE $${paramCount}`);
+      values.push(`%${req.query.merchant}%`);
+      paramCount++;
+    }
+
+    // User filter
+    if (req.query.user) {
+      conditions.push(`(u.email ILIKE $${paramCount} OR u.id::text = $${paramCount})`);
+      values.push(`%${req.query.user}%`);
+      paramCount++;
+    }
+
+    // Date range filter
+    if (req.query.dateFrom) {
+      conditions.push(`c.order_time >= $${paramCount}`);
+      values.push(req.query.dateFrom);
+      paramCount++;
+    }
+
+    if (req.query.dateTo) {
+      // Add end of day
+      const dateTo = new Date(req.query.dateTo);
+      dateTo.setHours(23, 59, 59, 999);
+      conditions.push(`c.order_time <= $${paramCount}`);
+      values.push(dateTo.toISOString());
+      paramCount++;
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    // Get total count for pagination
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM conversions c
+      LEFT JOIN users u ON c.user_id = u.id
+      ${whereClause}
+    `;
+    const countResult = await pool.query(countQuery, values);
+    const total = parseInt(countResult.rows[0].total);
+
+    // Get orders with pagination
+    const ordersQuery = `
+      SELECT
+        c.id,
+        c.accesstrade_id,
+        c.order_code,
+        c.merchant_id,
+        c.merchant_name,
+        c.order_amount,
+        c.commission,
+        c.cashback_amount,
+        c.status,
+        c.aff_sid,
+        c.utm_source,
+        c.utm_medium,
+        c.utm_campaign,
+        c.utm_content,
+        c.order_time,
+        c.approval_time,
+        c.created_at,
+        c.user_id,
+        u.email as user_email,
+        u.username as user_username,
+        u.full_name as user_full_name
+      FROM conversions c
+      LEFT JOIN users u ON c.user_id = u.id
+      ${whereClause}
+      ORDER BY c.order_time DESC, c.created_at DESC
+      LIMIT $${paramCount} OFFSET $${paramCount + 1}
+    `;
+    values.push(limit, offset);
+
+    const ordersResult = await pool.query(ordersQuery, values);
+
+    // Get statistics for current filter
+    const statsQuery = `
+      SELECT
+        COUNT(*) as total,
+        COALESCE(SUM(c.order_amount), 0) as total_order_amount,
+        COALESCE(SUM(c.commission), 0) as total_commission,
+        COALESCE(SUM(c.cashback_amount), 0) as total_cashback
+      FROM conversions c
+      LEFT JOIN users u ON c.user_id = u.id
+      ${whereClause}
+    `;
+    const statsResult = await pool.query(statsQuery, values.slice(0, -2)); // Remove limit and offset
+    const stats = statsResult.rows[0];
+
+    res.json({
+      success: true,
+      orders: ordersResult.rows.map(row => ({
+        id: row.id,
+        accesstradeId: row.accesstrade_id,
+        orderCode: row.order_code,
+        merchantId: row.merchant_id,
+        merchantName: row.merchant_name,
+        orderAmount: parseFloat(row.order_amount),
+        commission: parseFloat(row.commission),
+        cashbackAmount: parseFloat(row.cashback_amount),
+        status: row.status,
+        affSid: row.aff_sid,
+        utmSource: row.utm_source,
+        utmMedium: row.utm_medium,
+        utmCampaign: row.utm_campaign,
+        utmContent: row.utm_content,
+        orderTime: row.order_time,
+        approvalTime: row.approval_time,
+        createdAt: row.created_at,
+        userId: row.user_id,
+        userEmail: row.user_email,
+        userUsername: row.user_username,
+        userFullName: row.user_full_name
+      })),
+      total: total,
+      page: page,
+      limit: limit,
+      totalPages: Math.ceil(total / limit),
+      stats: {
+        total: parseInt(stats.total),
+        totalOrderAmount: parseFloat(stats.total_order_amount),
+        totalCommission: parseFloat(stats.total_commission),
+        totalCashback: parseFloat(stats.total_cashback)
+      }
+    });
+  } catch (error) {
+    logger.error('Get AT orders error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get AccessTrade orders',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/admin/check-conversions
+ * Check and match conversions with clicks using UTM parameters
+ * This replaces the old sync-conversions endpoint
+ */
+router.post('/check-conversions', authenticateAdmin, async (req, res) => {
+  try {
+    logger.info('Check conversions triggered by admin', {
+      adminId: req.userId
+    });
+
+    // Find all conversions without click_id
+    const unmatchedQuery = `
+      SELECT id, accesstrade_id, aff_sid, utm_campaign, utm_source
+      FROM conversions
+      WHERE click_id IS NULL
+      ORDER BY created_at DESC
+      LIMIT 100
+    `;
+
+    const unmatchedResult = await pool.query(unmatchedQuery);
+    const unmatched = unmatchedResult.rows;
+
+    logger.info(`Found ${unmatched.length} unmatched conversions`);
+
+    const results = {
+      total: unmatched.length,
+      matched: 0,
+      skipped: 0,
+      errors: 0,
+      details: []
+    };
+
+    // Try to match each conversion
+    for (const conversion of unmatched) {
+      try {
+        const result = await trackingService.matchConversionWithClick(conversion.id);
+
+        if (result.status === 'matched') {
+          results.matched++;
+          results.details.push({
+            conversionId: conversion.id,
+            accesstradeId: conversion.accesstrade_id,
+            status: 'matched',
+            clickId: result.clickId,
+            userId: result.userId
+          });
+        } else if (result.status === 'skipped') {
+          results.skipped++;
+          results.details.push({
+            conversionId: conversion.id,
+            accesstradeId: conversion.accesstrade_id,
+            status: 'skipped',
+            reason: result.reason
+          });
+        } else {
+          results.errors++;
+          results.details.push({
+            conversionId: conversion.id,
+            accesstradeId: conversion.accesstrade_id,
+            status: 'error',
+            reason: result.reason
+          });
+        }
+
+        // Small delay to avoid overwhelming database
+        await new Promise(resolve => setTimeout(resolve, 50));
+      } catch (error) {
+        results.errors++;
+        results.details.push({
+          conversionId: conversion.id,
+          status: 'error',
+          reason: error.message
+        });
+      }
+    }
+
+    logger.success('Check conversions completed', results);
+
+    res.json({
+      success: true,
+      message: 'Conversion check completed',
+      results: {
+        total: results.total,
+        matched: results.matched,
+        skipped: results.skipped,
+        errors: results.errors
+      },
+      details: results.details
+    });
+  } catch (error) {
+    logger.error('Check conversions failed', {
+      adminId: req.userId,
+      error: error.message
+    });
+
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to check conversions'
     });
   }
 });

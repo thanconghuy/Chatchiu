@@ -154,31 +154,35 @@ async function createConversionsTable() {
   await pool.query(`
     CREATE TABLE conversions (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id UUID REFERENCES users(id) ON DELETE CASCADE,
       click_id UUID REFERENCES clicks(id) ON DELETE SET NULL,
-      accesstrade_conversion_id VARCHAR(100) UNIQUE NOT NULL,
+      accesstrade_id VARCHAR(100) UNIQUE,
       merchant_id VARCHAR(50),
       merchant_name VARCHAR(255),
-      order_id VARCHAR(100),
-      order_value DECIMAL(15, 2) DEFAULT 0.00,
-      commission_amount DECIMAL(15, 2) DEFAULT 0.00,
-      platform_cut DECIMAL(15, 2) DEFAULT 0.00,
-      user_cashback DECIMAL(15, 2) DEFAULT 0.00,
+      order_code VARCHAR(100),
+      order_amount DECIMAL(15, 2) DEFAULT 0.00,
+      commission DECIMAL(15, 2) DEFAULT 0.00,
+      cashback_amount DECIMAL(15, 2) DEFAULT 0.00,
       status conversion_status_enum DEFAULT 'pending',
       aff_sid VARCHAR(100),
-      ordered_at TIMESTAMP,
-      approved_at TIMESTAMP,
-      rejected_at TIMESTAMP,
+      utm_source VARCHAR(100),
+      utm_medium VARCHAR(100),
+      utm_campaign VARCHAR(100),
+      utm_content VARCHAR(100),
+      order_time TIMESTAMP,
+      approval_time TIMESTAMP,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
     -- Create indexes
-    CREATE INDEX idx_conversions_accesstrade_id ON conversions(accesstrade_conversion_id);
+    CREATE INDEX idx_conversions_accesstrade_id ON conversions(accesstrade_id);
     CREATE INDEX idx_conversions_aff_sid ON conversions(aff_sid);
     CREATE INDEX idx_conversions_user_id ON conversions(user_id);
     CREATE INDEX idx_conversions_status ON conversions(status);
-    CREATE INDEX idx_conversions_ordered_at ON conversions(ordered_at DESC);
+    CREATE INDEX idx_conversions_order_time ON conversions(order_time DESC);
+    CREATE INDEX idx_conversions_utm_source ON conversions(utm_source);
+    CREATE INDEX idx_conversions_utm_campaign ON conversions(utm_campaign);
 
     -- Trigger for updated_at
     CREATE TRIGGER update_conversions_updated_at

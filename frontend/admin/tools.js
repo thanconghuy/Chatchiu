@@ -13,18 +13,10 @@ requireAuth();
 
 // State
 let fetchedConversions = null;
-let fetchedTransactions = null;
 
 // DOM Elements
 const userName = document.getElementById('userName');
 const logoutBtn = document.getElementById('logoutBtn');
-
-// Transactions
-const txStartDate = document.getElementById('txStartDate');
-const txEndDate = document.getElementById('txEndDate');
-const fetchTransactionsBtn = document.getElementById('fetchTransactionsBtn');
-const txResult = document.getElementById('txResult');
-const txCount = document.getElementById('txCount');
 
 // Conversions
 const convStartDate = document.getElementById('convStartDate');
@@ -84,90 +76,70 @@ function init() {
     const lastWeek = new Date();
     lastWeek.setDate(lastWeek.getDate() - 7);
 
-    txEndDate.value = formatDateInput(today);
-    txStartDate.value = formatDateInput(lastWeek);
-    convEndDate.value = formatDateInput(today);
-    convStartDate.value = formatDateInput(lastWeek);
+    // Set dates for conversions (this page only has conversions)
+    if (convEndDate) convEndDate.value = formatDateForPicker(today);
+    if (convStartDate) convStartDate.value = formatDateForPicker(lastWeek);
 
     setupEventListeners();
 }
 
 /**
- * Format date for input field (DD/MM/YYYY)
+ * Format date for date picker input (YYYY-MM-DD)
  */
-function formatDateInput(date) {
+function formatDateForPicker(date) {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
-    return `${day}/${month}/${year}`;
+    return `${year}-${month}-${day}`;
 }
 
 /**
- * Parse date from DD/MM/YYYY format to Date object
+ * Parse date from date picker (YYYY-MM-DD) to Date object
  */
 function parseDateInput(dateStr) {
-    const parts = dateStr.trim().split('/');
-    if (parts.length !== 3) {
-        throw new Error('Invalid date format. Use dd/mm/yyyy');
+    if (!dateStr) {
+        throw new Error('Date is required');
     }
-    const day = parseInt(parts[0]);
-    const month = parseInt(parts[1]) - 1; // Month is 0-indexed
-    const year = parseInt(parts[2]);
-
-    if (isNaN(day) || isNaN(month) || isNaN(year)) {
-        throw new Error('Invalid date format. Use dd/mm/yyyy');
+    const date = new Date(dateStr + 'T00:00:00');
+    if (isNaN(date.getTime())) {
+        throw new Error('Invalid date format');
     }
-
-    return new Date(year, month, day);
+    return date;
 }
 
 /**
  * Setup event listeners
  */
 function setupEventListeners() {
-    fetchTransactionsBtn.addEventListener('click', fetchTransactions);
-    fetchConversionsBtn.addEventListener('click', fetchConversions);
-    importFetchedConversionsBtn.addEventListener('click', importFetchedConversions);
-    syncBtn.addEventListener('click', manualSync);
-    importBtn.addEventListener('click', importData);
+    if (fetchConversionsBtn) {
+        fetchConversionsBtn.addEventListener('click', fetchConversions);
+        console.log('✓ Fetch conversions button listener attached');
+    }
 
-    logoutBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        logout();
-    });
-}
+    if (importFetchedConversionsBtn) {
+        importFetchedConversionsBtn.addEventListener('click', importFetchedConversions);
+        console.log('✓ Import fetched conversions button listener attached');
+    }
 
-/**
- * Fetch transactions from AccessTrade API
- */
-async function fetchTransactions() {
-    try {
-        fetchTransactionsBtn.disabled = true;
-        fetchTransactionsBtn.textContent = 'Đang tải...';
-        txResult.classList.add('empty');
-        txResult.textContent = 'Đang tải dữ liệu...';
+    if (syncBtn) {
+        syncBtn.addEventListener('click', manualSync);
+        console.log('✓ Manual sync button listener attached');
+    }
 
-        const startDate = parseDateInput(txStartDate.value).toISOString();
-        const endDate = parseDateInput(txEndDate.value).toISOString();
+    if (importBtn) {
+        importBtn.addEventListener('click', importData);
+        console.log('✓ Import button listener attached');
+    }
 
-        const response = await apiRequest(`/admin/fetch-transactions?since=${startDate}&until=${endDate}`);
-
-        if (response.success) {
-            fetchedTransactions = response.data;
-            displayTransactions(response.data);
-            checkImportReady();
-            showToast(`Loaded ${response.data.length} transactions`, 'success');
-        }
-    } catch (error) {
-        console.error('Error fetching transactions:', error);
-        txResult.classList.add('empty');
-        txResult.innerHTML = `<span style="color: var(--danger);">Error: ${error.message}</span>`;
-        showToast('Failed to fetch transactions', 'error');
-    } finally {
-        fetchTransactionsBtn.disabled = false;
-        fetchTransactionsBtn.textContent = 'Lấy Transactions';
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            logout();
+        });
+        console.log('✓ Logout button listener attached');
     }
 }
+
 
 /**
  * Fetch conversions from AccessTrade API
@@ -183,12 +155,20 @@ async function fetchConversions() {
         fetchConversionsBtn.disabled = true;
         fetchConversionsBtn.textContent = 'Đang tải...';
 
-        const startDate = parseDateInput(convStartDate.value).toISOString();
-        const endDate = parseDateInput(convEndDate.value).toISOString();
+        const startDate = parseDateInput(convStartDate.value);
+        const endDate = parseDateInput(convEndDate.value);
 
-        console.log('Fetching conversions:', { startDate, endDate });
+        // Set end date to end of day
+        endDate.setHours(23, 59, 59, 999);
 
-        const response = await apiRequest(`/admin/fetch-conversions?since=${startDate}&until=${endDate}`);
+        console.log('Fetching conversions:', {
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString()
+        });
+
+        const response = await apiRequest(`/admin/fetch-conversions?since=${encodeURIComponent(startDate.toISOString())}&until=${encodeURIComponent(endDate.toISOString())}`);
+
+        console.log('Fetch conversions response:', response);
 
         if (response.success) {
             fetchedConversions = response.data;
@@ -197,9 +177,13 @@ async function fetchConversions() {
             // Show import button if we have data
             if (response.data && response.data.length > 0) {
                 importFetchedConversionsBtn.style.display = 'block';
+            } else {
+                importFetchedConversionsBtn.style.display = 'none';
             }
 
             showToast(`Loaded ${response.data.length} conversions`, 'success');
+        } else {
+            throw new Error(response.message || 'Failed to fetch conversions');
         }
     } catch (error) {
         console.error('Error fetching conversions:', error);
@@ -216,33 +200,6 @@ async function fetchConversions() {
     }
 }
 
-/**
- * Display transactions
- */
-function displayTransactions(transactions) {
-    if (transactions.length === 0) {
-        txResult.classList.add('empty');
-        txResult.textContent = 'Không có transactions nào';
-        txCount.textContent = '0';
-        return;
-    }
-
-    txResult.classList.remove('empty');
-    txResult.innerHTML = transactions.slice(0, 10).map(tx => `
-        <div class="result-item">
-            <strong>ID:</strong> ${tx._id}<br>
-            <strong>Merchant:</strong> ${tx.merchant_name}<br>
-            <strong>Amount:</strong> ${tx.billing ? formatCurrency(parseFloat(tx.billing)) : '0đ'}<br>
-            <strong>Status:</strong> ${tx.status || 'N/A'}
-        </div>
-    `).join('');
-
-    if (transactions.length > 10) {
-        txResult.innerHTML += `<div style="text-align: center; padding: 8px; color: var(--gray-600);">... và ${transactions.length - 10} transactions nữa</div>`;
-    }
-
-    txCount.textContent = transactions.length;
-}
 
 /**
  * Display conversions in table
@@ -331,12 +288,19 @@ async function importFetchedConversions() {
         importFetchedConversionsBtn.disabled = true;
         importFetchedConversionsBtn.textContent = '⏳ Đang import...';
 
+        console.log('Importing conversions:', fetchedConversions.length);
+
         const response = await apiRequest('/admin/import-conversions', {
             method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify({
                 conversions: fetchedConversions
             })
         });
+
+        console.log('Import response:', response);
 
         if (response.success) {
             const result = response.result;
@@ -346,6 +310,15 @@ async function importFetchedConversions() {
             // Clear and hide button
             fetchedConversions = null;
             importFetchedConversionsBtn.style.display = 'none';
+
+            // Refresh conversions display
+            const tableContainer = document.getElementById('conversionsTableContainer');
+            if (tableContainer) {
+                tableContainer.style.display = 'none';
+            }
+            convCount.textContent = '0';
+        } else {
+            throw new Error(response.message || 'Import failed');
         }
     } catch (error) {
         console.error('Error importing conversions:', error);
@@ -377,6 +350,9 @@ async function importData() {
 
         const response = await apiRequest('/admin/import-conversions', {
             method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify({
                 conversions: fetchedConversions
             })
@@ -416,6 +392,8 @@ async function importData() {
             // Clear fetched data
             fetchedConversions = null;
             checkImportReady();
+        } else {
+            throw new Error(response.message || 'Import failed');
         }
     } catch (error) {
         console.error('Error importing data:', error);

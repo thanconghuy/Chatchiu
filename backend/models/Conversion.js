@@ -8,36 +8,51 @@ class Conversion {
      */
     static async create(conversionData) {
         const {
-            clickId,
+            userId = null,
+            clickId = null,
             accesstradeId,
-            merchantId,
-            orderCode,
-            orderAmount,
-            commission,
-            cashbackAmount,
+            merchantId = null,
+            merchantName = null,
+            orderCode = null,
+            orderAmount = 0,
+            commission = 0,
+            cashbackAmount = 0,
             status = 'pending',
-            orderTime,
+            affSid = null,
+            utmSource = null,
+            utmMedium = null,
+            utmCampaign = null,
+            utmContent = null,
+            orderTime = null,
             approvalTime = null
         } = conversionData;
 
         const query = `
             INSERT INTO conversions (
-                click_id, accesstrade_id, merchant_id, order_code,
-                order_amount, commission, cashback_amount, status,
+                user_id, click_id, accesstrade_id, merchant_id, merchant_name,
+                order_code, order_amount, commission, cashback_amount,
+                status, aff_sid, utm_source, utm_medium, utm_campaign, utm_content,
                 order_time, approval_time
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
             RETURNING *
         `;
 
         const values = [
+            userId,
             clickId,
             accesstradeId,
             merchantId,
+            merchantName,
             orderCode,
             orderAmount,
             commission,
             cashbackAmount,
             status,
+            affSid,
+            utmSource,
+            utmMedium,
+            utmCampaign,
+            utmContent,
             orderTime,
             approvalTime
         ];
@@ -103,7 +118,7 @@ class Conversion {
                    m.name as merchant_name,
                    m.logo_url as merchant_logo,
                    cl.click_type,
-                   cl.product_url,
+                   cl.original_url,
                    cl.clicked_at
             FROM conversions c
             INNER JOIN clicks cl ON c.click_id = cl.id
@@ -163,7 +178,7 @@ class Conversion {
                    cl.user_id,
                    cl.aff_sid,
                    cl.click_type,
-                   cl.product_url
+                   cl.original_url
             FROM conversions c
             LEFT JOIN merchants m ON c.merchant_id = m.id
             LEFT JOIN clicks cl ON c.click_id = cl.id

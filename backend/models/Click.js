@@ -164,10 +164,10 @@ class Click {
         m.logo_url as merchant_logo,
         co.id as conversion_id,
         co.status as conversion_status,
-        co.user_cashback
+        co.cashback_amount
       FROM clicks c
       LEFT JOIN merchants m ON c.merchant_id = m.id
-      LEFT JOIN conversions co ON c.aff_sid = co.aff_sid
+      LEFT JOIN conversions co ON c.id = co.click_id
       WHERE c.user_id = $1
       ORDER BY c.clicked_at DESC
       LIMIT $2
@@ -190,16 +190,16 @@ class Click {
         m.name as merchant_name,
         m.logo_url as merchant_logo,
         co.id as conversion_id,
-        co.order_id,
-        co.order_value,
-        co.user_cashback,
+        co.order_code,
+        co.order_amount,
+        co.cashback_amount,
         co.status as conversion_status,
-        co.ordered_at
+        co.order_time
       FROM clicks c
-      INNER JOIN conversions co ON c.aff_sid = co.aff_sid
+      INNER JOIN conversions co ON c.id = co.click_id
       LEFT JOIN merchants m ON c.merchant_id = m.id
       WHERE c.user_id = $1
-      ORDER BY co.ordered_at DESC
+      ORDER BY co.order_time DESC
       LIMIT $2
     `;
 
@@ -220,9 +220,9 @@ class Click {
         COUNT(CASE WHEN click_type = 'button' THEN 1 END) as button_clicks,
         COUNT(CASE WHEN click_type = 'link' THEN 1 END) as link_clicks,
         COUNT(DISTINCT co.id) as converted_clicks,
-        COALESCE(SUM(co.user_cashback), 0) as total_earnings
+        COALESCE(SUM(co.cashback_amount), 0) as total_earnings
       FROM clicks c
-      LEFT JOIN conversions co ON c.aff_sid = co.aff_sid AND co.status = 'approved'
+      LEFT JOIN conversions co ON c.id = co.click_id AND co.status = 'approved'
       WHERE c.user_id = $1
     `;
 

@@ -72,35 +72,57 @@ async function init() {
  * Setup event listeners
  */
 function setupEventListeners() {
-    statusFilter.addEventListener('change', () => {
-        currentStatus = statusFilter.value;
-        currentPage = 0;
-        loadConversions();
-    });
+    console.log('Setting up event listeners...');
 
-    prevBtn.addEventListener('click', () => {
-        if (currentPage > 0) {
-            currentPage--;
+    if (statusFilter) {
+        statusFilter.addEventListener('change', () => {
+            currentStatus = statusFilter.value;
+            currentPage = 0;
             loadConversions();
-        }
-    });
+        });
+        console.log('✓ Status filter listener attached');
+    }
 
-    nextBtn.addEventListener('click', () => {
-        currentPage++;
-        loadConversions();
-    });
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            if (currentPage > 0) {
+                currentPage--;
+                loadConversions();
+            }
+        });
+        console.log('✓ Prev button listener attached');
+    }
 
-    logoutBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        logout();
-    });
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            currentPage++;
+            loadConversions();
+        });
+        console.log('✓ Next button listener attached');
+    }
 
-    syncBtn.addEventListener('click', async (e) => {
-        e.preventDefault();
-        if (confirm('Trigger manual conversion sync from AccessTrade?')) {
-            await triggerSync();
-        }
-    });
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            logout();
+        });
+        console.log('✓ Logout button listener attached');
+    }
+
+    if (syncBtn) {
+        console.log('✓ Sync button found:', syncBtn);
+        syncBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🔍 Check button clicked!');
+            if (confirm('Kiểm tra và match conversions với clicks trong database?')) {
+                await triggerSync();
+            }
+        });
+        console.log('✓ Sync button listener attached');
+    } else {
+        console.error('❌ Sync button NOT FOUND!');
+    }
 }
 
 /**
@@ -211,12 +233,17 @@ async function approveConversion(conversionId) {
     try {
         const response = await apiRequest(`/admin/conversion/${conversionId}/status`, {
             method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify({ status: 'approved' })
         });
 
         if (response.success) {
             showToast('Conversion approved successfully', 'success');
             await loadConversions();
+        } else {
+            throw new Error(response.message || 'Failed to approve conversion');
         }
     } catch (error) {
         console.error('Error approving conversion:', error);
@@ -233,12 +260,17 @@ async function rejectConversion(conversionId) {
     try {
         const response = await apiRequest(`/admin/conversion/${conversionId}/status`, {
             method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify({ status: 'rejected' })
         });
 
         if (response.success) {
             showToast('Conversion rejected', 'success');
             await loadConversions();
+        } else {
+            throw new Error(response.message || 'Failed to reject conversion');
         }
     } catch (error) {
         console.error('Error rejecting conversion:', error);
@@ -247,29 +279,38 @@ async function rejectConversion(conversionId) {
 }
 
 /**
- * Trigger manual sync
+ * Trigger check conversions (match with clicks)
  */
 async function triggerSync() {
     try {
-        syncBtn.style.opacity = '0.6';
-        syncBtn.style.pointerEvents = 'none';
+        syncBtn.disabled = true;
+        syncBtn.textContent = '⏳ Đang kiểm tra...';
 
-        const response = await apiRequest('/admin/sync-conversions', {
-            method: 'POST'
+        console.log('Triggering check conversions...');
+
+        const response = await apiRequest('/admin/check-conversions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
         });
 
+        console.log('Check response:', response);
+
         if (response.success) {
-            showToast('Sync started in background', 'success');
-            setTimeout(loadConversions, 5000);
+            const { results } = response;
+            showToast(`Kiểm tra hoàn tất! Matched: ${results.matched}, Skipped: ${results.skipped}, Errors: ${results.errors}`, 'success');
+            // Reload conversions after check
+            await loadConversions();
+        } else {
+            throw new Error(response.message || 'Check failed');
         }
     } catch (error) {
-        console.error('Error triggering sync:', error);
-        showToast('Failed to trigger sync', 'error');
+        console.error('Error triggering check:', error);
+        showToast('Lỗi: ' + error.message, 'error');
     } finally {
-        setTimeout(() => {
-            syncBtn.style.opacity = '1';
-            syncBtn.style.pointerEvents = 'auto';
-        }, 3000);
+        syncBtn.disabled = false;
+        syncBtn.textContent = '🔍 Kiểm tra chuyển đổi';
     }
 }
 

@@ -22,7 +22,7 @@ class TrackingService {
       // AccessTrade API uses different field names
       // Map to consistent format
       const orderId = accesstradeData.order_id || accesstradeData._id;
-      const affSid = accesstradeData.aff_sid || accesstradeData.sub_id || accesstradeData.utm_campaign;
+      const affSid = accesstradeData.aff_sid || accesstradeData.sub_id || accesstradeData.utm_campaign || null;
       const merchantId = accesstradeData.merchant_id || accesstradeData.merchant;
 
       logger.info('Processing conversion with data:', {
@@ -32,26 +32,27 @@ class TrackingService {
         rawKeys: Object.keys(accesstradeData)
       });
 
-      if (!affSid) {
-        logger.warn('Conversion missing aff_sid/sub_id', {
-          orderId,
-          availableFields: Object.keys(accesstradeData)
-        });
-        return { status: 'skipped', reason: 'missing_aff_sid' };
-      }
-
-      logger.info(`Processing conversion for aff_sid: ${affSid}`, {
-        orderId,
-        merchantId
-      });
-
-      // Check if conversion already exists
+      // Check if conversion already exists by order ID (this is the important check!)
       const existingConversion = await Conversion.findByAccessTradeId(orderId);
 
       if (existingConversion) {
+        logger.info('Conversion already exists in database', {
+          orderId,
+          conversionId: existingConversion.id
+        });
         return await this.handleExistingConversion(existingConversion, accesstradeData);
       } else {
-        return await this.handleNewConversion(affSid, accesstradeData);
+        // New conversion - try to create with or without click match
+        if (affSid) {
+          // Try to match with click if we have aff_sid
+          return await this.handleNewConversion(affSid, accesstradeData);
+        } else {
+          // No aff_sid - create conversion directly without click match
+          logger.info('No aff_sid found - creating conversion without click match', {
+            orderId
+          });
+          return await this.createConversionDirect(accesstradeData, null);
+        }
       }
     } catch (error) {
       logger.error('Error processing conversion', {
@@ -153,13 +154,13 @@ class TrackingService {
     }
 
     if (!click) {
-      logger.warn('No matching click found - conversion will be skipped', {
+      logger.warn('No matching click found - creating conversion without click match', {
         affSid,
         utmContent,
-        orderId: accesstradeData.order_id || accesstradeData._id,
-        hint: 'Use createConversionDirect() to create without click match'
+        orderId: accesstradeData.order_id || accesstradeData._id
       });
-      return { status: 'skipped', reason: 'no_matching_click', orderId: accesstradeData.order_id || accesstradeData._id };
+      // Instead of skipping, create conversion directly without click
+      return await this.createConversionDirect(accesstradeData, null);
     }
 
     logger.info('Found matching click', {
@@ -191,16 +192,37 @@ class TrackingService {
     const orderId = accesstradeData.order_id || accesstradeData._id;
     const merchantId = click.merchant_id || accesstradeData.merchant_id || accesstradeData.merchant;
 
+    // Extract UTM parameters from AccessTrade data
+    const utmSource = accesstradeData.utm_source || null;
+    const utmMedium = accesstradeData.utm_medium || null;
+    const utmCampaign = accesstradeData.utm_campaign || affSid || null;
+    const utmContentData = accesstradeData.utm_content || null;
+
+    logger.info('Extracted UTM parameters', {
+      utmSource,
+      utmMedium,
+      utmCampaign,
+      utmContent: utmContentData,
+      orderId
+    });
+
     // Create conversion record
     const conversion = await Conversion.create({
+      userId: click.user_id,
       clickId: click.id,
       accesstradeId: orderId,
       merchantId: merchantId,
+      merchantName: accesstradeData.merchant || accesstradeData.merchant_name || null,
       orderCode: accesstradeData.order_code || orderId,
       orderAmount: parseFloat(accesstradeData.billing || 0),
       commission: commissionAmount,
       cashbackAmount: userCashback,
       status: status,
+      affSid: affSid,
+      utmSource: utmSource,
+      utmMedium: utmMedium,
+      utmCampaign: utmCampaign,
+      utmContent: utmContentData,
       orderTime: orderTime,
       approvalTime: approvalTime
     });
@@ -348,16 +370,37 @@ class TrackingService {
       // Get merchant ID
       const merchantId = accesstradeData.merchant_id || accesstradeData.merchant;
 
+      // Extract UTM parameters
+      const utmSource = accesstradeData.utm_source || null;
+      const utmMedium = accesstradeData.utm_medium || null;
+      const utmCampaign = accesstradeData.utm_campaign || accesstradeData.aff_sid || null;
+      const utmContentData = accesstradeData.utm_content || null;
+
+      logger.info('Extracted UTM parameters for direct conversion', {
+        utmSource,
+        utmMedium,
+        utmCampaign,
+        utmContent: utmContentData,
+        orderId
+      });
+
       // Create conversion record (with null click_id since we don't have a match)
       const conversion = await Conversion.create({
+        userId: userId, // May be null if not provided
         clickId: null, // No click match
         accesstradeId: orderId,
         merchantId: merchantId,
+        merchantName: accesstradeData.merchant || accesstradeData.merchant_name || null,
         orderCode: accesstradeData.order_code || orderId,
         orderAmount: parseFloat(accesstradeData.billing || 0),
         commission: commissionAmount,
         cashbackAmount: userCashback,
         status: status,
+        affSid: accesstradeData.aff_sid || accesstradeData.sub_id || null,
+        utmSource: utmSource,
+        utmMedium: utmMedium,
+        utmCampaign: utmCampaign,
+        utmContent: utmContentData,
         orderTime: orderTime,
         approvalTime: approvalTime
       });
@@ -390,6 +433,107 @@ class TrackingService {
     } catch (error) {
       logger.error('Error creating conversion directly', {
         orderId: accesstradeData.order_id || accesstradeData._id,
+        error: error.message,
+        stack: error.stack
+      });
+      return { status: 'error', reason: error.message };
+    }
+  }
+
+  /**
+   * Match conversion with click using UTM parameters
+   * This is useful for retroactively linking conversions to clicks
+   * @param {string} conversionId - ID of the conversion to match
+   * @returns {Promise<Object>}
+   */
+  async matchConversionWithClick(conversionId) {
+    try {
+      const conversion = await Conversion.findById(conversionId);
+
+      if (!conversion) {
+        return { status: 'error', reason: 'conversion_not_found' };
+      }
+
+      if (conversion.click_id) {
+        return { status: 'skipped', reason: 'already_matched', clickId: conversion.click_id };
+      }
+
+      // Try to find matching click using UTM parameters
+      let click = null;
+
+      // First try: Match by utm_campaign (which should be unique per click)
+      if (conversion.utm_campaign) {
+        click = await Click.findByAffSid(conversion.utm_campaign);
+        if (click) {
+          logger.info('Matched click by utm_campaign', {
+            conversionId: conversion.id,
+            clickId: click.id,
+            utmCampaign: conversion.utm_campaign
+          });
+        }
+      }
+
+      // Second try: Match by aff_sid if utm_campaign didn't work
+      if (!click && conversion.aff_sid) {
+        click = await Click.findByAffSid(conversion.aff_sid);
+        if (click) {
+          logger.info('Matched click by aff_sid', {
+            conversionId: conversion.id,
+            clickId: click.id,
+            affSid: conversion.aff_sid
+          });
+        }
+      }
+
+      if (!click) {
+        return {
+          status: 'skipped',
+          reason: 'no_matching_click',
+          searchedBy: {
+            utmCampaign: conversion.utm_campaign,
+            affSid: conversion.aff_sid
+          }
+        };
+      }
+
+      // Update conversion with click_id and user_id
+      const db = require('../config/database');
+      await db.query(
+        'UPDATE conversions SET click_id = $1, user_id = $2, updated_at = NOW() WHERE id = $3',
+        [click.id, click.user_id, conversion.id]
+      );
+
+      logger.success('Successfully matched conversion with click', {
+        conversionId: conversion.id,
+        clickId: click.id,
+        userId: click.user_id
+      });
+
+      // If conversion is approved or pending, update user balance
+      if (conversion.status === 'approved' && conversion.cashback_amount > 0) {
+        await User.updateBalance(click.user_id, 'add_pending', conversion.cashback_amount);
+        await User.updateBalance(click.user_id, 'pending_to_available', conversion.cashback_amount);
+        logger.info('Updated user balance for matched conversion', {
+          userId: click.user_id,
+          amount: conversion.cashback_amount
+        });
+      } else if (conversion.status === 'pending' && conversion.cashback_amount > 0) {
+        await User.updateBalance(click.user_id, 'add_pending', conversion.cashback_amount);
+        logger.info('Added to pending balance for matched conversion', {
+          userId: click.user_id,
+          amount: conversion.cashback_amount
+        });
+      }
+
+      return {
+        status: 'matched',
+        conversionId: conversion.id,
+        clickId: click.id,
+        userId: click.user_id
+      };
+    } catch (error) {
+      logger.error('Error matching conversion with click', {
+        conversionId,
         error: error.message,
         stack: error.stack
       });

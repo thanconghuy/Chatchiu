@@ -6,6 +6,24 @@
     <title>Conversions Management - Admin</title>
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="admin.css">
+    <style>
+        #syncBtn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        #syncBtn:active {
+            transform: translateY(0);
+        }
+        #syncBtn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        #statusFilter:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+    </style>
 </head>
 <body>
     <div class="app-container">
@@ -57,17 +75,20 @@
                 </div>
             </div>
 
-            <!-- Filter Bar -->
-            <div class="filter-bar">
-                <div class="filter-group">
-                    <label for="statusFilter">Status:</label>
-                    <select id="statusFilter" class="filter-select">
-                        <option value="">All</option>
+            <!-- Actions Bar -->
+            <div style="display: flex; gap: 16px; margin-bottom: 24px; align-items: center; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <label for="statusFilter" style="font-weight: 600; color: var(--gray-700); white-space: nowrap;">Lọc theo trạng thái:</label>
+                    <select id="statusFilter" style="padding: 10px 16px; border: 2px solid var(--gray-300); border-radius: 8px; font-size: 1rem; cursor: pointer; min-width: 150px;">
+                        <option value="">Tất cả</option>
                         <option value="pending">Pending</option>
                         <option value="approved">Approved</option>
                         <option value="rejected">Rejected</option>
                     </select>
                 </div>
+                <button id="syncBtn" style="padding: 12px 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s; white-space: nowrap; font-size: 1rem; position: relative; z-index: 1;">
+                    🔍 Kiểm tra chuyển đổi
+                </button>
             </div>
 
             <!-- Conversions Table -->

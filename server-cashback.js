@@ -14,8 +14,9 @@ app.use(cors({
   origin: '*',
   credentials: true
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Increase payload limit to 10MB for importing large conversion batches
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Serve static files from frontend and public directories
 app.use(express.static(path.join(__dirname, 'frontend')));
@@ -61,6 +62,14 @@ app.get('/admin/:page', (req, res) => {
 // Default route - serve dashboard
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend', 'dashboard.html'));
+});
+
+// Ignore source map requests (silent 404)
+app.use((req, res, next) => {
+  if (req.path.endsWith('.map') || req.path.includes('.map.')) {
+    return res.status(204).send(); // No Content
+  }
+  next();
 });
 
 // 404 handler

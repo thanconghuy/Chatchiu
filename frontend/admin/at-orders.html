@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tất cả dữ liệu đơn hàng trên AT - Admin</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="admin.css">
+    <style>
+        .search-bar {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 24px;
+        }
+
+        .search-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .search-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .search-input-group label {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--gray-700);
+        }
+
+        .search-input-group input,
+        .search-input-group select {
+            padding: 10px 12px;
+            border: 2px solid var(--gray-300);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+
+        .search-input-group input:focus,
+        .search-input-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .search-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 16px;
+        }
+
+        .btn-search {
+            padding: 12px 32px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-search:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-reset {
+            padding: 12px 24px;
+            background: white;
+            color: var(--gray-700);
+            border: 2px solid var(--gray-300);
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-reset:hover {
+            border-color: var(--gray-400);
+            background: var(--gray-50);
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-box {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--gray-600);
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        .table-wrapper {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .data-table thead th {
+            padding: 16px 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+
+        .data-table tbody td {
+            padding: 14px 12px;
+            border-bottom: 1px solid #f1f1f1;
+            font-size: 0.9rem;
+        }
+
+        .data-table tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-approved {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-rejected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 16px;
+            margin-top: 24px;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .pagination button {
+            padding: 8px 16px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: var(--primary-dark);
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--gray-600);
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .loading-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 1200px) {
+            .search-row {
+                grid-template-columns: 1fr 1fr;
+            }
+            .stats-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .search-row {
+                grid-template-columns: 1fr;
+            }
+            .stats-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <span class="logo-icon">⚡</span>
+                <span class="logo-text">Admin</span>
+            </div>
+
+            <nav class="nav">
+                <a href="/admin" class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+                <a href="/admin/users" class="nav-item">
+                    <span class="nav-icon">👥</span>
+                    <span class="nav-text">Users</span>
+                </a>
+                <a href="/admin/conversions" class="nav-item">
+                    <span class="nav-icon">💰</span>
+                    <span class="nav-text">Conversions</span>
+                </a>
+                <a href="/admin/at-orders" class="nav-item active">
+                    <span class="nav-icon">📦</span>
+                    <span class="nav-text">Dữ liệu đơn AT</span>
+                </a>
+                <a href="/admin/merchants" class="nav-item">
+                    <span class="nav-icon">🏪</span>
+                    <span class="nav-text">Merchants</span>
+                </a>
+                <a href="/admin/tools" class="nav-item">
+                    <span class="nav-icon">🔧</span>
+                    <span class="nav-text">Tools</span>
+                </a>
+                <a href="/dashboard" class="nav-item">
+                    <span class="nav-icon">👤</span>
+                    <span class="nav-text">User View</span>
+                </a>
+                <a href="#" class="nav-item" id="logoutBtn">
+                    <span class="nav-icon">🚪</span>
+                    <span class="nav-text">Logout</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-header">
+                <h1>📦 Tất cả dữ liệu đơn hàng trên AccessTrade</h1>
+                <div class="user-info">
+                    <span id="userName">Admin</span>
+                </div>
+            </div>
+
+            <!-- Search & Filter -->
+            <div class="search-bar">
+                <div class="search-row">
+                    <div class="search-input-group">
+                        <label for="searchKeyword">🔍 Tìm kiếm</label>
+                        <input type="text" id="searchKeyword" placeholder="Order ID, Merchant, Aff Sid...">
+                    </div>
+                    <div class="search-input-group">
+                        <label for="filterStatus">Trạng thái</label>
+                        <select id="filterStatus">
+                            <option value="">Tất cả</option>
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                    </div>
+                    <div class="search-input-group">
+                        <label for="filterMerchant">Merchant</label>
+                        <input type="text" id="filterMerchant" placeholder="Tên merchant...">
+                    </div>
+                </div>
+                <div class="search-row">
+                    <div class="search-input-group">
+                        <label for="filterDateFrom">Từ ngày</label>
+                        <input type="date" id="filterDateFrom">
+                    </div>
+                    <div class="search-input-group">
+                        <label for="filterDateTo">Đến ngày</label>
+                        <input type="date" id="filterDateTo">
+                    </div>
+                    <div class="search-input-group">
+                        <label for="filterUser">User ID/Email</label>
+                        <input type="text" id="filterUser" placeholder="User ID hoặc email...">
+                    </div>
+                </div>
+                <div class="search-actions">
+                    <button class="btn-reset" id="resetBtn">🔄 Reset</button>
+                    <button class="btn-search" id="searchBtn">🔍 Tìm kiếm</button>
+                </div>
+            </div>
+
+            <!-- Statistics -->
+            <div class="stats-row">
+                <div class="stat-box">
+                    <div class="stat-label">Tổng đơn hàng</div>
+                    <div class="stat-value" id="statTotal">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Tổng giá trị</div>
+                    <div class="stat-value" id="statTotalValue">0đ</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Tổng commission</div>
+                    <div class="stat-value" id="statTotalCommission">0đ</div>
+                </div>
+            </div>
+
+            <!-- Data Table -->
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Merchant</th>
+                            <th>User</th>
+                            <th>Giá trị đơn</th>
+                            <th>Commission</th>
+                            <th>Cashback</th>
+                            <th>Trạng thái</th>
+                            <th>Aff Sid</th>
+                            <th>Thời gian</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordersTableBody">
+                        <tr class="loading-state">
+                            <td colspan="9">
+                                <div class="spinner"></div>
+                                <div>Đang tải dữ liệu...</div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            <div class="pagination">
+                <button id="prevBtn" disabled>« Trước</button>
+                <span id="pageInfo">Trang 1</span>
+                <button id="nextBtn">Sau »</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Order Detail Modal -->
+    <div id="orderDetailModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); z-index: 2000; align-items: center; justify-content: center;">
+        <div class="modal-content" style="max-width: 800px; position: relative; z-index: 2001;">
+            <div class="modal-header">
+                <h2>📦 Chi tiết đơn hàng</h2>
+                <button class="modal-close" onclick="closeOrderDetailModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                    <!-- Left Column -->
+                    <div>
+                        <h3 style="margin: 0 0 16px 0; color: var(--gray-800); font-size: 1.1rem;">Thông tin đơn hàng</h3>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <div>
+                                <div style="font-size: 0.85rem; color: var(--gray-600); margin-bottom: 4px;">Order Code</div>
+                                <div style="font-weight: 600;" id="detailOrderCode">-</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.85rem; color: var(--gray-600); margin-bottom: 4px;">AccessTrade ID</div>
+                                <div style="font-weight: 600;" id="detailAccesstradeId">-</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.85rem; color: var(--gray-600); margin-bottom: 4px;">Merchant</div>
+                                <div style="font-weight: 600;" id="detailMerchant">-</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.85rem; color: var(--gray-600); margin-bottom: 4px;">Aff Sid</div>
+                                <div style="font-family: monospace; font-size: 0.9rem;" id="detailAffSid">-</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.85rem; color: var(--gray-600); margin-bottom: 4px;">Trạng thái</div>
+                                <div id="detailStatus">-</div>
+                            </div>
+                        </div>
+
+                        <h3 style="margin: 24px 0 16px 0; color: var(--gray-800); font-size: 1.1rem;">Thông tin tài chính</h3>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <div style="padding: 12px; background: var(--gray-50); border-radius: 8px;">
+                                <div style="font-size: 0.85rem; color: var(--gray-600); margin-bottom: 4px;">Giá trị đơn hàng</div>
+                                <div style="font-size: 1.3rem; font-weight: 700; color: var(--gray-900);" id="detailOrderAmount">0đ</div>
+                            </div>
+                            <div style="padding: 12px; background: #f0f9ff; border-radius: 8px;">
+                                <div style="font-size: 0.85rem; color: var(--primary); margin-bottom: 4px;">Commission</div>
+                                <div style="font-size: 1.3rem; font-weight: 700; color: var(--primary);" id="detailCommission">0đ</div>
+                            </div>
+                            <div style="padding: 12px; background: #d1fae5; border-radius: 8px;">
+                                <div style="font-size: 0.85rem; color: var(--success); margin-bottom: 4px;">Cashback cho user</div>
+                                <div style="font-size: 1.3rem; font-weight: 700; color: var(--success);" id="detailCashback">0đ</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column -->
+                    <div>
+                        <h3 style="margin: 0 0 16px 0; color: var(--gray-800); font-size: 1.1rem;">Thông tin user</h3>
+                        <div style="padding: 16px; background: var(--gray-50); border-radius: 8px; margin-bottom: 24px;" id="detailUserInfo">
+                            <div style="color: var(--gray-500);">Đang tải...</div>
+                        </div>
+
+                        <h3 style="margin: 0 0 16px 0; color: var(--gray-800); font-size: 1.1rem;">UTM Parameters</h3>
+                        <div style="padding: 16px; background: var(--gray-50); border-radius: 8px; margin-bottom: 24px;" id="detailUtmInfo">
+                            <div style="color: var(--gray-500);">Đang tải...</div>
+                        </div>
+
+                        <h3 style="margin: 0 0 16px 0; color: var(--gray-800); font-size: 1.1rem;">Click Tracking</h3>
+                        <div style="padding: 16px; background: var(--gray-50); border-radius: 8px; margin-bottom: 24px;" id="detailClickInfo">
+                            <div style="color: var(--gray-500);">Đang tải...</div>
+                        </div>
+
+                        <h3 style="margin: 0 0 16px 0; color: var(--gray-800); font-size: 1.1rem;">Thời gian</h3>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <div>
+                                <div style="font-size: 0.85rem; color: var(--gray-600); margin-bottom: 4px;">Thời gian đặt hàng</div>
+                                <div id="detailOrderTime">-</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.85rem; color: var(--gray-600); margin-bottom: 4px;">Thời gian duyệt</div>
+                                <div id="detailApprovalTime">-</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.85rem; color: var(--gray-600); margin-bottom: 4px;">Import vào hệ thống</div>
+                                <div id="detailCreatedAt">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast notification -->
+    <div id="toast" class="toast"></div>
+
+    <script src="../js/config.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="at-orders.js"></script>
+</body>
+</html>

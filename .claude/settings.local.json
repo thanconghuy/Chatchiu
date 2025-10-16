@@ -21,7 +21,10 @@
       "Bash(git push:*)",
       "Bash(for file in users.html conversions.html tools.html)",
       "Bash(do echo \"Processing $file\")",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(cat:*)",
+      "Bash(for file in index.html users.html conversions.html merchants.html tools.html)",
+      "Bash(do echo \"Updating $file...\")"
     ],
     "deny": [],
     "ask": []

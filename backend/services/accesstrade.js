@@ -163,6 +163,95 @@ class AccessTradeService {
   }
 
   /**
+   * Get transactions from AccessTrade API
+   * @param {Date} startDate
+   * @param {Date} endDate
+   * @param {Object} options - Additional query parameters
+   * @returns {Promise<Array>}
+   */
+  async getTransactions(startDate, endDate, options = {}) {
+    try {
+      // Format dates to ISO string with Z timezone
+      const since = startDate.toISOString();
+      const until = endDate.toISOString();
+
+      const params = {
+        since,
+        until,
+        limit: options.limit || 300, // Maximum 300
+        page: options.page || 1,
+        ...options.type && { type: options.type } // Transaction type filter
+      };
+
+      logger.info('Fetching transactions from AccessTrade', params);
+
+      const response = await this.axiosInstance.get('/transaction-list', {
+        params
+      });
+
+      logger.info('AccessTrade Transactions API Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        hasData: !!response.data,
+        dataKeys: response.data ? Object.keys(response.data) : [],
+        dataType: typeof response.data
+      });
+
+      if (response.data && response.data.data) {
+        const transactions = response.data.data;
+        const total = response.data.total || transactions.length;
+        const currentPage = response.data.page || 1;
+        const totalPages = response.data.total_page || 1;
+
+        logger.success(`Fetched ${transactions.length} transactions from AccessTrade (Page ${currentPage}/${totalPages}, Total: ${total})`);
+
+        return {
+          data: transactions,
+          pagination: {
+            total,
+            page: currentPage,
+            total_page: totalPages,
+            limit: params.limit
+          }
+        };
+      }
+
+      logger.warn('No transaction data found in response');
+
+      return {
+        data: [],
+        pagination: {
+          total: 0,
+          page: 1,
+          total_page: 0,
+          limit: params.limit
+        }
+      };
+    } catch (error) {
+      logger.error('Failed to fetch transactions from AccessTrade', {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        hasAccessToken: !!this.accessToken
+      });
+
+      // Handle rate limiting
+      if (error.response?.status === 429) {
+        logger.warn('AccessTrade API rate limit exceeded - waiting 60 seconds');
+        throw new Error('Rate limit exceeded: Please wait 60 seconds before trying again');
+      }
+
+      // Handle authentication errors
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        throw new Error('Authentication failed: Please check ACCESSTRADE_ACCESS_TOKEN');
+      }
+
+      throw error;
+    }
+  }
+
+  /**
    * Test API connection
    * @returns {Promise<boolean>}
    */
