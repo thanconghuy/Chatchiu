@@ -247,31 +247,84 @@ body {
 /* Table */
 .table-container {
     overflow-x: auto;
+    width: 100%;
 }
 
-.orders-table {
+.orders-table,
+.data-table {
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed; /* Fixed layout for equal column widths */
 }
 
-.orders-table thead {
+.orders-table thead,
+.data-table thead {
     background: var(--gray-100);
 }
 
 .orders-table th,
-.orders-table td {
-    padding: 12px 16px;
+.orders-table td,
+.data-table th,
+.data-table td {
+    padding: 14px 16px;
     text-align: left;
     border-bottom: 1px solid var(--gray-200);
+    word-wrap: break-word;
 }
 
-.orders-table th {
+.orders-table th,
+.data-table th {
     font-weight: 600;
     color: var(--gray-700);
+    white-space: nowrap;
 }
 
-.orders-table tbody tr:hover {
+.orders-table tbody tr:hover,
+.data-table tbody tr:hover {
     background: var(--gray-50);
+}
+
+/* Column widths for clicks table */
+.data-table th:nth-child(1),
+.data-table td:nth-child(1) { /* Merchant */
+    width: 18%;
+    min-width: 140px;
+}
+
+.data-table th:nth-child(2),
+.data-table td:nth-child(2) { /* Loại */
+    width: 12%;
+    min-width: 110px;
+}
+
+.data-table th:nth-child(3),
+.data-table td:nth-child(3) { /* Thời gian */
+    width: 16%;
+    min-width: 140px;
+}
+
+.data-table th:nth-child(4),
+.data-table td:nth-child(4) { /* Link */
+    width: 12%;
+    min-width: 100px;
+}
+
+.data-table th:nth-child(5),
+.data-table td:nth-child(5) { /* Có mua hàng */
+    width: 12%;
+    min-width: 110px;
+}
+
+.data-table th:nth-child(6),
+.data-table td:nth-child(6) { /* Trạng thái */
+    width: 15%;
+    min-width: 120px;
+}
+
+.data-table th:nth-child(7),
+.data-table td:nth-child(7) { /* Cashback */
+    width: 15%;
+    min-width: 100px;
 }
 
 .empty-state {
@@ -663,6 +716,100 @@ body {
     font-weight: 600;
 }
 
+/* Click Type Badges */
+.click-type-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.click-type-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.click-type-link {
+    background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+    color: white;
+}
+
+/* Conversion Badges */
+.conversion-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.conversion-yes {
+    background: #d4edda;
+    color: #155724;
+}
+
+.conversion-no {
+    background: var(--gray-100);
+    color: var(--gray-600);
+}
+
+/* Status Badge - Additional */
+.status-none {
+    background: var(--gray-100);
+    color: var(--gray-600);
+}
+
+/* Cashback Amount */
+.cashback-amount {
+    color: var(--success);
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.cashback-none {
+    color: var(--gray-400);
+}
+
+/* Link Button */
+.link-btn {
+    display: inline-block;
+    padding: 6px 14px;
+    background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.3s;
+    white-space: nowrap;
+}
+
+.link-btn:hover {
+    background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(72, 187, 120, 0.3);
+}
+
+.link-btn:active {
+    transform: translateY(0);
+}
+
+.link-none {
+    color: var(--gray-400);
+    font-size: 0.9rem;
+}
+
+/* Data Table Enhancements */
+.data-table tbody tr {
+    transition: background 0.2s;
+}
+
+.data-table tbody tr:hover {
+    background: var(--gray-50);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .stats-grid {
@@ -675,5 +822,11 @@ body {
 
     .main-content {
         padding: 20px;
+    }
+
+    /* Hide less important columns on mobile */
+    .data-table th:nth-child(n+5),
+    .data-table td:nth-child(n+5) {
+        display: none;
     }
 }

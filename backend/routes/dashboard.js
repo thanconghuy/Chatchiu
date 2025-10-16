@@ -197,6 +197,7 @@ router.get('/recent-clicks', authenticateToken, async (req, res) => {
         merchantLogo: c.merchant_logo,
         clickType: c.click_type,
         clickedAt: c.clicked_at,
+        affiliateUrl: c.affiliate_url,
         hasConversion: !!c.conversion_id,
         conversionStatus: c.conversion_status,
         cashback: c.user_cashback ? parseFloat(c.user_cashback) : 0
@@ -229,13 +230,18 @@ router.get('/conversions', authenticateToken, async (req, res) => {
       });
     }
 
-    const conversions = await SystemConversion.getUserConversions(req.userId, status, limit, offset);
+    const conversions = await SystemConversion.getUserConversions(req.userId, {
+      status,
+      limit,
+      offset
+    });
 
     res.json({
       success: true,
       conversions: conversions.map(sc => ({
         id: sc.id,
         merchantName: sc.merchant_name,
+        merchantLogo: sc.merchant_logo,
         orderCode: sc.order_code,
         orderAmount: parseFloat(sc.order_amount),
         commission: parseFloat(sc.commission),

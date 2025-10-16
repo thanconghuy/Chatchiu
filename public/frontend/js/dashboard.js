@@ -131,22 +131,39 @@ function renderRecentOrders(clicks) {
     }
 
     recentOrdersTable.innerHTML = clicks.map(click => {
-        const statusClass = click.conversionStatus === 'approved' ? 'status-approved' :
-                           click.conversionStatus === 'pending' ? 'status-pending' : '';
-        const statusText = click.hasConversion ?
-            (click.conversionStatus === 'approved' ? 'Đã duyệt' :
-             click.conversionStatus === 'pending' ? 'Chờ duyệt' : 'Từ chối') :
-            'Chưa mua';
+        // Click type badge
+        const clickTypeBadge = click.clickType === 'button'
+            ? '<span class="click-type-badge click-type-button">🎯 Tự do</span>'
+            : '<span class="click-type-badge click-type-link">🔗 Link SP</span>';
+
+        // Status badge
+        let statusBadge = '<span class="status-badge status-none">Chưa mua</span>';
+        if (click.hasConversion) {
+            const statusClass = click.conversionStatus === 'approved' ? 'status-approved' :
+                               click.conversionStatus === 'pending' ? 'status-pending' :
+                               'status-rejected';
+            const statusText = click.conversionStatus === 'approved' ? '✓ Đã duyệt' :
+                              click.conversionStatus === 'pending' ? '⏳ Chờ duyệt' : '✗ Từ chối';
+            statusBadge = `<span class="status-badge ${statusClass}">${statusText}</span>`;
+        }
+
+        // Cashback cell
+        const cashbackCell = click.cashback > 0
+            ? `<span class="cashback-amount">${formatCurrency(click.cashback)}</span>`
+            : '<span class="cashback-none">-</span>';
 
         return `
             <tr>
-                <td>${click.merchantName}</td>
-                <td>${click.clickType === 'button' ? '🎯 Tự do' : '🔗 Link SP'}</td>
-                <td>${formatDate(click.clickedAt)}</td>
                 <td>
-                    ${statusClass ? `<span class="status-badge ${statusClass}">${statusText}</span>` : statusText}
+                    <div class="merchant-cell">
+                        ${click.merchantLogo ? `<img src="${click.merchantLogo}" alt="${click.merchantName}" class="merchant-mini-logo">` : ''}
+                        <span>${click.merchantName}</span>
+                    </div>
                 </td>
-                <td>${click.cashback ? formatCurrency(click.cashback) : '-'}</td>
+                <td>${clickTypeBadge}</td>
+                <td>${formatDate(click.clickedAt)}</td>
+                <td>${statusBadge}</td>
+                <td>${cashbackCell}</td>
             </tr>
         `;
     }).join('');

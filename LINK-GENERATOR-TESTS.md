@@ -30,7 +30,7 @@ const clickType = 'button';
 ### Expected Output
 ```js
 {
-  affiliateUrl: 'https://go.isclix.com/deep_link/4790392958945222748/4751584435713464237?utm_source=cashback&utm_medium=conghuynt&utm_campaign=lammmo&utm_content=a12b1699-3596-4e48-887f-abcdef123456&sub4=oneatweb&aff_sid={userId}_{timestamp}_{random}&url=https%3A%2F%2Fshope.ee%2F',
+  affiliateUrl: 'https://go.isclix.com/deep_link/v6/4790392958945222748/4751584435713464237?utm_source=cashback&utm_medium=conghuynt&utm_campaign=lammmo&utm_content=a12b1699-3596-4e48-887f-abcdef123456&sub4=oneatweb&aff_sid={userId}_{timestamp}_{random}&url=https%3A%2F%2Fshope.ee%2F',
 
   affSid: '8c1c7674-036c-47ee-b9b0-12345abcde_1760615821594_6e01f',
 
@@ -49,7 +49,7 @@ const clickType = 'button';
 
 ### Link Format Breakdown
 ```
-https://go.isclix.com/deep_link/{campaign_id}/{offer_id}?
+https://go.isclix.com/deep_link/v6/{publisher_id}/{campaign_id}?
   utm_source=cashback&
   utm_medium=conghuynt&
   utm_campaign=lammmo&
@@ -57,6 +57,10 @@ https://go.isclix.com/deep_link/{campaign_id}/{offer_id}?
   sub4=oneatweb&
   aff_sid={user_id}_{timestamp}_{random}&
   url={destination_url}
+
+Trong đó:
+- publisher_id: 4790392958945222748 (cố định - ID tài khoản iSclix)
+- campaign_id: Lấy từ merchant.offer_id (ví dụ: 4751584435713464237)
 ```
 
 ---
@@ -86,7 +90,7 @@ const productUrl = 'https://www.lazada.vn/products/iphone-15-pro-max-256gb-i1234
 ### Expected Output
 ```js
 {
-  affiliateUrl: 'https://go.isclix.com/deep_link/4790392958945222748/5127144557053758578?utm_source=cashback&utm_medium=conghuynt&utm_campaign=lammmo&utm_content=ce5c7c02-80c4-415d-a27a-9aff95939420&sub4=oneatweb&aff_sid=8c1c7674-036c-47ee-b9b0-12345abcde_1760615900000_abc12&url=https%3A%2F%2Fwww.lazada.vn%2Fproducts%2Fiphone-15-pro-max-256gb-i123456789.html',
+  affiliateUrl: 'https://go.isclix.com/deep_link/v6/4790392958945222748/5127144557053758578?utm_source=cashback&utm_medium=conghuynt&utm_campaign=lammmo&utm_content=ce5c7c02-80c4-415d-a27a-9aff95939420&sub4=oneatweb&aff_sid=8c1c7674-036c-47ee-b9b0-12345abcde_1760615900000_abc12&url=https%3A%2F%2Fwww.lazada.vn%2Fproducts%2Fiphone-15-pro-max-256gb-i123456789.html',
 
   affSid: '8c1c7674-036c-47ee-b9b0-12345abcde_1760615900000_abc12',
 
@@ -146,9 +150,7 @@ const merchant = {
 ### Expected Behavior
 ```js
 // Should throw error in validateInputs():
-throw new Error('Invalid merchant - missing campaign_id');
-// or
-throw new Error('Invalid merchant - missing offer_id');
+throw new Error('Invalid merchant - missing offer_id (campaign_id)');
 ```
 
 ---
@@ -223,7 +225,7 @@ LIMIT 1;
 -- Check if affiliate_url has correct format
 SELECT
   CASE
-    WHEN affiliate_url LIKE 'https://go.isclix.com/deep_link/4790392958945222748/%'
+    WHEN affiliate_url LIKE 'https://go.isclix.com/deep_link/v6/4790392958945222748/%'
     THEN 'CORRECT'
     ELSE 'WRONG'
   END as url_format_check,
@@ -238,9 +240,9 @@ LIMIT 1;
 
 ## 📊 Validation Checklist
 
-- [ ] Affiliate URL starts with `https://go.isclix.com/deep_link/`
-- [ ] Contains campaign_id: `4790392958945222748`
-- [ ] Contains correct offer_id (merchant-specific)
+- [ ] Affiliate URL starts with `https://go.isclix.com/deep_link/v6/`
+- [ ] Contains publisher_id: `4790392958945222748` (cố định)
+- [ ] Contains correct campaign_id từ `merchant.offer_id` (khác nhau theo merchant)
 - [ ] UTM parameters are present and correct
 - [ ] `aff_sid` follows format: `{userId}_{timestamp}_{random}`
 - [ ] `utm_content` equals `clickId` (for tracking)
@@ -269,9 +271,11 @@ LIMIT 1;
 
 ## 📚 Reference Links
 
-- iSclix Deep Link Format: `https://go.isclix.com/deep_link/{campaign_id}/{offer_id}?params`
+- iSclix Deep Link Format: `https://go.isclix.com/deep_link/v6/{publisher_id}/{campaign_id}?params`
+  - publisher_id: 4790392958945222748 (cố định)
+  - campaign_id: Lấy từ merchant.offer_id
 - AccessTrade API Docs: https://developers.accesstrade.vn/
-- Example Link: https://go.isclix.com/deep_link/v5/4790392958945222748/5127144557053758578
+- Example Link: https://go.isclix.com/deep_link/v6/4790392958945222748/4751584435713464237
 
 ---
 

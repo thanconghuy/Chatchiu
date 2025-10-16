@@ -4,10 +4,15 @@ const crypto = require('crypto');
  * Link Generator Service
  * Generates iSclix/AccessTrade affiliate links with UTM tracking
  *
- * Format: https://go.isclix.com/deep_link/{campaign_id}/{offer_id}?utm_params&url={destination}
+ * Format: https://go.isclix.com/deep_link/v6/{publisher_id}/{campaign_id}?utm_params&url={destination}
+ *
+ * Trong đó:
+ * - publisher_id: 4790392958945222748 (cố định - ID tài khoản iSclix)
+ * - campaign_id: Lấy từ merchant.offer_id trong database
  */
 
-const ISCLIX_BASE = 'https://go.isclix.com/deep_link';
+const ISCLIX_BASE = 'https://go.isclix.com/deep_link/v6';
+const ISCLIX_PUBLISHER_ID = '4790392958945222748'; // iSclix Publisher ID (cố định)
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -61,7 +66,9 @@ function buildQueryString(params) {
  * Generate iSclix affiliate link
  *
  * @param {Object} user - User object { id, username }
- * @param {Object} merchant - Merchant object { campaign_id, offer_id, deep_link_base }
+ * @param {Object} merchant - Merchant object { offer_id, deep_link_base }
+ *   - offer_id: Campaign ID từ iSclix (bắt buộc)
+ *   - deep_link_base: URL trang chủ merchant (cho click type 'button')
  * @param {string} clickId - Click UUID from database
  * @param {string} clickType - 'button' or 'link'
  * @param {string|null} productUrl - Product URL (required for 'link' type)
@@ -123,12 +130,8 @@ function validateInputs(user, merchant, clickId, clickType, productUrl) {
     throw new Error('Invalid user object - missing id or username');
   }
 
-  if (!merchant?.campaign_id) {
-    throw new Error('Invalid merchant - missing campaign_id');
-  }
-
   if (!merchant?.offer_id) {
-    throw new Error('Invalid merchant - missing offer_id');
+    throw new Error('Invalid merchant - missing offer_id (campaign_id)');
   }
 
   if (!clickId) {
@@ -159,11 +162,15 @@ function getDestinationUrl(clickType, merchant, productUrl) {
 
 /**
  * Build iSclix affiliate URL with correct format
- * Format: https://go.isclix.com/deep_link/{campaign_id}/{offer_id}?utm_params&url={destination}
+ * Format: https://go.isclix.com/deep_link/v6/{publisher_id}/{campaign_id}?utm_params&url={destination}
+ *
+ * Lưu ý:
+ * - publisher_id = 4790392958945222748 (cố định)
+ * - campaign_id = merchant.offer_id (từ database)
  */
 function buildAffiliateUrl(merchant, destinationUrl, utmParams, affSid) {
-  // Build base path: /deep_link/{campaign_id}/{offer_id}
-  const basePath = `${ISCLIX_BASE}/${merchant.campaign_id}/${merchant.offer_id}`;
+  // Build base path: /deep_link/v6/{publisher_id}/{campaign_id}
+  const basePath = `${ISCLIX_BASE}/${ISCLIX_PUBLISHER_ID}/${merchant.offer_id}`;
 
   // Build query params
   const queryParams = {

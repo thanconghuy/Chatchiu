@@ -238,10 +238,18 @@ function renderClicks(clicks) {
     }
 
     clicksTable.innerHTML = clicks.map(click => {
-        const clickTypeText = click.clickType === 'button' ? '🎯 Tự do' : '🔗 Link SP';
-        const hasConversionText = click.hasConversion ? 'Có ✓' : 'Không';
+        // Click type badge
+        const clickTypeBadge = click.clickType === 'button'
+            ? '<span class="click-type-badge click-type-button">🎯 Tự do</span>'
+            : '<span class="click-type-badge click-type-link">🔗 Link SP</span>';
 
-        let statusCell = '-';
+        // Has conversion badge
+        const hasConversionBadge = click.hasConversion
+            ? '<span class="conversion-badge conversion-yes">✓ Có</span>'
+            : '<span class="conversion-badge conversion-no">Không</span>';
+
+        // Status cell
+        let statusCell = '<span class="status-badge status-none">-</span>';
         if (click.hasConversion) {
             const statusClass = click.conversionStatus === 'approved' ? 'status-approved' :
                                click.conversionStatus === 'pending' ? 'status-pending' :
@@ -251,14 +259,24 @@ function renderClicks(clicks) {
             statusCell = `<span class="status-badge ${statusClass}">${statusText}</span>`;
         }
 
+        // Cashback cell
+        const cashbackCell = click.cashback > 0
+            ? `<span class="cashback-amount">${formatCurrency(click.cashback)}</span>`
+            : '<span class="cashback-none">-</span>';
+
         return `
             <tr>
-                <td>${click.merchantName}</td>
-                <td>${clickTypeText}</td>
+                <td>
+                    <div class="merchant-cell">
+                        ${click.merchantLogo ? `<img src="${click.merchantLogo}" alt="${click.merchantName}" class="merchant-mini-logo">` : ''}
+                        <span>${click.merchantName}</span>
+                    </div>
+                </td>
+                <td>${clickTypeBadge}</td>
                 <td>${formatDate(click.clickedAt)}</td>
-                <td>${hasConversionText}</td>
+                <td>${hasConversionBadge}</td>
                 <td>${statusCell}</td>
-                <td>${click.cashback > 0 ? formatCurrency(click.cashback) : '-'}</td>
+                <td>${cashbackCell}</td>
             </tr>
         `;
     }).join('');

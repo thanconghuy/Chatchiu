@@ -663,6 +663,96 @@ body {
     font-weight: 600;
 }
 
+/* Click Type Badges */
+.click-type-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.click-type-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.click-type-link {
+    background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+    color: white;
+}
+
+/* Conversion Badges */
+.conversion-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.conversion-yes {
+    background: #d4edda;
+    color: #155724;
+}
+
+.conversion-no {
+    background: var(--gray-100);
+    color: var(--gray-600);
+}
+
+/* Status Badge - Additional */
+.status-none {
+    background: var(--gray-100);
+    color: var(--gray-600);
+}
+
+/* Cashback Amount */
+.cashback-amount {
+    color: var(--success);
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.cashback-none {
+    color: var(--gray-400);
+}
+
+/* Data Table Enhancements */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+}
+
+.data-table thead {
+    background: var(--gray-100);
+}
+
+.data-table th {
+    padding: 14px 16px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--gray-700);
+    border-bottom: 2px solid var(--gray-200);
+    white-space: nowrap;
+}
+
+.data-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--gray-200);
+    vertical-align: middle;
+}
+
+.data-table tbody tr {
+    transition: background 0.2s;
+}
+
+.data-table tbody tr:hover {
+    background: var(--gray-50);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .sidebar {
@@ -685,5 +775,11 @@ body {
 
     .merchants-grid {
         grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+
+    /* Hide less important columns on mobile */
+    .data-table th:nth-child(n+5),
+    .data-table td:nth-child(n+5) {
+        display: none;
     }
 }
