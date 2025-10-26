@@ -228,6 +228,118 @@ class User {
     const result = await pool.query(query, [userId]);
     return result.rows[0] || null;
   }
+
+  /**
+   * Create a new user via Google OAuth
+   * @param {Object} userData - User data from Google
+   * @returns {Object} Created user
+   */
+  static async createGoogleUser({ email, fullName, username, googleId }) {
+    const query = `
+      INSERT INTO users (email, full_name, username, google_id, password_hash)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id, email, full_name, username, phone, available_balance, pending_balance, total_cashback, created_at
+    `;
+
+    try {
+      // Use a random hash for password since Google OAuth users don't need password
+      const randomHash = await bcrypt.hash(Math.random().toString(36), SALT_ROUNDS);
+
+      const result = await pool.query(query, [
+        email.toLowerCase().trim(),
+        fullName.trim(),
+        username.toLowerCase().trim(),
+        googleId,
+        randomHash
+      ]);
+
+      return result.rows[0];
+    } catch (error) {
+      if (error.code === '23505') {
+        if (error.constraint === 'users_email_key') {
+          throw new Error('Email already exists');
+        }
+        if (error.constraint === 'users_username_key') {
+          throw new Error('Username already taken');
+        }
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Update user's Google ID
+   * @param {string} userId
+   * @param {string} googleId
+   */
+  static async updateGoogleId(userId, googleId) {
+    const query = `
+      UPDATE users
+      SET google_id = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+    `;
+    await pool.query(query, [googleId, userId]);
+  }
+
+  /**
+   * Create password reset token
+   * @param {string} email
+   * @returns {string} Reset token
+   */
+  static async createResetToken(email) {
+    const user = await this.findByEmail(email);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Generate reset token (valid for 1 hour)
+    const resetToken = Math.random().toString(36).substr(2) + Date.now().toString(36);
+    const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour
+
+    const query = `
+      UPDATE users
+      SET reset_token = $1, reset_token_expiry = $2, updated_at = CURRENT_TIMESTAMP
+      WHERE email = $3
+      RETURNING id, email
+    `;
+
+    const result = await pool.query(query, [resetToken, resetTokenExpiry, email.toLowerCase().trim()]);
+    return resetToken;
+  }
+
+  /**
+   * Reset password using token
+   * @param {string} token
+   * @param {string} newPassword
+   */
+  static async resetPassword(token, newPassword) {
+    // Find user by valid token
+    const query = `
+      SELECT id, email FROM users
+      WHERE reset_token = $1 AND reset_token_expiry > NOW()
+    `;
+
+    const result = await pool.query(query, [token]);
+
+    if (result.rows.length === 0) {
+      throw new Error('Invalid or expired reset token');
+    }
+
+    const user = result.rows[0];
+
+    // Hash new password
+    const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+
+    // Update password and clear reset token
+    const updateQuery = `
+      UPDATE users
+      SET password_hash = $1, reset_token = NULL, reset_token_expiry = NULL, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+    `;
+
+    await pool.query(updateQuery, [passwordHash, user.id]);
+    return user;
+  }
 }
 
 module.exports = User;

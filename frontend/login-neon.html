@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng nhập - Neon Auth</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .auth-container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .logo {
+            text-align: center;
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #1f2937;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #6b7280;
+            margin-bottom: 30px;
+            font-size: 0.9rem;
+        }
+
+        #auth-container {
+            min-height: 300px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .link-text {
+            text-align: center;
+            margin-top: 20px;
+            color: #6b7280;
+        }
+
+        .link-text a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .link-text a:hover {
+            text-decoration: underline;
+        }
+
+        /* Stack Auth Component Styling */
+        .stack-scope {
+            width: 100%;
+        }
+
+        .stack-scope button {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+        }
+
+        .stack-scope button[data-primary] {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .stack-scope button[data-primary]:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .stack-scope input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1rem;
+            margin-bottom: 12px;
+        }
+
+        .stack-scope input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="logo">🎯</div>
+        <h1>Đăng nhập</h1>
+        <p class="subtitle">Powered by Neon Auth</p>
+
+        <div id="error" class="error"></div>
+
+        <div id="auth-container">
+            <div class="loading">Đang tải...</div>
+        </div>
+
+        <div class="link-text">
+            <a href="/dashboard">Quay lại trang chủ</a>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script type="module">
+        // Import Stack Auth from CDN
+        import { StackClientApp, StackHandler } from 'https://esm.sh/@stackframe/stack@latest';
+
+        const errorDiv = document.getElementById('error');
+        const authContainer = document.getElementById('auth-container');
+
+        // Get Neon Auth credentials from config
+        const projectId = window.NEON_AUTH_CONFIG?.projectId || '';
+        const publishableKey = window.NEON_AUTH_CONFIG?.publishableKey || '';
+
+        if (!projectId || !publishableKey) {
+            errorDiv.textContent = 'Neon Auth chưa được cấu hình. Vui lòng kiểm tra file config.js';
+            errorDiv.classList.add('show');
+            authContainer.innerHTML = '<p style="text-align:center;color:#6b7280;">Vui lòng cấu hình Neon Auth credentials</p>';
+        } else {
+            try {
+                // Initialize Stack Auth client
+                const stackApp = new StackClientApp({
+                    projectId: projectId,
+                    publishableClientKey: publishableKey,
+                    tokenStore: 'cookie'
+                });
+
+                // Check if user is already logged in
+                const user = await stackApp.getUser();
+                if (user) {
+                    // User is logged in, sync with backend and redirect
+                    await syncUserWithBackend(user);
+                } else {
+                    // Show sign-in component
+                    renderSignIn(stackApp);
+                }
+
+                async function syncUserWithBackend(user) {
+                    try {
+                        const authJson = await user.getAuthJson();
+                        const response = await fetch(`${CONFIG.API_BASE_URL}/neon-auth/sync-user`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'x-stack-access-token': authJson.accessToken
+                            }
+                        });
+
+                        if (response.ok) {
+                            const data = await response.json();
+                            // Save to localStorage for backward compatibility
+                            localStorage.setItem(CONFIG.STORAGE_KEYS.USER, JSON.stringify(data.user));
+                            localStorage.setItem('neon_auth_token', authJson.accessToken);
+
+                            // Redirect to dashboard
+                            window.location.href = '/dashboard';
+                        } else {
+                            throw new Error('Failed to sync user with backend');
+                        }
+                    } catch (error) {
+                        console.error('Sync error:', error);
+                        errorDiv.textContent = 'Đã có lỗi xảy ra. Vui lòng thử lại.';
+                        errorDiv.classList.add('show');
+                    }
+                }
+
+                function renderSignIn(stackApp) {
+                    authContainer.innerHTML = '';
+
+                    // Create sign-in handler
+                    const handler = new StackHandler({
+                        app: stackApp,
+                        type: 'sign-in',
+                        onSignIn: async (user) => {
+                            await syncUserWithBackend(user);
+                        }
+                    });
+
+                    // Render to container
+                    authContainer.appendChild(handler.render());
+                }
+
+            } catch (error) {
+                console.error('Neon Auth error:', error);
+                errorDiv.textContent = 'Không thể tải Neon Auth. Vui lòng thử lại sau.';
+                errorDiv.classList.add('show');
+                authContainer.innerHTML = '';
+            }
+        }
+    </script>
+</body>
+</html>

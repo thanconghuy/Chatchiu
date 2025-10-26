@@ -190,6 +190,30 @@
             border-left-color: var(--warning);
         }
 
+        /* Custom scrollbar for table */
+        #conversionsTableContainer {
+            scrollbar-width: thin; /* Firefox */
+            scrollbar-color: #667eea #f1f1f1; /* Firefox */
+        }
+
+        #conversionsTableContainer::-webkit-scrollbar {
+            height: 12px; /* Height for horizontal scrollbar */
+        }
+
+        #conversionsTableContainer::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 6px;
+        }
+
+        #conversionsTableContainer::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 6px;
+        }
+
+        #conversionsTableContainer::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #653a8a 100%);
+        }
+
         @media (max-width: 1024px) {
             .tools-container {
                 grid-template-columns: 1fr;
@@ -198,9 +222,12 @@
     </style>
 </head>
 <body>
-    <div class="app-container">
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
+
+    <div class="app-container" style="display: flex; width: 100%; max-width: 100vw;">
         <!-- Sidebar -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
             <div class="logo">
                 <span class="logo-icon">⚡</span>
                 <span class="logo-text">Admin</span>
@@ -239,7 +266,7 @@
         </aside>
 
         <!-- Main Content -->
-        <main class="main-content">
+        <main class="main-content" style="flex: 1; padding: 24px; box-sizing: border-box;">
             <div class="content-header">
                 <h1>Conversions Management</h1>
                 <div class="user-info">
@@ -265,7 +292,7 @@
                     <button class="btn-fetch" id="fetchConversionsBtn">Lấy Conversions</button>
 
                     <!-- Conversions Table -->
-                    <div id="conversionsTableContainer" style="margin-top: 16px; overflow-x: auto;">
+                    <div id="conversionsTableContainer" style="margin-top: 16px; overflow-x: scroll; -webkit-overflow-scrolling: touch; padding-bottom: 4px;">
                         <table style="width: 100%; min-width: 1200px; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
                             <thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
                                 <tr>
@@ -288,7 +315,7 @@
                         <div style="color: var(--gray-600); font-size: 0.9rem;">
                             <strong>Tổng:</strong> <span id="convCount">0</span> conversions
                         </div>
-                        <button class="btn-fetch" id="importFetchedConversionsBtn" style="width: auto; padding: 8px 16px; font-size: 0.9rem; display: none;">
+                        <button class="btn-fetch" id="importFetchedConversionsBtn" style="width: auto; padding: 8px 16px; font-size: 0.9rem; display: none; background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);">
                             📥 Import vào Database
                         </button>
                     </div>
@@ -314,7 +341,7 @@
                     🔄 Đồng Bộ Ngay
                 </button>
 
-                <div class="import-result" id="syncResult"></div>
+                <div class="import-result" id="syncResult" style="display: none;"></div>
             </div>
 
             <!-- Import Section -->
@@ -343,6 +370,7 @@
 
     <script src="../js/config.js"></script>
     <script src="../js/auth.js"></script>
+    <script src="../js/mobile-menu.js"></script>
     <script src="tools.js"></script>
 </body>
 </html>

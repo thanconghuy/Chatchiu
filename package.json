@@ -2,13 +2,16 @@
   "name": "accesstrade-dashboard",
   "version": "1.0.0",
   "description": "AccessTrade API Dashboard - Proof of Concept",
-  "main": "server.js",
+  "main": "api/index.js",
   "scripts": {
     "start": "node server-cashback.js",
     "dev": "nodemon server-cashback.js",
     "old-server": "node server.js",
     "init-db": "node backend/init-db.js",
     "test-db": "node backend/test-db.js"
+  },
+  "engines": {
+    "node": ">=18.x"
   },
   "keywords": [
     "accesstrade",
@@ -18,13 +21,19 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@neondatabase/serverless": "^1.0.2",
+    "@stackframe/stack": "^2.8.44",
     "axios": "^1.6.0",
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
+    "jose": "^6.1.0",
     "jsonwebtoken": "^9.0.2",
     "node-cron": "^4.2.1",
+    "nodemailer": "^7.0.10",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
     "pg": "^8.16.3"
   },
   "devDependencies": {

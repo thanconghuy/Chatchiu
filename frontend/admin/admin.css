@@ -1,9 +1,25 @@
 /* Admin-specific styles */
 
-.admin-stats {
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+/* Important: Higher specificity to override .stats-grid from style.css */
+.stats-grid.admin-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr) !important;
     gap: 24px;
     margin-bottom: 32px;
+}
+
+/* Desktop: 4 columns for admin stats */
+@media (min-width: 1200px) {
+    .stats-grid.admin-stats {
+        grid-template-columns: repeat(4, 1fr) !important;
+    }
+}
+
+/* Large tablets: 3 columns */
+@media (min-width: 1025px) and (max-width: 1199px) {
+    .stats-grid.admin-stats {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
 }
 
 .stat-card {
@@ -171,6 +187,8 @@
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s;
+    margin: 0 4px;
+    display: inline-block;
 }
 
 .btn-approve {
@@ -250,6 +268,13 @@
     min-width: 300px;
 }
 
+/* Table Container */
+.table-container {
+    position: relative;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
 /* Data Table Improvements */
 .data-table {
     width: 100%;
@@ -266,16 +291,17 @@
 }
 
 .data-table thead th {
-    padding: 18px 16px;
+    padding: 14px 12px;
     text-align: left;
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     letter-spacing: 0.5px;
 }
 
 .data-table tbody td {
-    padding: 16px;
+    padding: 10px 12px;
     border-bottom: 1px solid #f1f1f1;
+    font-size: 0.9rem;
 }
 
 .data-table tbody tr {
@@ -288,6 +314,20 @@
 
 .data-table tbody tr:last-child td {
     border-bottom: none;
+}
+
+/* Table Column Widths */
+.data-table th:last-child,
+.data-table td:last-child {
+    width: auto;
+    min-width: 150px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.data-table td:first-child {
+    width: 80px;
+    text-align: center;
 }
 
 /* Badges */
@@ -534,4 +574,389 @@
 
 .empty-state p {
     color: var(--gray-500);
+}
+
+/* Content Header */
+.content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+}
+
+.content-header h1 {
+    font-size: 2rem;
+    color: var(--gray-900);
+    margin: 0;
+}
+
+.user-info {
+    color: var(--gray-600);
+    font-weight: 600;
+}
+
+/* Nav */
+.nav {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.nav-icon {
+    font-size: 1.2rem;
+}
+
+.nav-text {
+    flex: 1;
+}
+
+.logo-icon {
+    font-size: 1.8rem;
+}
+
+.logo-text {
+    font-size: 1.3rem;
+    font-weight: 700;
+}
+
+/* Responsive Styles for Admin */
+@media (max-width: 1024px) {
+    .admin-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .cards-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .table-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .search-box {
+        min-width: auto;
+        width: 100%;
+    }
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        width: var(--sidebar-width);
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+    }
+
+    .sidebar.show {
+        transform: translateX(0);
+    }
+
+    .app-container {
+        display: flex;
+        width: 100%;
+        max-width: 100vw;
+        overflow-x: hidden;
+    }
+
+    .main-content {
+        flex: 1;
+        padding: 24px;
+        box-sizing: border-box;
+        min-width: 0; /* Prevent overflow issues */
+    }
+
+    .content-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .content-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .admin-stats {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .stat-card {
+        padding: 16px;
+        gap: 12px;
+    }
+
+    .stat-icon {
+        font-size: 2rem;
+    }
+
+    .stat-value {
+        font-size: 1.4rem;
+    }
+
+    .stat-label {
+        font-size: 0.8rem;
+    }
+
+    .table-actions {
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .search-box {
+        width: 100%;
+        min-width: auto;
+    }
+
+    .search-input {
+        width: 100%;
+    }
+
+    /* Make table scrollable horizontally on mobile */
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin: 0 -16px;
+        padding: 0 16px;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    .data-table {
+        min-width: 900px; /* Ensure horizontal scroll for all columns */
+        font-size: 0.85rem;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 10px 8px;
+        font-size: 0.85rem;
+        white-space: nowrap; /* Prevent text wrapping */
+    }
+
+    .data-table thead th {
+        padding: 12px 8px;
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+
+    /* Modal adjustments */
+    .modal-content {
+        width: 95%;
+        max-width: none;
+        max-height: 85vh;
+    }
+
+    .modal-header {
+        padding: 16px 20px;
+    }
+
+    .modal-header h2 {
+        font-size: 1.2rem;
+    }
+
+    .modal-body {
+        padding: 20px;
+    }
+
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-group label {
+        font-size: 0.9rem;
+    }
+
+    .input-field {
+        padding: 10px 14px;
+        font-size: 0.95rem;
+    }
+
+    .form-actions {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .form-actions button {
+        width: 100%;
+    }
+
+    /* Badges on mobile */
+    .badge {
+        padding: 4px 10px;
+        font-size: 0.75rem;
+        white-space: nowrap;
+    }
+
+    /* Button adjustments */
+    .btn {
+        padding: 10px 16px;
+        font-size: 0.9rem;
+        white-space: nowrap;
+    }
+
+    .btn-sm {
+        padding: 6px 10px;
+        font-size: 0.8rem;
+        white-space: nowrap;
+    }
+
+    .action-btn {
+        padding: 6px 12px;
+        font-size: 0.8rem;
+        margin: 0 2px;
+        white-space: nowrap;
+    }
+
+    /* Pagination on mobile */
+    .pagination {
+        gap: 10px;
+        padding: 16px;
+    }
+
+    .pagination button {
+        padding: 8px 12px;
+        font-size: 0.85rem;
+    }
+
+    .pagination span {
+        font-size: 0.85rem;
+    }
+
+    /* Cards grid on mobile */
+    .cards-grid {
+        gap: 20px;
+    }
+
+    .card {
+        padding: 20px;
+    }
+
+    .card h3 {
+        font-size: 1rem;
+    }
+
+    .balance-value {
+        font-size: 1.1rem;
+    }
+
+    .rate-circle {
+        width: 80px;
+        height: 80px;
+    }
+
+    .rate-value {
+        font-size: 1.4rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .main-content {
+        padding: 70px 12px 12px;
+    }
+
+    .content-header h1 {
+        font-size: 1.3rem;
+    }
+
+    .user-info {
+        font-size: 0.85rem;
+    }
+
+    .admin-stats {
+        gap: 12px;
+    }
+
+    .stat-card {
+        padding: 14px;
+        gap: 10px;
+    }
+
+    .stat-icon {
+        font-size: 1.8rem;
+    }
+
+    .stat-value {
+        font-size: 1.2rem;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+    }
+
+    .section-title h2 {
+        font-size: 1.2rem;
+    }
+
+    .table-container {
+        margin: 0 -12px;
+        padding: 0 12px;
+    }
+
+    .data-table {
+        min-width: 800px; /* Still show all columns on small screens */
+        font-size: 0.8rem;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 8px 6px;
+        font-size: 0.8rem; /* Readable but compact */
+        white-space: nowrap;
+    }
+
+    .data-table thead th {
+        padding: 10px 6px;
+        font-size: 0.8rem;
+    }
+
+    .modal-header {
+        padding: 14px 16px;
+    }
+
+    .modal-header h2 {
+        font-size: 1.1rem;
+    }
+
+    .modal-body {
+        padding: 16px;
+    }
+
+    .input-field {
+        padding: 9px 12px;
+        font-size: 0.9rem;
+    }
+
+    .badge {
+        padding: 3px 8px;
+        font-size: 0.7rem;
+    }
+
+    .btn-sm {
+        padding: 5px 8px;
+        font-size: 0.75rem;
+    }
+
+    .action-btn {
+        padding: 5px 10px;
+        font-size: 0.75rem;
+        margin: 0 1px;
+    }
+
+    /* Improve pagination on very small screens */
+    .pagination {
+        gap: 8px;
+        padding: 12px;
+    }
+
+    .pagination button {
+        padding: 6px 10px;
+        font-size: 0.75rem;
+    }
+
+    .pagination span {
+        font-size: 0.75rem;
+    }
 }

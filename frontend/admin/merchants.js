@@ -26,7 +26,7 @@ async function checkAdminAccess() {
             saveAuth(getToken(), response.user);
 
             const user = response.user;
-            document.getElementById('userName').textContent = user.username || user.email;
+            document.getElementById('userName').textContent = user.fullName || user.username || user.email;
 
             if (!user.is_admin) {
                 showToast('Access denied: Admin only', 'error');
@@ -184,7 +184,6 @@ function editMerchant(merchantId) {
     document.getElementById('merchantName').value = merchant.name || '';
     document.getElementById('logoUrl').value = merchant.logo_url || '';
     document.getElementById('campaignId').value = merchant.campaign_id || '';
-    document.getElementById('offerId').value = merchant.offer_id || '';
     document.getElementById('commissionRate').value = merchant.commission_rate || '';
     document.getElementById('deepLinkBase').value = merchant.deep_link_base || '';
     document.getElementById('policyNote').value = merchant.policy_note || '';
@@ -200,36 +199,7 @@ function editMerchant(merchantId) {
     modal.classList.add('show');
 }
 
-/**
- * Sync merchants from AccessTrade
- */
-async function syncMerchants() {
-    const btn = document.getElementById('syncMerchantsBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<span>⏳</span> Syncing...';
-
-    try {
-        const response = await apiRequest('/admin/sync-merchants', {
-            method: 'POST'
-        });
-
-        if (response.success) {
-            showToast('Merchants synced successfully', 'success');
-            await loadMerchants();
-        } else {
-            throw new Error(response.message || 'Sync failed');
-        }
-    } catch (error) {
-        console.error('Sync failed:', error);
-        showToast('Failed to sync merchants: ' + error.message, 'error');
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<span>🔄</span> Sync Merchants from AccessTrade';
-    }
-}
-
 // Event Listeners
-document.getElementById('syncMerchantsBtn').addEventListener('click', syncMerchants);
 
 const searchInput = document.getElementById('searchInput');
 if (searchInput) {
@@ -271,7 +241,6 @@ document.getElementById('editMerchantForm').addEventListener('submit', async (e)
     const merchantName = document.getElementById('merchantName').value;
     const logoUrl = document.getElementById('logoUrl').value;
     const campaignId = document.getElementById('campaignId').value;
-    const offerId = document.getElementById('offerId').value;
     const commissionRate = document.getElementById('commissionRate').value;
     const deepLinkBase = document.getElementById('deepLinkBase').value;
     const policyNote = document.getElementById('policyNote').value;
@@ -288,7 +257,6 @@ document.getElementById('editMerchantForm').addEventListener('submit', async (e)
                 name: merchantName,
                 logo_url: logoUrl || null,
                 campaign_id: campaignId || null,
-                offer_id: offerId || null,
                 commission_rate: commissionRate || null,
                 deep_link_base: deepLinkBase || null,
                 policy_note: policyNote || null,
@@ -313,3 +281,6 @@ document.getElementById('editMerchantForm').addEventListener('submit', async (e)
         submitBtn.textContent = 'Save Changes';
     }
 });
+
+// Make editMerchant globally accessible for onclick handlers
+window.editMerchant = editMerchant;

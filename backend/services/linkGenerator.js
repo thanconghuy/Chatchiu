@@ -4,14 +4,18 @@ const crypto = require('crypto');
  * Link Generator Service
  * Generates iSclix/AccessTrade affiliate links with UTM tracking
  *
- * Format: https://go.isclix.com/deep_link/v6/{publisher_id}/{campaign_id}?utm_params&url={destination}
+ * Format: https://go.isclix.com/deep_link/{publisher_id}/{merchant_id}?url={encoded_url}&utm_params
  *
  * Trong đó:
- * - publisher_id: 4790392958945222748 (cố định - ID tài khoản iSclix)
- * - campaign_id: Lấy từ merchant.offer_id trong database
+ * - publisher_id: 4790392958945222748 (cố định - ID tài khoản publisher)
+ * - merchant_id: Lấy từ merchant.campaign_id trong database (VD: 4751584435713464237)
+ * - utm_source: "chatchiu" (cố định)
+ * - utm_campaign: "cashback" (cố định)
+ * - utm_medium: username của người tạo link (tự động)
+ * - utm_content: click ID (tự động)
  */
 
-const ISCLIX_BASE = 'https://go.isclix.com/deep_link/v6';
+const ISCLIX_BASE = 'https://go.isclix.com/deep_link';
 const ISCLIX_PUBLISHER_ID = '4790392958945222748'; // iSclix Publisher ID (cố định)
 
 // ============================================================================
@@ -37,14 +41,16 @@ function generateAffSid(userId) {
 
 /**
  * Build UTM parameters object
+ * @param {string} utmMedium - UTM medium (nhập bởi user)
+ * @param {string} utmContent - UTM content (nhập bởi user)
  */
-function buildUtmParams(user, clickId) {
+function buildUtmParams(utmMedium, utmContent) {
   return {
-    utm_source: 'cashback',
-    utm_medium: user.username,
-    utm_campaign: 'lammmo',
-    utm_content: clickId, // For conversion tracking
-    sub4: 'oneatweb'
+    utm_source: 'chatchiu',      // Cố định
+    utm_campaign: 'cashback',     // Cố định
+    utm_medium: utmMedium,        // Nhập theo user
+    utm_content: utmContent,      // Nhập theo user
+    sub4: 'oneatweb'             // Cố định
   };
 }
 
@@ -66,12 +72,14 @@ function buildQueryString(params) {
  * Generate iSclix affiliate link
  *
  * @param {Object} user - User object { id, username }
- * @param {Object} merchant - Merchant object { offer_id, deep_link_base }
- *   - offer_id: Campaign ID từ iSclix (bắt buộc)
+ * @param {Object} merchant - Merchant object { campaign_id, deep_link_base }
+ *   - campaign_id: Merchant ID từ iSclix (bắt buộc) - VD: 4751584435713464237
  *   - deep_link_base: URL trang chủ merchant (cho click type 'button')
  * @param {string} clickId - Click UUID from database
  * @param {string} clickType - 'button' or 'link'
  * @param {string|null} productUrl - Product URL (required for 'link' type)
+ * @param {string} utmMedium - UTM medium (username - tự động)
+ * @param {string} utmContent - UTM content (click ID - tự động)
  *
  * @returns {Object} {
  *   affiliateUrl: string,
@@ -83,13 +91,13 @@ function buildQueryString(params) {
  *
  * @throws {Error} If validation fails
  */
-function generateAffiliateLink(user, merchant, clickId, clickType, productUrl = null) {
+function generateAffiliateLink(user, merchant, clickId, clickType, productUrl = null, utmMedium, utmContent) {
   // ========== VALIDATION ==========
-  validateInputs(user, merchant, clickId, clickType, productUrl);
+  validateInputs(user, merchant, clickId, clickType, productUrl, utmMedium, utmContent);
 
   // ========== GENERATE TRACKING IDs ==========
   const affSid = generateAffSid(user.id);
-  const utmParams = buildUtmParams(user, clickId);
+  const utmParams = buildUtmParams(utmMedium, utmContent);
 
   // ========== DETERMINE DESTINATION URL ==========
   const destinationUrl = getDestinationUrl(clickType, merchant, productUrl);
@@ -103,6 +111,8 @@ function generateAffiliateLink(user, merchant, clickId, clickType, productUrl = 
       merchant: merchant.name || merchant.id,
       clickType,
       affSid,
+      utmMedium,
+      utmContent,
       destinationUrl: destinationUrl.substring(0, 50) + '...',
       affiliateUrl: affiliateUrl.substring(0, 100) + '...'
     });
@@ -125,13 +135,13 @@ function generateAffiliateLink(user, merchant, clickId, clickType, productUrl = 
  * Validate all inputs
  * @throws {Error} If validation fails
  */
-function validateInputs(user, merchant, clickId, clickType, productUrl) {
+function validateInputs(user, merchant, clickId, clickType, productUrl, utmMedium, utmContent) {
   if (!user?.id || !user?.username) {
     throw new Error('Invalid user object - missing id or username');
   }
 
-  if (!merchant?.offer_id) {
-    throw new Error('Invalid merchant - missing offer_id (campaign_id)');
+  if (!merchant?.campaign_id) {
+    throw new Error('Invalid merchant - missing campaign_id (merchant_id)');
   }
 
   if (!clickId) {
@@ -144,6 +154,14 @@ function validateInputs(user, merchant, clickId, clickType, productUrl) {
 
   if (clickType === 'link' && !productUrl) {
     throw new Error('Product URL required for click type "link"');
+  }
+
+  if (!utmMedium || typeof utmMedium !== 'string') {
+    throw new Error('UTM medium is required and must be a string');
+  }
+
+  if (!utmContent || typeof utmContent !== 'string') {
+    throw new Error('UTM content is required and must be a string');
   }
 }
 
@@ -162,21 +180,22 @@ function getDestinationUrl(clickType, merchant, productUrl) {
 
 /**
  * Build iSclix affiliate URL with correct format
- * Format: https://go.isclix.com/deep_link/v6/{publisher_id}/{campaign_id}?utm_params&url={destination}
+ * Format: https://go.isclix.com/deep_link/{publisher_id}/{merchant_id}?url={encoded_url}&utm_params
  *
  * Lưu ý:
  * - publisher_id = 4790392958945222748 (cố định)
- * - campaign_id = merchant.offer_id (từ database)
+ * - merchant_id = merchant.campaign_id (từ database - VD: 4751584435713464237)
+ * - url parameter phải được encode
  */
 function buildAffiliateUrl(merchant, destinationUrl, utmParams, affSid) {
-  // Build base path: /deep_link/v6/{publisher_id}/{campaign_id}
-  const basePath = `${ISCLIX_BASE}/${ISCLIX_PUBLISHER_ID}/${merchant.offer_id}`;
+  // Build base path: /deep_link/{publisher_id}/{merchant_id}
+  const basePath = `${ISCLIX_BASE}/${ISCLIX_PUBLISHER_ID}/${merchant.campaign_id}`;
 
-  // Build query params
+  // Build query params - url goes FIRST, then UTM params
   const queryParams = {
+    url: destinationUrl,  // Destination URL goes FIRST
     ...utmParams,
-    aff_sid: affSid,
-    url: destinationUrl  // Destination URL goes LAST
+    aff_sid: affSid
   };
 
   const queryString = buildQueryString(queryParams);

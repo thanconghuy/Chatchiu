@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const passport = require('./backend/config/passport'); // Google OAuth enabled
 // const cron = require('node-cron'); // DISABLED - manual sync only
 // const { syncConversions } = require('./backend/jobs/syncConversions'); // Used in admin routes
 const logger = require('./backend/utils/logger');
@@ -18,17 +19,22 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Initialize Passport for Google OAuth
+app.use(passport.initialize());
+
 // Serve static files from frontend and public directories
 app.use(express.static(path.join(__dirname, 'frontend')));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Import routes
 const authRoutes = require('./backend/routes/auth');
+const neonAuthRoutes = require('./backend/routes/neonAuthRoutes');
 const dashboardRoutes = require('./backend/routes/dashboard');
 const adminRoutes = require('./backend/routes/admin');
 
 // Mount routes
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authRoutes); // Keep old auth for backward compatibility
+app.use('/api/neon-auth', neonAuthRoutes); // New Neon Auth routes
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin', adminRoutes);
 
@@ -42,7 +48,7 @@ app.get('/health', (req, res) => {
 });
 
 // Routes for HTML pages (without .html extension)
-const pages = ['login', 'register', 'dashboard', 'history', 'index'];
+const pages = ['login', 'login-neon', 'register', 'dashboard', 'history', 'index', 'forgot-password', 'reset-password'];
 pages.forEach(page => {
   app.get(`/${page}`, (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend', `${page}.html`));

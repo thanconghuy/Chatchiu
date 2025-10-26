@@ -10,6 +10,7 @@ const { pool } = require('../config/database');
 const SystemConversion = require('../models/SystemConversion');
 const accessTradeService = require('../services/accesstrade');
 const trackingService = require('../services/trackingService');
+const { syncConversions } = require('../jobs/syncConversions');
 const logger = require('../utils/logger');
 
 /**
@@ -1274,7 +1275,7 @@ router.get('/merchants', authenticateAdmin, async (req, res) => {
 
     res.json({
       success: true,
-      merchants
+      merchants: merchants
     });
   } catch (error) {
     logger.error('Get merchants error:', error);
@@ -1325,7 +1326,6 @@ router.post('/merchant', authenticateAdmin, async (req, res) => {
       name,
       logo_url,
       campaign_id,
-      offer_id,
       commission_rate,
       policy_note,
       is_active,
@@ -1344,7 +1344,6 @@ router.post('/merchant', authenticateAdmin, async (req, res) => {
       name,
       logo_url,
       campaign_id,
-      offer_id,
       commission_rate,
       policy_note,
       is_active,

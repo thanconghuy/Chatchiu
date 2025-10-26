@@ -67,8 +67,8 @@ async function checkAdminAccess() {
  */
 function init() {
     const user = getUser();
-    if (user && user.username) {
-        userName.textContent = user.username;
+    if (user) {
+        userName.textContent = user.fullName || user.username || user.email;
     }
 
     // Set default dates (last 7 days)
@@ -81,9 +81,6 @@ function init() {
     if (convStartDate) convStartDate.value = formatDateForPicker(lastWeek);
 
     setupEventListeners();
-
-    // Auto-load conversions on page load
-    fetchConversions();
 }
 
 /**
@@ -146,20 +143,24 @@ function setupEventListeners() {
 
 /**
  * Fetch conversions from AccessTrade API
+ * @param {Date} startDate - Optional start date, defaults to date picker value
+ * @param {Date} endDate - Optional end date, defaults to date picker value
  */
-async function fetchConversions() {
+async function fetchConversions(startDate = null, endDate = null) {
     try {
-        // Validate inputs
-        if (!convStartDate.value || !convEndDate.value) {
-            showToast('Vui lòng nhập ngày bắt đầu và kết thúc', 'error');
-            return;
+        // Use provided dates or get from date pickers
+        if (!startDate || !endDate) {
+            // Validate inputs
+            if (!convStartDate.value || !convEndDate.value) {
+                showToast('Vui lòng nhập ngày bắt đầu và kết thúc', 'error');
+                return;
+            }
+            startDate = parseDateInput(convStartDate.value);
+            endDate = parseDateInput(convEndDate.value);
         }
 
         fetchConversionsBtn.disabled = true;
         fetchConversionsBtn.textContent = 'Đang tải...';
-
-        const startDate = parseDateInput(convStartDate.value);
-        const endDate = parseDateInput(convEndDate.value);
 
         // Set end date to end of day
         endDate.setHours(23, 59, 59, 999);
@@ -179,9 +180,11 @@ async function fetchConversions() {
 
             // Show import button if we have data
             if (response.data && response.data.length > 0) {
-                importFetchedConversionsBtn.style.display = 'block';
+                importFetchedConversionsBtn.style.display = 'inline-block';
+                console.log('✓ Import button shown - data available:', response.data.length);
             } else {
                 importFetchedConversionsBtn.style.display = 'none';
+                console.log('ℹ Import button hidden - no data');
             }
 
             showToast(`Loaded ${response.data.length} conversions`, 'success');
@@ -415,10 +418,10 @@ async function importData() {
 }
 
 /**
- * Manual sync conversions from AccessTrade
+ * Manual sync conversions from AccessTrade (fetch + import for last 7 days)
  */
 async function manualSync() {
-    if (!confirm('Đồng bộ conversions từ AccessTrade API (7 ngày gần nhất)?')) {
+    if (!confirm('Đồng bộ conversions từ AccessTrade API (7 ngày gần nhất)?\n\nHệ thống sẽ:\n- Lấy conversions từ 7 ngày gần nhất\n- Tự động import vào database\n- Match với clicks để tìm user')) {
         return;
     }
 
@@ -426,33 +429,63 @@ async function manualSync() {
         syncBtn.disabled = true;
         syncBtn.textContent = '⏳ Đang đồng bộ...';
         syncResult.className = 'import-result';
-        syncResult.textContent = '';
+        syncResult.style.display = 'block';
+        syncResult.textContent = 'Đang lấy dữ liệu từ AccessTrade...';
 
-        const response = await apiRequest('/admin/sync-conversions', {
-            method: 'POST'
+        // Calculate dates for last 7 days
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - 7);
+
+        // Fetch conversions from AccessTrade
+        const fetchResponse = await apiRequest(`/admin/fetch-conversions?since=${encodeURIComponent(startDate.toISOString())}&until=${encodeURIComponent(endDate.toISOString())}`);
+
+        if (!fetchResponse.success || !fetchResponse.data || fetchResponse.data.length === 0) {
+            syncResult.className = 'import-result error';
+            syncResult.innerHTML = `
+                <h3>⚠️ Không Có Dữ Liệu</h3>
+                <div style="margin-top: 12px;">
+                    Không tìm thấy conversions nào trong 7 ngày gần nhất
+                </div>
+            `;
+            showToast('No conversions found', 'info');
+            return;
+        }
+
+        syncResult.textContent = `Đang import ${fetchResponse.data.length} conversions...`;
+
+        // Import to database
+        const importResponse = await apiRequest('/admin/import-conversions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                conversions: fetchResponse.data
+            })
         });
 
-        if (response.success) {
-            const { results } = response;
+        if (importResponse.success) {
+            const { result } = importResponse;
 
             syncResult.className = 'import-result success';
             syncResult.innerHTML = `
                 <h3>✅ Đồng Bộ Thành Công</h3>
                 <div style="margin-top: 12px;">
                     <strong>📊 Kết quả:</strong><br>
-                    • Tổng conversions: ${results.total}<br>
-                    • Tạo mới: <span style="color: #10b981;">${results.created}</span><br>
-                    • Cập nhật: <span style="color: #3b82f6;">${results.updated}</span><br>
-                    • Bỏ qua: <span style="color: #6b7280;">${results.skipped}</span><br>
-                    • Lỗi: <span style="color: #ef4444;">${results.errors}</span>
+                    • Tổng conversions: ${result.total}<br>
+                    • Tạo mới: <span style="color: #10b981;">${result.created}</span><br>
+                    • Cập nhật: <span style="color: #3b82f6;">${result.updated}</span><br>
+                    • Bỏ qua: <span style="color: #6b7280;">${result.skipped}</span><br>
+                    • Lỗi: <span style="color: #ef4444;">${result.errors}</span>
                 </div>
                 <div style="margin-top: 12px; padding: 12px; background: #f0f9ff; border-radius: 6px; font-size: 0.9rem;">
-                    💡 <strong>Lưu ý:</strong> Chuyển sang tab Conversions để xem chi tiết
+                    💡 <strong>Lưu ý:</strong> Chuyển sang tab <strong>Dữ liệu đơn AT</strong> để xem chi tiết
                 </div>
             `;
-            showToast(`Sync completed: ${results.created} created, ${results.updated} updated`, 'success');
+            showToast(`Sync completed: ${result.created} created, ${result.updated} updated`, 'success');
         } else {
-            throw new Error(response.message || 'Sync failed');
+            throw new Error(importResponse.message || 'Import failed');
         }
     } catch (error) {
         console.error('Manual sync error:', error);
@@ -463,7 +496,7 @@ async function manualSync() {
                 ${error.message || 'Unknown error occurred'}
             </div>
         `;
-        showToast('Failed to sync conversions', 'error');
+        showToast('Failed to sync conversions: ' + error.message, 'error');
     } finally {
         syncBtn.disabled = false;
         syncBtn.textContent = '🔄 Đồng Bộ Ngay';

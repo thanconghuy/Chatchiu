@@ -123,3 +123,73 @@ async function getCurrentUser() {
         throw error;
     }
 }
+
+/**
+ * Display user name in element
+ * Format: "Full Name (username)" or fallback to username/email
+ * @param {string} elementId - ID of element to display user name
+ */
+function displayUserName(elementId) {
+    const element = document.getElementById(elementId);
+    if (!element) {
+        console.warn(`Element with ID '${elementId}' not found`);
+        return;
+    }
+
+    const user = getUser();
+    if (user) {
+        // Format: "Full Name (username)"
+        if (user.fullName && user.username) {
+            element.textContent = `${user.fullName} (${user.username})`;
+        }
+        // Fallback to fullName only
+        else if (user.fullName) {
+            element.textContent = user.fullName;
+        }
+        // Fallback to username only
+        else if (user.username) {
+            element.textContent = user.username;
+        }
+        // Last resort: email
+        else {
+            element.textContent = user.email;
+        }
+    }
+}
+
+/**
+ * Request password reset
+ * @param {string} email
+ * @returns {Promise<Object>}
+ */
+async function forgotPassword(email) {
+    try {
+        const response = await apiRequest('/auth/forgot-password', {
+            method: 'POST',
+            body: JSON.stringify({ email })
+        });
+
+        return response;
+    } catch (error) {
+        throw error;
+    }
+}
+
+/**
+ * Reset password with token
+ * @param {string} token
+ * @param {string} password
+ * @returns {Promise<Object>}
+ */
+async function resetPassword(token, password) {
+    try {
+        const response = await apiRequest('/auth/reset-password', {
+            method: 'POST',
+            body: JSON.stringify({ token, password })
+        });
+
+        return response;
+    } catch (error) {
+        throw error;
+    }
+}

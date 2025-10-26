@@ -63,8 +63,8 @@ async function checkAdminAccess() {
  */
 function init() {
     const user = getUser();
-    if (user && user.username) {
-        userName.textContent = user.username;
+    if (user) {
+        userName.textContent = user.fullName || user.username || user.email;
     }
 
     // Set default dates (last 7 days)

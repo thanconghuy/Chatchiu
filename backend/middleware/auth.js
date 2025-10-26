@@ -74,7 +74,8 @@ function generateToken(user) {
     {
       userId: user.id,
       email: user.email,
-      username: user.username
+      username: user.username,
+      fullName: user.full_name || user.fullName // Support both naming conventions
     },
     JWT_SECRET,
     { expiresIn }

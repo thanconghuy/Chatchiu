@@ -16,22 +16,26 @@ require('dotenv').config();
  * - DB_PASSWORD
  */
 
-// Create connection pool
+// Create connection pool with Neon-optimized settings
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false // Required for Neon
   },
-  // Connection pool settings
-  max: 20, // Maximum number of clients in the pool
+  // Connection pool settings optimized for Neon serverless
+  max: 10, // Reduced for serverless (Neon recommends 10)
+  min: 2, // Keep minimum connections alive
   idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 10000, // Return error after 10 seconds if connection can't be established
+  connectionTimeoutMillis: 20000, // Increased timeout for slow connections
+  // Keepalive to prevent connection drops
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10000,
 });
 
-// Handle pool errors
+// Handle pool errors gracefully - don't exit process
 pool.on('error', (err, client) => {
-  console.error('Unexpected error on idle client', err);
-  process.exit(-1);
+  console.error('⚠️ Database connection error (will auto-reconnect):', err.message);
+  // Don't exit - let pool handle reconnection
 });
 
 // Test connection function

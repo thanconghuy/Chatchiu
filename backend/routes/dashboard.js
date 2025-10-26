@@ -143,8 +143,14 @@ router.post('/generate-link', authenticateToken, async (req, res) => {
 
     const click = await Click.create(clickData);
 
-    // Generate affiliate link with click_id
-    const linkData = generateAffiliateLink(user, merchant, click.id, clickType, productUrl);
+    // Prepare UTM parameters
+    // utm_medium = username của người tạo link
+    // utm_content = click ID
+    const utmMedium = user.username;
+    const utmContent = click.id;
+
+    // Generate affiliate link with click_id, utm_medium, and utm_content
+    const linkData = generateAffiliateLink(user, merchant, click.id, clickType, productUrl, utmMedium, utmContent);
 
     // Update click with generated link data
     await Click.updateLinkData(click.id, {

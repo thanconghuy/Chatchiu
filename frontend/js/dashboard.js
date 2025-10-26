@@ -5,6 +5,12 @@
 // Check authentication
 requireAuth();
 
+// Check if admin - redirect to admin page
+const user = getUser();
+if (user && user.is_admin) {
+    window.location.href = '/admin';
+}
+
 // State
 let currentMerchant = null;
 let merchants = [];
@@ -28,11 +34,8 @@ const logoutBtn = document.getElementById('logoutBtn');
 init();
 
 async function init() {
-    // Set user name
-    const user = getUser();
-    if (user && user.username) {
-        userName.textContent = user.username;
-    }
+    // Display user name using shared utility function
+    displayUserName('userName');
 
     // Load data
     await Promise.all([
@@ -122,8 +125,8 @@ function renderRecentOrders(clicks) {
     if (clicks.length === 0) {
         recentOrdersTable.innerHTML = `
             <tr class="empty-state">
-                <td colspan="5">
-                    <p>Chưa có đơn hàng nào</p>
+                <td colspan="6">
+                    <p>Chưa có lượt click nào</p>
                 </td>
             </tr>
         `;
@@ -138,6 +141,11 @@ function renderRecentOrders(clicks) {
              click.conversionStatus === 'pending' ? 'Chờ duyệt' : 'Từ chối') :
             'Chưa mua';
 
+        // Create link button if affiliate URL exists
+        const linkButton = click.affiliateUrl
+            ? `<a href="${click.affiliateUrl}" target="_blank" class="link-btn">🔗 Mở link</a>`
+            : '<span class="link-none">-</span>';
+
         return `
             <tr>
                 <td>${click.merchantName}</td>
@@ -147,6 +155,7 @@ function renderRecentOrders(clicks) {
                     ${statusClass ? `<span class="status-badge ${statusClass}">${statusText}</span>` : statusText}
                 </td>
                 <td>${click.cashback ? formatCurrency(click.cashback) : '-'}</td>
+                <td>${linkButton}</td>
             </tr>
         `;
     }).join('');
@@ -213,7 +222,10 @@ function getMerchantPlaceholder(merchantId, deepLinkBase) {
  */
 function closeMerchantModal() {
     merchantModal.classList.remove('show');
+
+    // Reset state
     currentMerchant = null;
+    productUrlInput.value = '';
 }
 
 /**
@@ -223,9 +235,6 @@ async function handleFreeShoppingClick() {
     if (!currentMerchant) return;
 
     try {
-        freeShoppingBtn.disabled = true;
-        freeShoppingBtn.textContent = 'Đang tạo link...';
-
         const response = await apiRequest('/dashboard/generate-link', {
             method: 'POST',
             body: JSON.stringify({
@@ -248,9 +257,6 @@ async function handleFreeShoppingClick() {
         }
     } catch (error) {
         showToast(error.message || 'Không thể tạo link', 'error');
-    } finally {
-        freeShoppingBtn.disabled = false;
-        freeShoppingBtn.textContent = `Đi đến ${currentMerchant.name}`;
     }
 }
 
@@ -274,9 +280,6 @@ async function handleGenerateLinkClick() {
     }
 
     try {
-        generateLinkBtn.disabled = true;
-        generateLinkBtn.textContent = 'Đang tạo link...';
-
         const response = await apiRequest('/dashboard/generate-link', {
             method: 'POST',
             body: JSON.stringify({
@@ -300,9 +303,6 @@ async function handleGenerateLinkClick() {
         }
     } catch (error) {
         showToast(error.message || 'Không thể tạo link', 'error');
-    } finally {
-        generateLinkBtn.disabled = false;
-        generateLinkBtn.textContent = 'Tạo link mua hàng';
     }
 }
 

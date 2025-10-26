@@ -13,6 +13,19 @@ const CONFIG = {
 };
 
 /**
+ * Neon Auth Configuration
+ * Get these values from Neon Console: https://console.neon.tech
+ * Go to your project > Auth tab > Enable Neon Auth > Configuration
+ */
+const NEON_AUTH_CONFIG = {
+    projectId: 'f6ef2fe7-eda5-4448-87c3-5a94cc135ffc',
+    publishableKey: 'pck_bqd32kv088hbce643cdgy4kg92j3ck6am4sqq732rr5a8',
+};
+
+// Make it globally available
+window.NEON_AUTH_CONFIG = NEON_AUTH_CONFIG;
+
+/**
  * Format currency in VND
  * @param {number} amount
  * @returns {string}

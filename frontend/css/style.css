@@ -248,13 +248,16 @@ body {
 .table-container {
     overflow-x: auto;
     width: 100%;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    margin-bottom: 16px;
 }
 
 .orders-table,
 .data-table {
     width: 100%;
+    min-width: 800px; /* Minimum width to trigger horizontal scroll on mobile */
     border-collapse: collapse;
-    table-layout: fixed; /* Fixed layout for equal column widths */
+    table-layout: auto; /* Auto layout for better responsiveness */
 }
 
 .orders-table thead,
@@ -525,6 +528,43 @@ body {
 .input-field:focus {
     outline: none;
     border-color: var(--primary);
+}
+
+/* Input with Button Layout */
+.input-with-button {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+    margin-bottom: 16px;
+}
+
+.input-with-button .input-field {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.btn-paste {
+    background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+    color: white;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.btn-paste:hover {
+    background: linear-gradient(135deg, #3182ce 0%, #2c5282 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(66, 153, 225, 0.4);
+}
+
+.btn-paste:active {
+    transform: translateY(0);
 }
 
 /* Modal Note */
@@ -810,23 +850,286 @@ body {
     background: var(--gray-50);
 }
 
-/* Responsive */
-@media (max-width: 768px) {
+/* App Container */
+.app-container {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* Mobile Menu Toggle */
+.mobile-menu-toggle {
+    display: none;
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 2000;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 15px;
+    font-size: 1.5rem;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.mobile-menu-toggle:active {
+    transform: scale(0.95);
+}
+
+/* Smooth scrollbar for desktop */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--gray-100);
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--gray-300);
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--gray-400);
+}
+
+/* Responsive Design - Mobile & Tablet */
+@media (max-width: 1024px) {
     .stats-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
     }
 
     .merchants-grid {
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .mobile-menu-toggle {
+        display: block;
+    }
+
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.2);
+    }
+
+    .sidebar.show {
+        transform: translateX(0);
     }
 
     .main-content {
+        margin-left: 0;
+        padding: 80px 16px 16px;
+        width: 100%;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .stat-card {
+        padding: 16px;
+    }
+
+    .stat-icon {
+        font-size: 2rem;
+    }
+
+    .stat-value {
+        font-size: 1.4rem;
+    }
+
+    .stat-label {
+        font-size: 0.8rem;
+    }
+
+    .merchants-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+
+    .merchant-card {
+        padding: 16px;
+    }
+
+    .merchant-logo {
+        width: 60px;
+        height: 60px;
+    }
+
+    .merchant-name {
+        font-size: 0.95rem;
+    }
+
+    .merchant-commission {
+        font-size: 0.85rem;
+    }
+
+    .section {
+        padding: 20px;
+        border-radius: 8px;
+    }
+
+    .section-title {
+        font-size: 1.2rem;
+        margin-bottom: 16px;
+    }
+
+    .header {
+        margin-bottom: 20px;
+    }
+
+    .welcome h1 {
+        font-size: 1.5rem;
+    }
+
+    .subtitle {
+        font-size: 0.85rem;
+    }
+
+    /* Table responsive - use horizontal scroll instead of hiding columns */
+    .data-table th,
+    .data-table td {
+        padding: 10px 8px;
+        font-size: 0.85rem;
+        white-space: nowrap; /* Prevent text wrapping */
+    }
+
+    .table-container {
+        margin: 0 -16px; /* Negative margin to extend to edges */
+        padding: 0 16px;
+        border-radius: 0;
+    }
+
+    /* Modal adjustments for mobile */
+    .modal-content {
+        width: 95%;
+        max-width: none;
+        border-radius: 12px;
+        max-height: 85vh;
+    }
+
+    .modal-header {
         padding: 20px;
     }
 
-    /* Hide less important columns on mobile */
-    .data-table th:nth-child(n+5),
-    .data-table td:nth-child(n+5) {
-        display: none;
+    .modal-body {
+        padding: 20px;
+    }
+
+    .option-card {
+        padding: 16px;
+    }
+
+    .option-header h3 {
+        font-size: 1rem;
+    }
+
+    .option-description {
+        font-size: 0.9rem;
+    }
+
+    /* Tabs on mobile */
+    .tabs {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .tab-btn {
+        padding: 10px 16px;
+        font-size: 0.9rem;
+        white-space: nowrap;
+    }
+
+    /* Filter bar on mobile */
+    .filter-bar {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .filter-group {
+        width: 100%;
+    }
+
+    .filter-select {
+        width: 100%;
+    }
+
+    /* Pagination on mobile */
+    .pagination {
+        padding: 16px;
+        gap: 12px;
+    }
+
+    .pagination button {
+        padding: 8px 12px;
+        font-size: 0.85rem;
+    }
+
+    .pagination span {
+        font-size: 0.85rem;
+    }
+
+    /* Toast on mobile */
+    .toast {
+        width: 90%;
+        max-width: 400px;
+        padding: 12px 16px;
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .main-content {
+        padding: 70px 12px 12px;
+    }
+
+    .stats-grid {
+        gap: 10px;
+    }
+
+    .stat-card {
+        padding: 14px;
+        gap: 12px;
+    }
+
+    .stat-icon {
+        font-size: 1.8rem;
+    }
+
+    .stat-value {
+        font-size: 1.2rem;
+    }
+
+    .merchants-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .section {
+        padding: 16px;
+    }
+
+    .welcome h1 {
+        font-size: 1.3rem;
+    }
+
+    /* Table on very small screens - use horizontal scroll */
+    .data-table th,
+    .data-table td {
+        padding: 8px 6px;
+        font-size: 0.8rem;
+    }
+
+    .table-container {
+        margin: 0 -12px;
+        padding: 0 12px;
     }
 }

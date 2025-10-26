@@ -307,5 +307,43 @@
     <script src="../js/config.js"></script>
     <script src="../js/auth.js"></script>
     <script src="tools.js"></script>
+    <script>
+        document.getElementById('syncBtn').addEventListener('click', () => {
+            const syncResult = document.getElementById('syncResult');
+            syncResult.style.display = 'none'; // Hide previous results
+
+            // Show loading state
+            syncResult.innerHTML = 'Đang đồng bộ...';
+            syncResult.style.display = 'block';
+
+            // Call the API endpoint
+            fetch('/api/sync-conversions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ days: 7 }), // Sync for the last 7 days
+            })
+                .then((response) => {
+                    if (!response.ok) {
+                        throw new Error('Endpoint not found');
+                    }
+                    return response.json();
+                })
+                .then((data) => {
+                    if (data.success) {
+                        syncResult.className = 'import-result success';
+                        syncResult.innerHTML = `✅ Đồng Bộ Thành Công: ${data.syncedCount} conversions.`;
+                    } else {
+                        syncResult.className = 'import-result error';
+                        syncResult.innerHTML = `❌ Đồng Bộ Thất Bại: ${data.message}`;
+                    }
+                })
+                .catch((error) => {
+                    syncResult.className = 'import-result error';
+                    syncResult.innerHTML = `❌ Đồng Bộ Thất Bại: ${error.message}`;
+                });
+        });
+    </script>
 </body>
 </html>

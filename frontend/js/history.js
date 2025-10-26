@@ -33,10 +33,10 @@ const clicksPageInfo = document.getElementById('clicksPageInfo');
 init();
 
 async function init() {
-    // Set user name
+    // Set user name - prefer fullName over username
     const user = getUser();
-    if (user && user.username) {
-        userName.textContent = user.username;
+    if (user) {
+        userName.textContent = user.fullName || user.username || user.email;
     }
 
     // Load initial data

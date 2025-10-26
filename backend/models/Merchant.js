@@ -17,7 +17,6 @@ class Merchant {
       name,
       logo_url = null,
       campaign_id = null,
-      offer_id = null,
       commission_rate = null,
       policy_note = null,
       is_active = true,
@@ -30,15 +29,15 @@ class Merchant {
 
     const query = `
       INSERT INTO merchants (
-        id, name, logo_url, campaign_id, offer_id, commission_rate,
+        id, name, logo_url, campaign_id, commission_rate,
         policy_note, is_active, deep_link_base
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
     `;
 
     const values = [
-      id, name, logo_url, campaign_id, offer_id,
+      id, name, logo_url, campaign_id,
       commission_rate, policy_note, is_active, deep_link_base
     ];
 
@@ -114,7 +113,7 @@ class Merchant {
    * @returns {Object} Updated merchant
    */
   static async update(merchantId, updates) {
-    const allowedFields = ['name', 'logo_url', 'campaign_id', 'offer_id', 'commission_rate', 'policy_note', 'is_active', 'deep_link_base'];
+    const allowedFields = ['name', 'logo_url', 'campaign_id', 'commission_rate', 'policy_note', 'is_active', 'deep_link_base'];
     const fields = [];
     const values = [];
     let paramCount = 1;
