@@ -22,9 +22,8 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Initialize Passport for Google OAuth
 app.use(passport.initialize());
 
-// Serve static files from frontend and public directories
+// Serve static files from frontend directory only
 app.use(express.static(path.join(__dirname, 'frontend')));
-app.use(express.static(path.join(__dirname, 'public')));
 
 // Import routes
 const authRoutes = require('./backend/routes/auth');
