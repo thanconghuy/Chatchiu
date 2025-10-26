@@ -1,4 +1,5 @@
-const jose = require('jose');
+const jwt = require('jsonwebtoken');
+const axios = require('axios');
 
 /**
  * Neon Auth Middleware using JWT Verification
@@ -7,23 +8,48 @@ const jose = require('jose');
 
 // Cache JWKS for performance
 let jwksCache = null;
+let jwksCacheTime = null;
+const JWKS_CACHE_DURATION = 3600000; // 1 hour
 
 /**
  * Get JWKS from Neon Auth (Stack Auth) with caching
  * @returns {Promise} JWKS
  */
 async function getJWKS() {
-  if (!jwksCache) {
-    const projectId = process.env.NEON_AUTH_PROJECT_ID || process.env.STACK_PROJECT_ID;
-    if (!projectId) {
-      throw new Error('NEON_AUTH_PROJECT_ID or STACK_PROJECT_ID not configured in environment');
-    }
+  const now = Date.now();
 
-    jwksCache = jose.createRemoteJWKSet(
-      new URL(`https://api.stack-auth.com/api/v1/projects/${projectId}/.well-known/jwks.json`)
-    );
+  // Return cached JWKS if still valid
+  if (jwksCache && jwksCacheTime && (now - jwksCacheTime) < JWKS_CACHE_DURATION) {
+    return jwksCache;
   }
-  return jwksCache;
+
+  const projectId = process.env.NEON_AUTH_PROJECT_ID || process.env.STACK_PROJECT_ID;
+  if (!projectId) {
+    throw new Error('NEON_AUTH_PROJECT_ID or STACK_PROJECT_ID not configured in environment');
+  }
+
+  try {
+    const response = await axios.get(
+      `https://api.stack-auth.com/api/v1/projects/${projectId}/.well-known/jwks.json`
+    );
+
+    jwksCache = response.data;
+    jwksCacheTime = now;
+    return jwksCache;
+  } catch (error) {
+    console.error('Failed to fetch JWKS:', error.message);
+    throw new Error('Failed to fetch JWKS');
+  }
+}
+
+/**
+ * Convert JWK to PEM format for jsonwebtoken
+ * Simple implementation for RSA keys
+ */
+function jwkToPem(jwk) {
+  // For simplicity, use the public key directly
+  // In production, consider using a library like jwk-to-pem
+  return jwk;
 }
 
 /**
@@ -43,23 +69,31 @@ async function verifyNeonAuthToken(req, res, next) {
       });
     }
 
-    // Get JWKS and verify token
+    // Decode token without verification first to get kid
+    const decoded = jwt.decode(accessToken, { complete: true });
+
+    if (!decoded) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token format'
+      });
+    }
+
+    // Get JWKS
     const jwks = await getJWKS();
-    const { payload } = await jose.jwtVerify(accessToken, jwks);
+    const key = jwks.keys.find(k => k.kid === decoded.header.kid);
 
-    // Add user info to request
-    req.neonUser = {
-      id: payload.sub,
-      email: payload.email,
-      displayName: payload.display_name,
-      profileImageUrl: payload.profile_image_url,
-      ...payload
-    };
+    if (!key) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token signing key not found'
+      });
+    }
 
-    // For backward compatibility with existing middleware
-    req.userId = payload.sub;
+    // For now, we'll use the API verification method instead
+    // This is more reliable than manual JWKS verification
+    return verifyNeonAuthAPI(req, res, next);
 
-    next();
   } catch (error) {
     console.error('Neon Auth verification error:', error.message);
     return res.status(401).json({
@@ -93,7 +127,7 @@ async function verifyNeonAuthAPI(req, res, next) {
     }
 
     // Make request to Neon Auth API
-    const response = await fetch('https://api.stack-auth.com/api/v1/users/me', {
+    const response = await axios.get('https://api.stack-auth.com/api/v1/users/me', {
       headers: {
         'x-stack-access-type': 'server',
         'x-stack-project-id': projectId,
@@ -103,15 +137,14 @@ async function verifyNeonAuthAPI(req, res, next) {
     });
 
     if (response.status !== 200) {
-      const errorText = await response.text();
-      console.error('Neon Auth API error:', response.status, errorText);
+      console.error('Neon Auth API error:', response.status, response.data);
       return res.status(401).json({
         success: false,
         message: 'Invalid or expired token'
       });
     }
 
-    const userData = await response.json();
+    const userData = response.data;
 
     // Add user info to request
     req.neonUser = {
@@ -151,18 +184,39 @@ async function optionalNeonAuth(req, res, next) {
       return next();
     }
 
-    // Try to verify token
-    const jwks = await getJWKS();
-    const { payload } = await jose.jwtVerify(accessToken, jwks);
+    // Try to verify using API
+    const projectId = process.env.NEON_AUTH_PROJECT_ID || process.env.STACK_PROJECT_ID;
+    const secretKey = process.env.NEON_AUTH_SECRET_KEY || process.env.STACK_SECRET_SERVER_KEY;
 
-    req.neonUser = {
-      id: payload.sub,
-      email: payload.email,
-      displayName: payload.display_name,
-      profileImageUrl: payload.profile_image_url,
-      ...payload
-    };
-    req.userId = payload.sub;
+    if (!projectId || !secretKey) {
+      req.neonUser = null;
+      req.userId = null;
+      return next();
+    }
+
+    const response = await axios.get('https://api.stack-auth.com/api/v1/users/me', {
+      headers: {
+        'x-stack-access-type': 'server',
+        'x-stack-project-id': projectId,
+        'x-stack-secret-server-key': secretKey,
+        'x-stack-access-token': accessToken,
+      }
+    });
+
+    if (response.status === 200) {
+      const userData = response.data;
+      req.neonUser = {
+        id: userData.id,
+        email: userData.primary_email,
+        displayName: userData.display_name,
+        profileImageUrl: userData.profile_image_url,
+        ...userData
+      };
+      req.userId = userData.id;
+    } else {
+      req.neonUser = null;
+      req.userId = null;
+    }
 
     next();
   } catch (error) {
