@@ -1,4 +1,7 @@
-require('dotenv').config();
+// Load environment variables (safe to call multiple times)
+if (!process.env.VERCEL) {
+  require('dotenv').config();
+}
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
