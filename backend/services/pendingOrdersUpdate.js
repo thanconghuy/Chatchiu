@@ -56,8 +56,10 @@ class PendingOrdersUpdateService {
     }
 
     try {
+      // Use conversions endpoint to get conversion details
+      // Note: /publisher/orders/{id} endpoint may not exist
       const response = await axios.get(
-        `${this.API_URL}/publisher/orders/${orderId}`,
+        `${this.API_URL}/conversions/${orderId}`,
         {
           headers: {
             'Authorization': `Token ${this.API_TOKEN}`,
