@@ -33,6 +33,12 @@ const syncResult = document.getElementById('syncResult');
 const importBtn = document.getElementById('importBtn');
 const importResult = document.getElementById('importResult');
 
+// Update Pending Orders
+const updatePendingBtn = document.getElementById('updatePendingBtn');
+const updatePendingResult = document.getElementById('updatePendingResult');
+const updateLimit = document.getElementById('updateLimit');
+const updateOlderThanDays = document.getElementById('updateOlderThanDays');
+
 /**
  * Check if user is admin
  */
@@ -124,6 +130,11 @@ function setupEventListeners() {
     if (syncBtn) {
         syncBtn.addEventListener('click', manualSync);
         console.log('✓ Manual sync button listener attached');
+    }
+
+    if (updatePendingBtn) {
+        updatePendingBtn.addEventListener('click', updatePendingOrders);
+        console.log('✓ Update pending orders button listener attached');
     }
 
     if (importBtn) {
@@ -500,6 +511,89 @@ async function manualSync() {
     } finally {
         syncBtn.disabled = false;
         syncBtn.textContent = '🔄 Đồng Bộ Ngay';
+    }
+}
+
+/**
+ * Update pending orders from AccessTrade
+ */
+async function updatePendingOrders() {
+    const limit = parseInt(updateLimit.value) || 50;
+    const olderThanDays = parseInt(updateOlderThanDays.value) || 1;
+
+    if (!confirm(`Cập nhật status cho ${limit} đơn pending cũ hơn ${olderThanDays} ngày?\n\nLưu ý:\n- Rate limit: 10 requests/phút\n- Thời gian ước tính: ~${Math.ceil(limit / 10)} phút\n- Tự động cập nhật balance khi status thay đổi`)) {
+        return;
+    }
+
+    try {
+        updatePendingBtn.disabled = true;
+        updatePendingBtn.textContent = '⏳ Đang cập nhật...';
+        updatePendingResult.className = 'import-result';
+        updatePendingResult.style.display = 'block';
+        updatePendingResult.textContent = 'Đang quét và cập nhật đơn pending...';
+
+        const response = await apiRequest('/admin/update-pending-orders', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                limit: limit,
+                olderThanDays: olderThanDays
+            })
+        });
+
+        if (response.success) {
+            const { results } = response;
+
+            updatePendingResult.className = 'import-result success';
+            updatePendingResult.innerHTML = `
+                <h3>✅ Cập Nhật Thành Công</h3>
+                <div style="margin-top: 12px;">
+                    <strong>📊 Kết quả:</strong><br>
+                    • Tổng đơn đã kiểm tra: ${results.total}<br>
+                    • Đã cập nhật status: <span style="color: #10b981; font-weight: 700;">${results.updated}</span><br>
+                    • Không thay đổi: <span style="color: #6b7280;">${results.unchanged}</span><br>
+                    • Lỗi: <span style="color: #ef4444;">${results.errors}</span>
+                </div>
+                ${results.details && results.details.length > 0 ? `
+                    <div style="margin-top: 16px;">
+                        <strong>Chi tiết cập nhật:</strong>
+                        <div style="max-height: 300px; overflow-y: auto; margin-top: 8px;">
+                            ${results.details.filter(d => d.status === 'updated').slice(0, 20).map(detail => `
+                                <div class="result-item" style="border-left-color: #10b981;">
+                                    <strong>✓ ${detail.orderId}:</strong>
+                                    <span style="color: #f59e0b;">${detail.oldStatus}</span> →
+                                    <span style="color: #10b981;">${detail.newStatus}</span>
+                                    ${detail.cashbackAmount ? ` (${formatCurrency(detail.cashbackAmount)})` : ''}
+                                </div>
+                            `).join('')}
+                            ${results.details.filter(d => d.status === 'updated').length > 20 ?
+                                `<div style="text-align: center; padding: 8px;">... và ${results.details.filter(d => d.status === 'updated').length - 20} đơn nữa</div>` : ''}
+                        </div>
+                    </div>
+                ` : ''}
+                <div style="margin-top: 12px; padding: 12px; background: #f0f9ff; border-radius: 6px; font-size: 0.9rem;">
+                    💡 <strong>Lưu ý:</strong> User balance đã được tự động cập nhật cho các đơn approved
+                </div>
+            `;
+            showToast(`Updated ${results.updated} orders successfully`, 'success');
+        } else {
+            throw new Error(response.message || 'Update failed');
+        }
+    } catch (error) {
+        console.error('Update pending orders error:', error);
+        updatePendingResult.className = 'import-result error';
+        updatePendingResult.innerHTML = `
+            <h3>❌ Cập Nhật Thất Bại</h3>
+            <div style="margin-top: 12px;">
+                ${error.message || 'Unknown error occurred'}
+            </div>
+        `;
+        showToast('Failed to update pending orders: ' + error.message, 'error');
+    } finally {
+        updatePendingBtn.disabled = false;
+        updatePendingBtn.textContent = '⏰ Cập Nhật Đơn Pending';
     }
 }
 

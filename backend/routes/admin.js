@@ -11,6 +11,7 @@ const SystemConversion = require('../models/SystemConversion');
 const accessTradeService = require('../services/accesstrade');
 const trackingService = require('../services/trackingService');
 const { syncConversions } = require('../jobs/syncConversions');
+const pendingOrdersUpdate = require('../services/pendingOrdersUpdate');
 const logger = require('../utils/logger');
 
 /**
@@ -686,6 +687,53 @@ router.post('/sync-conversions', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to sync conversions'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/update-pending-orders
+ * Update status of pending orders from AccessTrade
+ * Rate limited to 10 requests/minute by AccessTrade API
+ */
+router.post('/update-pending-orders', authenticateAdmin, async (req, res) => {
+  try {
+    const { limit, olderThanDays } = req.body;
+
+    logger.info('Pending orders update triggered by admin', {
+      adminId: req.userId,
+      limit: limit || 50,
+      olderThanDays: olderThanDays || 1
+    });
+
+    // Run update with rate limiting
+    const results = await pendingOrdersUpdate.updateAllPendingConversions({
+      limit: limit || 50,
+      olderThanDays: olderThanDays || 1
+    });
+
+    logger.info('Pending orders update completed', results);
+
+    res.json({
+      success: true,
+      message: 'Pending orders update completed',
+      results: {
+        total: results.total,
+        updated: results.updated,
+        unchanged: results.unchanged,
+        errors: results.errors
+      },
+      details: results.details
+    });
+  } catch (error) {
+    logger.error('Pending orders update failed', {
+      adminId: req.userId,
+      error: error.message
+    });
+
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to update pending orders'
     });
   }
 });
