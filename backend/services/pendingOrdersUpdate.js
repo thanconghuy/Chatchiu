@@ -51,6 +51,10 @@ class PendingOrdersUpdateService {
   async getOrderDetails(orderId) {
     await this.checkRateLimit();
 
+    if (!this.API_TOKEN) {
+      throw new Error('AccessTrade API token not configured. Please set ACCESSTRADE_API_TOKEN in Vercel environment variables (Dashboard → Settings → Environment Variables).');
+    }
+
     try {
       const response = await axios.get(
         `${this.API_URL}/publisher/orders/${orderId}`,
@@ -69,10 +73,20 @@ class PendingOrdersUpdateService {
         return null;
       }
 
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        logger.error('AccessTrade authentication failed', {
+          orderId,
+          status: error.response?.status,
+          message: error.response?.data?.message || error.message
+        });
+        throw new Error('Invalid AccessTrade API token. Please check ACCESSTRADE_API_TOKEN configuration.');
+      }
+
       logger.error('Error fetching order details', {
         orderId,
         error: error.message,
-        status: error.response?.status
+        status: error.response?.status,
+        response: error.response?.data
       });
       throw error;
     }
@@ -239,9 +253,20 @@ class PendingOrdersUpdateService {
     const limit = options.limit || 50; // Default: update 50 conversions max
     const olderThanDays = options.olderThanDays || 1; // Default: only update orders older than 1 day
 
+    // Validate API token first
+    if (!this.API_TOKEN) {
+      throw new Error('AccessTrade API token not configured. Please set ACCESSTRADE_API_TOKEN in Vercel environment variables (Dashboard → Settings → Environment Variables).');
+    }
+
     logger.info('='.repeat(60));
     logger.info('Starting pending orders status update');
     logger.info('='.repeat(60));
+    logger.info('Configuration:', {
+      apiToken: this.API_TOKEN ? `${this.API_TOKEN.substring(0, 10)}...` : 'NOT SET',
+      apiUrl: this.API_URL,
+      limit,
+      olderThanDays
+    });
 
     try {
       // Get all pending conversions from database
