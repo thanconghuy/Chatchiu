@@ -14,7 +14,10 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(dir:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(tasklist:*)",
+      "Bash(curl:*)",
+      "Bash(powershell -Command \"(Get-Content .env) -replace ''PORT=3000'', ''PORT=3007'' | Set-Content .env\")"
     ],
     "deny": [],
     "ask": []

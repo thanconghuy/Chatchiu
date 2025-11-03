@@ -43,7 +43,7 @@ function isLoggedIn() {
 function logout() {
     localStorage.removeItem(CONFIG.STORAGE_KEYS.TOKEN);
     localStorage.removeItem(CONFIG.STORAGE_KEYS.USER);
-    window.location.href = '/login';
+    window.location.href = '/';
 }
 
 /**

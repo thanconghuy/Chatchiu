@@ -19,9 +19,9 @@ require('dotenv').config();
 // Create connection pool with Neon-optimized settings
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false // Required for Neon
-  },
+  ssl: process.env.NODE_ENV === 'production'
+    ? { rejectUnauthorized: true } // Secure in production
+    : { rejectUnauthorized: false }, // Relaxed for development
   // Connection pool settings optimized for Neon serverless
   max: 10, // Reduced for serverless (Neon recommends 10)
   min: 2, // Keep minimum connections alive
@@ -59,10 +59,15 @@ async function query(text, params) {
   try {
     const result = await pool.query(text, params);
     const duration = Date.now() - start;
-    console.log('Executed query', { text, duration, rows: result.rowCount });
+    // Only log query text in development (may contain sensitive data)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Executed query', { text, duration, rows: result.rowCount });
+    } else {
+      console.log('Query executed', { duration, rows: result.rowCount });
+    }
     return result;
   } catch (error) {
-    console.error('Query error:', error);
+    console.error('Query error:', error.message);
     throw error;
   }
 }

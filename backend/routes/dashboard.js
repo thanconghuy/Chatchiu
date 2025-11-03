@@ -74,6 +74,46 @@ router.get('/merchants', async (req, res) => {
 });
 
 /**
+ * GET /api/dashboard/public-activity
+ * Get recent activity for homepage (public, no auth required)
+ * Returns anonymized recent orders for social proof
+ */
+router.get('/public-activity', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    const pool = require('../config/database');
+
+    // Get recent approved conversions (anonymized)
+    const query = `
+      SELECT
+        c.order_code,
+        c.order_amount,
+        c.commission,
+        c.order_time
+      FROM conversions c
+      WHERE c.status = 'approved'
+        AND c.order_amount > 0
+        AND c.commission > 0
+      ORDER BY c.order_time DESC
+      LIMIT $1
+    `;
+
+    const result = await pool.query(query, [limit]);
+
+    res.json({
+      success: true,
+      orders: result.rows
+    });
+  } catch (error) {
+    console.error('Get public activity error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get activity'
+    });
+  }
+});
+
+/**
  * POST /api/generate-link
  * Generate affiliate link
  */

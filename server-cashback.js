@@ -14,8 +14,13 @@ const app = express();
 const PORT = process.env.PORT || 3007;
 
 // Middleware
+// CORS Configuration - Restrict origins in production
+const allowedOrigins = process.env.NODE_ENV === 'production'
+  ? (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean)
+  : '*';
+
 app.use(cors({
-  origin: '*',
+  origin: allowedOrigins,
   credentials: true
 }));
 // Increase payload limit to 10MB for importing large conversion batches
@@ -48,6 +53,13 @@ app.get('/health', (req, res) => {
     service: 'Cashback API'
   });
 });
+
+// Dev login helper (only in development)
+if (process.env.NODE_ENV !== 'production') {
+  app.get('/dev-login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'dev-login.html'));
+  });
+}
 
 // Routes for HTML pages (without .html extension)
 const pages = ['login', 'login-neon', 'register', 'dashboard', 'history', 'index', 'forgot-password', 'reset-password'];
