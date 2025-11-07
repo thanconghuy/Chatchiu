@@ -133,33 +133,14 @@
         }
 
         .hero-container {
-            max-width: 1200px;
+            max-width: 800px;
             margin: 0 auto;
             position: relative;
             z-index: 1;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 60px;
-            align-items: center;
         }
 
         .hero-content {
-            text-align: left;
-        }
-
-        .hero-image {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .hero-image img {
-            width: 100%;
-            max-width: 500px;
-            height: auto;
-            border-radius: 24px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            object-fit: cover;
+            text-align: center;
         }
 
         .hero h1 {
@@ -207,6 +188,199 @@
         .hero .btn:hover {
             transform: translateY(-3px);
             box-shadow: 0 10px 32px rgba(255, 255, 255, 0.4);
+        }
+
+        /* Link Converter in Hero */
+        .link-converter {
+            margin-top: 32px;
+            padding: 24px;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+        }
+
+        .link-converter-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: white;
+            opacity: 0.95;
+        }
+
+        .link-converter-form {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .link-input {
+            flex: 1;
+            min-width: 300px;
+            padding: 14px 18px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            font-size: 1rem;
+            background: rgba(255, 255, 255, 0.95);
+            color: var(--gray-900);
+            transition: all 0.3s;
+        }
+
+        .link-input:focus {
+            outline: none;
+            border-color: white;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .link-input::placeholder {
+            color: var(--gray-600);
+            opacity: 0.7;
+        }
+
+        .btn-convert {
+            padding: 14px 32px;
+            background: white;
+            color: var(--primary);
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-convert:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+        }
+
+        .btn-convert:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Community Stats Banner */
+        .community-stats-banner {
+            margin-top: 24px;
+            padding: 20px 28px;
+            background: transparent;
+            border-radius: 0;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            animation: slideInUp 0.8s ease-out;
+        }
+
+        .stats-icon {
+            font-size: 2rem;
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        .stats-text {
+            color: white;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            text-align: center;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            font-weight: 500;
+        }
+
+        .stats-text strong {
+            font-weight: 800;
+            color: #fef3c7;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            font-size: 1.15rem;
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-5px);
+            }
+        }
+
+        /* Realtime Orders Display */
+        .realtime-orders {
+            margin-top: 24px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .order-item {
+            animation: slideInUp 0.5s ease-out;
+            width: 100%;
+            text-align: center;
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .order-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 8px;
+            opacity: 0.95;
+        }
+
+        .order-info {
+            font-size: 1.05rem;
+            color: white;
+            line-height: 1.6;
+            opacity: 0.9;
+        }
+
+        .order-merchant-name {
+            font-weight: 700;
+            color: #fbbf24;
+        }
+
+        .order-amount {
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .order-cashback {
+            font-weight: 700;
+            color: #10b981;
+        }
+
+        .realtime-orders-empty {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.95rem;
         }
 
         /* Container */
@@ -820,24 +994,36 @@
             }
 
             .hero-container {
-                grid-template-columns: 1fr;
-                gap: 40px;
+                max-width: 100%;
             }
 
             .hero-content {
                 text-align: center;
             }
 
-            .hero-buttons {
-                justify-content: center;
+            .link-converter-form {
+                flex-direction: column;
             }
 
-            .hero-image {
-                order: -1;
+            .link-input {
+                min-width: 100%;
             }
 
-            .hero-image img {
-                max-width: 100%;
+            .community-stats-banner {
+                flex-direction: row;
+                padding: 16px 20px;
+            }
+
+            .stats-icon {
+                font-size: 1.5rem;
+            }
+
+            .stats-text {
+                font-size: 0.9rem;
+            }
+
+            .stats-text strong {
+                font-size: 1rem;
             }
 
             .hero h1 {
@@ -1031,22 +1217,39 @@
     <section class="hero">
         <div class="hero-container">
             <div class="hero-content">
-                <h1>CHẮT CHIU</h1>
-                <p class="subtitle">Nhận lại tiền cashback từ mỗi đơn hàng online bạn mua. Đơn giản, minh bạch, tiết kiệm</p>
+                <h1>CHẮT CHIU. ONLINE</h1>
+                <p class="subtitle">Nhận lại tiền cashback từ mỗi đơn hàng online bạn mua.<br>Đơn giản, minh bạch, tiết kiệm</p>
                 <p class="description">
-                    Chắt Chiu là nền tảng giúp bạn nhận lại một phần tiền từ mỗi đơn hàng mua sắm trực tuyến.
                     Thay vì mua và không nhận được gì, giờ đây bạn sẽ thu về một khoản nhỏ để dành dụm -
                     đúng như tên gọi "Chắt Chiu" - tiết kiệm cẩn thận từng chút một, vì tiền rất quý!
                 </p>
-                <div class="hero-buttons">
-                    <a href="/register" class="btn">Bắt đầu ngay</a>
-                    <a href="#how-it-works" class="btn">Tìm hiểu thêm</a>
+
+                <!-- Link Converter -->
+                <div class="link-converter">
+                    <div class="link-converter-title">Nhập link sản phẩm, mua hàng để nhận lại 1 phần tiền</div>
+                    <div class="link-converter-form">
+                        <input
+                            type="text"
+                            id="affiliateLink"
+                            class="link-input"
+                            placeholder="Dán link sản phẩm vào đây (Shopee, Lazada, Tiki...)"
+                        >
+                        <button id="convertBtn" class="btn-convert">Tạo link mua</button>
+                    </div>
                 </div>
-            </div>
-            <div class="hero-image">
-                <img src="https://file.notion.so/f/f/f814d32c-3235-43ef-92ba-7d448c3ce72c/f68a57ad-8e88-4734-af9c-dd39ed82ba3f/portrait-image-of-a-woman-collecting-and-putting-c-2024-11-27-21-29-47-utc.jpg?table=block&id=2a0ed123-6ec7-8064-aaad-fd58e687453f&spaceId=f814d32c-3235-43ef-92ba-7d448c3ce72c&expirationTimestamp=1762214400000&signature=HURQJlAI7LxX4wN-_NquIV0elHYOGV-YY5wkkp2ZwmM&downloadName=portrait-image-of-a-woman-collecting-and-putting-c-2024-11-27-21-29-47-utc.jpg"
-                     alt="Tiết kiệm tiền thông minh với Chắt Chiu"
-                     loading="lazy">
+
+                <!-- Community Stats Banner -->
+                <div class="community-stats-banner" id="communityStats">
+                    <div class="stats-icon">🎉</div>
+                    <div class="stats-text">
+                        Đã có <strong id="totalUsers">0</strong> tài khoản đã mua <strong id="totalRevenue">0₫</strong> để nhận cashback. Hãy chắt chiu cùng nhau nào!
+                    </div>
+                </div>
+
+                <!-- Realtime Orders Display -->
+                <div class="realtime-orders" id="realtimeOrders">
+                    <div class="realtime-orders-empty">Đang tải đơn hàng gần đây...</div>
+                </div>
             </div>
         </div>
     </section>
@@ -1059,7 +1262,7 @@
                 <div class="loading">Đang tải...</div>
             </div>
         </div>
-    </section>
+    </section> 
 
     <!-- How It Works Section -->
     <section class="how-it-works" id="how-it-works">
@@ -1191,7 +1394,7 @@
             <!-- CTA Box -->
             <div class="cta-box">
                 <h3>CHẮT CHIU, TIẾT KIỆM NGAY</h3>
-                <p>Để xem một năm bạn tiết kiệm thêm được bao nhiêu</p>
+                <p>Để xem một năm bạn tiết kiệm thêm được bao nhiêu?</p>
                 <a href="/register" class="btn">Bắt đầu chắt chiu</a>
             </div>
         </div>
@@ -1282,6 +1485,28 @@
                 style: 'currency',
                 currency: 'VND'
             }).format(amount);
+        }
+
+        // Load community stats (public API, no auth required)
+        async function loadCommunityStats() {
+            try {
+                const apiUrl = window.location.hostname === 'localhost'
+                    ? 'http://localhost:3007'
+                    : window.location.origin;
+                const response = await fetch(`${apiUrl}/api/dashboard/community-stats`);
+                const data = await response.json();
+
+                if (data.success) {
+                    const totalUsers = data.totalUsers || 0;
+                    const totalOrderValue = data.totalOrderValue || 0;
+
+                    document.getElementById('totalUsers').textContent = totalUsers.toLocaleString('vi-VN');
+                    document.getElementById('totalRevenue').textContent = formatCurrency(totalOrderValue);
+                }
+            } catch (error) {
+                console.error('Error loading community stats:', error);
+                // Keep default values on error
+            }
         }
 
         // Load merchants data
@@ -1508,6 +1733,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadMerchants();
             loadRealtimeActivity();
+            loadCommunityStats();
         });
 
         // Clean up interval when leaving page
@@ -1540,6 +1766,133 @@
                 answer.classList.add('active');
             }
         }
+
+        /**
+         * Realtime Orders Display
+         */
+        let currentOrderIndex = 0;
+        let ordersData = [];
+
+        async function loadRealtimeOrders() {
+            try {
+                const apiUrl = window.location.hostname === 'localhost'
+                    ? 'http://localhost:3007'
+                    : window.location.origin;
+
+                // Fetch recent approved conversions
+                const response = await fetch(`${apiUrl}/api/public/recent-orders`);
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch orders');
+                }
+
+                const data = await response.json();
+
+                if (data.success && data.orders && data.orders.length > 0) {
+                    ordersData = data.orders;
+                    displayNextOrder();
+                    // Rotate orders every 5 seconds
+                    setInterval(displayNextOrder, 5000);
+                } else {
+                    // Show empty state
+                    document.getElementById('realtimeOrders').innerHTML =
+                        '<div class="realtime-orders-empty">Chưa có đơn hàng gần đây</div>';
+                }
+            } catch (error) {
+                console.error('Error loading realtime orders:', error);
+                document.getElementById('realtimeOrders').innerHTML =
+                    '<div class="realtime-orders-empty">Không thể tải đơn hàng</div>';
+            }
+        }
+
+        function displayNextOrder() {
+            if (ordersData.length === 0) return;
+
+            const order = ordersData[currentOrderIndex];
+            const orderContainer = document.getElementById('realtimeOrders');
+
+            // Display order with new format
+            orderContainer.innerHTML = `
+                <div class="order-item">
+                    <div class="order-title">Đơn hàng #${order.order_code || 'N/A'}</div>
+                    <div class="order-info">
+                        Mua tại <span class="order-merchant-name">${order.merchant || 'N/A'}</span>
+                        có tổng tiền là <span class="order-amount">${formatCurrency(order.order_amount || 0)}</span>
+                        Được cashback: <span class="order-cashback">${formatCurrency(order.cashback_amount)}</span>
+                    </div>
+                </div>
+            `;
+
+            // Move to next order
+            currentOrderIndex = (currentOrderIndex + 1) % ordersData.length;
+        }
+
+        function getTimeAgo(dateString) {
+            const date = new Date(dateString);
+            const now = new Date();
+            const seconds = Math.floor((now - date) / 1000);
+
+            if (seconds < 60) return 'Vừa xong';
+            if (seconds < 3600) return Math.floor(seconds / 60) + ' phút trước';
+            if (seconds < 86400) return Math.floor(seconds / 3600) + ' giờ trước';
+            return Math.floor(seconds / 86400) + ' ngày trước';
+        }
+
+        /**
+         * Link Converter
+         */
+        const convertBtn = document.getElementById('convertBtn');
+        const affiliateLink = document.getElementById('affiliateLink');
+
+        if (convertBtn && affiliateLink) {
+            convertBtn.addEventListener('click', handleLinkConvert);
+
+            // Also allow Enter key
+            affiliateLink.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    handleLinkConvert();
+                }
+            });
+        }
+
+        async function handleLinkConvert() {
+            const link = affiliateLink.value.trim();
+
+            if (!link) {
+                alert('Vui lòng nhập link sản phẩm');
+                return;
+            }
+
+            // Validate URL
+            try {
+                new URL(link);
+            } catch {
+                alert('Link không hợp lệ. Vui lòng nhập link đầy đủ (bắt đầu với http:// hoặc https://)');
+                return;
+            }
+
+            // Check if user is logged in
+            if (!isLoggedIn()) {
+                // Save link to redirect after login
+                sessionStorage.setItem('pendingConvertLink', link);
+                // Redirect to login
+                window.location.href = '/login?redirect=dashboard&convert=true';
+                return;
+            }
+
+            // User is logged in, redirect to dashboard with link
+            sessionStorage.setItem('pendingConvertLink', link);
+            window.location.href = '/dashboard';
+        }
+
+        // Initialize realtime orders when page loads
+        loadRealtimeOrders();
+
+        // Initialize merchants and activity
+        loadMerchants();
+        loadRealtimeActivity();
+        loadCommunityStats();
     </script>
+    <script src="js/analytics.js"></script>
 </body>
 </html>

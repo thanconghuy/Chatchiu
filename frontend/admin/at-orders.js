@@ -17,6 +17,7 @@ let currentPage = 1;
 const ITEMS_PER_PAGE = 50;
 let currentFilters = {};
 let totalRecords = 0;
+let totalPages = 1;
 
 // DOM Elements
 const userName = document.getElementById('userName');
@@ -29,9 +30,12 @@ const filterUser = document.getElementById('filterUser');
 const searchBtn = document.getElementById('searchBtn');
 const resetBtn = document.getElementById('resetBtn');
 const ordersTableBody = document.getElementById('ordersTableBody');
+const firstBtn = document.getElementById('firstBtn');
 const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
+const lastBtn = document.getElementById('lastBtn');
 const pageInfo = document.getElementById('pageInfo');
+const recordsInfo = document.getElementById('recordsInfo');
 const logoutBtn = document.getElementById('logoutBtn');
 
 // Stats elements
@@ -103,6 +107,11 @@ function formatDateForPicker(date) {
  * Setup event listeners
  */
 function setupEventListeners() {
+    // Debug: Check if buttons exist
+    console.log('Setting up event listeners...');
+    console.log('firstBtn:', firstBtn);
+    console.log('lastBtn:', lastBtn);
+
     searchBtn.addEventListener('click', () => {
         currentPage = 1;
         loadOrders();
@@ -135,7 +144,14 @@ function setupEventListeners() {
         });
     });
 
+    firstBtn.addEventListener('click', () => {
+        console.log('First button clicked!');
+        currentPage = 1;
+        loadOrders();
+    });
+
     prevBtn.addEventListener('click', () => {
+        console.log('Prev button clicked!');
         if (currentPage > 1) {
             currentPage--;
             loadOrders();
@@ -143,7 +159,16 @@ function setupEventListeners() {
     });
 
     nextBtn.addEventListener('click', () => {
-        currentPage++;
+        console.log('Next button clicked!');
+        if (currentPage < totalPages) {
+            currentPage++;
+            loadOrders();
+        }
+    });
+
+    lastBtn.addEventListener('click', () => {
+        console.log('Last button clicked! totalPages =', totalPages);
+        currentPage = totalPages;
         loadOrders();
     });
 
@@ -208,6 +233,7 @@ async function loadOrders() {
 
         if (response.success) {
             totalRecords = response.total || 0;
+            totalPages = response.totalPages || 1;
             renderOrders(response.orders || []);
             updateStats(response.stats || {});
             updatePagination();
@@ -281,16 +307,47 @@ function renderOrders(orders) {
     }
 
     ordersTableBody.innerHTML = orders.map(order => {
-        const statusClass = order.status === 'approved' ? 'status-approved' :
-                           order.status === 'pending' ? 'status-pending' :
-                           'status-rejected';
-        const statusText = order.status === 'approved' ? 'Approved' :
-                          order.status === 'pending' ? 'Pending' : 'Rejected';
+        // Determine status display based on AccessTrade fields:
+        // 1. order_reject = 1 → Huỷ
+        // 2. is_confirmed = 1 → Đã duyệt (đã đối soát)
+        // 3. order_pending != 0 → Chờ duyệt
+        // 4. order_approved != 0 + order_pending = 0 → Tạm duyệt (đợi đối soát)
 
-        // Format user info
+        let statusClass, statusText;
+
+        if (order.status === 'rejected' || order.orderReject === 1) {
+            statusClass = 'status-rejected';
+            statusText = 'Huỷ';
+        } else if (order.status === 'approved') {
+            statusClass = 'status-approved';
+            statusText = 'Đã duyệt';
+        } else if (order.status === 'pending') {
+            // Check if temp approved
+            const isTempApproved = order.orderApproved > 0 &&
+                                   order.orderPending === 0 &&
+                                   order.orderReject === 0;
+
+            if (isTempApproved) {
+                statusClass = 'status-temp-approved';
+                statusText = 'Tạm duyệt (đợi đối soát)';
+            } else {
+                statusClass = 'status-pending';
+                statusText = 'Chờ duyệt';
+            }
+        } else {
+            // Fallback
+            statusClass = 'status-pending';
+            statusText = 'Pending';
+        }
+
+        // Format user info - show username and full name
         let userInfo = '-';
-        if (order.userEmail) {
-            userInfo = `<div style="font-size: 0.85rem;">${order.userEmail}</div>`;
+        if (order.userUsername) {
+            const fullName = order.userFullName || '';
+            userInfo = `
+                <div style="font-weight: 600; font-size: 0.9rem;">${order.userUsername}</div>
+                ${fullName ? `<div style="font-size: 0.8rem; color: var(--gray-600);">${fullName}</div>` : ''}
+            `;
         } else if (order.userId) {
             userInfo = `<div style="font-size: 0.85rem; color: var(--gray-500);">ID: ${order.userId.substring(0, 8)}...</div>`;
         }
@@ -342,11 +399,34 @@ function updateStats(stats) {
  * Update pagination
  */
 function updatePagination() {
-    const totalPages = Math.ceil(totalRecords / ITEMS_PER_PAGE);
+    // Update page info
+    pageInfo.textContent = `Trang ${currentPage} / ${totalPages}`;
 
-    pageInfo.textContent = `Trang ${currentPage} / ${totalPages || 1} (Tổng: ${totalRecords})`;
+    // Calculate record range
+    const startRecord = totalRecords > 0 ? ((currentPage - 1) * ITEMS_PER_PAGE) + 1 : 0;
+    const endRecord = Math.min(currentPage * ITEMS_PER_PAGE, totalRecords);
+
+    // Update records info
+    recordsInfo.textContent = totalRecords > 0
+        ? `Hiển thị ${startRecord}-${endRecord} của ${totalRecords} kết quả`
+        : 'Không có kết quả';
+
+    // Update button states
+    firstBtn.disabled = currentPage === 1;
     prevBtn.disabled = currentPage === 1;
     nextBtn.disabled = currentPage >= totalPages;
+    lastBtn.disabled = currentPage >= totalPages;
+
+    // Debug logging
+    console.log('Pagination updated:', {
+        currentPage,
+        totalPages,
+        totalRecords,
+        firstBtn: { disabled: firstBtn.disabled },
+        prevBtn: { disabled: prevBtn.disabled },
+        nextBtn: { disabled: nextBtn.disabled },
+        lastBtn: { disabled: lastBtn.disabled }
+    });
 }
 
 /**
@@ -407,10 +487,34 @@ function showOrderDetailModal(order) {
     document.getElementById('detailCommission').textContent = formatCurrency(order.commission || 0);
     document.getElementById('detailCashback').textContent = formatCurrency(order.cashbackAmount || 0);
 
-    const statusClass = order.status === 'approved' ? 'status-approved' :
-                       order.status === 'pending' ? 'status-pending' : 'status-rejected';
-    const statusText = order.status === 'approved' ? 'Approved' :
-                      order.status === 'pending' ? 'Pending' : 'Rejected';
+    // Determine status display based on AccessTrade fields
+    let statusClass, statusText;
+
+    if (order.status === 'rejected' || order.orderReject === 1) {
+        statusClass = 'status-rejected';
+        statusText = 'Huỷ';
+    } else if (order.status === 'approved') {
+        statusClass = 'status-approved';
+        statusText = 'Đã duyệt';
+    } else if (order.status === 'pending') {
+        // Check if temp approved
+        const isTempApproved = order.orderApproved > 0 &&
+                               order.orderPending === 0 &&
+                               order.orderReject === 0;
+
+        if (isTempApproved) {
+            statusClass = 'status-temp-approved';
+            statusText = 'Tạm duyệt (đợi đối soát)';
+        } else {
+            statusClass = 'status-pending';
+            statusText = 'Chờ duyệt';
+        }
+    } else {
+        // Fallback
+        statusClass = 'status-pending';
+        statusText = 'Pending';
+    }
+
     document.getElementById('detailStatus').innerHTML = `<span class="status-badge ${statusClass}">${statusText}</span>`;
 
     document.getElementById('detailAffSid').textContent = order.affSid || '-';

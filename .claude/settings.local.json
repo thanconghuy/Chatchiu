@@ -17,7 +17,11 @@
       "Bash(npm uninstall:*)",
       "Bash(tasklist:*)",
       "Bash(curl:*)",
-      "Bash(powershell -Command \"(Get-Content .env) -replace ''PORT=3000'', ''PORT=3007'' | Set-Content .env\")"
+      "Bash(powershell -Command \"(Get-Content .env) -replace ''PORT=3000'', ''PORT=3007'' | Set-Content .env\")",
+      "Bash(del:*)",
+      "Bash(timeout /t 2)",
+      "Bash(set PGPASSWORD=npg_KZt0IpRsEf5C:*)",
+      "Bash(psql:*)"
     ],
     "deny": [],
     "ask": []

@@ -6,9 +6,8 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const passport = require('./backend/config/passport'); // Google OAuth enabled
-// const cron = require('node-cron'); // DISABLED - manual sync only
-// const { syncConversions } = require('./backend/jobs/syncConversions'); // Used in admin routes
 const logger = require('./backend/utils/logger');
+const autoSyncService = require('./backend/services/autoSyncService');
 
 const app = express();
 const PORT = process.env.PORT || 3007;
@@ -38,12 +37,14 @@ const authRoutes = require('./backend/routes/auth');
 const neonAuthRoutes = require('./backend/routes/neonAuthRoutes');
 const dashboardRoutes = require('./backend/routes/dashboard');
 const adminRoutes = require('./backend/routes/admin');
+const publicRoutes = require('./backend/routes/public');
 
 // Mount routes
 app.use('/api/auth', authRoutes); // Keep old auth for backward compatibility
 app.use('/api/neon-auth', neonAuthRoutes); // New Neon Auth routes
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/public', publicRoutes); // Public endpoints (no auth required)
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -79,9 +80,9 @@ app.get('/admin/:page', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend', 'admin', `${page}.html`));
 });
 
-// Default route - serve dashboard
+// Default route - serve homepage (landing page)
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend', 'dashboard.html'));
+  res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
 });
 
 // Ignore source map requests (silent 404)
@@ -109,23 +110,14 @@ app.use((error, req, res, next) => {
   });
 });
 
-// Auto sync DISABLED - Use manual sync from admin panel
-// Setup cron job for automatic conversion sync (DISABLED)
-// Run every 3 hours: '0 */3 * * *'
-// Or 5 times per day: '0 6,10,14,18,22 * * *'
-// const cronSchedule = process.env.SYNC_CRON_SCHEDULE || '0 */3 * * *';
-
-// cron.schedule(cronSchedule, async () => {
-//   logger.info('Cron job triggered: Starting conversion sync');
-//   try {
-//     await syncConversions();
-//   } catch (error) {
-//     logger.error('Cron job failed', { error: error.message });
-//   }
-// });
-
-// logger.info(`Cron job scheduled: ${cronSchedule}`);
-logger.info('Auto sync DISABLED - Use manual sync from admin panel');
+// Initialize auto-sync service (can be enabled/disabled from admin panel)
+autoSyncService.initialize()
+  .then(() => {
+    logger.info('Auto-sync service initialized');
+  })
+  .catch((error) => {
+    logger.error('Failed to initialize auto-sync service', { error: error.message });
+  });
 
 // Start server (only if not running on Vercel)
 if (process.env.VERCEL !== '1') {

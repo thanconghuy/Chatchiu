@@ -206,7 +206,7 @@ class SystemConversion {
 
   /**
    * Update status of a system conversion
-   * @param {string} id
+   * @param {string} id - System conversion ID or AT conversion ID
    * @param {string} status
    * @param {Date} approvalTime
    * @returns {Promise<Object>}
@@ -223,6 +223,27 @@ class SystemConversion {
 
     const result = await pool.query(query, [status, approvalTime, id]);
     return result.rows[0];
+  }
+
+  /**
+   * Update status by AT conversion ID
+   * @param {string} atConversionId - Conversion ID from conversions table
+   * @param {string} status
+   * @param {Date} approvalTime
+   * @returns {Promise<Object|null>}
+   */
+  static async updateStatusByATConversionId(atConversionId, status, approvalTime = null) {
+    const query = `
+      UPDATE system_conversions
+      SET status = $1,
+          approval_time = $2,
+          updated_at = NOW()
+      WHERE at_conversion_id = $3
+      RETURNING *
+    `;
+
+    const result = await pool.query(query, [status, approvalTime, atConversionId]);
+    return result.rows[0] || null;
   }
 
   /**

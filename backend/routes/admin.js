@@ -13,6 +13,8 @@ const trackingService = require('../services/trackingService');
 const { syncConversions } = require('../jobs/syncConversions');
 const pendingOrdersUpdate = require('../services/pendingOrdersUpdate');
 const logger = require('../utils/logger');
+const AutoSyncConfig = require('../models/AutoSyncConfig');
+const autoSyncService = require('../services/autoSyncService');
 
 /**
  * GET /api/admin/stats
@@ -133,6 +135,106 @@ router.get('/users', authenticateAdmin, async (req, res) => {
 });
 
 /**
+ * GET /api/admin/users/:userId
+ * Get single user details with their clicks and conversions
+ */
+router.get('/users/:userId', authenticateAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Get user details
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Get user stats
+    const userStats = await User.getStats(userId);
+    const clickStats = await Click.getStats(userId);
+    const conversionStats = await Conversion.getUserStats(userId);
+
+    // Get user's clicks with conversion info
+    // Use system_conversions to get accurate status (same as /admin/conversions page)
+    // system_conversions.click_id links to clicks table
+    const clicksQuery = `
+      SELECT
+        cl.id,
+        cl.click_type,
+        cl.clicked_at,
+        cl.affiliate_url,
+        m.name as merchant_name,
+        m.logo_url as merchant_logo,
+        sc.id as system_conversion_id,
+        sc.status as conversion_status,
+        sc.cashback_amount,
+        c.order_approved,
+        c.products_count,
+        c.order_pending,
+        c.order_reject
+      FROM clicks cl
+      LEFT JOIN merchants m ON cl.merchant_id = m.id
+      LEFT JOIN system_conversions sc ON cl.id = sc.click_id
+      LEFT JOIN conversions c ON sc.at_conversion_id = c.id
+      WHERE cl.user_id = $1
+      ORDER BY cl.clicked_at DESC
+      LIMIT 100
+    `;
+    const clicksResult = await pool.query(clicksQuery, [userId]);
+    const clicks = clicksResult.rows;
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        fullName: user.full_name,
+        phone: user.phone,
+        availableBalance: parseFloat(user.available_balance),
+        pendingBalance: parseFloat(user.pending_balance),
+        totalCashback: parseFloat(user.total_cashback),
+        createdAt: user.created_at,
+        updatedAt: user.updated_at
+      },
+      stats: {
+        totalClicks: parseInt(clickStats.total_clicks),
+        convertedClicks: parseInt(clickStats.converted_clicks),
+        totalConversions: parseInt(conversionStats.total_conversions),
+        approvedConversions: parseInt(conversionStats.approved_conversions),
+        pendingConversions: parseInt(conversionStats.pending_conversions),
+        rejectedConversions: parseInt(conversionStats.rejected_conversions),
+        totalApprovedCashback: parseFloat(conversionStats.total_approved_cashback),
+        totalPendingCashback: parseFloat(conversionStats.total_pending_cashback)
+      },
+      clicks: clicks.map(c => ({
+        id: c.id,
+        merchantName: c.merchant_name,
+        merchantLogo: c.merchant_logo,
+        clickType: c.click_type,
+        clickedAt: c.clicked_at,
+        affiliateUrl: c.affiliate_url,
+        hasConversion: !!c.system_conversion_id,
+        conversionStatus: c.conversion_status,
+        cashback: c.cashback_amount ? parseFloat(c.cashback_amount) : 0,
+        orderApproved: parseInt(c.order_approved) || 0,
+        productsCount: parseInt(c.products_count) || 0,
+        orderPending: parseInt(c.order_pending) || 0,
+        orderReject: parseInt(c.order_reject) || 0
+      }))
+    });
+  } catch (error) {
+    console.error('Get user details error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get user details'
+    });
+  }
+});
+
+/**
  * GET /api/admin/conversions
  * Get all system conversions (matched conversions only) with filters
  */
@@ -154,7 +256,11 @@ router.get('/conversions', authenticateAdmin, async (req, res) => {
         c.utm_source,
         c.utm_medium,
         c.utm_campaign,
-        c.utm_content
+        c.utm_content,
+        c.order_approved,
+        c.products_count,
+        c.order_pending,
+        c.order_reject
       FROM system_conversions sc
       JOIN users u ON sc.user_id = u.id
       LEFT JOIN merchants m ON sc.merchant_id = m.id
@@ -203,7 +309,11 @@ router.get('/conversions', authenticateAdmin, async (req, res) => {
         utmMedium: sc.utm_medium,
         utmCampaign: sc.utm_campaign,
         utmContent: sc.utm_content,
-        createdAt: sc.created_at
+        createdAt: sc.created_at,
+        orderApproved: parseInt(sc.order_approved) || 0,
+        productsCount: parseInt(sc.products_count) || 0,
+        orderPending: parseInt(sc.order_pending) || 0,
+        orderReject: parseInt(sc.order_reject) || 0
       }))
     });
   } catch (error) {
@@ -231,15 +341,18 @@ router.put('/conversion/:id/status', authenticateAdmin, async (req, res) => {
       });
     }
 
-    // Get conversion details
-    const conversion = await Conversion.findById(id);
+    // Get conversion details from system_conversions
+    const query = 'SELECT * FROM system_conversions WHERE id = $1';
+    const result = await pool.query(query, [id]);
 
-    if (!conversion) {
+    if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Conversion not found'
       });
     }
+
+    const conversion = result.rows[0];
 
     if (conversion.status !== 'pending') {
       return res.status(400).json({
@@ -250,8 +363,8 @@ router.put('/conversion/:id/status', authenticateAdmin, async (req, res) => {
 
     const approvalTime = new Date();
 
-    // Update conversion status
-    await Conversion.updateStatus(id, status, approvalTime);
+    // Update conversion status in system_conversions
+    await SystemConversion.updateStatus(id, status, approvalTime);
 
     // Update user balance
     if (status === 'approved') {
@@ -969,6 +1082,10 @@ router.get('/at-order/:id', authenticateAdmin, async (req, res) => {
         c.updated_at,
         c.user_id,
         c.click_id,
+        c.order_approved,
+        c.products_count,
+        c.order_pending,
+        c.order_reject,
         u.email as user_email,
         u.username as user_username,
         u.full_name as user_full_name,
@@ -1013,6 +1130,10 @@ router.get('/at-order/:id', authenticateAdmin, async (req, res) => {
         createdAt: row.created_at,
         updatedAt: row.updated_at,
         userId: row.user_id,
+        orderApproved: parseInt(row.order_approved) || 0,
+        productsCount: parseInt(row.products_count) || 0,
+        orderPending: parseInt(row.order_pending) || 0,
+        orderReject: parseInt(row.order_reject) || 0,
         userEmail: row.user_email,
         userUsername: row.user_username,
         userFullName: row.user_full_name,
@@ -1132,6 +1253,10 @@ router.get('/at-orders', authenticateAdmin, async (req, res) => {
         c.approval_time,
         c.created_at,
         c.user_id,
+        c.order_approved,
+        c.products_count,
+        c.order_pending,
+        c.order_reject,
         u.email as user_email,
         u.username as user_username,
         u.full_name as user_full_name
@@ -1180,6 +1305,10 @@ router.get('/at-orders', authenticateAdmin, async (req, res) => {
         approvalTime: row.approval_time,
         createdAt: row.created_at,
         userId: row.user_id,
+        orderApproved: parseInt(row.order_approved) || 0,
+        productsCount: parseInt(row.products_count) || 0,
+        orderPending: parseInt(row.order_pending) || 0,
+        orderReject: parseInt(row.order_reject) || 0,
         userEmail: row.user_email,
         userUsername: row.user_username,
         userFullName: row.user_full_name
@@ -1330,6 +1459,72 @@ router.get('/merchants', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to get merchants'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/merchants
+ * Create new merchant
+ */
+router.post('/merchants', authenticateAdmin, async (req, res) => {
+  try {
+    const {
+      id,
+      name,
+      logo_url,
+      campaign_id,
+      commission_rate,
+      deep_link_base,
+      policy_note,
+      is_active
+    } = req.body;
+
+    // Validate required fields
+    if (!id || !name) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID and name are required'
+      });
+    }
+
+    // Check if merchant already exists
+    const existingMerchant = await Merchant.findById(id);
+    if (existingMerchant) {
+      return res.status(400).json({
+        success: false,
+        message: 'Merchant with this ID already exists'
+      });
+    }
+
+    // Create merchant
+    const newMerchant = await Merchant.create({
+      id,
+      name,
+      logo_url,
+      campaign_id,
+      commission_rate,
+      policy_note,
+      is_active: is_active !== undefined ? is_active : true,
+      deep_link_base
+    });
+
+    logger.info('Merchant created', {
+      merchantId: id,
+      name,
+      adminId: req.userId
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Merchant created successfully',
+      merchant: newMerchant
+    });
+  } catch (error) {
+    logger.error('Create merchant error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create merchant'
     });
   }
 });
@@ -1512,6 +1707,586 @@ router.delete('/merchant/:id', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to delete merchant'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/auto-sync/config
+ * Get auto-sync configuration
+ */
+router.get('/auto-sync/config', authenticateAdmin, async (req, res) => {
+  try {
+    const config = await AutoSyncConfig.getConfig();
+    const status = autoSyncService.getStatus();
+
+    res.json({
+      success: true,
+      config,
+      status
+    });
+  } catch (error) {
+    logger.error('Get auto-sync config error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to get auto-sync config'
+    });
+  }
+});
+
+/**
+ * PUT /api/admin/auto-sync/config
+ * Update auto-sync configuration
+ */
+router.put('/auto-sync/config', authenticateAdmin, async (req, res) => {
+  try {
+    const { enabled, cron_schedule, sync_days } = req.body;
+
+    // Validate inputs
+    if (enabled !== undefined && typeof enabled !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid enabled value'
+      });
+    }
+
+    if (sync_days !== undefined && (sync_days < 1 || sync_days > 30)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Sync days must be between 1 and 30'
+      });
+    }
+
+    const updated = await autoSyncService.updateConfig({
+      enabled,
+      cron_schedule,
+      sync_days
+    });
+
+    logger.info('Auto-sync config updated', {
+      enabled: updated.enabled,
+      schedule: updated.cron_schedule,
+      syncDays: updated.sync_days,
+      adminId: req.userId
+    });
+
+    res.json({
+      success: true,
+      message: 'Auto-sync configuration updated successfully',
+      config: updated
+    });
+  } catch (error) {
+    logger.error('Update auto-sync config error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to update auto-sync config'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/auto-sync/test
+ * Test auto-sync manually
+ */
+router.post('/auto-sync/test', authenticateAdmin, async (req, res) => {
+  try {
+    const { sync_days } = req.body;
+    const days = sync_days || 2;
+
+    if (days < 1 || days > 30) {
+      return res.status(400).json({
+        success: false,
+        message: 'Sync days must be between 1 and 30'
+      });
+    }
+
+    logger.info('Manual auto-sync test triggered', {
+      syncDays: days,
+      adminId: req.userId
+    });
+
+    const result = await autoSyncService.triggerManualSync(days);
+
+    res.json({
+      success: true,
+      message: 'Manual sync completed successfully',
+      result
+    });
+  } catch (error) {
+    logger.error('Manual auto-sync test error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to run manual sync'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/check-pending-orders
+ * Check pending conversions status from AccessTrade
+ */
+router.post('/check-pending-orders', authenticateAdmin, async (req, res) => {
+  try {
+    logger.info('Checking pending orders status', {
+      adminId: req.userId
+    });
+
+    // Get all pending conversions from database
+    const pendingQuery = `
+      SELECT
+        c.id,
+        c.order_code,
+        c.merchant_id,
+        c.merchant_name,
+        c.order_time,
+        c.order_amount,
+        c.commission,
+        c.cashback_amount,
+        u.email as user_email
+      FROM conversions c
+      LEFT JOIN users u ON c.user_id = u.id
+      WHERE c.status = 'pending'
+      ORDER BY c.order_time DESC
+    `;
+
+    const pendingResult = await pool.query(pendingQuery);
+    const pendingOrders = pendingResult.rows;
+
+    logger.info(`Found ${pendingOrders.length} pending orders to check`);
+
+    if (pendingOrders.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No pending orders to check',
+        results: {
+          total: 0,
+          approved: [],
+          stillPending: [],
+          rejected: [],
+          errors: []
+        }
+      });
+    }
+
+    // Fetch conversions from AccessTrade for the date range covering all pending orders
+    // AccessTrade API requires date range < 31 days, so we need to split into chunks
+    const oldestOrder = pendingOrders[pendingOrders.length - 1];
+    const newestOrder = pendingOrders[0];
+
+    const fullStartDate = new Date(oldestOrder.order_time);
+    fullStartDate.setDate(fullStartDate.getDate() - 1); // Add 1 day buffer
+
+    const fullEndDate = new Date(newestOrder.order_time);
+    fullEndDate.setDate(fullEndDate.getDate() + 1); // Add 1 day buffer
+
+    logger.info('Fetching conversions from AccessTrade in chunks', {
+      fullStartDate: fullStartDate.toISOString(),
+      fullEndDate: fullEndDate.toISOString()
+    });
+
+    // Fetch all pages of conversions in 30-day chunks
+    let allConversions = [];
+    let currentStartDate = new Date(fullStartDate);
+
+    while (currentStartDate < fullEndDate) {
+      // Calculate chunk end date (30 days from start, or fullEndDate if sooner)
+      let chunkEndDate = new Date(currentStartDate);
+      chunkEndDate.setDate(chunkEndDate.getDate() + 30);
+
+      if (chunkEndDate > fullEndDate) {
+        chunkEndDate = fullEndDate;
+      }
+
+      logger.info('Fetching chunk', {
+        chunkStart: currentStartDate.toISOString(),
+        chunkEnd: chunkEndDate.toISOString()
+      });
+
+      // Fetch all pages for this chunk
+      let currentPage = 1;
+      let hasMorePages = true;
+
+      while (hasMorePages) {
+        const response = await accessTradeService.getConversions(currentStartDate, chunkEndDate, {
+          page: currentPage,
+          limit: 300
+        });
+
+        allConversions = allConversions.concat(response.data);
+
+        if (currentPage >= response.pagination.totalPages) {
+          hasMorePages = false;
+        } else {
+          currentPage++;
+        }
+      }
+
+      // Move to next chunk
+      currentStartDate = new Date(chunkEndDate);
+      currentStartDate.setSeconds(currentStartDate.getSeconds() + 1); // Add 1 second to avoid overlap
+    }
+
+    logger.info(`Fetched ${allConversions.length} conversions from AccessTrade`);
+
+    // Create a map of order_code to status from AccessTrade
+    const atOrderMap = new Map();
+    allConversions.forEach(order => {
+      const orderCode = order.order_id || order._id;
+      if (orderCode) {
+        atOrderMap.set(orderCode.toString(), {
+          status: order.is_confirmed, // 0: Pending, 1: Approved, 2: Rejected
+          order: order
+        });
+      }
+    });
+
+    // Check each pending order
+    const results = {
+      total: pendingOrders.length,
+      approved: [],
+      stillPending: [],
+      rejected: [],
+      errors: []
+    };
+
+    for (const pendingOrder of pendingOrders) {
+      try {
+        const orderCode = pendingOrder.order_code;
+        const atOrder = atOrderMap.get(orderCode.toString());
+
+        if (!atOrder) {
+          // Order not found in AccessTrade
+          results.errors.push({
+            id: pendingOrder.id,
+            order_code: orderCode,
+            merchant_name: pendingOrder.merchant_name,
+            reason: 'Order not found in AccessTrade'
+          });
+          continue;
+        }
+
+        const atStatus = atOrder.status;
+
+        if (atStatus === 1) {
+          // Approved on AccessTrade
+          results.approved.push({
+            id: pendingOrder.id,
+            order_code: orderCode,
+            merchant_name: pendingOrder.merchant_name,
+            order_amount: pendingOrder.order_amount,
+            cashback_amount: pendingOrder.cashback_amount,
+            user_email: pendingOrder.user_email,
+            order_time: pendingOrder.order_time
+          });
+        } else if (atStatus === 2) {
+          // Rejected on AccessTrade
+          results.rejected.push({
+            id: pendingOrder.id,
+            order_code: orderCode,
+            merchant_name: pendingOrder.merchant_name,
+            reason: 'Rejected on AccessTrade'
+          });
+        } else {
+          // Still pending on AccessTrade
+          results.stillPending.push({
+            id: pendingOrder.id,
+            order_code: orderCode,
+            merchant_name: pendingOrder.merchant_name
+          });
+        }
+      } catch (error) {
+        logger.error('Error checking order', {
+          orderId: pendingOrder.id,
+          orderCode: pendingOrder.order_code,
+          error: error.message
+        });
+        results.errors.push({
+          id: pendingOrder.id,
+          order_code: pendingOrder.order_code,
+          merchant_name: pendingOrder.merchant_name,
+          reason: error.message
+        });
+      }
+    }
+
+    logger.success('Pending orders check completed', {
+      total: results.total,
+      approved: results.approved.length,
+      stillPending: results.stillPending.length,
+      rejected: results.rejected.length,
+      errors: results.errors.length
+    });
+
+    res.json({
+      success: true,
+      message: 'Check completed successfully',
+      results
+    });
+
+  } catch (error) {
+    logger.error('Check pending orders error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to check pending orders'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/approve-pending-orders
+ * Approve multiple pending orders at once
+ */
+router.post('/approve-pending-orders', authenticateAdmin, async (req, res) => {
+  try {
+    const { order_ids } = req.body;
+
+    if (!order_ids || !Array.isArray(order_ids) || order_ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'order_ids array is required'
+      });
+    }
+
+    logger.info('Batch approving pending orders', {
+      adminId: req.userId,
+      count: order_ids.length
+    });
+
+    const results = {
+      total: order_ids.length,
+      approved: 0,
+      errors: []
+    };
+
+    for (const orderId of order_ids) {
+      try {
+        // Update conversion status to approved
+        const updateQuery = `
+          UPDATE conversions
+          SET
+            status = 'approved',
+            approved_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = $1
+          RETURNING *
+        `;
+
+        const result = await pool.query(updateQuery, [orderId]);
+
+        if (result.rows.length > 0) {
+          const conversion = result.rows[0];
+
+          // Update user balance
+          const balanceQuery = `
+            UPDATE users
+            SET balance = balance + $1
+            WHERE id = $2
+          `;
+          await pool.query(balanceQuery, [conversion.cashback_amount, conversion.user_id]);
+
+          results.approved++;
+
+          logger.success('Order approved', {
+            orderId,
+            userId: conversion.user_id,
+            cashback: conversion.cashback_amount
+          });
+        } else {
+          results.errors.push({
+            order_id: orderId,
+            reason: 'Order not found'
+          });
+        }
+      } catch (error) {
+        logger.error('Error approving order', {
+          orderId,
+          error: error.message
+        });
+        results.errors.push({
+          order_id: orderId,
+          reason: error.message
+        });
+      }
+    }
+
+    logger.success('Batch approval completed', {
+      approved: results.approved,
+      errors: results.errors.length
+    });
+
+    res.json({
+      success: true,
+      message: `Approved ${results.approved} orders`,
+      results
+    });
+
+  } catch (error) {
+    logger.error('Batch approve error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to approve orders'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/check-single-order
+ * Check single order status using order-products API
+ */
+router.get('/check-single-order', authenticateAdmin, async (req, res) => {
+  try {
+    const { order_code, merchant } = req.query;
+
+    if (!order_code || !merchant) {
+      return res.status(400).json({
+        success: false,
+        message: 'order_code and merchant are required'
+      });
+    }
+
+    logger.info('Checking single order', {
+      orderCode: order_code,
+      merchant,
+      adminId: req.userId
+    });
+
+    // Call AccessTrade order-products API
+    const url = `/order-products?order_id=${encodeURIComponent(order_code)}&merchant=${encodeURIComponent(merchant)}`;
+
+    try {
+      const response = await accessTradeService.axiosInstance.get(url);
+
+      logger.info('AccessTrade order-products response', {
+        status: response.status,
+        hasData: !!response.data,
+        data: response.data
+      });
+
+      if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        const orderItems = response.data.data;
+
+        if (orderItems.length === 0) {
+          return res.json({
+            success: true,
+            status: 'not_found',
+            details: []
+          });
+        }
+
+        // Check if all items are approved
+        // An item is approved if quantity.approved > 0 or billing.approved > 0
+        const allApproved = orderItems.every(item => {
+          const qtyApproved = item.quantity?.approved > 0;
+          const billingApproved = item.billing?.approved > 0;
+          return qtyApproved || billingApproved;
+        });
+
+        // Check if any items are rejected
+        const anyRejected = orderItems.some(item => {
+          const qtyRejected = item.quantity?.reject > 0;
+          const billingRejected = item.billing?.reject > 0;
+          return qtyRejected || billingRejected;
+        });
+
+        // Sum all commissions from commission.approved
+        const totalCommission = orderItems.reduce((sum, item) => {
+          return sum + (parseFloat(item.commission?.approved || 0));
+        }, 0);
+
+        // Get confirmed time from first item (should be same for all items)
+        const confirmedTime = orderItems[0]?.confirmed_time;
+
+        // Determine status
+        let status = 'pending';
+        if (allApproved) {
+          status = 'approved';
+        } else if (anyRejected) {
+          status = 'rejected';
+        }
+
+        res.json({
+          success: true,
+          status,
+          totalCommission,
+          confirmedTime,
+          details: orderItems
+        });
+      } else {
+        res.json({
+          success: true,
+          status: 'not_found',
+          details: []
+        });
+      }
+    } catch (apiError) {
+      logger.warn('AccessTrade API error for single order', {
+        orderCode: order_code,
+        merchant,
+        error: apiError.message,
+        status: apiError.response?.status,
+        data: apiError.response?.data
+      });
+
+      // If 404 or order not found, return not_found status
+      if (apiError.response?.status === 404 || apiError.response?.data?.status === 'fail') {
+        res.json({
+          success: true,
+          status: 'not_found',
+          details: []
+        });
+      } else {
+        throw apiError;
+      }
+    }
+
+  } catch (error) {
+    logger.error('Check single order error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to check order'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/conversion/:id/details
+ * Get conversion details
+ */
+router.get('/conversion/:id/details', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const query = `
+      SELECT
+        sc.*,
+        u.email as user_email,
+        u.full_name as user_name,
+        u.username,
+        m.logo_url as merchant_logo
+      FROM system_conversions sc
+      LEFT JOIN users u ON sc.user_id = u.id
+      LEFT JOIN merchants m ON sc.merchant_id = m.id
+      WHERE sc.id = $1
+    `;
+
+    const result = await pool.query(query, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Conversion not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      conversion: result.rows[0]
+    });
+  } catch (error) {
+    logger.error('Get conversion details error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to get conversion details'
     });
   }
 });

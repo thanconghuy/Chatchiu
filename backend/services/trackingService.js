@@ -72,49 +72,19 @@ class TrackingService {
    * @returns {Promise<Object>}
    */
   async handleExistingConversion(existingConversion, accesstradeData) {
-    const newStatus = this.mapAccessTradeStatus(accesstradeData.is_confirmed || accesstradeData.status);
+    // NOTE: We do NOT auto-approve conversions anymore
+    // Only admin can manually approve when money is received
+    // This is because AccessTrade may approve orders but not pay commission yet
 
-    // Check if status changed from pending to approved
-    if (existingConversion.status === 'pending' && newStatus === 'approved') {
-      logger.info('Conversion status changed: pending → approved', {
-        conversionId: existingConversion.id,
-        orderId: accesstradeData._id
-      });
+    const orderId = accesstradeData.order_id || accesstradeData._id;
 
-      await this.approveConversion(existingConversion.id);
-
-      return {
-        status: 'updated',
-        conversionId: existingConversion.id,
-        oldStatus: 'pending',
-        newStatus: 'approved'
-      };
-    }
-
-    // Check if status changed from pending to rejected
-    if (existingConversion.status === 'pending' && newStatus === 'rejected') {
-      logger.info('Conversion status changed: pending → rejected', {
-        conversionId: existingConversion.id,
-        orderId: accesstradeData._id
-      });
-
-      const approvalTime = new Date();
-      await Conversion.updateStatus(existingConversion.id, 'rejected', approvalTime);
-
-      // Remove from user's pending balance
-      await User.updateBalance(existingConversion.user_id, 'reject_pending', existingConversion.cashback_amount);
-
-      return {
-        status: 'updated',
-        conversionId: existingConversion.id,
-        oldStatus: 'pending',
-        newStatus: 'rejected'
-      };
-    }
-
-    logger.info('Conversion already exists, no status change', {
+    logger.info('Conversion already exists, no auto-update', {
       conversionId: existingConversion.id,
-      status: existingConversion.status
+      orderId,
+      currentStatus: existingConversion.status,
+      apiOrderApproved: accesstradeData.order_approved,
+      apiProductsCount: accesstradeData.products_count,
+      apiOrderPending: accesstradeData.order_pending
     });
 
     return {
@@ -182,8 +152,8 @@ class TrackingService {
       split: this.commissionSplit
     });
 
-    // Map AccessTrade status to our status (is_confirmed: 0=pending, 1=approved, 2=rejected)
-    const status = this.mapAccessTradeStatus(accesstradeData.is_confirmed || accesstradeData.status);
+    // Map AccessTrade status to our status
+    const status = this.mapAccessTradeStatus(accesstradeData);
 
     // Parse order time - AccessTrade uses sales_time and click_time
     const orderTime = new Date(accesstradeData.sales_time || accesstradeData.click_time || accesstradeData.order_time);
@@ -207,6 +177,12 @@ class TrackingService {
       orderId
     });
 
+    // Extract AccessTrade status fields for status detection
+    const orderApproved = parseInt(accesstradeData.order_approved) || 0;
+    const productsCount = parseInt(accesstradeData.products_count) || 0;
+    const orderPending = parseInt(accesstradeData.order_pending) || 0;
+    const orderReject = parseInt(accesstradeData.order_reject) || 0;
+
     // Create conversion record
     const conversion = await Conversion.create({
       userId: click.user_id,
@@ -225,7 +201,11 @@ class TrackingService {
       utmCampaign: utmCampaign,
       utmContent: utmContentData,
       orderTime: orderTime,
-      approvalTime: approvalTime
+      approvalTime: approvalTime,
+      orderApproved: orderApproved,
+      productsCount: productsCount,
+      orderPending: orderPending,
+      orderReject: orderReject
     });
 
     logger.success('Created conversion record', {
@@ -309,41 +289,49 @@ class TrackingService {
 
   /**
    * Map AccessTrade status to our status
-   * @param {string|number} accesstradeStatus
+   * Based on AccessTrade fields:
+   * - order_reject = 1 → Rejected (đơn huỷ)
+   * - is_confirmed = 1 → Approved (đã đối soát - có quyền cashback)
+   * - Còn lại → Pending (bao gồm chờ duyệt và tạm duyệt)
+   *
+   * @param {Object} accesstradeData - Full AccessTrade data object
    * @returns {string}
    */
-  mapAccessTradeStatus(accesstradeStatus) {
-    // AccessTrade API uses numeric status (is_confirmed):
-    // 0 = Pending
-    // 1 = Approved
-    // 2 = Rejected
-
-    // Also handle string statuses for backward compatibility
-
-    if (accesstradeStatus === null || accesstradeStatus === undefined) {
-      return 'pending';
-    }
-
-    // Handle numeric status
-    const numStatus = parseInt(accesstradeStatus);
-    if (!isNaN(numStatus)) {
-      if (numStatus === 1) return 'approved';
-      if (numStatus === 2) return 'rejected';
-      return 'pending';
-    }
-
-    // Handle string status
-    const statusLower = String(accesstradeStatus).toLowerCase();
-
-    if (statusLower === 'approved' || statusLower === 'success' || statusLower === '1') {
-      return 'approved';
-    }
-
-    if (statusLower === 'rejected' || statusLower === 'cancelled' || statusLower === '2') {
+  mapAccessTradeStatus(accesstradeData) {
+    // Check if order was rejected/cancelled
+    if (parseInt(accesstradeData.order_reject) === 1) {
       return 'rejected';
     }
 
+    // Check if order is confirmed (đã đối soát)
+    // CHỈ KHI NÀY MỚI ĐƯỢC CASHBACK!
+    if (parseInt(accesstradeData.is_confirmed) === 1) {
+      return 'approved';
+    }
+
+    // Everything else is pending
+    // This includes:
+    // - Chờ duyệt (order_pending != 0)
+    // - Tạm duyệt (order_approved != 0, order_pending = 0)
     return 'pending';
+  }
+
+  /**
+   * Check if conversion meets temp approval criteria
+   * Temp approved = AccessTrade approved the order but we haven't received payment yet
+   * @param {Object} accesstradeData - Raw conversion data from AccessTrade API
+   * @returns {boolean}
+   */
+  isTempApproved(accesstradeData) {
+    // Temp approved conditions:
+    // - order_approved > 0 (AccessTrade approved the order)
+    // - products_count > 0 (has products in the order)
+    // - order_pending = 0 (order is not pending on AccessTrade side)
+    const orderApproved = parseInt(accesstradeData.order_approved) || 0;
+    const productsCount = parseInt(accesstradeData.products_count) || 0;
+    const orderPending = parseInt(accesstradeData.order_pending) || 0;
+
+    return orderApproved > 0 && productsCount > 0 && orderPending === 0;
   }
 
   /**
@@ -375,7 +363,7 @@ class TrackingService {
       const userCashback = commissionAmount * this.commissionSplit;
 
       // Map status
-      const status = this.mapAccessTradeStatus(accesstradeData.is_confirmed || accesstradeData.status);
+      const status = this.mapAccessTradeStatus(accesstradeData);
 
       // Parse timestamps
       const orderTime = new Date(accesstradeData.sales_time || accesstradeData.click_time || accesstradeData.order_time);
@@ -390,12 +378,22 @@ class TrackingService {
       const utmCampaign = accesstradeData.utm_campaign || accesstradeData.aff_sid || null;
       const utmContentData = accesstradeData.utm_content || null;
 
+      // Extract AccessTrade status fields for status detection
+      const orderApproved = parseInt(accesstradeData.order_approved) || 0;
+      const productsCount = parseInt(accesstradeData.products_count) || 0;
+      const orderPending = parseInt(accesstradeData.order_pending) || 0;
+      const orderReject = parseInt(accesstradeData.order_reject) || 0;
+
       logger.info('Extracted UTM parameters for direct conversion', {
         utmSource,
         utmMedium,
         utmCampaign,
         utmContent: utmContentData,
-        orderId
+        orderId,
+        orderApproved,
+        productsCount,
+        orderPending,
+        orderReject
       });
 
       // Create conversion record (with null click_id since we don't have a match)
@@ -416,7 +414,11 @@ class TrackingService {
         utmCampaign: utmCampaign,
         utmContent: utmContentData,
         orderTime: orderTime,
-        approvalTime: approvalTime
+        approvalTime: approvalTime,
+        orderApproved: orderApproved,
+        productsCount: productsCount,
+        orderPending: orderPending,
+        orderReject: orderReject
       });
 
       logger.success('Created conversion directly', {

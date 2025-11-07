@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
+const { pool } = require('../config/database');
 const User = require('../models/User');
 const Click = require('../models/Click');
 const Merchant = require('../models/Merchant');
@@ -61,7 +62,8 @@ router.get('/merchants', async (req, res) => {
         name: m.name,
         logoUrl: m.logo_url,
         commissionRate: m.commission_rate,
-        deepLinkBase: m.deep_link_base
+        deepLinkBase: m.deep_link_base,
+        policyNote: m.policy_note
       }))
     });
   } catch (error) {
@@ -69,6 +71,36 @@ router.get('/merchants', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to get merchants'
+    });
+  }
+});
+
+/**
+ * GET /api/dashboard/community-stats
+ * Get community statistics for homepage (public, no auth required)
+ * Returns total users count and total order value
+ */
+router.get('/community-stats', async (req, res) => {
+  try {
+    const statsQuery = `
+      SELECT
+        (SELECT COUNT(*) FROM users WHERE is_admin = false) as total_users,
+        (SELECT COALESCE(SUM(order_amount), 0) FROM system_conversions) as total_order_value
+    `;
+
+    const result = await pool.query(statsQuery);
+    const stats = result.rows[0];
+
+    res.json({
+      success: true,
+      totalUsers: parseInt(stats.total_users),
+      totalOrderValue: parseFloat(stats.total_order_value)
+    });
+  } catch (error) {
+    console.error('Get community stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get community stats'
     });
   }
 });
@@ -228,12 +260,39 @@ router.post('/generate-link', authenticateToken, async (req, res) => {
 
 /**
  * GET /api/dashboard/recent-clicks
- * Get user's recent clicks
+ * Get user's recent clicks with accurate status from system_conversions
  */
 router.get('/recent-clicks', authenticateToken, async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
-    const clicks = await Click.getUserClicks(req.userId, limit);
+
+    // Query from system_conversions to get accurate status (same as admin pages)
+    const query = `
+      SELECT
+        cl.id,
+        cl.click_type,
+        cl.clicked_at,
+        cl.affiliate_url,
+        m.name as merchant_name,
+        m.logo_url as merchant_logo,
+        sc.id as system_conversion_id,
+        sc.status as conversion_status,
+        sc.cashback_amount,
+        c.order_approved,
+        c.products_count,
+        c.order_pending,
+        c.order_reject
+      FROM clicks cl
+      LEFT JOIN merchants m ON cl.merchant_id = m.id
+      LEFT JOIN system_conversions sc ON cl.id = sc.click_id
+      LEFT JOIN conversions c ON sc.at_conversion_id = c.id
+      WHERE cl.user_id = $1
+      ORDER BY cl.clicked_at DESC
+      LIMIT $2
+    `;
+
+    const result = await pool.query(query, [req.userId, limit]);
+    const clicks = result.rows;
 
     res.json({
       success: true,
@@ -244,9 +303,13 @@ router.get('/recent-clicks', authenticateToken, async (req, res) => {
         clickType: c.click_type,
         clickedAt: c.clicked_at,
         affiliateUrl: c.affiliate_url,
-        hasConversion: !!c.conversion_id,
+        hasConversion: !!c.system_conversion_id,
         conversionStatus: c.conversion_status,
-        cashback: c.user_cashback ? parseFloat(c.user_cashback) : 0
+        cashback: c.cashback_amount ? parseFloat(c.cashback_amount) : 0,
+        orderApproved: parseInt(c.order_approved) || 0,
+        productsCount: parseInt(c.products_count) || 0,
+        orderPending: parseInt(c.order_pending) || 0,
+        orderReject: parseInt(c.order_reject) || 0
       }))
     });
   } catch (error) {

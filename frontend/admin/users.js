@@ -26,6 +26,11 @@ const nextBtn = document.getElementById('nextBtn');
 const pageInfo = document.getElementById('pageInfo');
 const logoutBtn = document.getElementById('logoutBtn');
 
+// Modal elements
+const userDetailModal = document.getElementById('userDetailModal');
+const closeUserDetailModal = document.getElementById('closeUserDetailModal');
+const userClicksTable = document.getElementById('userClicksTable');
+
 /**
  * Check if user is admin
  */
@@ -175,7 +180,7 @@ function renderUsers(users) {
 
     usersTable.innerHTML = users.map(user => {
         return `
-            <tr>
+            <tr onclick="openUserDetail('${user.id}')" style="cursor: pointer;" title="Click để xem chi tiết">
                 <td><strong>${user.username}</strong></td>
                 <td>${user.email}</td>
                 <td>${user.fullName}</td>
@@ -198,3 +203,143 @@ function updatePagination(itemCount) {
     prevBtn.disabled = currentPage === 0;
     nextBtn.disabled = itemCount < ITEMS_PER_PAGE;
 }
+
+/**
+ * Open user detail modal
+ */
+async function openUserDetail(userId) {
+    try {
+        // Show modal immediately
+        userDetailModal.style.display = 'flex';
+
+        // Show loading state
+        userClicksTable.innerHTML = `
+            <tr class="empty-state">
+                <td colspan="6">
+                    <div class="spinner"></div>
+                    <p>Đang tải dữ liệu...</p>
+                </td>
+            </tr>
+        `;
+
+        // Load user details
+        const response = await apiRequest(`/admin/users/${userId}`);
+
+        if (response.success) {
+            const { user, stats, clicks } = response;
+
+            // Populate user info
+            document.getElementById('detailUsername').textContent = user.username;
+            document.getElementById('detailEmail').textContent = user.email;
+            document.getElementById('detailFullName').textContent = user.fullName || '-';
+            document.getElementById('detailPhone').textContent = user.phone || '-';
+            document.getElementById('detailCreatedAt').textContent = formatDate(user.createdAt);
+
+            // Populate stats
+            document.getElementById('detailAvailableBalance').textContent = formatCurrency(user.availableBalance);
+            document.getElementById('detailPendingBalance').textContent = formatCurrency(user.pendingBalance);
+            document.getElementById('detailTotalClicks').textContent = stats.totalClicks;
+            document.getElementById('detailTotalConversions').textContent = stats.totalConversions;
+
+            // Render clicks
+            renderUserClicks(clicks);
+        }
+    } catch (error) {
+        console.error('Error loading user details:', error);
+        showToast(error.message || 'Không thể tải thông tin người dùng', 'error');
+        closeUserDetail();
+    }
+}
+
+/**
+ * Close user detail modal
+ */
+function closeUserDetail() {
+    userDetailModal.style.display = 'none';
+}
+
+/**
+ * Render user clicks in modal
+ */
+function renderUserClicks(clicks) {
+    if (clicks.length === 0) {
+        userClicksTable.innerHTML = `
+            <tr class="empty-state">
+                <td colspan="6">
+                    <p>Chưa có lượt click nào</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    userClicksTable.innerHTML = clicks.map(click => {
+        // Determine status display based on AccessTrade fields (same logic as dashboard)
+        let statusClass, statusText;
+
+        if (!click.hasConversion) {
+            // No conversion yet
+            statusClass = '';
+            statusText = 'Chưa mua';
+        } else {
+            // Has conversion - check detailed status
+            if (click.orderReject === 1) {
+                statusClass = 'status-rejected';
+                statusText = 'Huỷ';
+            } else if (click.conversionStatus === 'approved') {
+                // status = 'approved' means approved and has cashback right
+                statusClass = 'status-approved';
+                statusText = 'Đã duyệt';
+            } else {
+                // Check if temp approved
+                const isTempApproved = click.orderApproved > 0 &&
+                                       click.orderPending === 0 &&
+                                       click.orderReject === 0;
+
+                if (isTempApproved) {
+                    statusClass = 'status-temp-approved';
+                    statusText = 'Tạm duyệt (đợi đối soát)';
+                } else {
+                    statusClass = 'status-pending';
+                    statusText = 'Chờ duyệt';
+                }
+            }
+        }
+
+        // Create link button if affiliate URL exists
+        const linkButton = click.affiliateUrl
+            ? `<a href="${click.affiliateUrl}" target="_blank" class="link-btn" style="padding: 4px 12px; background: var(--primary); color: white; border-radius: 6px; text-decoration: none; font-size: 0.85rem;">🔗 Mở link</a>`
+            : '<span class="link-none">-</span>';
+
+        // Show cashback if conversion exists
+        let cashbackDisplay = '-';
+        if (click.hasConversion) {
+            const amount = click.cashback || 0;
+            cashbackDisplay = formatCurrency(amount);
+        }
+
+        return `
+            <tr>
+                <td>${click.merchantName}</td>
+                <td>${click.clickType === 'button' ? '🎯 Tự do' : '🔗 Link SP'}</td>
+                <td>${formatDate(click.clickedAt)}</td>
+                <td>
+                    ${statusClass ? `<span class="status-badge ${statusClass}">${statusText}</span>` : statusText}
+                </td>
+                <td>${cashbackDisplay}</td>
+                <td>${linkButton}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// Modal event listeners
+closeUserDetailModal.addEventListener('click', closeUserDetail);
+userDetailModal.querySelector('.modal-overlay')?.addEventListener('click', closeUserDetail);
+
+// Close modal on ESC key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && userDetailModal.style.display === 'flex') {
+        closeUserDetail();
+    }
+});

@@ -164,7 +164,11 @@ class Click {
         m.logo_url as merchant_logo,
         co.id as conversion_id,
         co.status as conversion_status,
-        co.cashback_amount
+        co.cashback_amount,
+        co.order_approved,
+        co.products_count,
+        co.order_pending,
+        co.order_reject
       FROM clicks c
       LEFT JOIN merchants m ON c.merchant_id = m.id
       LEFT JOIN conversions co ON c.id = co.click_id
@@ -216,9 +220,9 @@ class Click {
     const query = `
       SELECT
         COUNT(*) as total_clicks,
-        COUNT(DISTINCT merchant_id) as unique_merchants,
-        COUNT(CASE WHEN click_type = 'button' THEN 1 END) as button_clicks,
-        COUNT(CASE WHEN click_type = 'link' THEN 1 END) as link_clicks,
+        COUNT(DISTINCT c.merchant_id) as unique_merchants,
+        COUNT(CASE WHEN c.click_type = 'button' THEN 1 END) as button_clicks,
+        COUNT(CASE WHEN c.click_type = 'link' THEN 1 END) as link_clicks,
         COUNT(DISTINCT co.id) as converted_clicks,
         COALESCE(SUM(co.cashback_amount), 0) as total_earnings
       FROM clicks c

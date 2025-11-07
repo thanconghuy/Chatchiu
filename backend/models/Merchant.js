@@ -67,9 +67,21 @@ class Merchant {
    * @returns {Array} Array of merchants
    */
   static async getAll(activeOnly = true) {
-    const query = activeOnly
-      ? `SELECT * FROM merchants WHERE is_active = true ORDER BY name`
-      : `SELECT * FROM merchants ORDER BY name`;
+    const whereClause = activeOnly ? 'WHERE m.is_active = true' : '';
+
+    const query = `
+      SELECT
+        m.*,
+        COALESCE(COUNT(DISTINCT c.id), 0)::INTEGER as total_clicks,
+        COALESCE(COUNT(DISTINCT sc.id), 0)::INTEGER as total_conversions,
+        COALESCE(SUM(sc.commission), 0)::NUMERIC as total_commission
+      FROM merchants m
+      LEFT JOIN clicks c ON c.merchant_id = m.id
+      LEFT JOIN system_conversions sc ON sc.merchant_id = m.id AND sc.status = 'approved'
+      ${whereClause}
+      GROUP BY m.id
+      ORDER BY m.name
+    `;
 
     const result = await pool.query(query);
     return result.rows;

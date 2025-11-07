@@ -24,7 +24,11 @@ class Conversion {
             utmCampaign = null,
             utmContent = null,
             orderTime = null,
-            approvalTime = null
+            approvalTime = null,
+            orderApproved = 0,
+            productsCount = 0,
+            orderPending = 0,
+            orderReject = 0
         } = conversionData;
 
         const query = `
@@ -32,8 +36,8 @@ class Conversion {
                 user_id, click_id, accesstrade_id, merchant_id, merchant_name,
                 order_code, order_amount, commission, cashback_amount,
                 status, aff_sid, utm_source, utm_medium, utm_campaign, utm_content,
-                order_time, approval_time
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+                order_time, approval_time, order_approved, products_count, order_pending, order_reject
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
             RETURNING *
         `;
 
@@ -54,7 +58,11 @@ class Conversion {
             utmCampaign,
             utmContent,
             orderTime,
-            approvalTime
+            approvalTime,
+            orderApproved,
+            productsCount,
+            orderPending,
+            orderReject
         ];
 
         const result = await db.query(query, values);
@@ -101,7 +109,21 @@ class Conversion {
         `;
 
         const result = await db.query(query, [status, approvalTime, id]);
-        return result.rows[0];
+        const updatedConversion = result.rows[0];
+
+        // Sync status to system_conversions table if exists
+        if (updatedConversion) {
+            try {
+                const SystemConversion = require('./SystemConversion');
+                await SystemConversion.updateStatusByATConversionId(id, status, approvalTime);
+                console.log(`Successfully synced status to system_conversions for conversion ${id}`);
+            } catch (error) {
+                // Non-fatal: system_conversions might not have this record yet
+                console.warn(`Could not sync status to system_conversions for conversion ${id}:`, error.message);
+            }
+        }
+
+        return updatedConversion;
     }
 
     /**

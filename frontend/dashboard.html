@@ -78,6 +78,18 @@
         <!-- Merchants Section -->
         <section class="section">
             <h2 class="section-title">🛍️ Mua sắm và nhận hoàn tiền</h2>
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);">
+                <h3 style="margin: 0 0 12px 0; font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 1.3rem;">💡</span>
+                    Cách nhận cashback
+                </h3>
+                <ol style="margin: 0; padding-left: 24px; line-height: 1.8; font-size: 0.95rem;">
+                    <li><strong>Bấm vào sàn mua sắm</strong> bạn muốn mua hàng (Shopee, Lazada, Tiki...)</li>
+                    <li><strong>Đi đến trang chủ</strong> hoặc <strong>nhập link sản phẩm cụ thể</strong> mà bạn muốn mua</li>
+                    <li><strong>Tạo link mua hàng</strong> để hệ thống ghi nhận và tính hoa hồng cho bạn</li>
+                    <li>Hoàn tất đơn hàng và chờ cashback được duyệt về tài khoản! 🎉</li>
+                </ol>
+            </div>
             <div class="merchants-grid" id="merchantsGrid">
                 <!-- Merchants will be loaded here -->
                 <div class="loading">Đang tải...</div>
@@ -95,7 +107,7 @@
                             <th>Loại</th>
                             <th>Thời gian</th>
                             <th>Trạng thái</th>
-                            <th>Cashback</th>
+                            <th>Cashback (tạm tính)</th>
                             <th>Link</th>
                         </tr>
                     </thead>
@@ -161,6 +173,15 @@
                     <span class="note-icon">ℹ️</span>
                     <span>Bạn sẽ nhận hoàn tiền khi đơn hàng được duyệt (~7-30 ngày)</span>
                 </div>
+
+                <!-- Merchant Policy Note -->
+                <div id="merchantPolicySection" style="display: none; margin-top: 24px; padding: 20px; background: #fff9e6; border-left: 4px solid #ffc107; border-radius: 8px;">
+                    <h3 style="margin: 0 0 12px 0; color: #e65100; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 1.2rem;">⚠️</span>
+                        <span id="policyTitle">Quy định của Merchant</span>
+                    </h3>
+                    <div id="policyContent" style="color: #5d4037; line-height: 1.6; font-size: 0.95rem; white-space: pre-wrap;"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -172,5 +193,6 @@
     <script src="js/auth.js"></script>
     <script src="js/mobile-menu.js"></script>
     <script src="js/dashboard.js"></script>
+    <script src="js/analytics.js"></script>
 </body>
 </html>
