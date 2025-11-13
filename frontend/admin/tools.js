@@ -39,6 +39,12 @@ const updatePendingResult = document.getElementById('updatePendingResult');
 const updateLimit = document.getElementById('updateLimit');
 const updateOlderThanDays = document.getElementById('updateOlderThanDays');
 
+// Sync Conversion Status
+const syncStatusBtn = document.getElementById('syncStatusBtn');
+const syncStatusResult = document.getElementById('syncStatusResult');
+const syncStartDate = document.getElementById('syncStartDate');
+const syncEndDate = document.getElementById('syncEndDate');
+
 /**
  * Check if user is admin
  */
@@ -48,7 +54,7 @@ async function checkAdminAccess() {
         if (response.success && response.user) {
             saveAuth(getToken(), response.user);
             if (!response.user.is_admin) {
-                showToast('Access denied: Admin only', 'error');
+                showToast('Truy cập bị từ chối: Chỉ dành cho Admin', 'error');
                 setTimeout(() => {
                     window.location.href = '../dashboard.html';
                 }, 2000);
@@ -56,11 +62,11 @@ async function checkAdminAccess() {
             }
             return true;
         } else {
-            throw new Error('Failed to verify admin status');
+            throw new Error('Không thể xác thực quyền admin');
         }
     } catch (error) {
         console.error('Admin check error:', error);
-        showToast('Access denied: Admin only', 'error');
+        showToast('Truy cập bị từ chối: Chỉ dành cho Admin', 'error');
         setTimeout(() => {
             window.location.href = '../dashboard.html';
         }, 2000);
@@ -74,7 +80,7 @@ async function checkAdminAccess() {
 function init() {
     const user = getUser();
     if (user) {
-        userName.textContent = user.fullName || user.username || user.email;
+        displayUserName('userName');
     }
 
     // Set default dates (last 7 days)
@@ -85,6 +91,10 @@ function init() {
     // Set dates for conversions (this page only has conversions)
     if (convEndDate) convEndDate.value = formatDateForPicker(today);
     if (convStartDate) convStartDate.value = formatDateForPicker(lastWeek);
+
+    // Set dates for sync status
+    if (syncEndDate) syncEndDate.value = formatDateForPicker(today);
+    if (syncStartDate) syncStartDate.value = formatDateForPicker(lastWeek);
 
     setupEventListeners();
 }
@@ -135,6 +145,11 @@ function setupEventListeners() {
     if (updatePendingBtn) {
         updatePendingBtn.addEventListener('click', updatePendingOrders);
         console.log('✓ Update pending orders button listener attached');
+    }
+
+    if (syncStatusBtn) {
+        syncStatusBtn.addEventListener('click', syncConversionStatus);
+        console.log('✓ Sync conversion status button listener attached');
     }
 
     if (importBtn) {
@@ -198,9 +213,9 @@ async function fetchConversions(startDate = null, endDate = null) {
                 console.log('ℹ Import button hidden - no data');
             }
 
-            showToast(`Loaded ${response.data.length} conversions`, 'success');
+            showToast(`Đã tải ${response.data.length} đơn hàng`, 'success');
         } else {
-            throw new Error(response.message || 'Failed to fetch conversions');
+            throw new Error(response.message || 'Không thể lấy dữ liệu conversions');
         }
     } catch (error) {
         console.error('Error fetching conversions:', error);
@@ -231,15 +246,37 @@ function displayConversions(conversions) {
         return;
     }
 
-    // Format status badge
-    const getStatusBadge = (status) => {
+    // Format order status badge (pending/approved/rejected)
+    // AccessTrade API uses order_approved, order_pending, order_reject instead of status
+    const getStatusBadge = (conv) => {
+        // Determine status from order counters
+        let status = '0'; // Default: Đang xử lý
+
+        if (conv.order_approved && parseInt(conv.order_approved) > 0) {
+            status = '1'; // Đã duyệt
+        } else if (conv.order_reject && parseInt(conv.order_reject) > 0) {
+            status = '2'; // Hủy
+        } else if (conv.order_pending && parseInt(conv.order_pending) > 0) {
+            status = '0'; // Đang xử lý
+        }
+
         const statusMap = {
-            '0': { text: 'Pending', color: '#f59e0b', bg: '#fef3c7' },
-            '1': { text: 'Approved', color: '#10b981', bg: '#d1fae5' },
-            '2': { text: 'Rejected', color: '#ef4444', bg: '#fee2e2' }
+            '0': { text: 'Đang xử lý', color: '#f59e0b', bg: '#fef3c7' },
+            '1': { text: 'Đã duyệt', color: '#10b981', bg: '#d1fae5' },
+            '2': { text: 'Hủy', color: '#ef4444', bg: '#fee2e2' }
         };
         const s = statusMap[status] || { text: 'Unknown', color: '#6b7280', bg: '#f3f4f6' };
         return `<span style="background: ${s.bg}; color: ${s.color}; padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">${s.text}</span>`;
+    };
+
+    // Format reconciliation status badge (is_confirmed)
+    const getReconciliationBadge = (isConfirmed) => {
+        const status = parseInt(isConfirmed ?? 0);
+        if (status === 1) {
+            return `<span style="background: #d1fae5; color: #10b981; padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">Đã đối soát</span>`;
+        } else {
+            return `<span style="background: #fef3c7; color: #f59e0b; padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">Chưa đối soát</span>`;
+        }
     };
 
     // Format date
@@ -266,7 +303,8 @@ function displayConversions(conversions) {
             <td style="padding: 10px 8px;">${conv.merchant || '-'}</td>
             <td style="padding: 10px 8px; text-align: right; font-weight: 600;">${conv.billing ? formatCurrency(parseFloat(conv.billing)) : '-'}</td>
             <td style="padding: 10px 8px; text-align: right; font-weight: 600; color: #10b981;">${conv.pub_commission ? formatCurrency(parseFloat(conv.pub_commission)) : '-'}</td>
-            <td style="padding: 10px 8px; text-align: center;">${getStatusBadge(conv.is_confirmed)}</td>
+            <td style="padding: 10px 8px; text-align: center;">${getStatusBadge(conv)}</td>
+            <td style="padding: 10px 8px; text-align: center;">${getReconciliationBadge(conv.is_confirmed)}</td>
             <td style="padding: 10px 8px; font-size: 0.8rem;">${formatDateTime(conv.click_time)}</td>
             <td style="padding: 10px 8px; font-size: 0.8rem;">${formatDateTime(conv.sales_time)}</td>
             <td style="padding: 10px 8px;">${conv.utm_source || '-'}</td>
@@ -322,7 +360,7 @@ async function importFetchedConversions() {
         if (response.success) {
             const result = response.result;
 
-            showToast(`Import thành công! Created: ${result.created}, Updated: ${result.updated}, Skipped: ${result.skipped}`, 'success');
+            showToast(`Import thành công! Tạo mới: ${result.created}, Cập nhật: ${result.updated}, Bỏ qua: ${result.skipped}`, 'success');
 
             // Clear and hide button
             fetchedConversions = null;
@@ -335,11 +373,11 @@ async function importFetchedConversions() {
             }
             convCount.textContent = '0';
         } else {
-            throw new Error(response.message || 'Import failed');
+            throw new Error(response.message || 'Import thất bại');
         }
     } catch (error) {
         console.error('Error importing conversions:', error);
-        showToast('Failed to import conversions: ' + error.message, 'error');
+        showToast('Import thất bại: ' + error.message, 'error');
     } finally {
         importFetchedConversionsBtn.disabled = false;
         importFetchedConversionsBtn.textContent = '📥 Import vào Database';
@@ -359,11 +397,13 @@ async function importData() {
         return;
     }
 
+    // Initialize progress bar
+    const progressBar = new ProgressBar('importResult');
+
     try {
         importBtn.disabled = true;
         importBtn.textContent = '⏳ Đang import...';
-        importResult.className = 'import-result';
-        importResult.textContent = '';
+        progressBar.showLoading('Đang import conversions vào database...');
 
         const response = await apiRequest('/admin/import-conversions', {
             method: 'POST',
@@ -378,9 +418,7 @@ async function importData() {
         if (response.success) {
             const result = response.result;
 
-            importResult.className = 'import-result success';
-            importResult.innerHTML = `
-                <h3>✅ Import Thành Công!</h3>
+            const successContent = `
                 <div style="margin-top: 12px;">
                     <strong>Tổng:</strong> ${result.total}<br>
                     <strong>Đã tạo mới:</strong> ${result.created} conversions<br>
@@ -404,24 +442,19 @@ async function importData() {
                 ` : ''}
             `;
 
-            showToast('Import completed successfully!', 'success');
+            progressBar.showSuccess('Import Thành Công!', successContent);
+            showToast('Import hoàn tất thành công!', 'success');
 
             // Clear fetched data
             fetchedConversions = null;
             checkImportReady();
         } else {
-            throw new Error(response.message || 'Import failed');
+            throw new Error(response.message || 'Import thất bại');
         }
     } catch (error) {
         console.error('Error importing data:', error);
-        importResult.className = 'import-result error';
-        importResult.innerHTML = `
-            <h3>❌ Import Thất Bại</h3>
-            <div style="margin-top: 12px;">
-                ${error.message || 'Unknown error occurred'}
-            </div>
-        `;
-        showToast('Failed to import data', 'error');
+        progressBar.showError('Import Thất Bại', error.message || 'Đã xảy ra lỗi không xác định');
+        showToast('Import dữ liệu thất bại', 'error');
     } finally {
         importBtn.disabled = false;
         importBtn.textContent = '📥 Nạp Dữ Liệu Vào Database';
@@ -459,7 +492,7 @@ async function manualSync() {
                     Không tìm thấy conversions nào trong 7 ngày gần nhất
                 </div>
             `;
-            showToast('No conversions found', 'info');
+            showToast('Không tìm thấy đơn hàng', 'info');
             return;
         }
 
@@ -494,9 +527,9 @@ async function manualSync() {
                     💡 <strong>Lưu ý:</strong> Chuyển sang tab <strong>Dữ liệu đơn AT</strong> để xem chi tiết
                 </div>
             `;
-            showToast(`Sync completed: ${result.created} created, ${result.updated} updated`, 'success');
+            showToast(`Đồng bộ hoàn tất: Tạo mới ${result.created}, Cập nhật ${result.updated}`, 'success');
         } else {
-            throw new Error(importResponse.message || 'Import failed');
+            throw new Error(importResponse.message || 'Import thất bại');
         }
     } catch (error) {
         console.error('Manual sync error:', error);
@@ -504,10 +537,10 @@ async function manualSync() {
         syncResult.innerHTML = `
             <h3>❌ Đồng Bộ Thất Bại</h3>
             <div style="margin-top: 12px;">
-                ${error.message || 'Unknown error occurred'}
+                ${error.message || 'Đã xảy ra lỗi không xác định'}
             </div>
         `;
-        showToast('Failed to sync conversions: ' + error.message, 'error');
+        showToast('Đồng bộ conversions thất bại: ' + error.message, 'error');
     } finally {
         syncBtn.disabled = false;
         syncBtn.textContent = '🔄 Đồng Bộ Ngay';
@@ -525,12 +558,13 @@ async function updatePendingOrders() {
         return;
     }
 
+    // Initialize progress bar
+    const progressBar = new ProgressBar('updatePendingResult');
+
     try {
         updatePendingBtn.disabled = true;
         updatePendingBtn.textContent = '⏳ Đang cập nhật...';
-        updatePendingResult.className = 'import-result';
-        updatePendingResult.style.display = 'block';
-        updatePendingResult.textContent = 'Đang quét và cập nhật đơn pending...';
+        progressBar.showLoading('Đang quét và cập nhật đơn pending...');
 
         const response = await apiRequest('/admin/update-pending-orders', {
             method: 'POST',
@@ -546,9 +580,7 @@ async function updatePendingOrders() {
         if (response.success) {
             const { results } = response;
 
-            updatePendingResult.className = 'import-result success';
-            updatePendingResult.innerHTML = `
-                <h3>✅ Cập Nhật Thành Công</h3>
+            const successContent = `
                 <div style="margin-top: 12px;">
                     <strong>📊 Kết quả:</strong><br>
                     • Tổng đơn đã kiểm tra: ${results.total}<br>
@@ -577,23 +609,108 @@ async function updatePendingOrders() {
                     💡 <strong>Lưu ý:</strong> User balance đã được tự động cập nhật cho các đơn approved
                 </div>
             `;
-            showToast(`Updated ${results.updated} orders successfully`, 'success');
+
+            progressBar.showSuccess('Cập Nhật Thành Công', successContent);
+            showToast(`Đã cập nhật ${results.updated} đơn hàng thành công`, 'success');
         } else {
-            throw new Error(response.message || 'Update failed');
+            throw new Error(response.message || 'Cập nhật thất bại');
         }
     } catch (error) {
         console.error('Update pending orders error:', error);
-        updatePendingResult.className = 'import-result error';
-        updatePendingResult.innerHTML = `
-            <h3>❌ Cập Nhật Thất Bại</h3>
-            <div style="margin-top: 12px;">
-                ${error.message || 'Unknown error occurred'}
-            </div>
-        `;
-        showToast('Failed to update pending orders: ' + error.message, 'error');
+        progressBar.showError('Cập Nhật Thất Bại', error.message || 'Đã xảy ra lỗi không xác định');
+        showToast('Cập nhật đơn pending thất bại: ' + error.message, 'error');
     } finally {
         updatePendingBtn.disabled = false;
         updatePendingBtn.textContent = '⏰ Cập Nhật Đơn Pending';
+    }
+}
+
+/**
+ * Sync Conversion Status from AccessTrade API
+ */
+async function syncConversionStatus() {
+    // Initialize progress bar
+    const progressBar = new ProgressBar('syncStatusResult');
+
+    try {
+        // Validate dates
+        if (!syncStartDate.value || !syncEndDate.value) {
+            showToast('Vui lòng chọn khoảng thời gian', 'error');
+            return;
+        }
+
+        // Disable button and show loading progress
+        syncStatusBtn.disabled = true;
+        syncStatusBtn.textContent = '⏳ Đang đồng bộ...';
+        progressBar.showLoading('Đang đồng bộ trạng thái từ AccessTrade API...');
+
+        const response = await apiRequest('/admin/sync-conversion-status', {
+            method: 'POST',
+            body: JSON.stringify({
+                startDate: syncStartDate.value,
+                endDate: syncEndDate.value
+            })
+        });
+
+        if (response.success) {
+            const { results } = response;
+
+            // Format dates for display
+            const startDateFormatted = new Date(syncStartDate.value).toLocaleDateString('vi-VN');
+            const endDateFormatted = new Date(syncEndDate.value).toLocaleDateString('vi-VN');
+
+            const successContent = `
+                <div style="margin-top: 12px; padding: 12px; background: #dbeafe; border-radius: 6px;">
+                    <strong>📅 Khoảng thời gian:</strong> ${startDateFormatted} - ${endDateFormatted}<br>
+                    <strong>✅ Đã đồng bộ thành công:</strong> <span style="color: #10b981; font-weight: 700; font-size: 1.1rem;">${results.updated} đơn hàng</span>
+                </div>
+                <div style="margin-top: 12px;">
+                    <strong>📊 Chi tiết xử lý:</strong><br>
+                    • Tổng đơn từ AT API: ${results.total}<br>
+                    • Đã cập nhật: <span style="color: #10b981; font-weight: 700;">${results.updated}</span><br>
+                    • Bỏ qua (không thay đổi): <span style="color: #6b7280;">${results.skipped}</span><br>
+                    • Lỗi: <span style="color: #ef4444;">${results.errors}</span>
+                </div>
+                ${results.details && results.details.filter(d => d.status === 'updated').length > 0 ? `
+                    <div style="margin-top: 16px;">
+                        <strong>Chi tiết cập nhật:</strong>
+                        <div style="max-height: 300px; overflow-y: auto; margin-top: 8px;">
+                            ${results.details.filter(d => d.status === 'updated').slice(0, 10).map(detail => `
+                                <div class="result-item" style="border-left-color: #10b981;">
+                                    <strong>✓ Order ${detail.order_id}:</strong><br>
+                                    ${Object.keys(detail.changes).map(key => {
+                                        const oldVal = detail.old_values[key];
+                                        const newVal = detail.changes[key];
+                                        return `<span style="font-size: 0.85rem; color: #6b7280;">
+                                            ${key}: <span style="color: #f59e0b;">${oldVal}</span> →
+                                            <span style="color: #10b981;">${newVal}</span>
+                                        </span>`;
+                                    }).join('<br>')}
+                                </div>
+                            `).join('')}
+                            ${results.details.filter(d => d.status === 'updated').length > 10 ?
+                                `<div style="text-align: center; padding: 8px; color: #6b7280;">... và ${results.details.filter(d => d.status === 'updated').length - 10} đơn nữa</div>` : ''}
+                        </div>
+                    </div>
+                ` : ''}
+                <div style="margin-top: 12px; padding: 12px; background: #f0f9ff; border-radius: 6px; font-size: 0.9rem;">
+                    💡 <strong>Lưu ý:</strong> Dữ liệu đã được cập nhật theo trạng thái mới nhất từ AccessTrade
+                </div>
+            `;
+
+            // Show success with progress bar component
+            progressBar.showSuccess('Đồng Bộ Thành Công', successContent);
+            showToast(`Đã đồng bộ ${results.updated} đơn hàng`, 'success');
+        } else {
+            throw new Error(response.message || 'Sync failed');
+        }
+    } catch (error) {
+        console.error('Sync conversion status error:', error);
+        progressBar.showError('Đồng Bộ Thất Bại', error.message || 'Unknown error occurred');
+        showToast('Đồng bộ thất bại: ' + error.message, 'error');
+    } finally {
+        syncStatusBtn.disabled = false;
+        syncStatusBtn.textContent = '🔄 Đồng Bộ Trạng Thái';
     }
 }
 

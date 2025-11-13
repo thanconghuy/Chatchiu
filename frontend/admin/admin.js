@@ -73,7 +73,7 @@ async function checkAdminAccess() {
 async function init() {
     const user = getUser();
     if (user) {
-        userName.textContent = user.fullName || user.username || user.email;
+        displayUserName('userName');
     }
 
     await loadStats();

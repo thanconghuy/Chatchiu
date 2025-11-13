@@ -126,7 +126,7 @@ async function getCurrentUser() {
 
 /**
  * Display user name in element
- * Format: "Full Name (username)" or fallback to username/email
+ * Shows only full name without username
  * @param {string} elementId - ID of element to display user name
  */
 function displayUserName(elementId) {
@@ -138,15 +138,14 @@ function displayUserName(elementId) {
 
     const user = getUser();
     if (user) {
-        // Format: "Full Name (username)"
-        if (user.fullName && user.username) {
-            element.textContent = `${user.fullName} (${user.username})`;
+        // Support both naming conventions: fullName (camelCase) and full_name (snake_case)
+        const fullName = user.fullName || user.full_name;
+
+        // Display full name only
+        if (fullName) {
+            element.textContent = fullName;
         }
-        // Fallback to fullName only
-        else if (user.fullName) {
-            element.textContent = user.fullName;
-        }
-        // Fallback to username only
+        // Fallback to username
         else if (user.username) {
             element.textContent = user.username;
         }

@@ -33,11 +33,8 @@ const clicksPageInfo = document.getElementById('clicksPageInfo');
 init();
 
 async function init() {
-    // Set user name - prefer fullName over username
-    const user = getUser();
-    if (user) {
-        userName.textContent = user.fullName || user.username || user.email;
-    }
+    // Set user name - display full name
+    displayUserName('userName');
 
     // Load initial data
     await loadConversions();
@@ -166,7 +163,7 @@ function renderConversions(conversions) {
                            conv.status === 'pending' ? 'status-pending' :
                            'status-rejected';
         const statusText = conv.status === 'approved' ? 'Đã duyệt' :
-                          conv.status === 'pending' ? 'Chờ duyệt' : 'Từ chối';
+                          conv.status === 'pending' ? 'Đang xử lý' : 'Hủy';
 
         return `
             <tr>
@@ -262,7 +259,7 @@ function renderClicks(clicks) {
                                click.conversionStatus === 'pending' ? 'status-pending' :
                                'status-rejected';
             const statusText = click.conversionStatus === 'approved' ? 'Đã duyệt' :
-                              click.conversionStatus === 'pending' ? 'Chờ duyệt' : 'Từ chối';
+                              click.conversionStatus === 'pending' ? 'Đang xử lý' : 'Hủy';
             statusCell = `<span class="status-badge ${statusClass}">${statusText}</span>`;
         }
 
@@ -281,10 +278,10 @@ function renderClicks(clicks) {
                 </td>
                 <td>${clickTypeBadge}</td>
                 <td>${formatDate(click.clickedAt)}</td>
-                <td>${linkButton}</td>
                 <td>${hasConversionBadge}</td>
                 <td>${statusCell}</td>
                 <td>${cashbackCell}</td>
+                <td>${linkButton}</td>
             </tr>
         `;
     }).join('');

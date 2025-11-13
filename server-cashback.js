@@ -25,20 +25,19 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Initialize Passport for Google OAuth
 app.use(passport.initialize());
 
-// Serve static files from frontend directory only
-app.use(express.static(path.join(__dirname, 'frontend')));
-
 // Import routes
 const authRoutes = require('./backend/routes/auth');
 const neonAuthRoutes = require('./backend/routes/neonAuthRoutes');
 const dashboardRoutes = require('./backend/routes/dashboard');
 const adminRoutes = require('./backend/routes/admin');
+const reconciliationRoutes = require('./backend/routes/reconciliation');
 
-// Mount routes
+// Mount API routes (BEFORE static files)
 app.use('/api/auth', authRoutes); // Keep old auth for backward compatibility
 app.use('/api/neon-auth', neonAuthRoutes); // New Neon Auth routes
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/reconciliation', reconciliationRoutes); // Reconciliation module (admin only)
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -50,20 +49,45 @@ app.get('/health', (req, res) => {
 });
 
 // Routes for HTML pages (without .html extension)
-const pages = ['login', 'login-neon', 'register', 'dashboard', 'history', 'index', 'forgot-password', 'reset-password'];
+const pages = ['login', 'login-neon', 'register', 'dashboard', 'history', 'forgot-password', 'reset-password'];
 pages.forEach(page => {
   app.get(`/${page}`, (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend', `${page}.html`));
   });
+
+  // Redirect .html to clean URL
+  app.get(`/${page}.html`, (req, res) => {
+    res.redirect(301, `/${page}`);
+  });
 });
 
-// Admin routes
+// Admin routes (clean URLs without .html)
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend', 'admin', 'index.html'));
 });
 
-app.get('/admin/:page', (req, res) => {
+// Redirect .html URLs to clean URLs (BEFORE dynamic route)
+app.get('/admin/index.html', (req, res) => {
+  res.redirect(301, '/admin');
+});
+
+app.get('/admin/:page', (req, res, next) => {
   const page = req.params.page;
+
+  // IMPORTANT: Skip static files (css, js, images, fonts, etc.)
+  // Only handle HTML pages
+  if (page.includes('.') && !page.endsWith('.html')) {
+    // This is a static file request, pass to next middleware (static handler)
+    return next();
+  }
+
+  // If page ends with .html, redirect to clean URL
+  if (page.endsWith('.html')) {
+    const cleanPage = page.replace('.html', '');
+    return res.redirect(301, `/admin/${cleanPage}`);
+  }
+
+  // Serve the HTML file
   res.sendFile(path.join(__dirname, 'frontend', 'admin', `${page}.html`));
 });
 
@@ -71,6 +95,9 @@ app.get('/admin/:page', (req, res) => {
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend', 'dashboard.html'));
 });
+
+// Serve static files AFTER all specific routes
+app.use(express.static(path.join(__dirname, 'frontend')));
 
 // Ignore source map requests (silent 404)
 app.use((req, res, next) => {

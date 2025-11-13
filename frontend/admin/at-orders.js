@@ -14,15 +14,14 @@ requireAuth();
 
 // State
 let currentPage = 1;
-const ITEMS_PER_PAGE = 50;
+let ITEMS_PER_PAGE = 50; // Changed to let for dynamic update
 let currentFilters = {};
 let totalRecords = 0;
+let merchantsList = [];
 
 // DOM Elements
 const userName = document.getElementById('userName');
 const searchKeyword = document.getElementById('searchKeyword');
-const filterStatus = document.getElementById('filterStatus');
-const filterMerchant = document.getElementById('filterMerchant');
 const filterDateFrom = document.getElementById('filterDateFrom');
 const filterDateTo = document.getElementById('filterDateTo');
 const filterUser = document.getElementById('filterUser');
@@ -33,11 +32,41 @@ const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
 const pageInfo = document.getElementById('pageInfo');
 const logoutBtn = document.getElementById('logoutBtn');
+const rowsPerPageSelect = document.getElementById('rowsPerPage');
 
-// Stats elements
+// Filter Dropdown Elements
+const statusFilterBtn = document.getElementById('statusFilterBtn');
+const statusFilterText = document.getElementById('statusFilterText');
+const statusFilterMenu = document.getElementById('statusFilterMenu');
+
+const confirmedFilterBtn = document.getElementById('confirmedFilterBtn');
+const confirmedFilterText = document.getElementById('confirmedFilterText');
+const confirmedFilterMenu = document.getElementById('confirmedFilterMenu');
+
+const merchantFilterBtn = document.getElementById('merchantFilterBtn');
+const merchantFilterText = document.getElementById('merchantFilterText');
+const merchantFilterMenu = document.getElementById('merchantFilterMenu');
+const merchantSearchInput = document.getElementById('merchantSearchInput');
+const merchantOptions = document.getElementById('merchantOptions');
+
+// Stats elements - General
 const statTotal = document.getElementById('statTotal');
 const statTotalValue = document.getElementById('statTotalValue');
 const statTotalCommission = document.getElementById('statTotalCommission');
+
+// Stats elements - Order Status Breakdown
+const statApproved = document.getElementById('statApproved');
+const statApprovedAmount = document.getElementById('statApprovedAmount');
+const statPending = document.getElementById('statPending');
+const statPendingAmount = document.getElementById('statPendingAmount');
+const statRejected = document.getElementById('statRejected');
+const statRejectedAmount = document.getElementById('statRejectedAmount');
+
+// Stats elements - Confirmed Status Breakdown
+const statConfirmed = document.getElementById('statConfirmed');
+const statConfirmedCommission = document.getElementById('statConfirmedCommission');
+const statNotConfirmed = document.getElementById('statNotConfirmed');
+const statNotConfirmedCommission = document.getElementById('statNotConfirmedCommission');
 
 /**
  * Check if user is admin
@@ -74,7 +103,7 @@ async function checkAdminAccess() {
 async function init() {
     const user = getUser();
     if (user) {
-        userName.textContent = user.fullName || user.username || user.email;
+        displayUserName('userName');
     }
 
     // Set default date range (last 30 days)
@@ -85,7 +114,9 @@ async function init() {
     filterDateFrom.value = formatDateForPicker(lastMonth);
     filterDateTo.value = formatDateForPicker(today);
 
+    await loadMerchants();
     setupEventListeners();
+    setupFilterDropdowns();
     await loadOrders();
 }
 
@@ -109,30 +140,30 @@ function setupEventListeners() {
     });
 
     resetBtn.addEventListener('click', () => {
-        searchKeyword.value = '';
-        filterStatus.value = '';
-        filterMerchant.value = '';
-        filterUser.value = '';
-
-        const today = new Date();
-        const lastMonth = new Date();
-        lastMonth.setDate(lastMonth.getDate() - 30);
-        filterDateFrom.value = formatDateForPicker(lastMonth);
-        filterDateTo.value = formatDateForPicker(today);
-
-        currentPage = 1;
-        currentFilters = {};
-        loadOrders();
+        resetFilters();
     });
 
     // Allow Enter key to search
-    [searchKeyword, filterMerchant, filterUser].forEach(input => {
+    [searchKeyword, filterUser].forEach(input => {
         input.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 currentPage = 1;
                 loadOrders();
             }
         });
+    });
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!statusFilterBtn.contains(e.target)) {
+            statusFilterMenu.classList.remove('show');
+        }
+        if (!confirmedFilterBtn.contains(e.target)) {
+            confirmedFilterMenu.classList.remove('show');
+        }
+        if (!merchantFilterBtn.contains(e.target)) {
+            merchantFilterMenu.classList.remove('show');
+        }
     });
 
     prevBtn.addEventListener('click', () => {
@@ -151,6 +182,175 @@ function setupEventListeners() {
         e.preventDefault();
         logout();
     });
+
+    if (rowsPerPageSelect) {
+        rowsPerPageSelect.addEventListener('change', () => {
+            ITEMS_PER_PAGE = parseInt(rowsPerPageSelect.value);
+            currentPage = 1; // Reset to first page
+            loadOrders();
+        });
+    }
+}
+
+/**
+ * Load merchants from conversions
+ */
+async function loadMerchants() {
+    try {
+        const response = await apiRequest('/admin/conversions/merchants');
+        if (response.success && response.merchants) {
+            merchantsList = response.merchants;
+            renderMerchantOptions(merchantsList);
+        }
+    } catch (error) {
+        console.error('Error loading merchants:', error);
+    }
+}
+
+/**
+ * Render merchant options
+ */
+function renderMerchantOptions(merchants) {
+    const html = `
+        <div class="filter-option selected" data-value="">Tất cả</div>
+        ${merchants.map(m => `
+            <div class="filter-option" data-value="${m}">${m}</div>
+        `).join('')}
+    `;
+    merchantOptions.innerHTML = html;
+}
+
+/**
+ * Setup filter dropdowns
+ */
+function setupFilterDropdowns() {
+    // Status filter dropdown
+    statusFilterBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        statusFilterMenu.classList.toggle('show');
+        confirmedFilterMenu.classList.remove('show');
+        merchantFilterMenu.classList.remove('show');
+    });
+
+    statusFilterMenu.querySelectorAll('.filter-option').forEach(option => {
+        option.addEventListener('click', () => {
+            const value = option.getAttribute('data-value');
+            currentFilters.status = value;
+            statusFilterText.textContent = option.textContent;
+
+            // Update selected state
+            statusFilterMenu.querySelectorAll('.filter-option').forEach(o => o.classList.remove('selected'));
+            option.classList.add('selected');
+
+            statusFilterMenu.classList.remove('show');
+            currentPage = 1;
+            loadOrders();
+        });
+    });
+
+    // Confirmed filter dropdown
+    confirmedFilterBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        confirmedFilterMenu.classList.toggle('show');
+        statusFilterMenu.classList.remove('show');
+        merchantFilterMenu.classList.remove('show');
+    });
+
+    confirmedFilterMenu.querySelectorAll('.filter-option').forEach(option => {
+        option.addEventListener('click', () => {
+            const value = option.getAttribute('data-value');
+            currentFilters.isConfirmed = value;
+            confirmedFilterText.textContent = option.textContent;
+
+            // Update selected state
+            confirmedFilterMenu.querySelectorAll('.filter-option').forEach(o => o.classList.remove('selected'));
+            option.classList.add('selected');
+
+            confirmedFilterMenu.classList.remove('show');
+            currentPage = 1;
+            loadOrders();
+        });
+    });
+
+    // Merchant filter dropdown
+    merchantFilterBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        merchantFilterMenu.classList.toggle('show');
+        statusFilterMenu.classList.remove('show');
+        confirmedFilterMenu.classList.remove('show');
+    });
+
+    // Merchant search
+    merchantSearchInput.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase();
+        const filteredMerchants = merchantsList.filter(m =>
+            m.toLowerCase().includes(searchTerm)
+        );
+        renderMerchantOptions(filteredMerchants);
+        setupMerchantOptions(); // Re-attach event listeners
+    });
+
+    merchantSearchInput.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+
+    setupMerchantOptions();
+}
+
+/**
+ * Setup merchant options event listeners
+ */
+function setupMerchantOptions() {
+    merchantOptions.querySelectorAll('.filter-option').forEach(option => {
+        option.addEventListener('click', () => {
+            const value = option.getAttribute('data-value');
+            currentFilters.merchant = value;
+            merchantFilterText.textContent = option.textContent;
+
+            // Update selected state
+            merchantOptions.querySelectorAll('.filter-option').forEach(o => o.classList.remove('selected'));
+            option.classList.add('selected');
+
+            merchantFilterMenu.classList.remove('show');
+            currentPage = 1;
+            loadOrders();
+        });
+    });
+}
+
+/**
+ * Reset all filters
+ */
+function resetFilters() {
+    searchKeyword.value = '';
+    filterUser.value = '';
+
+    const today = new Date();
+    const lastMonth = new Date();
+    lastMonth.setDate(lastMonth.getDate() - 30);
+    filterDateFrom.value = formatDateForPicker(lastMonth);
+    filterDateTo.value = formatDateForPicker(today);
+
+    currentPage = 1;
+    currentFilters = {};
+
+    // Reset filter dropdowns UI
+    statusFilterText.textContent = 'Tất cả';
+    statusFilterMenu.querySelectorAll('.filter-option').forEach(o => o.classList.remove('selected'));
+    statusFilterMenu.querySelector('[data-value=""]').classList.add('selected');
+
+    confirmedFilterText.textContent = 'Tất cả';
+    confirmedFilterMenu.querySelectorAll('.filter-option').forEach(o => o.classList.remove('selected'));
+    confirmedFilterMenu.querySelector('[data-value=""]').classList.add('selected');
+
+    merchantFilterText.textContent = 'Tất cả';
+    merchantSearchInput.value = '';
+    renderMerchantOptions(merchantsList);
+    setupMerchantOptions();
+    merchantOptions.querySelectorAll('.filter-option').forEach(o => o.classList.remove('selected'));
+    merchantOptions.querySelector('[data-value=""]').classList.add('selected');
+
+    loadOrders();
 }
 
 /**
@@ -163,12 +363,16 @@ function buildFilters() {
         filters.search = searchKeyword.value.trim();
     }
 
-    if (filterStatus.value) {
-        filters.status = filterStatus.value;
+    if (currentFilters.status) {
+        filters.status = currentFilters.status;
     }
 
-    if (filterMerchant.value.trim()) {
-        filters.merchant = filterMerchant.value.trim();
+    if (currentFilters.isConfirmed !== undefined && currentFilters.isConfirmed !== '') {
+        filters.isConfirmed = currentFilters.isConfirmed;
+    }
+
+    if (currentFilters.merchant) {
+        filters.merchant = currentFilters.merchant;
     }
 
     if (filterUser.value.trim()) {
@@ -234,6 +438,7 @@ function showLoading() {
             <td><div class="skeleton skeleton-text"></div></td>
             <td><div class="skeleton skeleton-text"></div></td>
             <td><div class="skeleton skeleton-badge"></div></td>
+            <td><div class="skeleton skeleton-badge"></div></td>
             <td><div class="skeleton skeleton-text"></div></td>
             <td><div class="skeleton skeleton-text"></div></td>
         </tr>
@@ -248,7 +453,7 @@ function showLoading() {
 function showError(message) {
     ordersTableBody.innerHTML = `
         <tr class="empty-state">
-            <td colspan="9">
+            <td colspan="10">
                 <div style="color: var(--danger);">❌ ${message}</div>
             </td>
         </tr>
@@ -262,7 +467,7 @@ function renderOrders(orders) {
     if (orders.length === 0) {
         ordersTableBody.innerHTML = `
             <tr class="empty-state">
-                <td colspan="9">
+                <td colspan="10">
                     <div style="padding: 60px 20px;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto 24px; display: block; color: var(--gray-400);">
                             <circle cx="9" cy="21" r="1"></circle>
@@ -281,11 +486,18 @@ function renderOrders(orders) {
     }
 
     ordersTableBody.innerHTML = orders.map(order => {
+        // Trạng thái đơn hàng (status)
         const statusClass = order.status === 'approved' ? 'status-approved' :
                            order.status === 'pending' ? 'status-pending' :
                            'status-rejected';
-        const statusText = order.status === 'approved' ? 'Approved' :
-                          order.status === 'pending' ? 'Pending' : 'Rejected';
+        const statusText = order.status === 'approved' ? 'Đã duyệt' :
+                          order.status === 'pending' ? 'Đang xử lý' : 'Hủy';
+
+        // Trạng thái đối soát (is_confirmed)
+        // Use ?? (nullish coalescing) to handle 0 correctly
+        const isConfirmed = order.isConfirmed ?? order.is_confirmed ?? 0;
+        const confirmedClass = isConfirmed === 1 ? 'status-approved' : 'status-pending';
+        const confirmedText = isConfirmed === 1 ? 'Đã đối soát' : 'Chưa đối soát';
 
         // Format user info
         let userInfo = '-';
@@ -317,6 +529,7 @@ function renderOrders(orders) {
                 <td style="text-align: right; font-weight: 600; color: var(--primary);">${formatCurrency(order.commission || 0)}</td>
                 <td style="text-align: right; font-weight: 600; color: var(--success);">${formatCurrency(order.cashbackAmount || 0)}</td>
                 <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                <td><span class="status-badge ${confirmedClass}">${confirmedText}</span></td>
                 <td>
                     <div style="font-size: 0.85rem; max-width: 150px; overflow: hidden; text-overflow: ellipsis;" title="${order.affSid || '-'}">${order.affSid || '-'}</div>
                 </td>
@@ -332,10 +545,38 @@ function renderOrders(orders) {
  * Update statistics
  */
 function updateStats(stats) {
+    // General stats
     statTotal.textContent = stats.total || totalRecords || 0;
     statTotalValue.textContent = formatCurrency(stats.totalOrderAmount || 0);
     statTotalCommission.textContent = formatCurrency(stats.totalCommission || 0);
-    // Removed statTotalCashback as it's not accurate without click matching
+
+    // Status breakdown
+    if (stats.statusBreakdown) {
+        const approved = stats.statusBreakdown.approved || { count: 0, amount: 0 };
+        const pending = stats.statusBreakdown.pending || { count: 0, amount: 0 };
+        const rejected = stats.statusBreakdown.rejected || { count: 0, amount: 0 };
+
+        statApproved.textContent = approved.count;
+        statApprovedAmount.textContent = formatCurrency(approved.amount);
+
+        statPending.textContent = pending.count;
+        statPendingAmount.textContent = formatCurrency(pending.amount);
+
+        statRejected.textContent = rejected.count;
+        statRejectedAmount.textContent = formatCurrency(rejected.amount);
+    }
+
+    // Confirmed status breakdown
+    if (stats.confirmedBreakdown) {
+        const confirmed = stats.confirmedBreakdown.confirmed || { count: 0, commission: 0 };
+        const notConfirmed = stats.confirmedBreakdown.notConfirmed || { count: 0, commission: 0 };
+
+        statConfirmed.textContent = confirmed.count;
+        statConfirmedCommission.textContent = formatCurrency(confirmed.commission) + ' hoa hồng';
+
+        statNotConfirmed.textContent = notConfirmed.count;
+        statNotConfirmedCommission.textContent = formatCurrency(notConfirmed.commission) + ' hoa hồng';
+    }
 }
 
 /**
@@ -344,7 +585,8 @@ function updateStats(stats) {
 function updatePagination() {
     const totalPages = Math.ceil(totalRecords / ITEMS_PER_PAGE);
 
-    pageInfo.textContent = `Trang ${currentPage} / ${totalPages || 1} (Tổng: ${totalRecords})`;
+    // Show only page number
+    pageInfo.textContent = currentPage;
     prevBtn.disabled = currentPage === 1;
     nextBtn.disabled = currentPage >= totalPages;
 }
@@ -409,8 +651,8 @@ function showOrderDetailModal(order) {
 
     const statusClass = order.status === 'approved' ? 'status-approved' :
                        order.status === 'pending' ? 'status-pending' : 'status-rejected';
-    const statusText = order.status === 'approved' ? 'Approved' :
-                      order.status === 'pending' ? 'Pending' : 'Rejected';
+    const statusText = order.status === 'approved' ? 'Đã duyệt' :
+                      order.status === 'pending' ? 'Đang xử lý' : 'Hủy';
     document.getElementById('detailStatus').innerHTML = `<span class="status-badge ${statusClass}">${statusText}</span>`;
 
     document.getElementById('detailAffSid').textContent = order.affSid || '-';

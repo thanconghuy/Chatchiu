@@ -214,6 +214,96 @@
             background: linear-gradient(135deg, #5568d3 0%, #653a8a 100%);
         }
 
+        /* Progress bar styles */
+        .progress-container {
+            margin: 16px 0;
+            display: none;
+        }
+
+        .progress-container.active {
+            display: block;
+        }
+
+        .progress-bar-wrapper {
+            background: #e5e7eb;
+            border-radius: 8px;
+            height: 24px;
+            overflow: hidden;
+            position: relative;
+            margin-bottom: 8px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .progress-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: var(--gray-700);
+        }
+
+        .progress-stats span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Indeterminate progress animation */
+        .progress-indeterminate {
+            position: relative;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            overflow: hidden;
+        }
+
+        .progress-indeterminate::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.3),
+                transparent
+            );
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            0% {
+                left: -100%;
+            }
+            100% {
+                left: 100%;
+            }
+        }
+
+        /* Pulse animation for loading */
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        .progress-indeterminate {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
         @media (max-width: 1024px) {
             .tools-container {
                 grid-template-columns: 1fr;
@@ -250,6 +340,10 @@
                     <span class="nav-icon">📦</span>
                     <span class="nav-text">Dữ liệu đơn AT</span>
                 </a>
+                <a href="/admin/reconciliation" class="nav-item">
+                    <span class="nav-icon">📋</span>
+                    <span class="nav-text">Đối soát</span>
+                </a>
                 <a href="/admin/merchants" class="nav-item">
                     <span class="nav-icon">🏪</span>
                     <span class="nav-text">Merchants</span>
@@ -266,15 +360,16 @@
         </aside>
 
         <!-- Main Content -->
-        <main class="main-content" style="flex: 1; padding: 24px; box-sizing: border-box;">
-            <div class="content-header">
-                <h1>Conversions Management</h1>
-                <div class="user-info">
-                    <span id="userName">Admin</span>
+        <main class="main-content">
+            <div class="content-wrapper">
+                <div class="content-header">
+                    <h1>Conversions Management</h1>
+                    <div class="user-info">
+                        <span id="userName">Admin</span>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Fetch Tools -->
+                <!-- Fetch Tools -->
             <div class="tools-container">
                 <!-- Conversions Tool -->
                 <div class="tool-card" style="grid-column: 1 / -1;">
@@ -300,7 +395,8 @@
                                     <th style="padding: 10px 8px; text-align: left; font-size: 0.8rem; font-weight: 600;">Merchant</th>
                                     <th style="padding: 10px 8px; text-align: right; font-size: 0.8rem; font-weight: 600;">Billing</th>
                                     <th style="padding: 10px 8px; text-align: right; font-size: 0.8rem; font-weight: 600;">Commission</th>
-                                    <th style="padding: 10px 8px; text-align: center; font-size: 0.8rem; font-weight: 600;">Status</th>
+                                    <th style="padding: 10px 8px; text-align: center; font-size: 0.8rem; font-weight: 600;">TT Đơn hàng</th>
+                                    <th style="padding: 10px 8px; text-align: center; font-size: 0.8rem; font-weight: 600;">TT Đối soát</th>
                                     <th style="padding: 10px 8px; text-align: left; font-size: 0.8rem; font-weight: 600;">Click Time</th>
                                     <th style="padding: 10px 8px; text-align: left; font-size: 0.8rem; font-weight: 600;">Sales Time</th>
                                     <th style="padding: 10px 8px; text-align: left; font-size: 0.8rem; font-weight: 600;">UTM Source</th>
@@ -381,6 +477,39 @@
                 <div class="import-result" id="updatePendingResult" style="display: none;"></div>
             </div>
 
+            <!-- Sync Conversion Status Section -->
+            <div class="import-section" style="margin-bottom: 24px;">
+                <h2>🔄 Đồng Bộ Trạng Thái Đơn Hàng</h2>
+
+                <div class="import-info">
+                    <strong>ℹ️ Chức năng:</strong>
+                    <ul>
+                        <li>Đồng bộ trạng thái từ AccessTrade API cho các đơn đã import</li>
+                        <li>Cập nhật: <code>status</code>, <code>is_confirmed</code>, <code>confirmed_time</code></li>
+                        <li>Sử dụng khi dữ liệu cũ cần cập nhật trạng thái mới nhất</li>
+                        <li>Chỉ cập nhật các trường thay đổi, bỏ qua nếu không có thay đổi</li>
+                        <li>Hiển thị chi tiết các thay đổi đã thực hiện</li>
+                    </ul>
+                </div>
+
+                <div class="date-inputs">
+                    <div style="flex: 1;">
+                        <label>Từ ngày</label>
+                        <input type="date" id="syncStartDate" style="width: 100%;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label>Đến ngày</label>
+                        <input type="date" id="syncEndDate" style="width: 100%;">
+                    </div>
+                </div>
+
+                <button class="btn-import" id="syncStatusBtn" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+                    🔄 Đồng Bộ Trạng Thái
+                </button>
+
+                <div class="import-result" id="syncStatusResult" style="display: none;"></div>
+            </div>
+
             <!-- Import Section -->
             <div class="import-section">
                 <h2>📥 Nạp Dữ Liệu Vào Database</h2>
@@ -402,12 +531,14 @@
 
                 <div class="import-result" id="importResult"></div>
             </div>
+            </div>
         </main>
     </div>
 
     <script src="../js/config.js"></script>
     <script src="../js/auth.js"></script>
     <script src="../js/mobile-menu.js"></script>
+    <script src="progress-bar.js"></script>
     <script src="tools.js"></script>
 </body>
 </html>

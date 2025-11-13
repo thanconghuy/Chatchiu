@@ -10,38 +10,44 @@
     <!-- Mobile Menu Toggle -->
     <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
 
-    <!-- Sidebar -->
-    <div class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <h2 class="logo">🎯 Cashback</h2>
-        </div>
-        <nav class="sidebar-nav">
-            <a href="/dashboard" class="nav-item active">
-                <span class="icon">📊</span>
-                <span>Dashboard</span>
-            </a>
-            <a href="/history" class="nav-item">
-                <span class="icon">📜</span>
-                <span>Lịch sử</span>
-            </a>
-            <a href="#" class="nav-item" id="logoutBtn">
-                <span class="icon">🚪</span>
-                <span>Đăng xuất</span>
-            </a>
-        </nav>
-    </div>
-
-    <!-- Main Content -->
-    <div class="main-content">
-        <!-- Header -->
-        <header class="header">
-            <div class="welcome">
-                <h1>Xin chào, <span id="userName">User</span>! 👋</h1>
-                <p class="subtitle">Chào mừng bạn quay trở lại</p>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2 class="logo">🎯 Cashback</h2>
             </div>
-        </header>
+            <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item active">
+                    <span class="icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/history" class="nav-item">
+                    <span class="icon">📜</span>
+                    <span>Lịch sử</span>
+                </a>
+                <a href="/reconciliation-history" class="nav-item">
+                    <span class="icon">📋</span>
+                    <span>Đối soát</span>
+                </a>
+                <a href="#" class="nav-item" id="logoutBtn">
+                    <span class="icon">🚪</span>
+                    <span>Đăng xuất</span>
+                </a>
+            </nav>
+        </aside>
 
-        <!-- Stats Cards -->
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-wrapper">
+                <!-- Header -->
+                <header class="header">
+                    <div class="welcome">
+                        <h1>Xin chào, <span id="userName">User</span>! 👋</h1>
+                        <p class="subtitle">Chào mừng bạn quay trở lại</p>
+                    </div>
+                </header>
+
+                <!-- Stats Cards -->
         <section class="stats-section">
             <div class="stats-grid">
                 <div class="stat-card gradient-green">
@@ -72,6 +78,19 @@
                         <p class="stat-label">Đã duyệt</p>
                     </div>
                 </div>
+            </div>
+        </section>
+
+        <!-- How to Get Cashback Guide -->
+        <section class="section">
+            <div class="guide-card">
+                <h2 class="guide-title">💡 Cách nhận cashback</h2>
+                <ol class="guide-steps">
+                    <li><strong>Bấm vào sàn mua sắm</strong> bạn muốn mua hàng (Shopee, Lazada, Tiki...)</li>
+                    <li><strong>Đi đến trang chủ</strong> hoặc <strong>nhập link sản phẩm cụ thể</strong> mà bạn muốn mua</li>
+                    <li><strong>Tạo link mua hàng</strong> để hệ thống ghi nhận và tính hoa hồng cho bạn</li>
+                    <li>Hoàn tất đơn hàng và chờ cashback được duyệt về tài khoản! 🎉</li>
+                </ol>
             </div>
         </section>
 
@@ -163,6 +182,8 @@
                 </div>
             </div>
         </div>
+            </div>
+        </main>
     </div>
 
     <!-- Toast Notification -->

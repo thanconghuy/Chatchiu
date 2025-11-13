@@ -53,17 +53,33 @@ async function init() {
  */
 async function loadStats() {
     try {
+        console.log('Loading dashboard stats...');
         const response = await apiRequest('/dashboard/stats');
+        console.log('Stats response:', response);
 
-        if (response.success) {
+        if (response && response.success) {
             const stats = response.stats;
-            availableBalance.textContent = formatCurrency(stats.availableBalance);
-            pendingBalance.textContent = formatCurrency(stats.pendingBalance);
-            totalOrders.textContent = stats.totalConversions;
-            approvedOrders.textContent = stats.approvedConversions;
+            console.log('Stats data:', stats);
+
+            // Update UI with stats
+            availableBalance.textContent = formatCurrency(stats.availableBalance || 0);
+            pendingBalance.textContent = formatCurrency(stats.pendingBalance || 0);
+            totalOrders.textContent = stats.totalConversions || 0;
+            approvedOrders.textContent = stats.approvedConversions || 0;
+
+            console.log('Stats loaded successfully');
+        } else {
+            console.error('Stats response not successful:', response);
         }
     } catch (error) {
         console.error('Error loading stats:', error);
+        console.error('Error details:', error.message, error.stack);
+
+        // Show error to user (optional)
+        availableBalance.textContent = '0 đ';
+        pendingBalance.textContent = '0 đ';
+        totalOrders.textContent = '0';
+        approvedOrders.textContent = '0';
     }
 }
 
@@ -138,7 +154,7 @@ function renderRecentOrders(clicks) {
                            click.conversionStatus === 'pending' ? 'status-pending' : '';
         const statusText = click.hasConversion ?
             (click.conversionStatus === 'approved' ? 'Đã duyệt' :
-             click.conversionStatus === 'pending' ? 'Chờ duyệt' : 'Từ chối') :
+             click.conversionStatus === 'pending' ? 'Đang xử lý' : 'Hủy') :
             'Chưa mua';
 
         // Create link button if affiliate URL exists

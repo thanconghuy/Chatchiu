@@ -77,6 +77,8 @@ class AccessTradeService {
           hasDataField: 'data' in response.data,
           dataLength: response.data.data ? response.data.data.length : 0,
           sampleData: response.data.data ? response.data.data[0] : null,
+          sampleDataKeys: response.data.data && response.data.data[0] ? Object.keys(response.data.data[0]) : [],
+          hasStatusField: response.data.data && response.data.data[0] ? 'status' in response.data.data[0] : false,
           pagination: {
             total: response.data.total,
             page: response.data.page,

@@ -14,7 +14,7 @@ requireAuth();
 // State
 let currentPage = 0;
 let currentSearch = '';
-const ITEMS_PER_PAGE = 50;
+let ITEMS_PER_PAGE = 50; // Changed to let for dynamic update
 
 // DOM Elements
 const userName = document.getElementById('userName');
@@ -25,6 +25,7 @@ const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
 const pageInfo = document.getElementById('pageInfo');
 const logoutBtn = document.getElementById('logoutBtn');
+const rowsPerPageSelect = document.getElementById('rowsPerPage');
 
 /**
  * Check if user is admin
@@ -61,7 +62,7 @@ async function checkAdminAccess() {
 async function init() {
     const user = getUser();
     if (user) {
-        userName.textContent = user.fullName || user.username || user.email;
+        displayUserName('userName');
     }
 
     await loadUsers();
@@ -102,6 +103,14 @@ function setupEventListeners() {
         e.preventDefault();
         logout();
     });
+
+    if (rowsPerPageSelect) {
+        rowsPerPageSelect.addEventListener('change', () => {
+            ITEMS_PER_PAGE = parseInt(rowsPerPageSelect.value);
+            currentPage = 0; // Reset to first page
+            loadUsers();
+        });
+    }
 }
 
 /**
@@ -194,7 +203,8 @@ function renderUsers(users) {
  * Update pagination
  */
 function updatePagination(itemCount) {
-    pageInfo.textContent = `Page ${currentPage + 1}`;
+    // Show only page number
+    pageInfo.textContent = currentPage + 1;
     prevBtn.disabled = currentPage === 0;
     nextBtn.disabled = itemCount < ITEMS_PER_PAGE;
 }

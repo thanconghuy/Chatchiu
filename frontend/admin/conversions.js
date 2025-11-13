@@ -197,20 +197,33 @@ function renderConversions(conversions) {
         const statusClass = conv.status === 'approved' ? 'status-approved' :
                            conv.status === 'pending' ? 'status-pending' :
                            'status-rejected';
-        const statusText = conv.status === 'approved' ? 'Approved' :
-                          conv.status === 'pending' ? 'Pending' : 'Rejected';
+        const statusText = conv.status === 'approved' ? 'Đã duyệt' :
+                          conv.status === 'pending' ? 'Đang xử lý' : 'Đã hủy';
 
-        let actions = '-';
-        if (conv.status === 'pending') {
-            actions = `
-                <button class="action-btn btn-approve" onclick="approveConversion('${conv.id}')">
-                    ✓ Approve
+        // Actions dropdown - always show for all statuses
+        actions = `
+            <div class="action-dropdown">
+                <button class="action-dropdown-btn" onclick="toggleActionMenu(event)">
+                    ⋮
                 </button>
-                <button class="action-btn btn-reject" onclick="rejectConversion('${conv.id}')">
-                    ✗ Reject
-                </button>
-            `;
-        }
+                <div class="action-dropdown-menu">
+                    <button class="action-item action-view" onclick="viewConversionDetails('${conv.id}'); event.stopPropagation();">
+                        <span class="action-icon">👁</span>
+                        <span>Xem chi tiết</span>
+                    </button>
+                    ${conv.status === 'pending' ? `
+                        <button class="action-item action-approve" onclick="approveConversion('${conv.id}'); event.stopPropagation();">
+                            <span class="action-icon">✓</span>
+                            <span>Duyệt đơn</span>
+                        </button>
+                        <button class="action-item action-reject" onclick="rejectConversion('${conv.id}'); event.stopPropagation();">
+                            <span class="action-icon">✗</span>
+                            <span>Từ chối</span>
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        `;
 
         return `
             <tr>
@@ -296,6 +309,172 @@ async function rejectConversion(conversionId) {
     } catch (error) {
         console.error('Error rejecting conversion:', error);
         showToast(error.message || 'Failed to reject conversion', 'error');
+    }
+}
+
+/**
+ * Toggle action dropdown menu
+ */
+function toggleActionMenu(event) {
+    event.stopPropagation();
+    const btn = event.target;
+    const dropdown = btn.nextElementSibling;
+    const allDropdowns = document.querySelectorAll('.action-dropdown-menu');
+
+    // Close all other dropdowns
+    allDropdowns.forEach(d => {
+        if (d !== dropdown) d.classList.remove('show');
+    });
+
+    // Toggle current dropdown
+    dropdown.classList.toggle('show');
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', () => {
+    document.querySelectorAll('.action-dropdown-menu').forEach(d => {
+        d.classList.remove('show');
+    });
+});
+
+/**
+ * View conversion details
+ */
+async function viewConversionDetails(conversionId) {
+    try {
+        const response = await apiRequest(`/admin/conversion/${conversionId}`);
+
+        if (response.success && response.conversion) {
+            const conv = response.conversion;
+
+            // Create modal content
+            const modalContent = `
+                <div class="detail-modal-overlay" onclick="closeDetailModal()">
+                    <div class="detail-modal" onclick="event.stopPropagation()">
+                        <div class="detail-modal-header">
+                            <h2>📋 Chi tiết đơn hàng</h2>
+                            <button class="close-btn" onclick="closeDetailModal()">✕</button>
+                        </div>
+                        <div class="detail-modal-body">
+                            <div class="detail-section">
+                                <h3>👤 Thông tin người dùng</h3>
+                                <div class="detail-grid">
+                                    <div class="detail-item">
+                                        <span class="detail-label">Username:</span>
+                                        <span class="detail-value">${conv.username || '-'}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="detail-label">Email:</span>
+                                        <span class="detail-value">${conv.email || '-'}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="detail-label">Full Name:</span>
+                                        <span class="detail-value">${conv.full_name || '-'}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="detail-section">
+                                <h3>🏪 Thông tin đơn hàng</h3>
+                                <div class="detail-grid">
+                                    <div class="detail-item">
+                                        <span class="detail-label">Merchant:</span>
+                                        <span class="detail-value">${conv.merchant_name || '-'}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="detail-label">Order Code:</span>
+                                        <span class="detail-value"><strong>${conv.order_code || '-'}</strong></span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="detail-label">Click ID:</span>
+                                        <span class="detail-value">${conv.click_id || '-'}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="detail-section">
+                                <h3>💰 Thông tin tài chính</h3>
+                                <div class="detail-grid">
+                                    <div class="detail-item">
+                                        <span class="detail-label">Order Amount:</span>
+                                        <span class="detail-value highlight">${formatCurrency(conv.order_amount)}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="detail-label">Commission:</span>
+                                        <span class="detail-value">${formatCurrency(conv.commission)}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="detail-label">Cashback:</span>
+                                        <span class="detail-value highlight">${formatCurrency(conv.cashback_amount)}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="detail-section">
+                                <h3>📅 Thời gian</h3>
+                                <div class="detail-grid">
+                                    <div class="detail-item">
+                                        <span class="detail-label">Order Time:</span>
+                                        <span class="detail-value">${formatDate(conv.order_time, true)}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="detail-label">Confirmed Time:</span>
+                                        <span class="detail-value">${conv.confirmed_time ? formatDate(conv.confirmed_time, true) : '-'}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="detail-label">Created At:</span>
+                                        <span class="detail-value">${formatDate(conv.created_at, true)}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="detail-section">
+                                <h3>ℹ️ Trạng thái & UTM</h3>
+                                <div class="detail-grid">
+                                    <div class="detail-item">
+                                        <span class="detail-label">Status:</span>
+                                        <span class="detail-value">${getStatusBadge(conv.status)}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="detail-label">Is Confirmed:</span>
+                                        <span class="detail-value">${conv.is_confirmed ? '✅ Yes' : '❌ No'}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="detail-label">UTM Source:</span>
+                                        <span class="detail-value">${conv.utm_source || '-'}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="detail-label">UTM Campaign:</span>
+                                        <span class="detail-value">${conv.utm_campaign || '-'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="detail-modal-footer">
+                            <button class="btn btn-secondary" onclick="closeDetailModal()">Đóng</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Add to body
+            document.body.insertAdjacentHTML('beforeend', modalContent);
+        } else {
+            throw new Error(response.message || 'Failed to load conversion details');
+        }
+    } catch (error) {
+        console.error('Error loading details:', error);
+        showToast(error.message || 'Failed to load conversion details', 'error');
+    }
+}
+
+/**
+ * Close detail modal
+ */
+function closeDetailModal() {
+    const modal = document.querySelector('.detail-modal-overlay');
+    if (modal) {
+        modal.remove();
     }
 }
 

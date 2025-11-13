@@ -24,7 +24,13 @@ class Conversion {
             utmCampaign = null,
             utmContent = null,
             orderTime = null,
-            approvalTime = null
+            approvalTime = null,
+            // Reconciliation fields (from migration 001)
+            isConfirmed = 0,
+            confirmedTime = null,
+            orderApproved = 0,
+            orderPending = 0,
+            orderReject = 0
         } = conversionData;
 
         const query = `
@@ -32,8 +38,9 @@ class Conversion {
                 user_id, click_id, accesstrade_id, merchant_id, merchant_name,
                 order_code, order_amount, commission, cashback_amount,
                 status, aff_sid, utm_source, utm_medium, utm_campaign, utm_content,
-                order_time, approval_time
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+                order_time, approval_time,
+                is_confirmed, confirmed_time, order_approved, order_pending, order_reject
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
             RETURNING *
         `;
 
@@ -54,7 +61,12 @@ class Conversion {
             utmCampaign,
             utmContent,
             orderTime,
-            approvalTime
+            approvalTime,
+            isConfirmed,
+            confirmedTime,
+            orderApproved,
+            orderPending,
+            orderReject
         ];
 
         const result = await db.query(query, values);

@@ -7,21 +7,343 @@
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="admin.css">
     <style>
+        /* Filter Bar Styles */
+        .filter-bar {
+            background: white;
+            padding: 20px 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--gray-700);
+            white-space: nowrap;
+        }
+
+        #statusFilter {
+            padding: 10px 16px;
+            border: 2px solid var(--gray-300);
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            min-width: 180px;
+            transition: all 0.2s;
+            background: white;
+        }
+
+        #statusFilter:hover {
+            border-color: var(--primary);
+        }
+
+        #statusFilter:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .btn-action {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+            font-size: 1rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #syncBtn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
         #syncBtn:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
         }
+
         #syncBtn:active {
             transform: translateY(0);
         }
+
         #syncBtn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none !important;
         }
-        #statusFilter:focus {
-            outline: none;
+
+        /* Action Dropdown Styles */
+        .action-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .action-dropdown-btn {
+            background: white;
+            border: 2px solid var(--gray-300);
+            border-radius: 8px;
+            width: 36px;
+            height: 36px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            color: var(--gray-600);
+        }
+
+        .action-dropdown-btn:hover {
             border-color: var(--primary);
+            background: var(--gray-50);
+            color: var(--primary);
+        }
+
+        .action-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            min-width: 180px;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.2s;
+        }
+
+        .action-dropdown-menu.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .action-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            padding: 12px 16px;
+            border: none;
+            background: white;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: background 0.2s;
+            text-align: left;
+        }
+
+        .action-item:first-child {
+            border-radius: 8px 8px 0 0;
+        }
+
+        .action-item:last-child {
+            border-radius: 0 0 8px 8px;
+        }
+
+        .action-item:hover {
+            background: var(--gray-50);
+        }
+
+        .action-approve .action-icon {
+            color: var(--success);
+            font-size: 1.2rem;
+        }
+
+        .action-reject .action-icon {
+            color: var(--danger);
+            font-size: 1.2rem;
+        }
+
+        .action-approve:hover {
+            background: rgba(72, 187, 120, 0.1);
+        }
+
+        .action-reject:hover {
+            background: rgba(245, 101, 101, 0.1);
+        }
+
+        .action-view .action-icon {
+            color: var(--primary);
+            font-size: 1.2rem;
+        }
+
+        .action-view:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        /* Detail Modal Styles */
+        .detail-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            padding: 20px;
+        }
+
+        .detail-modal {
+            background: white;
+            border-radius: 16px;
+            max-width: 800px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .detail-modal-header {
+            padding: 24px;
+            border-bottom: 2px solid var(--gray-200);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 1;
+        }
+
+        .detail-modal-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            color: var(--gray-900);
+        }
+
+        .close-btn {
+            background: var(--gray-100);
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            color: var(--gray-600);
+        }
+
+        .close-btn:hover {
+            background: var(--gray-200);
+            color: var(--gray-900);
+        }
+
+        .detail-modal-body {
+            padding: 24px;
+        }
+
+        .detail-section {
+            margin-bottom: 32px;
+        }
+
+        .detail-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .detail-section h3 {
+            font-size: 1.1rem;
+            color: var(--gray-800);
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--gray-200);
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+        }
+
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .detail-label {
+            font-size: 0.85rem;
+            color: var(--gray-600);
+            font-weight: 600;
+        }
+
+        .detail-value {
+            font-size: 1rem;
+            color: var(--gray-900);
+        }
+
+        .detail-value.highlight {
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .detail-modal-footer {
+            padding: 20px 24px;
+            border-top: 2px solid var(--gray-200);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            position: sticky;
+            bottom: 0;
+            background: white;
+        }
+
+        @media (max-width: 768px) {
+            .filter-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .filter-group {
+                width: 100%;
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            #statusFilter {
+                width: 100%;
+            }
+
+            .action-buttons {
+                width: 100%;
+                justify-content: stretch;
+            }
+
+            .btn-action {
+                flex: 1;
+            }
         }
     </style>
 </head>
@@ -78,20 +400,22 @@
                 </div>
             </div>
 
-            <!-- Actions Bar -->
-            <div style="display: flex; gap: 16px; margin-bottom: 24px; align-items: center; flex-wrap: wrap;">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <label for="statusFilter" style="font-weight: 600; color: var(--gray-700); white-space: nowrap;">Lọc theo trạng thái:</label>
-                    <select id="statusFilter" style="padding: 10px 16px; border: 2px solid var(--gray-300); border-radius: 8px; font-size: 1rem; cursor: pointer; min-width: 150px;">
+            <!-- Filter Bar -->
+            <div class="filter-bar">
+                <div class="filter-group">
+                    <label for="statusFilter">🔍 Lọc theo trạng thái:</label>
+                    <select id="statusFilter">
                         <option value="">Tất cả</option>
-                        <option value="pending">Pending</option>
-                        <option value="approved">Approved</option>
-                        <option value="rejected">Rejected</option>
+                        <option value="pending">Đang xử lý</option>
+                        <option value="approved">Đã duyệt</option>
+                        <option value="rejected">Đã hủy</option>
                     </select>
                 </div>
-                <button id="syncBtn" style="padding: 12px 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s; white-space: nowrap; font-size: 1rem; position: relative; z-index: 1;">
-                    🔍 Kiểm tra chuyển đổi
-                </button>
+                <div class="action-buttons">
+                    <button id="syncBtn" class="btn-action">
+                        🔍 Kiểm tra chuyển đổi
+                    </button>
+                </div>
             </div>
 
             <!-- Conversions Table -->
