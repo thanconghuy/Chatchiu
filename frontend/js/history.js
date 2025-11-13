@@ -119,7 +119,7 @@ function setupFilters() {
  */
 async function loadConversions() {
     try {
-        conversionsTable.innerHTML = '<tr class="loading-state"><td colspan="8"><div class="loading">Đang tải...</div></td></tr>';
+        conversionsTable.innerHTML = '<tr class="loading-state"><td colspan="7"><div class="loading">Đang tải...</div></td></tr>';
 
         const offset = conversionsPage * ITEMS_PER_PAGE;
         let url = `/dashboard/conversions?limit=${ITEMS_PER_PAGE}&offset=${offset}`;
@@ -138,7 +138,7 @@ async function loadConversions() {
         console.error('Error loading conversions:', error);
         conversionsTable.innerHTML = `
             <tr class="error-state">
-                <td colspan="8">
+                <td colspan="7">
                     <div class="error">Không thể tải dữ liệu</div>
                 </td>
             </tr>
@@ -153,7 +153,7 @@ function renderConversions(conversions) {
     if (conversions.length === 0) {
         conversionsTable.innerHTML = `
             <tr class="empty-state">
-                <td colspan="8">
+                <td colspan="7">
                     <p>Chưa có đơn hàng nào</p>
                 </td>
             </tr>
@@ -178,7 +178,6 @@ function renderConversions(conversions) {
                 </td>
                 <td>${conv.orderCode || '-'}</td>
                 <td>${formatCurrency(conv.orderAmount)}</td>
-                <td>${formatCurrency(conv.commission)}</td>
                 <td class="highlight">${formatCurrency(conv.cashbackAmount)}</td>
                 <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                 <td>${formatDate(conv.orderTime)}</td>

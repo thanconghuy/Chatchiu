@@ -1822,6 +1822,53 @@ router.post('/auto-sync/test', authenticateAdmin, async (req, res) => {
 });
 
 /**
+ * POST /api/admin/cron/auto-sync
+ * Endpoint for Vercel Cron Jobs to trigger auto-sync
+ * Requires CRON_SECRET in Authorization header for security
+ */
+router.post('/cron/auto-sync', async (req, res) => {
+  try {
+    // Verify cron secret
+    const cronSecret = req.headers.authorization?.replace('Bearer ', '');
+    const expectedSecret = process.env.CRON_SECRET;
+
+    if (!expectedSecret || cronSecret !== expectedSecret) {
+      logger.warn('Unauthorized cron request', {
+        hasSecret: !!cronSecret,
+        ip: req.ip
+      });
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized'
+      });
+    }
+
+    // Get config to determine sync days
+    const config = await AutoSyncConfig.getConfig();
+    const syncDays = config.sync_days || 2;
+
+    logger.info('Cron auto-sync triggered', {
+      syncDays,
+      ip: req.ip
+    });
+
+    const result = await autoSyncService.triggerManualSync(syncDays);
+
+    res.json({
+      success: true,
+      message: 'Cron sync completed successfully',
+      result
+    });
+  } catch (error) {
+    logger.error('Cron auto-sync error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to run cron sync'
+    });
+  }
+});
+
+/**
  * POST /api/admin/check-pending-orders
  * Check pending conversions status from AccessTrade
  */

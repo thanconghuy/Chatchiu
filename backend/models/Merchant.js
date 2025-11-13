@@ -103,6 +103,18 @@ class Merchant {
       const urlObj = new URL(url);
       const merchantUrlObj = new URL(merchant.deep_link_base);
 
+      // Special case: Shopee has multiple shortened domain aliases
+      const shopeeAliases = ['shope.ee', 's.shopee.vn', 'vn.shp.ee'];
+      const urlHostname = urlObj.hostname.toLowerCase();
+
+      // Check if merchant is Shopee (contains shopee.vn)
+      if (merchantUrlObj.hostname.toLowerCase().includes('shopee.vn')) {
+        // Allow any Shopee alias domains
+        if (shopeeAliases.some(alias => urlHostname.includes(alias))) {
+          return true;
+        }
+      }
+
       // Extract domain without subdomain for flexible matching
       const getDomain = (hostname) => {
         const parts = hostname.split('.');

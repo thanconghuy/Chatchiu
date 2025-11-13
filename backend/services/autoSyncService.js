@@ -132,9 +132,14 @@ class AutoSyncService {
 
     try {
       this.isRunning = true;
+      await AutoSyncConfig.updateLastRun('running', 'Manual test sync in progress...');
+
       logger.info('Manual sync triggered', { syncDays });
 
       const result = await syncConversions(syncDays);
+
+      // Save last run info
+      await AutoSyncConfig.updateLastRun('success', `Manual test: Synced ${result.imported} conversions successfully`);
 
       logger.info('Manual sync completed', {
         imported: result.imported,
@@ -142,6 +147,10 @@ class AutoSyncService {
       });
 
       return result;
+    } catch (error) {
+      // Save error status
+      await AutoSyncConfig.updateLastRun('error', `Manual test failed: ${error.message}`);
+      throw error;
     } finally {
       this.isRunning = false;
     }

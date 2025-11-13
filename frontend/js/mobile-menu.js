@@ -22,7 +22,13 @@
         // Toggle sidebar on button click
         mobileMenuToggle.addEventListener('click', (e) => {
             e.stopPropagation();
-            sidebar.classList.toggle('show');
+            const isOpen = sidebar.classList.toggle('show');
+            // Prevent body scroll when sidebar is open on mobile
+            if (isOpen) {
+                document.body.classList.add('sidebar-open');
+            } else {
+                document.body.classList.remove('sidebar-open');
+            }
         });
 
         // Close sidebar when clicking outside on mobile
@@ -30,6 +36,7 @@
             if (window.innerWidth <= 768) {
                 if (!sidebar.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
                     sidebar.classList.remove('show');
+                    document.body.classList.remove('sidebar-open');
                 }
             }
         });
@@ -41,6 +48,7 @@
                 if (window.innerWidth <= 768) {
                     setTimeout(() => {
                         sidebar.classList.remove('show');
+                        document.body.classList.remove('sidebar-open');
                     }, 200);
                 }
             });
@@ -50,6 +58,7 @@
         window.addEventListener('resize', () => {
             if (window.innerWidth > 768) {
                 sidebar.classList.remove('show');
+                document.body.classList.remove('sidebar-open');
             }
         });
     }
