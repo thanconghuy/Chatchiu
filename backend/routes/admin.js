@@ -1880,7 +1880,6 @@ router.post('/tools/check-pending-orders', authenticateAdmin, async (req, res) =
   }
 });
 
-<<<<<<< HEAD
 /**
  * POST /api/admin/tools/retry-unmatched
  * Retry matching for unmatched clicks
@@ -1913,7 +1912,14 @@ router.post('/tools/retry-unmatched', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to retry unmatched clicks'
-=======
+    });
+  }
+});
+
+/**
+ * GET /api/admin/auto-sync/config
+ * Get auto-sync configuration
+ */
 router.get('/auto-sync/config', authenticateAdmin, async (req, res) => {
   try {
     const config = await AutoSyncConfig.getConfig();
@@ -1929,13 +1935,11 @@ router.get('/auto-sync/config', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to get auto-sync config'
->>>>>>> bb5bf9c607bb3a15aa51cdd19d557e177cea58af
     });
   }
 });
 
 /**
-<<<<<<< HEAD
  * GET /api/admin/tools/retry-stats
  * Get retry service statistics
  */
@@ -1954,7 +1958,11 @@ router.get('/tools/retry-stats', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to get retry stats'
-=======
+    });
+  }
+});
+
+/**
  * PUT /api/admin/auto-sync/config
  * Update auto-sync configuration
  */
@@ -2000,13 +2008,11 @@ router.put('/auto-sync/config', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to update auto-sync config'
->>>>>>> bb5bf9c607bb3a15aa51cdd19d557e177cea58af
     });
   }
 });
 
 /**
-<<<<<<< HEAD
  * GET /api/admin/tools/expiring-clicks
  * Get clicks that are expiring soon
  */
@@ -2031,7 +2037,11 @@ router.get('/tools/expiring-clicks', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to get expiring clicks'
-=======
+    });
+  }
+});
+
+/**
  * POST /api/admin/auto-sync/test
  * Test auto-sync manually
  */
@@ -2064,13 +2074,11 @@ router.post('/auto-sync/test', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to run manual sync'
->>>>>>> bb5bf9c607bb3a15aa51cdd19d557e177cea58af
     });
   }
 });
 
 /**
-<<<<<<< HEAD
  * GET /api/admin/tools/test-at-api
  * Test AccessTrade API connection for link generation
  */
@@ -2090,7 +2098,11 @@ router.get('/tools/test-at-api', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to test API connection'
-=======
+    });
+  }
+});
+
+/**
  * POST /api/admin/cron/auto-sync
  * Endpoint for Vercel Cron Jobs to trigger auto-sync
  * Requires CRON_SECRET in Authorization header for security
@@ -2133,13 +2145,11 @@ router.post('/cron/auto-sync', async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to run cron sync'
->>>>>>> bb5bf9c607bb3a15aa51cdd19d557e177cea58af
     });
   }
 });
 
 /**
-<<<<<<< HEAD
  * GET /api/admin/tools/link-mode-status
  * Get current link generation mode status
  */
@@ -2312,7 +2322,11 @@ router.get('/cron/status', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to get cron status'
-=======
+    });
+  }
+});
+
+/**
  * POST /api/admin/check-pending-orders
  * Check pending conversions status from AccessTrade
  */
@@ -2519,13 +2533,11 @@ router.post('/check-pending-orders', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to check pending orders'
->>>>>>> bb5bf9c607bb3a15aa51cdd19d557e177cea58af
     });
   }
 });
 
 /**
-<<<<<<< HEAD
  * POST /api/admin/cron/start
  * Start/initialize all cron jobs
  */
@@ -2546,7 +2558,11 @@ router.post('/cron/start', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to start cron jobs'
-=======
+    });
+  }
+});
+
+/**
  * POST /api/admin/approve-pending-orders
  * Approve multiple pending orders at once
  */
@@ -2639,13 +2655,11 @@ router.post('/approve-pending-orders', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to approve orders'
->>>>>>> bb5bf9c607bb3a15aa51cdd19d557e177cea58af
     });
   }
 });
 
 /**
-<<<<<<< HEAD
  * POST /api/admin/cron/stop
  * Stop all cron jobs
  */
@@ -2695,7 +2709,11 @@ router.post('/cron/trigger/:jobName', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to trigger job'
-=======
+    });
+  }
+});
+
+/**
  * GET /api/admin/check-single-order
  * Check single order status using order-products API
  */
@@ -2810,7 +2828,6 @@ router.get('/check-single-order', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to check order'
->>>>>>> bb5bf9c607bb3a15aa51cdd19d557e177cea58af
     });
   }
 });
