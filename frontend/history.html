@@ -92,6 +92,14 @@
 
                 <!-- Pagination -->
                 <div class="pagination" id="conversionsPagination">
+                    <div class="rows-per-page">
+                        <label for="conversionsRowsPerPage">Hiển thị:</label>
+                        <select id="conversionsRowsPerPage">
+                            <option value="10">10</option>
+                            <option value="20" selected>20</option>
+                            <option value="50">50</option>
+                        </select>
+                    </div>
                     <button class="btn-secondary" id="prevConversions" disabled>« Trước</button>
                     <span id="conversionsPageInfo">Trang 1</span>
                     <button class="btn-secondary" id="nextConversions">Sau »</button>
@@ -125,6 +133,14 @@
 
                 <!-- Pagination -->
                 <div class="pagination" id="clicksPagination">
+                    <div class="rows-per-page">
+                        <label for="clicksRowsPerPage">Hiển thị:</label>
+                        <select id="clicksRowsPerPage">
+                            <option value="10">10</option>
+                            <option value="20" selected>20</option>
+                            <option value="50">50</option>
+                        </select>
+                    </div>
                     <button class="btn-secondary" id="prevClicks" disabled>« Trước</button>
                     <span id="clicksPageInfo">Trang 1</span>
                     <button class="btn-secondary" id="nextClicks">Sau »</button>

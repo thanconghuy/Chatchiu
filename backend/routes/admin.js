@@ -138,6 +138,130 @@ router.get('/users', authenticateAdmin, async (req, res) => {
 });
 
 /**
+ * GET /api/admin/users/:userId
+ * Get detailed information for a specific user
+ */
+router.get('/users/:userId', authenticateAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Get user details
+    const userQuery = `
+      SELECT
+        u.id,
+        u.email,
+        u.username,
+        u.full_name,
+        u.phone,
+        u.available_balance,
+        u.pending_balance,
+        u.total_cashback,
+        u.is_admin,
+        u.created_at
+      FROM users u
+      WHERE u.id = $1
+    `;
+
+    const userResult = await pool.query(userQuery, [userId]);
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const user = userResult.rows[0];
+
+    // Get user's clicks
+    const clicksQuery = `
+      SELECT COUNT(*) as total_clicks,
+             COUNT(CASE WHEN link_mode = 'button' THEN 1 END) as button_clicks,
+             COUNT(CASE WHEN link_mode = 'link' THEN 1 END) as link_clicks
+      FROM clicks
+      WHERE user_id = $1
+    `;
+    const clicksResult = await pool.query(clicksQuery, [userId]);
+
+    // Get user's conversions
+    const conversionsQuery = `
+      SELECT COUNT(*) as total_conversions,
+             COUNT(CASE WHEN c.status = 'approved' THEN 1 END) as approved_conversions,
+             COUNT(CASE WHEN c.status = 'pending' THEN 1 END) as pending_conversions,
+             COUNT(CASE WHEN c.status = 'rejected' THEN 1 END) as rejected_conversions,
+             COALESCE(SUM(CASE WHEN c.status = 'approved' THEN c.cashback_amount ELSE 0 END), 0) as approved_cashback,
+             COALESCE(SUM(CASE WHEN c.status = 'pending' THEN c.cashback_amount ELSE 0 END), 0) as pending_cashback
+      FROM conversions c
+      JOIN clicks cl ON c.click_id = cl.id
+      WHERE cl.user_id = $1
+    `;
+    const conversionsResult = await pool.query(conversionsQuery, [userId]);
+
+    // Get recent activity
+    const recentActivityQuery = `
+      (
+        SELECT 'click' as type, clicked_at as timestamp, merchant_name, NULL as amount
+        FROM clicks
+        WHERE user_id = $1
+        ORDER BY clicked_at DESC
+        LIMIT 10
+      )
+      UNION ALL
+      (
+        SELECT 'conversion' as type, c.created_at as timestamp, c.merchant_name, c.cashback_amount as amount
+        FROM conversions c
+        JOIN clicks cl ON c.click_id = cl.id
+        WHERE cl.user_id = $1
+        ORDER BY c.created_at DESC
+        LIMIT 10
+      )
+      ORDER BY timestamp DESC
+      LIMIT 20
+    `;
+    const activityResult = await pool.query(recentActivityQuery, [userId]);
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        fullName: user.full_name,
+        phone: user.phone,
+        availableBalance: parseFloat(user.available_balance),
+        pendingBalance: parseFloat(user.pending_balance),
+        totalCashback: parseFloat(user.total_cashback),
+        isAdmin: user.is_admin,
+        createdAt: user.created_at,
+        stats: {
+          totalClicks: parseInt(clicksResult.rows[0].total_clicks),
+          buttonClicks: parseInt(clicksResult.rows[0].button_clicks),
+          linkClicks: parseInt(clicksResult.rows[0].link_clicks),
+          totalConversions: parseInt(conversionsResult.rows[0].total_conversions),
+          approvedConversions: parseInt(conversionsResult.rows[0].approved_conversions),
+          pendingConversions: parseInt(conversionsResult.rows[0].pending_conversions),
+          rejectedConversions: parseInt(conversionsResult.rows[0].rejected_conversions),
+          approvedCashback: parseFloat(conversionsResult.rows[0].approved_cashback),
+          pendingCashback: parseFloat(conversionsResult.rows[0].pending_cashback)
+        },
+        recentActivity: activityResult.rows.map(a => ({
+          type: a.type,
+          timestamp: a.timestamp,
+          merchantName: a.merchant_name,
+          amount: a.amount ? parseFloat(a.amount) : null
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Get user details error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get user details'
+    });
+  }
+});
+
+/**
  * GET /api/admin/conversions
  * Get all system conversions (cashback conversions only - matched with users)
  */
@@ -2214,7 +2338,7 @@ router.get('/monitoring/metrics', authenticateAdmin, async (req, res) => {
       SELECT
         CASE
           WHEN co.utm_content IS NOT NULL AND c.utm_content = co.utm_content THEN 'utm_content'
-          WHEN co.sub2 IS NOT NULL AND c.sub2 = co.sub2 THEN 'sub2'
+          WHEN c.sub2 IS NOT NULL AND co.aff_sid = c.sub2 THEN 'sub2'
           WHEN co.aff_sid IS NOT NULL AND c.aff_sid = co.aff_sid THEN 'aff_sid'
           ELSE 'unknown'
         END as match_method,
