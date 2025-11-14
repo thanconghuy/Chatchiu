@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoring Dashboard - Tracking Performance</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="admin.css">
+    <style>
+        .monitoring-container {
+            display: grid;
+            gap: 24px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .metric-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid var(--primary);
+        }
+
+        .metric-card.success {
+            border-left-color: #38a169;
+        }
+
+        .metric-card.warning {
+            border-left-color: #ed8936;
+        }
+
+        .metric-card.danger {
+            border-left-color: #e53e3e;
+        }
+
+        .metric-label {
+            font-size: 0.85rem;
+            color: var(--gray-600);
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 4px;
+        }
+
+        .metric-subtext {
+            font-size: 0.8rem;
+            color: var(--gray-500);
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 24px;
+        }
+
+        .chart-container h2 {
+            margin: 0 0 20px 0;
+            color: var(--gray-900);
+            font-size: 1.3rem;
+        }
+
+        .chart-placeholder {
+            height: 300px;
+            background: var(--gray-50);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--gray-500);
+        }
+
+        .breakdown-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .breakdown-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .breakdown-card h3 {
+            margin: 0 0 16px 0;
+            color: var(--gray-900);
+            font-size: 1.1rem;
+        }
+
+        .breakdown-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .breakdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .breakdown-label {
+            font-weight: 500;
+            color: var(--gray-700);
+        }
+
+        .breakdown-badge {
+            background: var(--primary);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .breakdown-badge.api {
+            background: #38a169;
+        }
+
+        .breakdown-badge.diy {
+            background: #ed8936;
+        }
+
+        .breakdown-badge.utm {
+            background: #48bb78;
+        }
+
+        .breakdown-badge.sub2 {
+            background: #667eea;
+        }
+
+        .breakdown-badge.aff {
+            background: #f6ad55;
+        }
+
+        .cron-status {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .cron-status h3 {
+            margin: 0 0 16px 0;
+            color: var(--gray-900);
+            font-size: 1.1rem;
+        }
+
+        .cron-job {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: var(--gray-50);
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .cron-job-name {
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+
+        .cron-job-schedule {
+            font-size: 0.85rem;
+            color: var(--gray-600);
+            font-family: 'Courier New', monospace;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-badge.running {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .status-badge.stopped {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .period-selector {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+
+        .period-btn {
+            padding: 8px 16px;
+            border: 2px solid var(--gray-300);
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .period-btn:hover {
+            border-color: var(--primary);
+        }
+
+        .period-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .refresh-btn {
+            padding: 10px 20px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 24px;
+        }
+
+        .refresh-btn:hover {
+            background: var(--primary-dark);
+        }
+
+        .alert-box {
+            background: #fff5f5;
+            border-left: 4px solid #e53e3e;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+
+        .alert-box.warning {
+            background: #fffaf0;
+            border-left-color: #ed8936;
+        }
+
+        .alert-box.info {
+            background: #e6f7ff;
+            border-left-color: #667eea;
+        }
+
+        .alert-title {
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--gray-900);
+        }
+
+        @media (max-width: 768px) {
+            .breakdown-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
+
+    <div class="app-container" style="display: flex; width: 100%; max-width: 100vw;">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="logo">
+                <span class="logo-icon">⚡</span>
+                <span class="logo-text">Admin</span>
+            </div>
+
+            <nav class="nav">
+                <a href="/admin" class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+                <a href="/admin/users" class="nav-item">
+                    <span class="nav-icon">👥</span>
+                    <span class="nav-text">Users</span>
+                </a>
+                <a href="/admin/conversions" class="nav-item">
+                    <span class="nav-icon">💰</span>
+                    <span class="nav-text">Conversions</span>
+                </a>
+                <a href="/admin/at-orders" class="nav-item">
+                    <span class="nav-icon">📦</span>
+                    <span class="nav-text">Dữ liệu đơn AT</span>
+                </a>
+                <a href="/admin/reconciliation" class="nav-item">
+                    <span class="nav-icon">📋</span>
+                    <span class="nav-text">Đối soát</span>
+                </a>
+                <a href="/admin/merchants" class="nav-item">
+                    <span class="nav-icon">🏪</span>
+                    <span class="nav-text">Merchants</span>
+                </a>
+                <a href="/admin/tools" class="nav-item">
+                    <span class="nav-icon">🔧</span>
+                    <span class="nav-text">Tools</span>
+                </a>
+                <a href="/admin/monitoring" class="nav-item active">
+                    <span class="nav-icon">📈</span>
+                    <span class="nav-text">Monitoring</span>
+                </a>
+                <a href="#" class="nav-item" id="logoutBtn">
+                    <span class="nav-icon">🚪</span>
+                    <span class="nav-text">Logout</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-wrapper">
+                <div class="content-header">
+                    <h1>Monitoring Dashboard</h1>
+                    <div class="user-info">
+                        <span id="userName">Admin</span>
+                    </div>
+                </div>
+
+                <div class="monitoring-container">
+                    <!-- Period Selector -->
+                    <div class="period-selector">
+                        <button class="period-btn" data-days="1">24h</button>
+                        <button class="period-btn active" data-days="7">7 ngày</button>
+                        <button class="period-btn" data-days="30">30 ngày</button>
+                        <button class="refresh-btn" id="refreshBtn">🔄 Làm mới</button>
+                    </div>
+
+                    <!-- Alerts -->
+                    <div id="alertsContainer"></div>
+
+                    <!-- Key Metrics -->
+                    <div class="metrics-grid">
+                        <div class="metric-card success">
+                            <div class="metric-label">Tỷ lệ Match</div>
+                            <div class="metric-value" id="matchRate">--</div>
+                            <div class="metric-subtext">Tổng số click được match</div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div class="metric-label">Tổng Clicks</div>
+                            <div class="metric-value" id="totalClicks">--</div>
+                            <div class="metric-subtext">Trong khoảng thời gian</div>
+                        </div>
+
+                        <div class="metric-card warning">
+                            <div class="metric-label">Chưa Match</div>
+                            <div class="metric-value" id="unmatchedClicks">--</div>
+                            <div class="metric-subtext">Đang chờ retry</div>
+                        </div>
+
+                        <div class="metric-card danger">
+                            <div class="metric-label">Sắp Hết Hạn</div>
+                            <div class="metric-value" id="expiringClicks">--</div>
+                            <div class="metric-subtext">Click sắp hết 30 ngày</div>
+                        </div>
+                    </div>
+
+                    <!-- Match Rate Trends Chart -->
+                    <div class="chart-container">
+                        <h2>Xu Hướng Tỷ Lệ Match</h2>
+                        <div class="chart-placeholder" id="matchTrendChart">
+                            <canvas id="trendCanvas" width="800" height="300"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Breakdown Charts -->
+                    <div class="breakdown-grid">
+                        <!-- Match Method Breakdown -->
+                        <div class="breakdown-card">
+                            <h3>Phương Thức Match</h3>
+                            <div id="matchMethodBreakdown">
+                                <div class="breakdown-item">
+                                    <span class="breakdown-label">utm_content (Priority 1)</span>
+                                    <span class="breakdown-badge utm" id="utmCount">0</span>
+                                </div>
+                                <div class="breakdown-item">
+                                    <span class="breakdown-label">sub2 (Priority 2)</span>
+                                    <span class="breakdown-badge sub2" id="sub2Count">0</span>
+                                </div>
+                                <div class="breakdown-item">
+                                    <span class="breakdown-label">aff_sid (Priority 3)</span>
+                                    <span class="breakdown-badge aff" id="affCount">0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Link Mode Distribution -->
+                        <div class="breakdown-card">
+                            <h3>Chế Độ Tạo Link</h3>
+                            <div id="linkModeBreakdown">
+                                <div class="breakdown-item">
+                                    <span class="breakdown-label">API Mode</span>
+                                    <span class="breakdown-badge api" id="apiCount">0</span>
+                                </div>
+                                <div class="breakdown-item">
+                                    <span class="breakdown-label">DIY Mode</span>
+                                    <span class="breakdown-badge diy" id="diyCount">0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cron Jobs Status -->
+                    <div class="cron-status">
+                        <h3>Trạng Thái Cron Jobs</h3>
+                        <div id="cronJobsContainer">
+                            <p style="text-align: center; color: var(--gray-500);">Đang tải...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Auth token
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = '/login';
+        }
+
+        // Current period
+        let currentDays = 7;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadMonitoringData();
+            setupEventListeners();
+        });
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Period selector
+            document.querySelectorAll('.period-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentDays = parseInt(btn.dataset.days);
+                    loadMonitoringData();
+                });
+            });
+
+            // Refresh button
+            document.getElementById('refreshBtn').addEventListener('click', () => {
+                loadMonitoringData();
+            });
+
+            // Logout
+            document.getElementById('logoutBtn').addEventListener('click', (e) => {
+                e.preventDefault();
+                localStorage.removeItem('token');
+                window.location.href = '/login';
+            });
+
+            // Mobile menu
+            const toggle = document.getElementById('mobileMenuToggle');
+            const sidebar = document.getElementById('sidebar');
+            if (toggle && sidebar) {
+                toggle.addEventListener('click', () => {
+                    sidebar.classList.toggle('show');
+                });
+            }
+        }
+
+        // Load monitoring data
+        async function loadMonitoringData() {
+            try {
+                const response = await fetch(`/api/admin/monitoring/metrics?days=${currentDays}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) throw new Error('Failed to load monitoring data');
+
+                const result = await response.json();
+                const data = result.data;
+
+                // Update overview metrics
+                document.getElementById('matchRate').textContent = data.overview.overallMatchRate + '%';
+                document.getElementById('totalClicks').textContent = data.overview.totalClicks.toLocaleString();
+                document.getElementById('unmatchedClicks').textContent = data.overview.unmatchedClicks.toLocaleString();
+                document.getElementById('expiringClicks').textContent = data.overview.expiringClicks.toLocaleString();
+
+                // Update match method breakdown
+                const matchMethods = data.matchMethodBreakdown;
+                document.getElementById('utmCount').textContent =
+                    (matchMethods.find(m => m.method === 'utm_content')?.count || 0).toLocaleString();
+                document.getElementById('sub2Count').textContent =
+                    (matchMethods.find(m => m.method === 'sub2')?.count || 0).toLocaleString();
+                document.getElementById('affCount').textContent =
+                    (matchMethods.find(m => m.method === 'aff_sid')?.count || 0).toLocaleString();
+
+                // Update link mode breakdown
+                const linkModes = data.linkModeDistribution;
+                document.getElementById('apiCount').textContent =
+                    (linkModes.find(m => m.mode === 'api')?.count || 0).toLocaleString();
+                document.getElementById('diyCount').textContent =
+                    (linkModes.find(m => m.mode === 'diy')?.count || 0).toLocaleString();
+
+                // Update cron jobs status
+                updateCronJobsStatus(data.cronJobsStatus);
+
+                // Show alerts if needed
+                updateAlerts(data.overview);
+
+                // Draw chart
+                drawMatchTrendChart(data.matchRateTrends);
+
+            } catch (error) {
+                console.error('Error loading monitoring data:', error);
+                alert('Không thể tải dữ liệu monitoring');
+            }
+        }
+
+        // Update cron jobs status
+        function updateCronJobsStatus(cronStatus) {
+            const container = document.getElementById('cronJobsContainer');
+
+            if (!cronStatus.isInitialized || cronStatus.jobsCount === 0) {
+                container.innerHTML = `
+                    <p style="text-align: center; color: var(--gray-500);">
+                        Cron jobs chưa được kích hoạt.
+                        ${cronStatus.autoCronEnabled ? 'Hệ thống sẽ tự động khởi động.' : 'Đặt AUTO_CRON_ENABLED=true để kích hoạt.'}
+                    </p>
+                `;
+                return;
+            }
+
+            const html = cronStatus.jobs.map(job => `
+                <div class="cron-job">
+                    <div>
+                        <div class="cron-job-name">${job.name}</div>
+                        <div class="cron-job-schedule">${job.schedule}</div>
+                    </div>
+                    <span class="status-badge ${job.status}">${job.status}</span>
+                </div>
+            `).join('');
+
+            container.innerHTML = html;
+        }
+
+        // Update alerts
+        function updateAlerts(overview) {
+            const container = document.getElementById('alertsContainer');
+            const alerts = [];
+
+            // High unmatched clicks alert
+            if (overview.unmatchedClicks > 50) {
+                alerts.push({
+                    type: 'warning',
+                    title: 'Số lượng click chưa match cao',
+                    message: `Có ${overview.unmatchedClicks} clicks chưa được match. Hãy chạy retry service để cải thiện.`
+                });
+            }
+
+            // Expiring clicks alert
+            if (overview.expiringClicks > 20) {
+                alerts.push({
+                    type: 'danger',
+                    title: 'Nhiều clicks sắp hết hạn',
+                    message: `${overview.expiringClicks} clicks sắp hết hạn 30 ngày. Cần xử lý ngay!`
+                });
+            }
+
+            // Low match rate alert
+            if (overview.overallMatchRate < 40) {
+                alerts.push({
+                    type: 'danger',
+                    title: 'Tỷ lệ match thấp',
+                    message: `Tỷ lệ match chỉ ${overview.overallMatchRate}%. Kiểm tra cấu hình tracking parameters.`
+                });
+            }
+
+            // Render alerts
+            if (alerts.length > 0) {
+                container.innerHTML = alerts.map(alert => `
+                    <div class="alert-box ${alert.type}">
+                        <div class="alert-title">${alert.title}</div>
+                        <div>${alert.message}</div>
+                    </div>
+                `).join('');
+            } else {
+                container.innerHTML = `
+                    <div class="alert-box info">
+                        <div class="alert-title">✅ Hệ thống hoạt động tốt</div>
+                        <div>Không có cảnh báo nào. Tất cả metrics đều trong mức bình thường.</div>
+                    </div>
+                `;
+            }
+        }
+
+        // Draw match trend chart
+        function drawMatchTrendChart(trends) {
+            const canvas = document.getElementById('trendCanvas');
+            const ctx = canvas.getContext('2d');
+
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (!trends || trends.length === 0) {
+                ctx.fillStyle = '#a0aec0';
+                ctx.font = '16px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Không có dữ liệu', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+
+            // Reverse to show oldest first
+            const data = [...trends].reverse();
+
+            // Calculate dimensions
+            const padding = 50;
+            const chartWidth = canvas.width - 2 * padding;
+            const chartHeight = canvas.height - 2 * padding;
+
+            // Find max values
+            const maxClicks = Math.max(...data.map(d => d.totalClicks));
+            const maxRate = 100;
+
+            // Draw axes
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(padding, padding);
+            ctx.lineTo(padding, canvas.height - padding);
+            ctx.lineTo(canvas.width - padding, canvas.height - padding);
+            ctx.stroke();
+
+            // Draw grid lines
+            ctx.strokeStyle = '#f7fafc';
+            for (let i = 0; i <= 5; i++) {
+                const y = padding + (chartHeight / 5) * i;
+                ctx.beginPath();
+                ctx.moveTo(padding, y);
+                ctx.lineTo(canvas.width - padding, y);
+                ctx.stroke();
+            }
+
+            // Draw match rate line
+            ctx.strokeStyle = '#667eea';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+
+            data.forEach((point, index) => {
+                const x = padding + (chartWidth / (data.length - 1)) * index;
+                const y = canvas.height - padding - (point.matchRate / maxRate) * chartHeight;
+
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+
+            ctx.stroke();
+
+            // Draw points
+            data.forEach((point, index) => {
+                const x = padding + (chartWidth / (data.length - 1)) * index;
+                const y = canvas.height - padding - (point.matchRate / maxRate) * chartHeight;
+
+                ctx.fillStyle = '#667eea';
+                ctx.beginPath();
+                ctx.arc(x, y, 5, 0, 2 * Math.PI);
+                ctx.fill();
+
+                // Draw date labels
+                ctx.fillStyle = '#718096';
+                ctx.font = '11px sans-serif';
+                ctx.textAlign = 'center';
+                const date = new Date(point.date);
+                const label = `${date.getDate()}/${date.getMonth() + 1}`;
+                ctx.fillText(label, x, canvas.height - padding + 20);
+
+                // Draw rate label
+                ctx.fillStyle = '#667eea';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.fillText(point.matchRate + '%', x, y - 10);
+            });
+
+            // Draw y-axis labels
+            ctx.fillStyle = '#718096';
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'right';
+            for (let i = 0; i <= 5; i++) {
+                const y = padding + (chartHeight / 5) * i;
+                const value = maxRate - (maxRate / 5) * i;
+                ctx.fillText(value + '%', padding - 10, y + 4);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -9,6 +9,7 @@ const passport = require('./backend/config/passport'); // Google OAuth enabled
 // const cron = require('node-cron'); // DISABLED - manual sync only
 // const { syncConversions } = require('./backend/jobs/syncConversions'); // Used in admin routes
 const logger = require('./backend/utils/logger');
+const cronJobsService = require('./backend/jobs/cronJobs'); // Cron jobs for retry and cleanup
 
 const app = express();
 const PORT = process.env.PORT || 3007;
@@ -157,6 +158,17 @@ if (process.env.VERCEL !== '1') {
     console.log(`🔑 JWT Secret: ${process.env.JWT_SECRET ? 'Configured' : 'Using default'}`);
     console.log(`⏰ Auto Sync: DISABLED (Manual sync only)`);
     console.log('='.repeat(60));
+
+    // Initialize cron jobs for retry and cleanup
+    try {
+      cronJobsService.initialize();
+      const status = cronJobsService.getStatus();
+      if (status.isInitialized) {
+        console.log(`⏱️  Cron Jobs: ${status.jobsCount} jobs initialized`);
+      }
+    } catch (error) {
+      logger.error('Failed to initialize cron jobs', { error: error.message });
+    }
 
     // Initial sync DISABLED - Use manual sync from admin panel
     // Run initial sync on server start (DISABLED)

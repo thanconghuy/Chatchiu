@@ -14,6 +14,7 @@ const trackingService = require('../services/trackingService');
 const { syncConversions } = require('../jobs/syncConversions');
 const pendingOrdersUpdate = require('../services/pendingOrdersUpdate');
 const retryService = require('../services/retryService');
+const cronJobsService = require('../jobs/cronJobs');
 const logger = require('../utils/logger');
 
 /**
@@ -2019,6 +2020,228 @@ router.get('/tools/link-mode-status', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to get status'
+    });
+  }
+});
+
+// ===========================
+// MONITORING DASHBOARD
+// ===========================
+
+/**
+ * GET /api/admin/monitoring/metrics
+ * Get comprehensive monitoring metrics for tracking performance
+ */
+router.get('/monitoring/metrics', authenticateAdmin, async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 7; // Default to 7 days
+
+    // Get conversion match rate trends
+    const matchRateQuery = `
+      SELECT
+        DATE(c.clicked_at) as date,
+        COUNT(*) as total_clicks,
+        COUNT(co.id) as matched_conversions,
+        ROUND(COUNT(co.id)::numeric / NULLIF(COUNT(*), 0) * 100, 2) as match_rate
+      FROM clicks c
+      LEFT JOIN conversions co ON c.id = co.click_id
+      WHERE c.clicked_at >= NOW() - INTERVAL '${days} days'
+      GROUP BY DATE(c.clicked_at)
+      ORDER BY date DESC
+    `;
+
+    // Get match method breakdown
+    const matchMethodQuery = `
+      SELECT
+        CASE
+          WHEN co.utm_content IS NOT NULL AND c.utm_content = co.utm_content THEN 'utm_content'
+          WHEN co.sub2 IS NOT NULL AND c.sub2 = co.sub2 THEN 'sub2'
+          WHEN co.aff_sid IS NOT NULL AND c.aff_sid = co.aff_sid THEN 'aff_sid'
+          ELSE 'unknown'
+        END as match_method,
+        COUNT(*) as count
+      FROM conversions co
+      JOIN clicks c ON co.click_id = c.id
+      WHERE co.created_at >= NOW() - INTERVAL '${days} days'
+      GROUP BY match_method
+    `;
+
+    // Get link generation mode distribution
+    const linkModeQuery = `
+      SELECT
+        CASE
+          WHEN affiliate_url LIKE '%click.accesstrade.vn%' THEN 'api'
+          ELSE 'diy'
+        END as link_mode,
+        COUNT(*) as count
+      FROM clicks
+      WHERE clicked_at >= NOW() - INTERVAL '${days} days'
+      GROUP BY link_mode
+    `;
+
+    // Execute all queries in parallel
+    const [matchRateResult, matchMethodResult, linkModeResult, retryStats] = await Promise.all([
+      pool.query(matchRateQuery),
+      pool.query(matchMethodQuery),
+      pool.query(linkModeQuery),
+      retryService.getStats()
+    ]);
+
+    // Get cron job status
+    const cronStatus = cronJobsService.getStatus();
+
+    // Calculate overall statistics
+    const totalClicks = matchRateResult.rows.reduce((sum, row) => sum + parseInt(row.total_clicks), 0);
+    const totalMatched = matchRateResult.rows.reduce((sum, row) => sum + parseInt(row.matched_conversions), 0);
+    const overallMatchRate = totalClicks > 0 ? ((totalMatched / totalClicks) * 100).toFixed(2) : 0;
+
+    res.json({
+      success: true,
+      data: {
+        overview: {
+          totalClicks,
+          totalMatched,
+          overallMatchRate: parseFloat(overallMatchRate),
+          unmatchedClicks: retryStats.unmatchedClicks,
+          expiringClicks: retryStats.expiringClicks
+        },
+        matchRateTrends: matchRateResult.rows.map(row => ({
+          date: row.date,
+          totalClicks: parseInt(row.total_clicks),
+          matchedConversions: parseInt(row.matched_conversions),
+          matchRate: parseFloat(row.match_rate)
+        })),
+        matchMethodBreakdown: matchMethodResult.rows.map(row => ({
+          method: row.match_method,
+          count: parseInt(row.count)
+        })),
+        linkModeDistribution: linkModeResult.rows.map(row => ({
+          mode: row.link_mode,
+          count: parseInt(row.count)
+        })),
+        cronJobsStatus: cronStatus,
+        retryServiceStats: retryStats,
+        period: {
+          days,
+          startDate: new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString(),
+          endDate: new Date().toISOString()
+        }
+      }
+    });
+  } catch (error) {
+    logger.error('Failed to get monitoring metrics', {
+      error: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to get monitoring metrics'
+    });
+  }
+});
+
+// ===========================
+// CRON JOBS MANAGEMENT
+// ===========================
+
+/**
+ * GET /api/admin/cron/status
+ * Get status of all cron jobs
+ */
+router.get('/cron/status', authenticateAdmin, async (req, res) => {
+  try {
+    const status = cronJobsService.getStatus();
+
+    res.json({
+      success: true,
+      data: status
+    });
+  } catch (error) {
+    logger.error('Failed to get cron status', {
+      error: error.message
+    });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to get cron status'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/cron/start
+ * Start/initialize all cron jobs
+ */
+router.post('/cron/start', authenticateAdmin, async (req, res) => {
+  try {
+    cronJobsService.initialize();
+    const status = cronJobsService.getStatus();
+
+    res.json({
+      success: true,
+      message: `Cron jobs started: ${status.jobsCount} jobs running`,
+      data: status
+    });
+  } catch (error) {
+    logger.error('Failed to start cron jobs', {
+      error: error.message
+    });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to start cron jobs'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/cron/stop
+ * Stop all cron jobs
+ */
+router.post('/cron/stop', authenticateAdmin, async (req, res) => {
+  try {
+    cronJobsService.stopAll();
+
+    res.json({
+      success: true,
+      message: 'All cron jobs stopped'
+    });
+  } catch (error) {
+    logger.error('Failed to stop cron jobs', {
+      error: error.message
+    });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to stop cron jobs'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/cron/trigger/:jobName
+ * Manually trigger a specific cron job
+ */
+router.post('/cron/trigger/:jobName', authenticateAdmin, async (req, res) => {
+  try {
+    const { jobName } = req.params;
+
+    logger.info(`Admin manually triggering cron job: ${jobName}`, {
+      adminId: req.user.id
+    });
+
+    const result = await cronJobsService.triggerJob(jobName);
+
+    res.json({
+      success: true,
+      message: `Job '${jobName}' triggered successfully`,
+      data: result
+    });
+  } catch (error) {
+    logger.error('Failed to trigger cron job', {
+      jobName: req.params.jobName,
+      error: error.message
+    });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to trigger job'
     });
   }
 });
