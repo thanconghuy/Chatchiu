@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Puzzler Dashboard Table Example - Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="logo">
+                <span class="logo-icon">⚡</span>
+                <span class="logo-text">Admin</span>
+            </div>
+
+            <nav class="nav">
+                <a href="/admin" class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+                <a href="/admin/users" class="nav-item">
+                    <span class="nav-icon">👥</span>
+                    <span class="nav-text">Users</span>
+                </a>
+                <a href="/admin/conversions" class="nav-item">
+                    <span class="nav-icon">💰</span>
+                    <span class="nav-text">Conversions</span>
+                </a>
+                <a href="/admin/products" class="nav-item active">
+                    <span class="nav-icon">📦</span>
+                    <span class="nav-text">Products</span>
+                </a>
+                <a href="/admin/merchants" class="nav-item">
+                    <span class="nav-icon">🏪</span>
+                    <span class="nav-text">Merchants</span>
+                </a>
+                <a href="/admin/tools" class="nav-item">
+                    <span class="nav-icon">🔧</span>
+                    <span class="nav-text">Tools</span>
+                </a>
+                <a href="/admin/monitoring" class="nav-item">
+                    <span class="nav-icon">📈</span>
+                    <span class="nav-text">Monitoring</span>
+                </a>
+                <a href="#" class="nav-item" id="logoutBtn">
+                    <span class="nav-icon">🚪</span>
+                    <span class="nav-text">Logout</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-wrapper">
+                <!-- Content Header -->
+                <div class="content-header">
+                    <h1>Product</h1>
+                    <div class="user-info">
+                        <span id="userName">Admin</span>
+                    </div>
+                </div>
+
+                <!-- Table Controls -->
+                <div class="table-actions">
+                    <!-- Left side controls -->
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <div class="showing-dropdown">
+                            <select id="rowsPerPage">
+                                <option value="10" selected>Showing 10</option>
+                                <option value="20">Showing 20</option>
+                                <option value="50">Showing 50</option>
+                                <option value="100">Showing 100</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-filter">
+                            <span>🔽</span>
+                            <span>Filter</span>
+                        </button>
+                        <button class="btn btn-export">
+                            <span>📤</span>
+                            <span>Export</span>
+                        </button>
+                    </div>
+
+                    <!-- Right side controls -->
+                    <button class="btn btn-add">
+                        <span>+</span>
+                        <span>Add New Product</span>
+                    </button>
+                </div>
+
+                <!-- Products Table -->
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th class="sortable">Product Name</th>
+                                <th class="sortable">Product ID</th>
+                                <th class="sortable">Price</th>
+                                <th>Stock</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                                <th style="text-align: center;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productsTable">
+                            <!-- Product Row 1 -->
+                            <tr>
+                                <td>
+                                    <div class="product-cell">
+                                        <img src="https://via.placeholder.com/40" alt="Product" class="product-image">
+                                        <div class="product-info">
+                                            <div class="product-name">Wireless Headphones</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="product-id">#WH-2024-001</td>
+                                <td class="price-cell">$89.99</td>
+                                <td class="stock-cell">150 pcs</td>
+                                <td class="type-cell">Electronics</td>
+                                <td><span class="badge badge-active">Active</span></td>
+                                <td class="action-cell">
+                                    <span class="action-dots">•••</span>
+                                </td>
+                            </tr>
+
+                            <!-- Product Row 2 -->
+                            <tr>
+                                <td>
+                                    <div class="product-cell">
+                                        <img src="https://via.placeholder.com/40" alt="Product" class="product-image">
+                                        <div class="product-info">
+                                            <div class="product-name">Smart Watch Series 5</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="product-id">#SW-2024-045</td>
+                                <td class="price-cell">$299.00</td>
+                                <td class="stock-cell">45 pcs</td>
+                                <td class="type-cell">Wearables</td>
+                                <td><span class="badge badge-onsale">On Sale</span></td>
+                                <td class="action-cell">
+                                    <span class="action-dots">•••</span>
+                                </td>
+                            </tr>
+
+                            <!-- Product Row 3 -->
+                            <tr>
+                                <td>
+                                    <div class="product-cell">
+                                        <img src="https://via.placeholder.com/40" alt="Product" class="product-image">
+                                        <div class="product-info">
+                                            <div class="product-name">Laptop Stand Aluminum</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="product-id">#LS-2024-112</td>
+                                <td class="price-cell">$45.50</td>
+                                <td class="stock-cell">0 pcs</td>
+                                <td class="type-cell">Accessories</td>
+                                <td><span class="badge badge-inactive">Inactive</span></td>
+                                <td class="action-cell">
+                                    <span class="action-dots">•••</span>
+                                </td>
+                            </tr>
+
+                            <!-- Product Row 4 -->
+                            <tr>
+                                <td>
+                                    <div class="product-cell">
+                                        <img src="https://via.placeholder.com/40" alt="Product" class="product-image">
+                                        <div class="product-info">
+                                            <div class="product-name">USB-C Cable 2m</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="product-id">#UC-2024-089</td>
+                                <td class="price-cell">$12.99</td>
+                                <td class="stock-cell">500 pcs</td>
+                                <td class="type-cell">Cables</td>
+                                <td><span class="badge badge-pending">Pending</span></td>
+                                <td class="action-cell">
+                                    <span class="action-dots">•••</span>
+                                </td>
+                            </tr>
+
+                            <!-- Product Row 5 -->
+                            <tr>
+                                <td>
+                                    <div class="product-cell">
+                                        <img src="https://via.placeholder.com/40" alt="Product" class="product-image">
+                                        <div class="product-info">
+                                            <div class="product-name">Bluetooth Speaker Pro</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="product-id">#BS-2024-203</td>
+                                <td class="price-cell">$129.00</td>
+                                <td class="stock-cell">89 pcs</td>
+                                <td class="type-cell">Audio</td>
+                                <td><span class="badge badge-bouncing">Bouncing</span></td>
+                                <td class="action-cell">
+                                    <span class="action-dots">•••</span>
+                                </td>
+                            </tr>
+
+                            <!-- Product Row 6 -->
+                            <tr>
+                                <td>
+                                    <div class="product-cell">
+                                        <img src="https://via.placeholder.com/40" alt="Product" class="product-image">
+                                        <div class="product-info">
+                                            <div class="product-name">Mechanical Keyboard RGB</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="product-id">#MK-2024-156</td>
+                                <td class="price-cell">$159.99</td>
+                                <td class="stock-cell">32 pcs</td>
+                                <td class="type-cell">Peripherals</td>
+                                <td><span class="badge badge-active">Active</span></td>
+                                <td class="action-cell">
+                                    <span class="action-dots">•••</span>
+                                </td>
+                            </tr>
+
+                            <!-- Product Row 7 -->
+                            <tr>
+                                <td>
+                                    <div class="product-cell">
+                                        <img src="https://via.placeholder.com/40" alt="Product" class="product-image">
+                                        <div class="product-info">
+                                            <div class="product-name">Gaming Mouse Wireless</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="product-id">#GM-2024-178</td>
+                                <td class="price-cell">$69.99</td>
+                                <td class="stock-cell">120 pcs</td>
+                                <td class="type-cell">Gaming</td>
+                                <td><span class="badge badge-onsale">On Sale</span></td>
+                                <td class="action-cell">
+                                    <span class="action-dots">•••</span>
+                                </td>
+                            </tr>
+
+                            <!-- Product Row 8 -->
+                            <tr>
+                                <td>
+                                    <div class="product-cell">
+                                        <img src="https://via.placeholder.com/40" alt="Product" class="product-image">
+                                        <div class="product-info">
+                                            <div class="product-name">HD Webcam 1080p</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="product-id">#WC-2024-091</td>
+                                <td class="price-cell">$79.00</td>
+                                <td class="stock-cell">65 pcs</td>
+                                <td class="type-cell">Video</td>
+                                <td><span class="badge badge-active">Active</span></td>
+                                <td class="action-cell">
+                                    <span class="action-dots">•••</span>
+                                </td>
+                            </tr>
+
+                            <!-- Product Row 9 -->
+                            <tr>
+                                <td>
+                                    <div class="product-cell">
+                                        <img src="https://via.placeholder.com/40" alt="Product" class="product-image">
+                                        <div class="product-info">
+                                            <div class="product-name">Portable SSD 1TB</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="product-id">#SSD-2024-234</td>
+                                <td class="price-cell">$189.99</td>
+                                <td class="stock-cell">25 pcs</td>
+                                <td class="type-cell">Storage</td>
+                                <td><span class="badge badge-pending">Pending</span></td>
+                                <td class="action-cell">
+                                    <span class="action-dots">•••</span>
+                                </td>
+                            </tr>
+
+                            <!-- Product Row 10 -->
+                            <tr>
+                                <td>
+                                    <div class="product-cell">
+                                        <img src="https://via.placeholder.com/40" alt="Product" class="product-image">
+                                        <div class="product-info">
+                                            <div class="product-name">Phone Case Premium</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="product-id">#PC-2024-067</td>
+                                <td class="price-cell">$24.99</td>
+                                <td class="stock-cell">300 pcs</td>
+                                <td class="type-cell">Accessories</td>
+                                <td><span class="badge badge-active">Active</span></td>
+                                <td class="action-cell">
+                                    <span class="action-dots">•••</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="pagination">
+                    <div class="rows-per-page">
+                        <label for="paginationRows">Hiển thị:</label>
+                        <select id="paginationRows">
+                            <option value="10" selected>10</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                        </select>
+                    </div>
+                    <button class="btn" id="prevBtn">Previous</button>
+                    <button class="page-number">01</button>
+                    <button class="page-number active">02</button>
+                    <button class="page-number">03</button>
+                    <button class="page-number">04</button>
+                    <span class="page-dots">...</span>
+                    <button class="page-number">10</button>
+                    <button class="page-number">11</button>
+                    <button class="btn" id="nextBtn">Next</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/mobile-menu.js"></script>
+</body>
+</html>

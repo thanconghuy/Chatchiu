@@ -44,11 +44,12 @@ class PendingOrdersUpdateService {
   }
 
   /**
-   * Get order details from AccessTrade
+   * Get order details from AccessTrade using order-products API
    * @param {string} orderId - AccessTrade order ID
+   * @param {string} merchantSlug - Merchant slug (e.g., 'lazadacps', 'shopee', 'tiki')
    * @returns {Promise<Object>}
    */
-  async getOrderDetails(orderId) {
+  async getOrderDetails(orderId, merchantSlug = null) {
     await this.checkRateLimit();
 
     if (!this.API_TOKEN) {
@@ -56,19 +57,105 @@ class PendingOrdersUpdateService {
     }
 
     try {
-      // Use conversions endpoint to get conversion details
-      // Note: /publisher/orders/{id} endpoint may not exist
-      const response = await axios.get(
-        `${this.API_URL}/conversions/${orderId}`,
-        {
-          headers: {
-            'Authorization': `Token ${this.API_TOKEN}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      // Build API URL
+      let apiUrl = `${this.API_URL}/order-products?order_id=${encodeURIComponent(orderId)}`;
 
-      return response.data;
+      // Add merchant parameter if provided
+      if (merchantSlug) {
+        apiUrl += `&merchant=${encodeURIComponent(merchantSlug)}`;
+      }
+
+      logger.info(`Fetching order details from AT API: ${apiUrl}`);
+
+      const response = await axios.get(apiUrl, {
+        headers: {
+          'Authorization': `Token ${this.API_TOKEN}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      // API returns { current_page, data: [...], total }
+      // Each product has billing/commission/quantity objects with approved/pending/reject values
+      if (response.data && response.data.data && response.data.data.length > 0) {
+        const products = response.data.data;
+        const firstProduct = products[0];
+
+        // Aggregate billing, commission, quantity from all products
+        const aggregated = products.reduce((acc, product) => {
+          return {
+            billing_approved: acc.billing_approved + (parseFloat(product.billing?.approved) || 0),
+            billing_pending: acc.billing_pending + (parseFloat(product.billing?.pending) || 0),
+            billing_reject: acc.billing_reject + (parseFloat(product.billing?.reject) || 0),
+            commission_approved: acc.commission_approved + (parseFloat(product.commission?.approved) || 0),
+            commission_pending: acc.commission_pending + (parseFloat(product.commission?.pending) || 0),
+            commission_reject: acc.commission_reject + (parseFloat(product.commission?.reject) || 0),
+            quantity_approved: acc.quantity_approved + (parseInt(product.quantity?.approved) || 0),
+            quantity_pending: acc.quantity_pending + (parseInt(product.quantity?.pending) || 0),
+            quantity_reject: acc.quantity_reject + (parseInt(product.quantity?.reject) || 0)
+          };
+        }, {
+          billing_approved: 0,
+          billing_pending: 0,
+          billing_reject: 0,
+          commission_approved: 0,
+          commission_pending: 0,
+          commission_reject: 0,
+          quantity_approved: 0,
+          quantity_pending: 0,
+          quantity_reject: 0
+        });
+
+        // Calculate total billing and commission
+        const totalBilling = aggregated.billing_approved + aggregated.billing_pending + aggregated.billing_reject;
+        const totalCommission = aggregated.commission_approved + aggregated.commission_pending + aggregated.commission_reject;
+
+        // Determine is_confirmed based on order status
+        // 0 = pending (has pending items)
+        // 1 = approved (has approved items, no pending)
+        // 2 = rejected (only rejected items)
+        let is_confirmed = 0; // default: pending
+        if (aggregated.quantity_approved > 0 && aggregated.quantity_pending === 0 && aggregated.quantity_reject === 0) {
+          is_confirmed = 1; // all approved
+        } else if (aggregated.quantity_approved === 0 && aggregated.quantity_pending === 0 && aggregated.quantity_reject > 0) {
+          is_confirmed = 2; // all rejected
+        } else if (aggregated.quantity_pending > 0) {
+          is_confirmed = 0; // has pending
+        }
+
+        // Aggregate order information
+        const orderInfo = {
+          _id: orderId,
+          order_id: orderId,
+          merchant: firstProduct.merchant,
+          billing: totalBilling,
+          pub_commission: totalCommission,
+          is_confirmed: is_confirmed,
+          click_time: firstProduct.click_time,
+          sales_time: firstProduct.sales_time,
+          confirmed_time: firstProduct.confirmed_time,
+          // Breakdown by status
+          order_approved: aggregated.quantity_approved,
+          order_pending: aggregated.quantity_pending,
+          order_reject: aggregated.quantity_reject,
+          billing_approved: aggregated.billing_approved,
+          billing_pending: aggregated.billing_pending,
+          billing_reject: aggregated.billing_reject,
+          commission_approved: aggregated.commission_approved,
+          commission_pending: aggregated.commission_pending,
+          commission_reject: aggregated.commission_reject,
+          // Include all products for reference
+          products: products,
+          total_products: response.data.total
+        };
+
+        logger.info(`Order ${orderId} aggregated: billing=${totalBilling}, commission=${totalCommission}, status=${is_confirmed} (0=pending, 1=approved, 2=rejected)`);
+
+        return orderInfo;
+      }
+
+      logger.warn(`Order ${orderId} not found or has no products`);
+      return null;
+
     } catch (error) {
       if (error.response?.status === 404) {
         logger.warn(`Order ${orderId} not found in AccessTrade`);
@@ -86,6 +173,7 @@ class PendingOrdersUpdateService {
 
       logger.error('Error fetching order details', {
         orderId,
+        merchantSlug,
         error: error.message,
         status: error.response?.status,
         response: error.response?.data

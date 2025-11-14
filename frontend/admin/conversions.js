@@ -211,6 +211,10 @@ function renderConversions(conversions) {
                         <span class="action-icon">👁</span>
                         <span>Xem chi tiết</span>
                     </button>
+                    <button class="action-item action-check-at" onclick="checkATOrderStatus('${conv.id}'); event.stopPropagation();">
+                        <span class="action-icon">🔍</span>
+                        <span>Kiểm tra trạng thái AT</span>
+                    </button>
                     ${conv.status === 'pending' ? `
                         <button class="action-item action-approve" onclick="approveConversion('${conv.id}'); event.stopPropagation();">
                             <span class="action-icon">✓</span>
@@ -226,7 +230,7 @@ function renderConversions(conversions) {
         `;
 
         return `
-            <tr>
+            <tr class="conversion-row" data-conversion-id="${conv.id}" style="cursor: pointer;">
                 <td>
                     <div style="font-weight: 600;">${conv.username}</div>
                     <div style="font-size: 0.85rem; color: #666;">${conv.email}</div>
@@ -247,6 +251,21 @@ function renderConversions(conversions) {
             </tr>
         `;
     }).join('');
+
+    // Add click event listeners to rows
+    setTimeout(() => {
+        const rows = document.querySelectorAll('.conversion-row');
+        rows.forEach(row => {
+            row.addEventListener('click', (e) => {
+                // Don't trigger if clicking on action buttons or dropdown
+                if (e.target.closest('.action-dropdown') || e.target.closest('.action-dropdown-btn') || e.target.closest('.action-dropdown-menu')) {
+                    return;
+                }
+                const conversionId = row.getAttribute('data-conversion-id');
+                viewConversionDetails(conversionId);
+            });
+        });
+    }, 0);
 }
 
 /**
@@ -313,6 +332,208 @@ async function rejectConversion(conversionId) {
 }
 
 /**
+ * Check order status on AccessTrade
+ */
+async function checkATOrderStatus(conversionId) {
+    try {
+        // Show loading toast
+        showToast('Đang kiểm tra trạng thái trên AccessTrade...', 'info');
+
+        const response = await apiRequest(`/admin/conversion/${conversionId}/check-at-status`);
+
+        if (response.success) {
+            const { hasDifference, current, accessTrade, differences } = response;
+
+            if (hasDifference) {
+                // Show comparison modal
+                showATComparisonModal(conversionId, current, accessTrade, differences);
+            } else {
+                // No difference, show info message
+                const statusMap = {
+                    'pending': 'Đang xử lý',
+                    'approved': 'Đã duyệt',
+                    'rejected': 'Đã hủy'
+                };
+                const confirmedText = current.isConfirmed ? 'Đã đối soát' : 'Chưa đối soát';
+                showToast(`Trạng thái giống nhau: ${statusMap[current.status]} - ${confirmedText}`, 'info');
+            }
+        } else {
+            throw new Error(response.message || 'Failed to check order status');
+        }
+    } catch (error) {
+        console.error('Error checking AT order status:', error);
+        showToast(error.message || 'Lỗi khi kiểm tra trạng thái trên AccessTrade', 'error');
+    }
+}
+
+/**
+ * Show comparison modal between current and AccessTrade status
+ */
+function showATComparisonModal(conversionId, current, accessTrade, differences) {
+    const statusMap = {
+        'pending': 'Đang xử lý',
+        'approved': 'Đã duyệt',
+        'rejected': 'Đã hủy'
+    };
+
+    const getStatusColor = (status) => {
+        return status === 'approved' ? '#10b981' : status === 'pending' ? '#f59e0b' : '#ef4444';
+    };
+
+    const getConfirmedColor = (confirmed) => {
+        return confirmed ? '#10b981' : '#f59e0b';
+    };
+
+    let changesHTML = '';
+
+    if (differences.status) {
+        changesHTML += `
+            <div style="margin-bottom: 16px; padding: 12px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px;">
+                <strong>⚠️ Trạng thái đơn hàng:</strong><br>
+                <span style="color: ${getStatusColor(differences.status.old)}; font-weight: 600;">${statusMap[differences.status.old]}</span>
+                →
+                <span style="color: ${getStatusColor(differences.status.new)}; font-weight: 600;">${statusMap[differences.status.new]}</span>
+            </div>
+        `;
+    }
+
+    if (differences.isConfirmed) {
+        changesHTML += `
+            <div style="margin-bottom: 16px; padding: 12px; background: #dbeafe; border-left: 4px solid #3b82f6; border-radius: 4px;">
+                <strong>📋 Trạng thái đối soát:</strong><br>
+                <span style="color: ${getConfirmedColor(differences.isConfirmed.old)}; font-weight: 600;">${differences.isConfirmed.old ? 'Đã đối soát' : 'Chưa đối soát'}</span>
+                →
+                <span style="color: ${getConfirmedColor(differences.isConfirmed.new)}; font-weight: 600;">${differences.isConfirmed.new ? 'Đã đối soát' : 'Chưa đối soát'}</span>
+            </div>
+        `;
+    }
+
+    const modalContent = `
+        <div class="detail-modal-overlay" onclick="closeATComparisonModal()">
+            <div class="detail-modal" onclick="event.stopPropagation()" style="max-width: 700px;">
+                <div class="detail-modal-header">
+                    <h2>🔍 So Sánh Trạng Thái</h2>
+                    <button class="close-btn" onclick="closeATComparisonModal()">✕</button>
+                </div>
+                <div class="detail-modal-body">
+                    <div style="background: #fee2e2; padding: 16px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ef4444;">
+                        <strong style="color: #991b1b;">⚠️ Phát hiện sự khác biệt!</strong>
+                        <p style="margin: 8px 0 0 0; color: #7f1d1d;">Trạng thái trên AccessTrade khác với database hiện tại.</p>
+                    </div>
+
+                    ${changesHTML}
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px;">
+                        <div style="padding: 16px; background: #f9fafb; border-radius: 8px; border: 2px solid #e5e7eb;">
+                            <h3 style="margin: 0 0 12px 0; color: #6b7280; font-size: 0.9rem;">📁 DATABASE HIỆN TẠI</h3>
+                            <div style="font-size: 0.9rem;">
+                                <div style="margin-bottom: 8px;">
+                                    <strong>Trạng thái:</strong>
+                                    <span style="color: ${getStatusColor(current.status)}; font-weight: 600;">${statusMap[current.status]}</span>
+                                </div>
+                                <div style="margin-bottom: 8px;">
+                                    <strong>Đối soát:</strong>
+                                    <span style="color: ${getConfirmedColor(current.isConfirmed)}; font-weight: 600;">${current.isConfirmed ? 'Đã đối soát' : 'Chưa đối soát'}</span>
+                                </div>
+                                <div style="margin-bottom: 8px;">
+                                    <strong>Giá trị:</strong> ${formatCurrency(current.orderAmount)}
+                                </div>
+                                <div style="margin-bottom: 8px;">
+                                    <strong>Cashback:</strong> ${formatCurrency(current.cashbackAmount)}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="padding: 16px; background: #ecfdf5; border-radius: 8px; border: 2px solid #10b981;">
+                            <h3 style="margin: 0 0 12px 0; color: #059669; font-size: 0.9rem;">🌐 ACCESSTRADE API</h3>
+                            <div style="font-size: 0.9rem;">
+                                <div style="margin-bottom: 8px;">
+                                    <strong>Trạng thái:</strong>
+                                    <span style="color: ${getStatusColor(accessTrade.status)}; font-weight: 600;">${statusMap[accessTrade.status]}</span>
+                                </div>
+                                <div style="margin-bottom: 8px;">
+                                    <strong>Đối soát:</strong>
+                                    <span style="color: ${getConfirmedColor(accessTrade.isConfirmed)}; font-weight: 600;">${accessTrade.isConfirmed ? 'Đã đối soát' : 'Chưa đối soát'}</span>
+                                </div>
+                                <div style="margin-bottom: 8px;">
+                                    <strong>Giá trị:</strong> ${formatCurrency(accessTrade.billing)}
+                                </div>
+                                <div style="margin-bottom: 8px;">
+                                    <strong>Hoa hồng:</strong> ${formatCurrency(accessTrade.commission)}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 20px; padding: 12px; background: #f0f9ff; border-radius: 6px; font-size: 0.9rem;">
+                        💡 <strong>Lưu ý:</strong> Nếu cập nhật, hệ thống sẽ tự động điều chỉnh số dư user nếu trạng thái thay đổi.
+                    </div>
+                </div>
+                <div class="detail-modal-footer">
+                    <button class="btn btn-secondary" onclick="closeATComparisonModal()">Hủy</button>
+                    <button class="btn btn-primary" onclick="confirmUpdateFromAT('${conversionId}', ${JSON.stringify(accessTrade).replace(/"/g, '&quot;')})">
+                        ✓ Cập Nhật Từ AT
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalContent);
+}
+
+/**
+ * Close AT comparison modal
+ */
+function closeATComparisonModal() {
+    const modal = document.querySelector('.detail-modal-overlay');
+    if (modal && modal.querySelector('h2').textContent.includes('So Sánh')) {
+        modal.remove();
+    }
+}
+
+/**
+ * Confirm and update from AccessTrade
+ */
+async function confirmUpdateFromAT(conversionId, atData) {
+    try {
+        closeATComparisonModal();
+        showToast('Đang cập nhật từ AccessTrade...', 'info');
+
+        const response = await apiRequest(`/admin/conversion/${conversionId}/sync-from-at`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                newStatus: atData.status,
+                newIsConfirmed: atData.isConfirmed
+            })
+        });
+
+        if (response.success) {
+            const { updated, changes } = response;
+
+            let message = 'Đã cập nhật thành công!';
+            if (changes.status) {
+                message += ` Trạng thái: ${changes.status.old} → ${changes.status.new}`;
+            }
+            if (updated.balanceUpdated) {
+                message += ' (Số dư đã được cập nhật)';
+            }
+
+            showToast(message, 'success');
+            await loadConversions();
+        } else {
+            throw new Error(response.message || 'Failed to update');
+        }
+    } catch (error) {
+        console.error('Error updating from AT:', error);
+        showToast(error.message || 'Lỗi khi cập nhật từ AccessTrade', 'error');
+    }
+}
+
+/**
  * Toggle action dropdown menu
  */
 function toggleActionMenu(event) {
@@ -352,7 +573,26 @@ async function viewConversionDetails(conversionId) {
                 <div class="detail-modal-overlay" onclick="closeDetailModal()">
                     <div class="detail-modal" onclick="event.stopPropagation()">
                         <div class="detail-modal-header">
-                            <h2>📋 Chi tiết đơn hàng</h2>
+                            <div style="flex: 1;">
+                                <h2>📋 Chi tiết đơn hàng</h2>
+                                <div class="modal-actions">
+                                    ${getStatusBadge(conv.status)}
+                                    <button class="btn-check-at" onclick="checkATOrderStatus('${conv.id}'); closeDetailModal();">
+                                        <span>🔍</span>
+                                        <span>Kiểm tra AT</span>
+                                    </button>
+                                    ${conv.status === 'pending' ? `
+                                        <button class="btn-approve" onclick="approveConversion('${conv.id}'); event.stopPropagation();">
+                                            <span>✓</span>
+                                            <span>Duyệt đơn</span>
+                                        </button>
+                                        <button class="btn-reject" onclick="rejectConversion('${conv.id}'); event.stopPropagation();">
+                                            <span>✗</span>
+                                            <span>Từ chối</span>
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            </div>
                             <button class="close-btn" onclick="closeDetailModal()">✕</button>
                         </div>
                         <div class="detail-modal-body">
@@ -532,3 +772,6 @@ window.rejectConversion = rejectConversion;
 window.viewConversionDetails = viewConversionDetails;
 window.toggleActionMenu = toggleActionMenu;
 window.closeDetailModal = closeDetailModal;
+window.checkATOrderStatus = checkATOrderStatus;
+window.closeATComparisonModal = closeATComparisonModal;
+window.confirmUpdateFromAT = confirmUpdateFromAT;

@@ -461,6 +461,193 @@ router.put('/conversion/:id/status', authenticateAdmin, async (req, res) => {
 });
 
 /**
+ * GET /api/admin/conversion/:id/check-at-status
+ * Check status of a single conversion from AccessTrade (no update)
+ */
+router.get('/conversion/:id/check-at-status', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    logger.info(`Check AT status request - Conversion ID: ${id}`);
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Conversion ID is required'
+      });
+    }
+
+    // Get conversion details from system_conversions table with merchant info
+    const query = `
+      SELECT sc.*, m.id as merchant_slug
+      FROM system_conversions sc
+      LEFT JOIN merchants m ON sc.merchant_id = m.id
+      WHERE sc.id = $1
+    `;
+    const result = await pool.query(query, [id]);
+    const conversion = result.rows[0];
+
+    if (!conversion) {
+      logger.warn(`Conversion not found in database - ID: ${id}`);
+      return res.status(404).json({
+        success: false,
+        message: `Conversion not found (ID: ${id})`
+      });
+    }
+
+    logger.info(`Found conversion - Order Code: ${conversion.order_code}, AT ID: ${conversion.at_conversion_id}, Merchant: ${conversion.merchant_slug}`);
+
+    if (!conversion.at_conversion_id) {
+      return res.status(400).json({
+        success: false,
+        message: `Conversion không có AccessTrade ID (Order Code: ${conversion.order_code || 'N/A'})`
+      });
+    }
+
+    // Get order details from AccessTrade with merchant slug
+    const orderDetails = await pendingOrdersUpdate.getOrderDetails(
+      conversion.at_conversion_id,
+      conversion.merchant_slug
+    );
+
+    if (!orderDetails) {
+      logger.warn(`Order ${conversion.at_conversion_id} not found on AccessTrade API`);
+      return res.status(404).json({
+        success: false,
+        message: `Không tìm thấy đơn hàng trên AccessTrade (Order ID: ${conversion.at_conversion_id}${conversion.merchant_slug ? ', Merchant: ' + conversion.merchant_slug : ''}). Đơn này có thể đã bị xóa hoặc chưa được đồng bộ.`
+      });
+    }
+
+    // Map AT status to our status
+    const atStatus = pendingOrdersUpdate.mapOrderStatus(orderDetails);
+    const currentStatus = conversion.status;
+
+    // Determine if confirmed (đối soát)
+    const atIsConfirmed = parseInt(orderDetails.is_confirmed || 0) === 1;
+    const currentIsConfirmed = conversion.is_confirmed;
+
+    // Check for differences
+    const hasStatusDifference = atStatus !== currentStatus;
+    const hasConfirmedDifference = atIsConfirmed !== currentIsConfirmed;
+    const hasDifference = hasStatusDifference || hasConfirmedDifference;
+
+    res.json({
+      success: true,
+      hasDifference,
+      current: {
+        status: currentStatus,
+        isConfirmed: currentIsConfirmed,
+        orderCode: conversion.order_code,
+        orderAmount: parseFloat(conversion.order_amount),
+        commission: parseFloat(conversion.commission),
+        cashbackAmount: parseFloat(conversion.cashback_amount)
+      },
+      accessTrade: {
+        status: atStatus,
+        isConfirmed: atIsConfirmed,
+        orderId: orderDetails._id || orderDetails.order_id,
+        merchant: orderDetails.merchant,
+        billing: parseFloat(orderDetails.billing || 0),
+        commission: parseFloat(orderDetails.pub_commission || 0),
+        clickTime: orderDetails.click_time,
+        salesTime: orderDetails.sales_time,
+        orderApproved: orderDetails.order_approved,
+        orderPending: orderDetails.order_pending,
+        orderReject: orderDetails.order_reject
+      },
+      differences: {
+        status: hasStatusDifference ? { old: currentStatus, new: atStatus } : null,
+        isConfirmed: hasConfirmedDifference ? { old: currentIsConfirmed, new: atIsConfirmed } : null
+      }
+    });
+  } catch (error) {
+    console.error('Check AT status error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to check AT status'
+    });
+  }
+});
+
+/**
+ * PUT /api/admin/conversion/:id/sync-from-at
+ * Sync and update conversion from AccessTrade after user confirmation
+ */
+router.put('/conversion/:id/sync-from-at', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { newStatus, newIsConfirmed } = req.body;
+
+    // Get conversion details from system_conversions table
+    const query = `SELECT * FROM system_conversions WHERE id = $1`;
+    const result = await pool.query(query, [id]);
+    const conversion = result.rows[0];
+
+    if (!conversion) {
+      return res.status(404).json({
+        success: false,
+        message: 'Conversion not found'
+      });
+    }
+
+    const oldStatus = conversion.status;
+    const oldIsConfirmed = conversion.is_confirmed;
+    let balanceUpdated = false;
+
+    // Update status if changed
+    if (newStatus && newStatus !== oldStatus) {
+      const approvalTime = newStatus === 'approved' ? new Date() : null;
+
+      // Update in system_conversions table
+      await pool.query(
+        'UPDATE system_conversions SET status = $1, approval_time = $2 WHERE id = $3',
+        [newStatus, approvalTime, id]
+      );
+
+      // Update user balance if needed
+      if (oldStatus === 'pending' && newStatus === 'approved') {
+        await User.updateBalance(conversion.user_id, 'pending_to_available', conversion.cashback_amount);
+        balanceUpdated = true;
+      } else if (oldStatus === 'pending' && newStatus === 'rejected') {
+        await User.updateBalance(conversion.user_id, 'reject_pending', conversion.cashback_amount);
+        balanceUpdated = true;
+      }
+
+      logger.info(`Updated order ${conversion.at_conversion_id}: ${oldStatus} → ${newStatus}`);
+    }
+
+    // Update is_confirmed if changed
+    if (newIsConfirmed !== undefined && newIsConfirmed !== oldIsConfirmed) {
+      const confirmedTime = newIsConfirmed ? new Date() : null;
+      await pool.query(
+        'UPDATE system_conversions SET is_confirmed = $1, confirmed_time = $2 WHERE id = $3',
+        [newIsConfirmed, confirmedTime, id]
+      );
+      logger.info(`Updated order ${conversion.at_conversion_id} confirmation: ${oldIsConfirmed} → ${newIsConfirmed}`);
+    }
+
+    res.json({
+      success: true,
+      message: 'Conversion updated successfully',
+      updated: {
+        status: newStatus !== oldStatus,
+        isConfirmed: newIsConfirmed !== oldIsConfirmed,
+        balanceUpdated
+      },
+      changes: {
+        status: newStatus !== oldStatus ? { old: oldStatus, new: newStatus } : null,
+        isConfirmed: newIsConfirmed !== oldIsConfirmed ? { old: oldIsConfirmed, new: newIsConfirmed } : null
+      }
+    });
+  } catch (error) {
+    console.error('Sync from AT error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to sync conversion'
+    });
+  }
+});
+
+/**
  * GET /api/admin/user/:id
  * Get user details with statistics
  */

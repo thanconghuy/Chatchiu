@@ -4,9 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Tools - Import Data</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/admin/admin.css">
     <style>
+        /* Tools-specific styles */
         .tools-container {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -14,300 +18,29 @@
             margin-bottom: 32px;
         }
 
-        .tool-card {
-            background: white;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .tool-card h2 {
-            margin: 0 0 16px 0;
-            color: var(--gray-900);
-            font-size: 1.3rem;
-        }
-
-        .date-inputs {
-            display: flex;
-            gap: 16px;
-            margin-bottom: 16px;
-        }
-
-        .date-inputs input[type="date"] {
-            padding: 10px 12px;
-            border: 2px solid var(--gray-300);
-            border-radius: 6px;
-            font-size: 0.95rem;
-            font-family: inherit;
-            background: white;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .date-inputs input[type="date"]:hover {
-            border-color: var(--gray-400);
-        }
-
-        .date-inputs input[type="date"]:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .date-inputs label {
-            display: block;
-            margin-bottom: 6px;
-            font-size: 0.9rem;
-            color: var(--gray-700);
-            font-weight: 600;
-        }
-
-        .btn-fetch {
-            width: 100%;
-            padding: 12px;
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            margin-bottom: 16px;
-        }
-
-        .btn-fetch:hover {
-            background: var(--primary-dark);
-        }
-
-        .btn-fetch:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        .result-box {
-            background: var(--gray-50);
-            border-radius: 8px;
-            padding: 16px;
-            max-height: 300px;
-            overflow-y: auto;
-            font-size: 0.9rem;
-            font-family: 'Courier New', monospace;
-        }
-
-        .result-box.empty {
-            color: var(--gray-500);
-            text-align: center;
-        }
-
-        .import-section {
-            background: white;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .import-section h2 {
-            margin: 0 0 16px 0;
-            color: var(--gray-900);
-            font-size: 1.3rem;
-        }
-
-        .import-info {
-            background: #e6f7ff;
-            border-left: 4px solid var(--primary);
-            padding: 16px;
-            border-radius: 6px;
-            margin-bottom: 16px;
-        }
-
-        .import-info ul {
-            margin: 8px 0;
-            padding-left: 20px;
-        }
-
-        .import-info li {
-            margin: 4px 0;
-        }
-
-        .btn-import {
-            width: 100%;
-            padding: 16px;
-            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 1.1rem;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .btn-import:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
-        }
-
-        .btn-import:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .import-result {
-            margin-top: 16px;
-            padding: 16px;
-            border-radius: 8px;
-            display: none;
-        }
-
-        .import-result.success {
-            background: #d1fae5;
-            border-left: 4px solid var(--success);
-            color: #065f46;
-            display: block;
-        }
-
-        .import-result.error {
-            background: #fee2e2;
-            border-left: 4px solid var(--danger);
-            color: #991b1b;
-            display: block;
-        }
-
-        .result-item {
-            padding: 8px;
-            margin: 4px 0;
-            background: white;
-            border-radius: 4px;
-            border-left: 3px solid var(--gray-300);
-        }
-
-        .result-item.new {
-            border-left-color: var(--success);
-        }
-
-        .result-item.duplicate {
-            border-left-color: var(--warning);
-        }
-
-        /* Custom scrollbar for table */
-        #conversionsTableContainer {
-            scrollbar-width: thin; /* Firefox */
-            scrollbar-color: #667eea #f1f1f1; /* Firefox */
-        }
-
-        #conversionsTableContainer::-webkit-scrollbar {
-            height: 12px; /* Height for horizontal scrollbar */
-        }
-
-        #conversionsTableContainer::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 6px;
-        }
-
-        #conversionsTableContainer::-webkit-scrollbar-thumb {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 6px;
-        }
-
-        #conversionsTableContainer::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(135deg, #5568d3 0%, #653a8a 100%);
-        }
-
-        /* Progress bar styles */
-        .progress-container {
-            margin: 16px 0;
-            display: none;
-        }
-
-        .progress-container.active {
-            display: block;
-        }
-
-        .progress-bar-wrapper {
-            background: #e5e7eb;
-            border-radius: 8px;
-            height: 24px;
-            overflow: hidden;
-            position: relative;
-            margin-bottom: 8px;
-        }
-
-        .progress-bar {
-            height: 100%;
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-            transition: width 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 600;
-            font-size: 0.85rem;
-        }
-
-        .progress-stats {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.9rem;
-            color: var(--gray-700);
-        }
-
-        .progress-stats span {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        /* Indeterminate progress animation */
-        .progress-indeterminate {
-            position: relative;
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-            overflow: hidden;
-        }
-
-        .progress-indeterminate::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(
-                90deg,
-                transparent,
-                rgba(255, 255, 255, 0.3),
-                transparent
-            );
-            animation: shimmer 1.5s infinite;
-        }
-
-        @keyframes shimmer {
-            0% {
-                left: -100%;
-            }
-            100% {
-                left: 100%;
-            }
-        }
-
-        /* Pulse animation for loading */
-        @keyframes pulse {
-            0%, 100% {
-                opacity: 1;
-            }
-            50% {
-                opacity: 0.7;
-            }
-        }
-
-        .progress-indeterminate {
-            animation: pulse 2s ease-in-out infinite;
-        }
-
         @media (max-width: 1024px) {
             .tools-container {
                 grid-template-columns: 1fr;
             }
+        }
+
+        /* Custom scrollbar for conversions table */
+        #conversionsTableContainer::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        #conversionsTableContainer::-webkit-scrollbar-track {
+            background: #F7FAFC;
+            border-radius: 8px;
+        }
+
+        #conversionsTableContainer::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #A78BFA 0%, #C4B0FF 100%);
+            border-radius: 8px;
+        }
+
+        #conversionsTableContainer::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #9370DB 0%, #B49EE5 100%);
         }
     </style>
 </head>
@@ -514,27 +247,6 @@
                 <div class="import-result" id="syncStatusResult" style="display: none;"></div>
             </div>
 
-            <!-- Import Section -->
-            <div class="import-section">
-                <h2>📥 Nạp Dữ Liệu Vào Database</h2>
-
-                <div class="import-info">
-                    <strong>ℹ️ Chức năng:</strong>
-                    <ul>
-                        <li>Tự động lọc trùng theo <code>accesstrade_id</code></li>
-                        <li>Chỉ import đơn hàng mới chưa có trong DB</li>
-                        <li>Tự động tính cashback (70% commission cho user)</li>
-                        <li>Cập nhật balance user tự động</li>
-                        <li>Match với clicks đã có để tìm user</li>
-                    </ul>
-                </div>
-
-                <button class="btn-import" id="importBtn" disabled>
-                    📥 Nạp Dữ Liệu Vào Database
-                </button>
-
-                <div class="import-result" id="importResult"></div>
-            </div>
             </div>
         </main>
     </div>

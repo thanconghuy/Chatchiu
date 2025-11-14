@@ -29,10 +29,6 @@ const importFetchedConversionsBtn = document.getElementById('importFetchedConver
 const syncBtn = document.getElementById('syncBtn');
 const syncResult = document.getElementById('syncResult');
 
-// Import
-const importBtn = document.getElementById('importBtn');
-const importResult = document.getElementById('importResult');
-
 // Update Pending Orders
 const updatePendingBtn = document.getElementById('updatePendingBtn');
 const updatePendingResult = document.getElementById('updatePendingResult');
@@ -150,11 +146,6 @@ function setupEventListeners() {
     if (syncStatusBtn) {
         syncStatusBtn.addEventListener('click', syncConversionStatus);
         console.log('✓ Sync conversion status button listener attached');
-    }
-
-    if (importBtn) {
-        importBtn.addEventListener('click', importData);
-        console.log('✓ Import button listener attached');
     }
 
     if (logoutBtn) {
@@ -316,17 +307,6 @@ function displayConversions(conversions) {
 }
 
 /**
- * Check if import button should be enabled
- */
-function checkImportReady() {
-    if (fetchedConversions && fetchedConversions.length > 0) {
-        importBtn.disabled = false;
-    } else {
-        importBtn.disabled = true;
-    }
-}
-
-/**
  * Import fetched conversions to database
  */
 async function importFetchedConversions() {
@@ -381,83 +361,6 @@ async function importFetchedConversions() {
     } finally {
         importFetchedConversionsBtn.disabled = false;
         importFetchedConversionsBtn.textContent = '📥 Import vào Database';
-    }
-}
-
-/**
- * Import data to database (old function for manual import section)
- */
-async function importData() {
-    if (!fetchedConversions || fetchedConversions.length === 0) {
-        showToast('Vui lòng lấy conversions trước', 'error');
-        return;
-    }
-
-    if (!confirm(`Bạn muốn import ${fetchedConversions.length} conversions vào database?\n\nHệ thống sẽ tự động:\n- Lọc trùng theo accesstrade_id\n- Match với clicks để tìm user\n- Tính cashback và cập nhật balance`)) {
-        return;
-    }
-
-    // Initialize progress bar
-    const progressBar = new ProgressBar('importResult');
-
-    try {
-        importBtn.disabled = true;
-        importBtn.textContent = '⏳ Đang import...';
-        progressBar.showLoading('Đang import conversions vào database...');
-
-        const response = await apiRequest('/admin/import-conversions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                conversions: fetchedConversions
-            })
-        });
-
-        if (response.success) {
-            const result = response.result;
-
-            const successContent = `
-                <div style="margin-top: 12px;">
-                    <strong>Tổng:</strong> ${result.total}<br>
-                    <strong>Đã tạo mới:</strong> ${result.created} conversions<br>
-                    <strong>Đã cập nhật:</strong> ${result.updated} conversions<br>
-                    <strong>Bỏ qua (trùng):</strong> ${result.skipped} conversions<br>
-                    <strong>Lỗi:</strong> ${result.errors} conversions
-                </div>
-                ${result.details && result.details.length > 0 ? `
-                    <div style="margin-top: 16px;">
-                        <strong>Chi tiết:</strong>
-                        <div style="max-height: 200px; overflow-y: auto; margin-top: 8px;">
-                            ${result.details.slice(0, 20).map(detail => `
-                                <div class="result-item ${detail.status}">
-                                    <strong>${detail.status === 'created' ? '✓ Mới' : detail.status === 'skipped' ? '⊘ Trùng' : '✗ Lỗi'}:</strong>
-                                    Order ${detail.orderId} ${detail.reason ? `(${detail.reason})` : ''}
-                                </div>
-                            `).join('')}
-                            ${result.details.length > 20 ? `<div style="text-align: center; padding: 8px;">... và ${result.details.length - 20} items nữa</div>` : ''}
-                        </div>
-                    </div>
-                ` : ''}
-            `;
-
-            progressBar.showSuccess('Import Thành Công!', successContent);
-            showToast('Import hoàn tất thành công!', 'success');
-
-            // Clear fetched data
-            fetchedConversions = null;
-            checkImportReady();
-        } else {
-            throw new Error(response.message || 'Import thất bại');
-        }
-    } catch (error) {
-        console.error('Error importing data:', error);
-        progressBar.showError('Import Thất Bại', error.message || 'Đã xảy ra lỗi không xác định');
-        showToast('Import dữ liệu thất bại', 'error');
-    } finally {
-        importBtn.disabled = false;
-        importBtn.textContent = '📥 Nạp Dữ Liệu Vào Database';
     }
 }
 
