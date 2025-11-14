@@ -7,6 +7,7 @@ const Merchant = require('../models/Merchant');
 const Conversion = require('../models/Conversion');
 const SystemConversion = require('../models/SystemConversion');
 const { generateAffiliateLink } = require('../services/linkGenerator');
+const accessTradeLinkService = require('../services/accessTradeLink');
 const reconciliationService = require('../services/reconciliationService');
 
 /**
@@ -164,8 +165,37 @@ router.post('/generate-link', authenticateToken, async (req, res) => {
     const utmMedium = user.username;
     const utmContent = click.id;
 
-    // Generate affiliate link with click_id, utm_medium, and utm_content
-    const linkData = generateAffiliateLink(user, merchant, click.id, clickType, productUrl, utmMedium, utmContent);
+    // DUAL MODE: Try AccessTrade API first, fallback to DIY if fails
+    let linkData;
+    let linkSource = 'diy'; // Default to DIY
+
+    // Check if API mode is enabled via env variable
+    const useApiMode = process.env.USE_ACCESSTRADE_API === 'true';
+
+    if (useApiMode && accessTradeLinkService.isAvailable()) {
+      try {
+        console.log('[Link Generation] Attempting AccessTrade API mode...');
+        linkData = await accessTradeLinkService.generateLink(
+          user,
+          merchant,
+          click.id,
+          clickType,
+          productUrl
+        );
+        linkSource = 'api';
+        console.log('[Link Generation] ✅ AccessTrade API success');
+      } catch (apiError) {
+        console.warn('[Link Generation] ⚠️  AccessTrade API failed, falling back to DIY:', apiError.message);
+        // Fallback to DIY method
+        linkData = generateAffiliateLink(user, merchant, click.id, clickType, productUrl, utmMedium, utmContent);
+        linkSource = 'diy-fallback';
+      }
+    } else {
+      // Use DIY method (current default)
+      console.log('[Link Generation] Using DIY mode (API disabled or not configured)');
+      linkData = generateAffiliateLink(user, merchant, click.id, clickType, productUrl, utmMedium, utmContent);
+      linkSource = 'diy';
+    }
 
     // Update click with generated link data
     await Click.updateLinkData(click.id, {
@@ -189,6 +219,7 @@ router.post('/generate-link', authenticateToken, async (req, res) => {
         affiliateUrl: linkData.affiliateUrl,
         affSid: linkData.affSid,
         clickId: click.id,
+        linkSource: linkSource, // 'api', 'diy', or 'diy-fallback'
         merchant: {
           id: merchant.id,
           name: merchant.name

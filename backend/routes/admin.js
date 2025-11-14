@@ -9,6 +9,7 @@ const Transaction = require('../models/Transaction');
 const { pool } = require('../config/database');
 const SystemConversion = require('../models/SystemConversion');
 const accessTradeService = require('../services/accesstrade');
+const accessTradeLinkService = require('../services/accessTradeLink');
 const trackingService = require('../services/trackingService');
 const { syncConversions } = require('../jobs/syncConversions');
 const pendingOrdersUpdate = require('../services/pendingOrdersUpdate');
@@ -1960,6 +1961,64 @@ router.get('/tools/expiring-clicks', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to get expiring clicks'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/tools/test-at-api
+ * Test AccessTrade API connection for link generation
+ */
+router.get('/tools/test-at-api', authenticateAdmin, async (req, res) => {
+  try {
+    const result = await accessTradeLinkService.testConnection();
+
+    res.json({
+      success: result.success,
+      message: result.message,
+      data: result
+    });
+  } catch (error) {
+    logger.error('Failed to test AccessTrade API', {
+      error: error.message
+    });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to test API connection'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/tools/link-mode-status
+ * Get current link generation mode status
+ */
+router.get('/tools/link-mode-status', authenticateAdmin, async (req, res) => {
+  try {
+    const useApiMode = process.env.USE_ACCESSTRADE_API === 'true';
+    const apiAvailable = accessTradeLinkService.isAvailable();
+
+    res.json({
+      success: true,
+      data: {
+        currentMode: useApiMode && apiAvailable ? 'api' : 'diy',
+        apiModeEnabled: useApiMode,
+        apiAvailable: apiAvailable,
+        apiToken: accessTradeLinkService.accessToken ? 'configured' : 'not_configured',
+        recommendation: !apiAvailable
+          ? 'Configure ACCESSTRADE_ACCESS_TOKEN in .env file'
+          : useApiMode
+            ? 'Using AccessTrade API (recommended)'
+            : 'Using DIY mode (set USE_ACCESSTRADE_API=true to enable API)'
+      }
+    });
+  } catch (error) {
+    logger.error('Failed to get link mode status', {
+      error: error.message
+    });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to get status'
     });
   }
 });
