@@ -360,7 +360,7 @@ async function viewConversionDetails(conversionId) {
                                 <h3>👤 Thông tin người dùng</h3>
                                 <div class="detail-grid">
                                     <div class="detail-item">
-                                        <span class="detail-label">Username:</span>
+                                        <span class="detail-label">Tên đăng nhập:</span>
                                         <span class="detail-value">${conv.username || '-'}</span>
                                     </div>
                                     <div class="detail-item">
@@ -368,7 +368,7 @@ async function viewConversionDetails(conversionId) {
                                         <span class="detail-value">${conv.email || '-'}</span>
                                     </div>
                                     <div class="detail-item">
-                                        <span class="detail-label">Full Name:</span>
+                                        <span class="detail-label">Họ và tên:</span>
                                         <span class="detail-value">${conv.full_name || '-'}</span>
                                     </div>
                                 </div>
@@ -382,7 +382,7 @@ async function viewConversionDetails(conversionId) {
                                         <span class="detail-value">${conv.merchant_name || '-'}</span>
                                     </div>
                                     <div class="detail-item">
-                                        <span class="detail-label">Order Code:</span>
+                                        <span class="detail-label">Mã đơn hàng:</span>
                                         <span class="detail-value"><strong>${conv.order_code || '-'}</strong></span>
                                     </div>
                                     <div class="detail-item">
@@ -396,11 +396,11 @@ async function viewConversionDetails(conversionId) {
                                 <h3>💰 Thông tin tài chính</h3>
                                 <div class="detail-grid">
                                     <div class="detail-item">
-                                        <span class="detail-label">Order Amount:</span>
+                                        <span class="detail-label">Giá trị đơn hàng:</span>
                                         <span class="detail-value highlight">${formatCurrency(conv.order_amount)}</span>
                                     </div>
                                     <div class="detail-item">
-                                        <span class="detail-label">Commission:</span>
+                                        <span class="detail-label">Hoa hồng:</span>
                                         <span class="detail-value">${formatCurrency(conv.commission)}</span>
                                     </div>
                                     <div class="detail-item">
@@ -414,15 +414,15 @@ async function viewConversionDetails(conversionId) {
                                 <h3>📅 Thời gian</h3>
                                 <div class="detail-grid">
                                     <div class="detail-item">
-                                        <span class="detail-label">Order Time:</span>
+                                        <span class="detail-label">Thời gian đặt hàng:</span>
                                         <span class="detail-value">${formatDate(conv.order_time, true)}</span>
                                     </div>
                                     <div class="detail-item">
-                                        <span class="detail-label">Confirmed Time:</span>
+                                        <span class="detail-label">Thời gian xác nhận:</span>
                                         <span class="detail-value">${conv.confirmed_time ? formatDate(conv.confirmed_time, true) : '-'}</span>
                                     </div>
                                     <div class="detail-item">
-                                        <span class="detail-label">Created At:</span>
+                                        <span class="detail-label">Thời gian tạo:</span>
                                         <span class="detail-value">${formatDate(conv.created_at, true)}</span>
                                     </div>
                                 </div>
@@ -432,12 +432,12 @@ async function viewConversionDetails(conversionId) {
                                 <h3>ℹ️ Trạng thái & UTM</h3>
                                 <div class="detail-grid">
                                     <div class="detail-item">
-                                        <span class="detail-label">Status:</span>
+                                        <span class="detail-label">TT Đơn hàng:</span>
                                         <span class="detail-value">${getStatusBadge(conv.status)}</span>
                                     </div>
                                     <div class="detail-item">
-                                        <span class="detail-label">Is Confirmed:</span>
-                                        <span class="detail-value">${conv.is_confirmed ? '✅ Yes' : '❌ No'}</span>
+                                        <span class="detail-label">TT Đối soát:</span>
+                                        <span class="detail-value">${conv.is_confirmed ? '✅ Đã xác nhận' : '❌ Chưa xác nhận'}</span>
                                     </div>
                                     <div class="detail-item">
                                         <span class="detail-label">UTM Source:</span>
@@ -466,6 +466,18 @@ async function viewConversionDetails(conversionId) {
         console.error('Error loading details:', error);
         showToast(error.message || 'Failed to load conversion details', 'error');
     }
+}
+
+/**
+ * Get status badge HTML
+ */
+function getStatusBadge(status) {
+    const statusClass = status === 'approved' ? 'status-approved' :
+                       status === 'pending' ? 'status-pending' :
+                       'status-rejected';
+    const statusText = status === 'approved' ? 'Đã duyệt' :
+                      status === 'pending' ? 'Đang xử lý' : 'Đã hủy';
+    return `<span class="status-badge ${statusClass}">${statusText}</span>`;
 }
 
 /**
@@ -517,3 +529,6 @@ async function triggerSync() {
 // Make functions globally accessible for onclick handlers
 window.approveConversion = approveConversion;
 window.rejectConversion = rejectConversion;
+window.viewConversionDetails = viewConversionDetails;
+window.toggleActionMenu = toggleActionMenu;
+window.closeDetailModal = closeDetailModal;
