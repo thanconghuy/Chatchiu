@@ -280,6 +280,70 @@ class Click {
     const result = await pool.query(query, [userId]);
     return result.rows[0];
   }
+
+  /**
+   * Find unmatched clicks that haven't resulted in conversions yet
+   * Used for retry mechanism
+   * @param {number} daysOld - Only check clicks older than X days (default 1 day)
+   * @param {number} limit - Maximum number of clicks to return
+   * @returns {Array} Array of unmatched clicks
+   */
+  static async findUnmatchedClicks(daysOld = 1, limit = 100) {
+    const query = `
+      SELECT c.*
+      FROM clicks c
+      LEFT JOIN conversions co ON c.id = co.click_id
+      WHERE co.id IS NULL
+        AND c.link_clicked_at < NOW() - INTERVAL '${daysOld} days'
+        AND c.link_expires_at > NOW()
+        AND (c.last_checked_at IS NULL OR c.last_checked_at < NOW() - INTERVAL '1 day')
+      ORDER BY c.link_clicked_at ASC
+      LIMIT $1
+    `;
+
+    const result = await pool.query(query, [limit]);
+    return result.rows;
+  }
+
+  /**
+   * Update last_checked_at timestamp for a click
+   * @param {string} clickId
+   * @returns {Object} Updated click
+   */
+  static async updateLastChecked(clickId) {
+    const query = `
+      UPDATE clicks
+      SET last_checked_at = NOW()
+      WHERE id = $1
+      RETURNING *
+    `;
+
+    const result = await pool.query(query, [clickId]);
+    return result.rows[0];
+  }
+
+  /**
+   * Get clicks that are expiring soon (within X days)
+   * @param {number} daysUntilExpiry - Number of days until expiration
+   * @param {number} limit - Maximum number of clicks to return
+   * @returns {Array} Array of expiring clicks
+   */
+  static async findExpiringSoon(daysUntilExpiry = 3, limit = 100) {
+    const query = `
+      SELECT c.*, m.name as merchant_name
+      FROM clicks c
+      LEFT JOIN merchants m ON c.merchant_id = m.id
+      LEFT JOIN conversions co ON c.id = co.click_id
+      WHERE co.id IS NULL
+        AND c.link_expires_at > NOW()
+        AND c.link_expires_at < NOW() + INTERVAL '${daysUntilExpiry} days'
+      ORDER BY c.link_expires_at ASC
+      LIMIT $1
+    `;
+
+    const result = await pool.query(query, [limit]);
+    return result.rows;
+  }
 }
 
 module.exports = Click;

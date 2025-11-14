@@ -12,6 +12,7 @@ const accessTradeService = require('../services/accesstrade');
 const trackingService = require('../services/trackingService');
 const { syncConversions } = require('../jobs/syncConversions');
 const pendingOrdersUpdate = require('../services/pendingOrdersUpdate');
+const retryService = require('../services/retryService');
 const logger = require('../utils/logger');
 
 /**
@@ -1871,6 +1872,94 @@ router.post('/tools/check-pending-orders', authenticateAdmin, async (req, res) =
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to check pending orders'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/tools/retry-unmatched
+ * Retry matching for unmatched clicks
+ * Checks for clicks that haven't been matched with conversions and retries
+ */
+router.post('/tools/retry-unmatched', authenticateAdmin, async (req, res) => {
+  try {
+    const { daysOld = 1, limit = 100 } = req.body;
+
+    logger.info('Retry unmatched clicks triggered by admin', {
+      adminId: req.userId,
+      daysOld,
+      limit
+    });
+
+    const results = await retryService.retryUnmatchedClicks({ daysOld, limit });
+
+    logger.success('Retry unmatched clicks completed', results);
+
+    res.json({
+      success: true,
+      message: `Processed ${results.total} unmatched clicks`,
+      ...results
+    });
+  } catch (error) {
+    logger.error('Failed to retry unmatched clicks', {
+      error: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to retry unmatched clicks'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/tools/retry-stats
+ * Get retry service statistics
+ */
+router.get('/tools/retry-stats', authenticateAdmin, async (req, res) => {
+  try {
+    const stats = await retryService.getStats();
+
+    res.json({
+      success: true,
+      stats
+    });
+  } catch (error) {
+    logger.error('Failed to get retry stats', {
+      error: error.message
+    });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to get retry stats'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/tools/expiring-clicks
+ * Get clicks that are expiring soon
+ */
+router.get('/tools/expiring-clicks', authenticateAdmin, async (req, res) => {
+  try {
+    const { days = 3, limit = 100 } = req.query;
+
+    const expiringClicks = await retryService.getExpiringClicksReport(
+      parseInt(days),
+      parseInt(limit)
+    );
+
+    res.json({
+      success: true,
+      count: expiringClicks.length,
+      expiringClicks
+    });
+  } catch (error) {
+    logger.error('Failed to get expiring clicks', {
+      error: error.message
+    });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to get expiring clicks'
     });
   }
 });
