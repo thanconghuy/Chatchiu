@@ -476,11 +476,15 @@ router.get('/conversion/:id/check-at-status', authenticateAdmin, async (req, res
       });
     }
 
-    // Get conversion details from system_conversions table with merchant info
+    // Get conversion details from system_conversions table with merchant from conversions
     const query = `
-      SELECT sc.*, m.id as merchant_slug
+      SELECT sc.*,
+             c.merchant_id as merchant_slug,
+             c.merchant_name,
+             c.accesstrade_id as at_order_id,
+             c.order_code
       FROM system_conversions sc
-      LEFT JOIN merchants m ON sc.merchant_id = m.id
+      LEFT JOIN conversions c ON sc.at_conversion_id = c.id
       WHERE sc.id = $1
     `;
     const result = await pool.query(query, [id]);
@@ -494,31 +498,59 @@ router.get('/conversion/:id/check-at-status', authenticateAdmin, async (req, res
       });
     }
 
-    logger.info(`Found conversion - Order Code: ${conversion.order_code}, AT ID: ${conversion.at_conversion_id}, Merchant: ${conversion.merchant_slug}`);
+    // Use order_code if available, otherwise use at_order_id
+    const orderIdForAPI = conversion.order_code || conversion.at_order_id;
 
-    if (!conversion.at_conversion_id) {
+    // Log for debugging
+    logger.info(`Found conversion - Order Code: ${conversion.order_code}, AT Order ID: ${conversion.at_order_id}, Merchant: ${conversion.merchant_slug || 'N/A'}, Using for API: ${orderIdForAPI}`);
+
+    if (!orderIdForAPI) {
       return res.status(400).json({
         success: false,
-        message: `Conversion không có AccessTrade ID (Order Code: ${conversion.order_code || 'N/A'})`
+        message: `Conversion không có Order ID để tra cứu trên AccessTrade`
       });
     }
 
-    // Get order details from AccessTrade with merchant slug
-    const orderDetails = await pendingOrdersUpdate.getOrderDetails(
-      conversion.at_conversion_id,
-      conversion.merchant_slug
-    );
+    // Get order details from AccessTrade
+    // Try with merchant first, if that fails, try without merchant
+    let orderDetails = null;
+
+    if (conversion.merchant_slug) {
+      try {
+        orderDetails = await pendingOrdersUpdate.getOrderDetails(
+          orderIdForAPI,
+          conversion.merchant_slug
+        );
+      } catch (error) {
+        logger.warn(`Failed to get order with merchant, trying without merchant`, {
+          orderId: orderIdForAPI,
+          merchant: conversion.merchant_slug,
+          error: error.message
+        });
+      }
+    }
+
+    // If no merchant or failed with merchant, try without merchant
+    if (!orderDetails) {
+      orderDetails = await pendingOrdersUpdate.getOrderDetails(
+        orderIdForAPI,
+        null
+      );
+    }
 
     if (!orderDetails) {
-      logger.warn(`Order ${conversion.at_conversion_id} not found on AccessTrade API`);
+      logger.warn(`Order not found on AccessTrade API`, {
+        orderIdForAPI,
+        merchant: conversion.merchant_slug
+      });
       return res.status(404).json({
         success: false,
-        message: `Không tìm thấy đơn hàng trên AccessTrade (Order ID: ${conversion.at_conversion_id}${conversion.merchant_slug ? ', Merchant: ' + conversion.merchant_slug : ''}). Đơn này có thể đã bị xóa hoặc chưa được đồng bộ.`
+        message: `Không tìm thấy đơn hàng trên AccessTrade (Order ID: ${orderIdForAPI}${conversion.merchant_slug ? ', Merchant: ' + conversion.merchant_slug : ''}). Đơn này có thể đã bị xóa hoặc chưa được đồng bộ.`
       });
     }
 
     // Map AT status to our status
-    const atStatus = pendingOrdersUpdate.mapOrderStatus(orderDetails);
+    const atStatus = pendingOrdersUpdate.mapAccessTradeStatus(orderDetails.is_confirmed);
     const currentStatus = conversion.status;
 
     // Determine if confirmed (đối soát)

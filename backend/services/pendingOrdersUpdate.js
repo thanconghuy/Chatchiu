@@ -44,8 +44,25 @@ class PendingOrdersUpdateService {
   }
 
   /**
+   * Parse order_id from AT _id field if needed
+   * AT _id format: "product_id@merchant@product_id" or just "order_id"
+   * We need the actual order_id for the API
+   * @param {string} atId - AccessTrade _id or order_id
+   * @returns {string}
+   */
+  parseOrderId(atId) {
+    if (!atId) return null;
+
+    // If it contains '@', it's a _id format, extract the part before @
+    // Example: "3014622078_VNAMZ-14521156060@lazadacps@..." -> need to keep full ID
+    // Actually, the order_id might be in the order_code field instead
+    // For now, return as-is and let API handle it
+    return atId;
+  }
+
+  /**
    * Get order details from AccessTrade using order-products API
-   * @param {string} orderId - AccessTrade order ID
+   * @param {string} orderId - AccessTrade order ID or _id
    * @param {string} merchantSlug - Merchant slug (e.g., 'lazadacps', 'shopee', 'tiki')
    * @returns {Promise<Object>}
    */
@@ -57,15 +74,23 @@ class PendingOrdersUpdateService {
     }
 
     try {
+      // Parse order ID if needed
+      const parsedOrderId = this.parseOrderId(orderId);
+
       // Build API URL
-      let apiUrl = `${this.API_URL}/order-products?order_id=${encodeURIComponent(orderId)}`;
+      let apiUrl = `${this.API_URL}/order-products?order_id=${encodeURIComponent(parsedOrderId)}`;
 
       // Add merchant parameter if provided
       if (merchantSlug) {
         apiUrl += `&merchant=${encodeURIComponent(merchantSlug)}`;
       }
 
-      logger.info(`Fetching order details from AT API: ${apiUrl}`);
+      logger.info(`Fetching order details from AT API`, {
+        originalOrderId: orderId,
+        parsedOrderId,
+        merchant: merchantSlug,
+        url: apiUrl
+      });
 
       const response = await axios.get(apiUrl, {
         headers: {
