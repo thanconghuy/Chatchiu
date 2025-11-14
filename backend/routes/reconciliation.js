@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateAdmin } = require('../middleware/adminAuth');
+const { authenticateToken } = require('../middleware/auth');
 const reconciliationService = require('../services/reconciliationService');
 const logger = require('../utils/logger');
 
@@ -353,6 +354,146 @@ router.get('/stats/summary', authenticateAdmin, async (req, res) => {
   } catch (error) {
     logger.error('Get reconciliation stats failed', {
       error: error.message
+    });
+
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/reconciliation/user/eligibility
+ * Check if user is eligible to view reconciliation page
+ * Eligible if: total commission >= 50,000 OR has been reconciled before
+ */
+router.get('/user/eligibility', authenticateToken, async (req, res) => {
+  try {
+    const { pool } = require('../config/database');
+
+    // Check if user has any reconciliation history
+    const reconciliationQuery = `
+      SELECT COUNT(*) as count
+      FROM reconciliation_items ri
+      JOIN reconciliations r ON ri.reconciliation_id = r.id
+      WHERE ri.user_id = $1 AND r.status != 'cancelled'
+    `;
+    const reconciliationResult = await pool.query(reconciliationQuery, [req.userId]);
+    const hasReconciliationHistory = parseInt(reconciliationResult.rows[0].count) > 0;
+
+    // Check total approved commission
+    const commissionQuery = `
+      SELECT COALESCE(SUM(commission), 0) as total_commission
+      FROM conversions
+      WHERE user_id = $1 AND status = 'approved' AND is_confirmed = 1
+    `;
+    const commissionResult = await pool.query(commissionQuery, [req.userId]);
+    const totalCommission = parseFloat(commissionResult.rows[0].total_commission);
+
+    const isEligible = hasReconciliationHistory || totalCommission >= 50000;
+
+    res.json({
+      success: true,
+      eligible: isEligible,
+      reason: isEligible
+        ? (hasReconciliationHistory ? 'has_history' : 'sufficient_commission')
+        : 'insufficient_commission',
+      totalCommission: totalCommission,
+      minimumRequired: 50000
+    });
+  } catch (error) {
+    logger.error('Check user reconciliation eligibility failed', {
+      error: error.message,
+      userId: req.userId
+    });
+
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/reconciliation/user/history
+ * Get reconciliation history for logged-in user
+ * Query: ?limit=50&offset=0
+ */
+router.get('/user/history', authenticateToken, async (req, res) => {
+  try {
+    const { limit, offset } = req.query;
+
+    const filters = {
+      userId: req.userId, // Only show reconciliations for this user
+      status: 'confirmed', // Only show confirmed reconciliations (not draft)
+      latestOnly: true, // Only show latest versions
+      limit: parseInt(limit) || 50,
+      offset: parseInt(offset) || 0
+    };
+
+    const reconciliations = await reconciliationService.getAllReconciliations(filters);
+
+    res.json({
+      success: true,
+      data: reconciliations,
+      pagination: {
+        limit: filters.limit,
+        offset: filters.offset,
+        count: reconciliations.length
+      }
+    });
+  } catch (error) {
+    logger.error('Get user reconciliation history failed', {
+      error: error.message,
+      userId: req.userId
+    });
+
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/reconciliation/user/:id
+ * Get reconciliation details for logged-in user
+ */
+router.get('/user/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const details = await reconciliationService.getReconciliationDetails(id);
+
+    // Verify user has access to this reconciliation
+    // Check if any items belong to this user
+    const hasAccess = details.items.some(item => item.userId === req.userId);
+
+    if (!hasAccess && details.userId !== req.userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied'
+      });
+    }
+
+    // Filter items to only show user's own items
+    const userItems = details.items.filter(item => item.userId === req.userId);
+
+    res.json({
+      success: true,
+      data: {
+        ...details,
+        items: userItems,
+        itemCount: userItems.length,
+        totalCashback: userItems.reduce((sum, item) => sum + parseFloat(item.cashbackAmount || 0), 0)
+      }
+    });
+  } catch (error) {
+    logger.error('Get user reconciliation details failed', {
+      error: error.message,
+      reconciliationId: req.params.id,
+      userId: req.userId
     });
 
     res.status(500).json({

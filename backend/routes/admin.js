@@ -1875,6 +1875,8 @@ router.post('/tools/check-pending-orders', authenticateAdmin, async (req, res) =
       message: error.message || 'Failed to check pending orders'
     });
   }
+});
+
 router.get('/auto-sync/config', authenticateAdmin, async (req, res) => {
   try {
     const config = await AutoSyncConfig.getConfig();

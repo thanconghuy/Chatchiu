@@ -276,12 +276,15 @@ router.post('/generate-link', authenticateToken, async (req, res) => {
 /**
  * GET /api/dashboard/recent-clicks
  * Get user's recent clicks with accurate status from system_conversions
+ * Sorted with conversions first
  */
 router.get('/recent-clicks', authenticateToken, async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
+    const offset = parseInt(req.query.offset) || 0;
 
     // Query from system_conversions to get accurate status (same as admin pages)
+    // Sort: clicks with conversions first, then by date
     const query = `
       SELECT
         cl.id,
@@ -302,11 +305,13 @@ router.get('/recent-clicks', authenticateToken, async (req, res) => {
       LEFT JOIN system_conversions sc ON cl.id = sc.click_id
       LEFT JOIN conversions c ON sc.at_conversion_id = c.id
       WHERE cl.user_id = $1
-      ORDER BY cl.clicked_at DESC
-      LIMIT $2
+      ORDER BY
+        CASE WHEN sc.id IS NOT NULL THEN 0 ELSE 1 END,
+        cl.clicked_at DESC
+      LIMIT $2 OFFSET $3
     `;
 
-    const result = await pool.query(query, [req.userId, limit]);
+    const result = await pool.query(query, [req.userId, limit, offset]);
     const clicks = result.rows;
 
     res.json({

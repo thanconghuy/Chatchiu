@@ -1,40 +1,37 @@
-const { Pool } = require('pg');
+// Use Neon serverless driver for Vercel compatibility
+const { neonConfig, Pool } = require('@neondatabase/serverless');
 require('dotenv').config();
 
 /**
- * PostgreSQL Database Configuration for Neon
+ * PostgreSQL Database Configuration for Neon Serverless
  *
  * Environment Variables Required:
  * - DATABASE_URL: Full PostgreSQL connection string from Neon
  *   Format: postgres://username:password@host/database?sslmode=require
  *
- * OR individual variables:
- * - DB_HOST
- * - DB_PORT
- * - DB_NAME
- * - DB_USER
- * - DB_PASSWORD
+ * Uses @neondatabase/serverless for optimal Vercel serverless performance
  */
 
-// Create connection pool with Neon-optimized settings
+// Configure for serverless (use WebSocket in production, TCP in dev)
+if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+  // Use WebSocket for Vercel serverless functions
+  neonConfig.webSocketConstructor = require('ws');
+  neonConfig.useSecureWebSocket = true;
+  neonConfig.pipelineConnect = 'password';
+}
+
+// Create connection pool optimized for serverless
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production'
-    ? { rejectUnauthorized: true } // Secure in production
-    : { rejectUnauthorized: false }, // Relaxed for development
-  // Connection pool settings optimized for Neon serverless
-  max: 10, // Reduced for serverless (Neon recommends 10)
-  min: 2, // Keep minimum connections alive
-  idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 20000, // Increased timeout for slow connections
-  // Keepalive to prevent connection drops
-  keepAlive: true,
-  keepAliveInitialDelayMillis: 10000,
+  // Serverless-optimized settings
+  max: 1, // Single connection per function invocation
+  idleTimeoutMillis: 0, // Disable idle timeout in serverless
+  connectionTimeoutMillis: 10000, // Quick timeout for serverless
 });
 
 // Handle pool errors gracefully - don't exit process
 pool.on('error', (err, client) => {
-  console.error('⚠️ Database connection error (will auto-reconnect):', err.message);
+  console.error('⚠️ Database connection error:', err.message);
   // Don't exit - let pool handle reconnection
 });
 

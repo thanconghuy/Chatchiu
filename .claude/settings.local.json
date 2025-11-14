@@ -22,7 +22,9 @@
       "Bash(timeout /t 2)",
       "Bash(set PGPASSWORD=npg_KZt0IpRsEf5C:*)",
       "Bash(psql:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(timeout /t 3)",
+      "Bash(powershell -Command \"Stop-Process -Id 5900 -Force\")"
     ],
     "deny": [],
     "ask": []

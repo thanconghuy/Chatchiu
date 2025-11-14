@@ -14,7 +14,7 @@
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <h2 class="logo">🎯 Cashback</h2>
+                <h2 class="logo">Chatchiu.Online</h2>
             </div>
             <nav class="sidebar-nav">
                 <a href="/dashboard" class="nav-item active">
@@ -81,19 +81,6 @@
             </div>
         </section>
 
-        <!-- How to Get Cashback Guide -->
-        <section class="section">
-            <div class="guide-card">
-                <h2 class="guide-title">💡 Cách nhận cashback</h2>
-                <ol class="guide-steps">
-                    <li><strong>Bấm vào sàn mua sắm</strong> bạn muốn mua hàng (Shopee, Lazada, Tiki...)</li>
-                    <li><strong>Đi đến trang chủ</strong> hoặc <strong>nhập link sản phẩm cụ thể</strong> mà bạn muốn mua</li>
-                    <li><strong>Tạo link mua hàng</strong> để hệ thống ghi nhận và tính hoa hồng cho bạn</li>
-                    <li>Hoàn tất đơn hàng và chờ cashback được duyệt về tài khoản! 🎉</li>
-                </ol>
-            </div>
-        </section>
-
         <!-- Merchants Section -->
         <section class="section">
             <h2 class="section-title">🛍️ Mua sắm và nhận hoàn tiền</h2>
@@ -138,6 +125,13 @@
                         </tr>
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Pagination for Recent Clicks -->
+            <div class="pagination" id="clicksPagination" style="display: none; margin-top: 20px; justify-content: center; align-items: center; gap: 12px;">
+                <button class="btn-secondary" id="prevClicksBtn" disabled style="padding: 8px 16px;">« Trước</button>
+                <span id="clicksPageInfo" style="color: #666; font-weight: 500;">Trang 1</span>
+                <button class="btn-secondary" id="nextClicksBtn" style="padding: 8px 16px;">Sau »</button>
             </div>
         </section>
     </div>
