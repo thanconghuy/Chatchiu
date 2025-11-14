@@ -26,7 +26,8 @@
       "Bash(tasklist:*)",
       "Bash(git checkout:*)",
       "Bash(psql:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(npm audit:*)"
     ],
     "deny": [],
     "ask": []
