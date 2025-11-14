@@ -138,9 +138,12 @@ class TrackingService {
     // Try to find matching click by utm_content (click_id) first
     let click = null;
 
-    // Extract utm_content from accesstradeData if available
-    const utmContent = accesstradeData.utm_content || accesstradeData.sub3;
+    // Extract tracking parameters from accesstradeData
+    const utmContent = accesstradeData.utm_content || null;
+    const sub2 = accesstradeData.sub2 || null; // Backup click_id
+    const sub3 = accesstradeData.sub3 || null; // Click type
 
+    // Priority 1: Match by utm_content (click_id)
     if (utmContent) {
       logger.info('Attempting to match by utm_content (click_id)', {
         utmContent,
@@ -149,9 +152,18 @@ class TrackingService {
       click = await Click.findByUtmContent(utmContent);
     }
 
-    // Fallback to aff_sid if utm_content match failed
-    if (!click) {
-      logger.info('No match by utm_content, trying aff_sid', {
+    // Priority 2: Match by sub2 (backup click_id) if utm_content failed
+    if (!click && sub2) {
+      logger.info('No match by utm_content, trying sub2 (backup click_id)', {
+        sub2,
+        orderId: accesstradeData.order_id || accesstradeData._id
+      });
+      click = await Click.findBySub2(sub2);
+    }
+
+    // Priority 3: Match by aff_sid if both utm_content and sub2 failed
+    if (!click && affSid) {
+      logger.info('No match by utm_content or sub2, trying aff_sid', {
         affSid,
         orderId: accesstradeData.order_id || accesstradeData._id
       });
@@ -162,14 +174,26 @@ class TrackingService {
       logger.warn('No matching click found - creating conversion without click match', {
         affSid,
         utmContent,
+        sub2,
+        sub3,
         orderId: accesstradeData.order_id || accesstradeData._id
       });
       // Instead of skipping, create conversion directly without click
       return await this.createConversionDirect(accesstradeData, null);
     }
 
+    // Determine which method successfully matched the click
+    let matchedBy = 'unknown';
+    if (utmContent && click.utm_content === utmContent) {
+      matchedBy = 'utm_content';
+    } else if (sub2 && click.sub2 === sub2) {
+      matchedBy = 'sub2';
+    } else if (affSid && click.aff_sid === affSid) {
+      matchedBy = 'aff_sid';
+    }
+
     logger.info('Found matching click', {
-      matchedBy: utmContent ? 'utm_content' : 'aff_sid',
+      matchedBy,
       clickId: click.id,
       userId: click.user_id
     });

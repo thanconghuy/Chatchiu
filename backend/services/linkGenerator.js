@@ -43,14 +43,19 @@ function generateAffSid(userId) {
  * Build UTM parameters object
  * @param {string} utmMedium - UTM medium (nhập bởi user)
  * @param {string} utmContent - UTM content (nhập bởi user)
+ * @param {Object} extraParams - Additional params (userId, clickId, clickType)
  */
-function buildUtmParams(utmMedium, utmContent) {
+function buildUtmParams(utmMedium, utmContent, extraParams = {}) {
   return {
     utm_source: 'chatchiu',      // Cố định
     utm_campaign: 'cashback',     // Cố định
-    utm_medium: utmMedium,        // Nhập theo user
-    utm_content: utmContent,      // Nhập theo user
-    sub4: 'oneatweb'             // Cố định
+    utm_medium: utmMedium,        // Nhập theo user (username)
+    utm_content: utmContent,      // Nhập theo user (click_id)
+    // NEW: Sub parameters for better tracking (less likely to be dropped)
+    sub1: extraParams.userId || utmMedium,      // User ID (fallback: username)
+    sub2: extraParams.clickId || utmContent,    // Click ID (fallback: utm_content)
+    sub3: extraParams.clickType || 'unknown',   // Click type (button/link)
+    sub4: 'oneatweb'                            // Cố định
   };
 }
 
@@ -97,7 +102,12 @@ function generateAffiliateLink(user, merchant, clickId, clickType, productUrl = 
 
   // ========== GENERATE TRACKING IDs ==========
   const affSid = generateAffSid(user.id);
-  const utmParams = buildUtmParams(utmMedium, utmContent);
+  const extraParams = {
+    userId: user.id,
+    clickId: clickId,
+    clickType: clickType
+  };
+  const utmParams = buildUtmParams(utmMedium, utmContent, extraParams);
 
   // ========== DETERMINE DESTINATION URL ==========
   const destinationUrl = getDestinationUrl(clickType, merchant, productUrl);

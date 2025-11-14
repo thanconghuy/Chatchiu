@@ -23,6 +23,9 @@ class Click {
       utmMedium,
       utmCampaign,
       utmContent,
+      sub1,
+      sub2,
+      sub3,
       sub4,
       ipAddress,
       userAgent
@@ -32,10 +35,11 @@ class Click {
       INSERT INTO clicks (
         user_id, merchant_id, aff_sid, click_type,
         original_url, affiliate_url,
-        utm_source, utm_medium, utm_campaign, utm_content, sub4,
+        utm_source, utm_medium, utm_campaign, utm_content,
+        sub1, sub2, sub3, sub4,
         ip_address, user_agent
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING *
     `;
 
@@ -50,6 +54,9 @@ class Click {
       utmMedium || null,
       utmCampaign || 'lammmo',
       utmContent || null,
+      sub1 || null,
+      sub2 || null,
+      sub3 || null,
       sub4 || 'oneatweb',
       ipAddress || null,
       userAgent || null
@@ -82,6 +89,9 @@ class Click {
       utmMedium,
       utmCampaign,
       utmContent,
+      sub1,
+      sub2,
+      sub3,
       sub4
     } = linkData;
 
@@ -95,7 +105,10 @@ class Click {
         utm_medium = $6,
         utm_campaign = $7,
         utm_content = $8,
-        sub4 = $9
+        sub1 = $9,
+        sub2 = $10,
+        sub3 = $11,
+        sub4 = $12
       WHERE id = $1
       RETURNING *
     `;
@@ -109,6 +122,9 @@ class Click {
       utmMedium,
       utmCampaign || 'lammmo',
       utmContent,
+      sub1 || null,
+      sub2 || null,
+      sub3 || null,
       sub4 || 'oneatweb'
     ];
 
@@ -148,6 +164,41 @@ class Click {
 
     const result = await pool.query(query, [clickId]);
     return result.rows[0] || null;
+  }
+
+  /**
+   * Find click by sub2 (backup click_id)
+   * @param {string} clickId
+   * @returns {Object|null} Click object or null
+   */
+  static async findBySub2(clickId) {
+    const query = `
+      SELECT c.*, m.name as merchant_name
+      FROM clicks c
+      LEFT JOIN merchants m ON c.merchant_id = m.id
+      WHERE c.sub2 = $1
+    `;
+
+    const result = await pool.query(query, [clickId]);
+    return result.rows[0] || null;
+  }
+
+  /**
+   * Find click by sub1 (user_id)
+   * @param {string} userId
+   * @returns {Array} Array of clicks for this user
+   */
+  static async findBySub1(userId) {
+    const query = `
+      SELECT c.*, m.name as merchant_name
+      FROM clicks c
+      LEFT JOIN merchants m ON c.merchant_id = m.id
+      WHERE c.sub1 = $1
+      ORDER BY c.clicked_at DESC
+    `;
+
+    const result = await pool.query(query, [userId]);
+    return result.rows;
   }
 
   /**

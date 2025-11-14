@@ -176,6 +176,9 @@ router.post('/generate-link', authenticateToken, async (req, res) => {
       utmMedium: linkData.utmParams.utm_medium,
       utmCampaign: linkData.utmParams.utm_campaign,
       utmContent: linkData.utmParams.utm_content,
+      sub1: linkData.utmParams.sub1,
+      sub2: linkData.utmParams.sub2,
+      sub3: linkData.utmParams.sub3,
       sub4: linkData.utmParams.sub4
     });
 
