@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cashback System - Kiếm tiền khi mua sắm online</title>
+    <title>Chắt Chiu - Mua Sắm Thông Minh, Tiết Kiệm Mỗi Ngày</title>
     <style>
         * {
             margin: 0;
@@ -11,22 +11,46 @@
             box-sizing: border-box;
         }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+        :root {
+            --primary: #8b5cf6;
+            --primary-dark: #7c3aed;
+            --secondary: #ec4899;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --gray-50: #fafafa;
+            --gray-100: #f4f4f5;
+            --gray-200: #e4e4e7;
+            --gray-600: #52525b;
+            --gray-700: #3f3f46;
+            --gray-800: #27272a;
+            --gray-900: #18181b;
+            --radius: 16px;
         }
 
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(180deg, #fafafa 0%, #f4f4f5 100%);
+            color: var(--gray-900);
+            line-height: 1.6;
+            font-size: 16px;
+            letter-spacing: -0.01em;
+        }
+
+        /* Navbar */
         .navbar {
             background: rgba(255, 255, 255, 0.95);
-            padding: 16px 0;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(12px);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.03);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
         }
 
         .nav-container {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 0 24px;
+            padding: 16px 24px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -34,11 +58,12 @@
 
         .logo {
             font-size: 1.8rem;
-            font-weight: 700;
-            color: #667eea;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.03em;
         }
 
         .nav-buttons {
@@ -48,157 +73,1130 @@
 
         .btn {
             padding: 10px 24px;
-            border-radius: 8px;
+            border-radius: 12px;
             font-weight: 600;
             text-decoration: none;
-            transition: all 0.3s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
+            border: none;
+            font-size: 1rem;
+            letter-spacing: -0.01em;
+            display: inline-block;
         }
 
         .btn-outline {
-            border: 2px solid #667eea;
-            color: #667eea;
+            border: 2px solid var(--primary);
+            color: var(--primary);
             background: transparent;
+            box-shadow: 0 0 0 rgba(139, 92, 246, 0);
         }
 
         .btn-outline:hover {
-            background: #667eea;
+            background: var(--primary);
             color: white;
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+            transform: translateY(-1px);
         }
 
         .btn-primary {
-            background: #667eea;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
             color: white;
-            border: 2px solid #667eea;
+            border: none;
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.25);
         }
 
         .btn-primary:hover {
-            background: #5568d3;
-            border-color: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(139, 92, 246, 0.4);
         }
 
+        /* Hero Section */
         .hero {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 80px 24px;
-            text-align: center;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
             color: white;
+            padding: 100px 24px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.08) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .hero-container {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero-content {
+            text-align: center;
         }
 
         .hero h1 {
-            font-size: 3rem;
+            font-size: 3.5rem;
             margin-bottom: 24px;
-            line-height: 1.2;
+            line-height: 1.1;
+            font-weight: 800;
+            letter-spacing: -0.04em;
         }
 
-        .hero p {
-            font-size: 1.3rem;
-            margin-bottom: 40px;
-            opacity: 0.95;
+        .hero .subtitle {
+            font-size: 1.5rem;
+            margin-bottom: 16px;
+            opacity: 0.98;
+            font-weight: 500;
+            letter-spacing: -0.02em;
+        }
+
+        .hero .description {
+            font-size: 1.15rem;
+            margin-bottom: 48px;
+            opacity: 0.92;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.7;
         }
 
         .hero-buttons {
             display: flex;
             gap: 16px;
-            justify-content: center;
+            justify-content: flex-start;
             flex-wrap: wrap;
         }
 
         .hero .btn {
-            padding: 16px 40px;
-            font-size: 1.1rem;
-        }
-
-        .features {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 60px 24px;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 32px;
-        }
-
-        .feature-card {
+            padding: 18px 48px;
+            font-size: 1.15rem;
             background: white;
-            padding: 32px;
+            color: var(--primary);
+            font-weight: 600;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .hero .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 32px rgba(255, 255, 255, 0.4);
+        }
+
+        /* Link Converter in Hero */
+        .link-converter {
+            margin-top: 32px;
+            padding: 24px;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
             border-radius: 16px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+        }
+
+        .link-converter-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: white;
+            opacity: 0.95;
+        }
+
+        .link-converter-form {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .link-input {
+            flex: 1;
+            min-width: 300px;
+            padding: 14px 18px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            font-size: 1rem;
+            background: rgba(255, 255, 255, 0.95);
+            color: var(--gray-900);
+            transition: all 0.3s;
+        }
+
+        .link-input:focus {
+            outline: none;
+            border-color: white;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .link-input::placeholder {
+            color: var(--gray-600);
+            opacity: 0.7;
+        }
+
+        .btn-convert {
+            padding: 14px 32px;
+            background: white;
+            color: var(--primary);
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-convert:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+        }
+
+        .btn-convert:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Community Stats Banner */
+        .community-stats-banner {
+            margin-top: 24px;
+            padding: 20px 28px;
+            background: transparent;
+            border-radius: 0;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            animation: slideInUp 0.8s ease-out;
+        }
+
+        .stats-icon {
+            font-size: 2rem;
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        .stats-text {
+            color: white;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            text-align: center;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            font-weight: 500;
+        }
+
+        .stats-text strong {
+            font-weight: 800;
+            color: #fef3c7;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            font-size: 1.15rem;
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-5px);
+            }
+        }
+
+        /* Realtime Orders Display */
+        .realtime-orders {
+            margin-top: 24px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .order-item {
+            animation: slideInUp 0.5s ease-out;
+            width: 100%;
             text-align: center;
         }
 
-        .feature-icon {
-            font-size: 3rem;
-            margin-bottom: 16px;
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
-        .feature-card h3 {
+        .order-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 8px;
+            opacity: 0.95;
+        }
+
+        .order-info {
+            font-size: 1.05rem;
+            color: white;
+            line-height: 1.6;
+            opacity: 0.9;
+        }
+
+        .order-merchant-name {
+            font-weight: 700;
+            color: #fbbf24;
+        }
+
+        .order-amount {
+            font-weight: 600;
             color: #1f2937;
-            margin-bottom: 12px;
-            font-size: 1.3rem;
         }
 
-        .feature-card p {
-            color: #6b7280;
+        .order-cashback {
+            font-weight: 700;
+            color: #10b981;
+        }
+
+        .realtime-orders-empty {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.95rem;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* Section */
+        .section {
+            padding: 80px 0;
+        }
+
+        .section-title {
+            font-size: 2.75rem;
+            text-align: center;
+            margin-bottom: 20px;
+            color: var(--gray-900);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+        }
+
+        .section-subtitle {
+            text-align: center;
+            font-size: 1.25rem;
+            color: var(--gray-600);
+            margin-bottom: 60px;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+            font-weight: 400;
             line-height: 1.6;
         }
 
-        .merchants {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 60px 24px;
+        /* Merchants Preview */
+        .merchants-preview {
+            background: white;
+            padding: 40px 0;
             text-align: center;
         }
 
-        .merchants h2 {
+        .merchants-preview h3 {
+            font-size: 1.3rem;
+            color: var(--gray-700);
+            margin-bottom: 30px;
+        }
+
+        .merchants-logos {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 40px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .merchant-logo-preview {
+            height: 50px;
+            object-fit: contain;
+            opacity: 0.7;
+            transition: opacity 0.3s;
+        }
+
+        .merchant-logo-preview:hover {
+            opacity: 1;
+        }
+
+        /* How It Works - Timeline Style */
+        .how-it-works {
+            background: white;
+            padding: 80px 0;
+        }
+
+        .steps-timeline {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            position: relative;
+            margin-top: 80px;
+            padding: 0 40px;
+        }
+
+        .steps-timeline::before {
+            content: '';
+            position: absolute;
+            top: 40px;
+            left: 15%;
+            right: 15%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+            z-index: 0;
+        }
+
+        .step-timeline-item {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .step-circle {
+            width: 90px;
+            height: 90px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.2rem;
+            font-weight: 800;
             color: white;
-            font-size: 2.5rem;
-            margin-bottom: 40px;
+            margin: 0 auto 30px;
+            box-shadow: 0 8px 24px rgba(139, 92, 246, 0.35), 0 2px 8px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        .step-circle::after {
+            content: '';
+            position: absolute;
+            width: 110%;
+            height: 110%;
+            border-radius: 50%;
+            border: 3px solid var(--primary);
+            top: -8px;
+            left: -8px;
+            opacity: 0.2;
+        }
+
+        .step-timeline-item h3 {
+            font-size: 1.35rem;
+            margin-bottom: 16px;
+            color: var(--gray-900);
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: -0.01em;
+        }
+
+        .step-timeline-item p {
+            color: var(--gray-600);
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+
+        .how-it-works-note {
+            text-align: center;
+            margin-top: 60px;
+            padding: 24px 32px;
+            background: linear-gradient(135deg, #ede9fe 0%, #f3f0ff 100%);
+            border-radius: 16px;
+            color: var(--primary-dark);
+            font-weight: 600;
+            border-left: 4px solid var(--primary);
+            box-shadow: 0 4px 16px rgba(139, 92, 246, 0.1);
+        }
+
+        /* Example Box */
+        .example-box {
+            background: linear-gradient(135deg, #fef3c7 0%, #fef9e8 100%);
+            border-left: 4px solid var(--warning);
+            padding: 28px 32px;
+            border-radius: 16px;
+            margin-top: 40px;
+            box-shadow: 0 4px 16px rgba(245, 158, 11, 0.1);
+        }
+
+        .example-box h4 {
+            font-size: 1.3rem;
+            margin-bottom: 12px;
+            color: var(--gray-900);
+        }
+
+        .example-box p {
+            font-size: 1.1rem;
+            color: var(--gray-700);
+            line-height: 1.8;
+        }
+
+        /* Savings Table */
+        .savings-section {
+            background: white;
         }
 
         .merchants-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             gap: 24px;
+            margin-top: 60px;
         }
 
         .merchant-card {
             background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: 20px;
             padding: 32px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .merchant-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-8px);
+            box-shadow: 0 16px 48px rgba(139, 92, 246, 0.15), 0 4px 12px rgba(0, 0, 0, 0.08);
         }
 
         .merchant-logo {
             width: 100%;
             max-width: 120px;
-            height: 60px;
+            height: 80px;
             object-fit: contain;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
         }
 
         .merchant-name {
-            font-size: 1.2rem;
-            font-weight: 600;
-            color: #1f2937;
-            margin-bottom: 8px;
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: var(--gray-900);
+            letter-spacing: -0.01em;
         }
 
         .merchant-rate {
-            color: #48bb78;
-            font-weight: 600;
+            font-size: 1.6rem;
+            color: var(--success);
+            font-weight: 800;
+            margin-bottom: 8px;
+            letter-spacing: -0.02em;
         }
 
+        .merchant-estimate {
+            color: var(--gray-600);
+            font-size: 0.95rem;
+        }
+
+        .savings-note {
+            text-align: center;
+            margin-top: 40px;
+            padding: 16px;
+            background: var(--gray-50);
+            border-radius: 8px;
+            color: var(--gray-600);
+            font-style: italic;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--gray-600);
+            font-size: 1.1rem;
+        }
+
+        /* Real-time Activity Section */
+        .realtime-section {
+            background: linear-gradient(135deg, #f6f9fc 0%, #e9f2f9 100%);
+            padding: 60px 0;
+        }
+
+        .activity-feed {
+            max-width: 800px;
+            margin: 40px auto 0;
+            background: white;
+            border-radius: 24px;
+            padding: 36px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06), 0 8px 32px rgba(0, 0, 0, 0.04);
+            min-height: 200px;
+            border: 1px solid rgba(0, 0, 0, 0.04);
+        }
+
+        .activity-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 20px;
+            background: linear-gradient(135deg, #fafafa 0%, #f8f9fa 100%);
+            border-radius: 16px;
+            margin-bottom: 14px;
+            animation: fadeUp 0.6s ease-out forwards;
+            opacity: 0;
+            border: 1px solid rgba(0, 0, 0, 0.03);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+        }
+
+        .activity-item:nth-child(1) { animation-delay: 0.1s; }
+        .activity-item:nth-child(2) { animation-delay: 0.2s; }
+        .activity-item:nth-child(3) { animation-delay: 0.3s; }
+        .activity-item:nth-child(4) { animation-delay: 0.4s; }
+        .activity-item:nth-child(5) { animation-delay: 0.5s; }
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .activity-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .activity-info {
+            flex: 1;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .activity-header {
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+
+        .activity-merchant {
+            font-weight: 600;
+            color: var(--secondary);
+        }
+
+        .activity-details {
+            color: var(--gray-700);
+            margin-bottom: 4px;
+        }
+
+        .activity-amount {
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .activity-cashback-line {
+            color: var(--success);
+            font-weight: 700;
+            font-size: 1.05rem;
+        }
+
+        /* Getting Started Section */
+        .getting-started {
+            background: white;
+        }
+
+        .start-steps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 40px;
+            margin-top: 60px;
+            margin-bottom: 50px;
+        }
+
+        .start-step-card {
+            background: white;
+            padding: 40px 32px;
+            border-radius: 20px;
+            border: 1px solid var(--gray-200);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .start-step-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-6px);
+            box-shadow: 0 16px 48px rgba(139, 92, 246, 0.15), 0 4px 12px rgba(0, 0, 0, 0.08);
+            background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
+        }
+
+        .start-step-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .start-step-icon {
+            font-size: 2.5rem;
+        }
+
+        .start-step-header h3 {
+            font-size: 1.5rem;
+            color: var(--gray-900);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .start-step-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .start-step-list li {
+            padding: 8px 0;
+            color: var(--gray-700);
+            line-height: 1.6;
+        }
+
+        .start-step-list li:before {
+            content: "✓ ";
+            color: var(--success);
+            font-weight: 700;
+            margin-right: 8px;
+        }
+
+        .cta-box {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            border-radius: 24px;
+            padding: 60px 48px;
+            text-align: center;
+            color: white;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 12px 40px rgba(139, 92, 246, 0.3);
+        }
+
+        .cta-box::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.1) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        .cta-box h3 {
+            font-size: 2rem;
+            margin-bottom: 16px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            position: relative;
+        }
+
+        .cta-box p {
+            font-size: 1.15rem;
+            margin-bottom: 36px;
+            opacity: 0.95;
+            position: relative;
+        }
+
+        .cta-box .btn {
+            background: white;
+            color: var(--primary);
+            padding: 18px 56px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
+            position: relative;
+        }
+
+        /* FAQ Section - Accordion Style */
+        .faq-section {
+            background: var(--gray-50);
+        }
+
+        .faq-container {
+            max-width: 800px;
+            margin: 60px auto 0;
+        }
+
+        .faq-item {
+            background: white;
+            border-radius: 16px;
+            margin-bottom: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.02);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(0, 0, 0, 0.04);
+        }
+
+        .faq-item:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.04);
+            transform: translateY(-2px);
+        }
+
+        .faq-question-btn {
+            width: 100%;
+            padding: 24px;
+            background: white;
+            border: none;
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--gray-900);
+            transition: background 0.3s;
+        }
+
+        .faq-question-btn:hover {
+            background: var(--gray-50);
+        }
+
+        .faq-question-btn.active {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+        }
+
+        .faq-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-left: 16px;
+            font-size: 1.2rem;
+            transition: transform 0.3s;
+        }
+
+        .faq-question-btn.active .faq-icon {
+            transform: rotate(180deg);
+            background: white;
+            color: var(--primary);
+        }
+
+        .faq-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out, padding 0.3s ease-out;
+            padding: 0 24px;
+            color: var(--gray-700);
+            line-height: 1.8;
+        }
+
+        .faq-answer.active {
+            max-height: 500px;
+            padding: 0 24px 24px 24px;
+        }
+
+        /* CTA Section */
+        .cta-section {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 100px 24px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 70% 30%, rgba(255, 255, 255, 0.12) 0%, transparent 50%),
+                        radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.08) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .cta-section h2 {
+            font-size: 2.75rem;
+            margin-bottom: 24px;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            position: relative;
+        }
+
+        .cta-section p {
+            font-size: 1.25rem;
+            margin-bottom: 48px;
+            opacity: 0.95;
+            position: relative;
+        }
+
+        .cta-section .btn {
+            background: white;
+            color: var(--primary);
+            padding: 20px 56px;
+            font-size: 1.25rem;
+            font-weight: 700;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            position: relative;
+        }
+
+        .cta-section .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px rgba(255, 255, 255, 0.35);
+        }
+
+        /* Footer */
+        .footer {
+            background: var(--gray-900);
+            color: white;
+            padding: 40px 24px;
+            text-align: center;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .footer p {
+            opacity: 0.8;
+            margin-bottom: 8px;
+        }
+
+        /* Mobile Responsive */
         @media (max-width: 768px) {
+            .hero {
+                padding: 70px 24px;
+            }
+
+            .hero-container {
+                max-width: 100%;
+            }
+
+            .hero-content {
+                text-align: center;
+            }
+
+            .link-converter-form {
+                flex-direction: column;
+            }
+
+            .link-input {
+                min-width: 100%;
+            }
+
+            .community-stats-banner {
+                flex-direction: row;
+                padding: 16px 20px;
+            }
+
+            .stats-icon {
+                font-size: 1.5rem;
+            }
+
+            .stats-text {
+                font-size: 0.9rem;
+            }
+
+            .stats-text strong {
+                font-size: 1rem;
+            }
+
             .hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .hero .subtitle {
+                font-size: 1.2rem;
+            }
+
+            .hero .description {
+                font-size: 1.05rem;
+            }
+
+            .section-title {
                 font-size: 2rem;
             }
 
-            .hero p {
+            .section-subtitle {
                 font-size: 1.1rem;
+            }
+
+            .section {
+                padding: 60px 0;
+            }
+
+            /* Timeline responsive */
+            .steps-timeline {
+                flex-direction: column;
+                padding: 0 20px;
+            }
+
+            .steps-timeline::before {
+                display: none;
+            }
+
+            .step-timeline-item {
+                margin-bottom: 40px;
+            }
+
+            .step-timeline-item:last-child {
+                margin-bottom: 0;
+            }
+
+            .step-circle {
+                width: 70px;
+                height: 70px;
+                font-size: 1.8rem;
+            }
+
+            .step-timeline-item h3 {
+                font-size: 1.1rem;
+            }
+
+            .step-timeline-item p {
+                font-size: 0.9rem;
+            }
+
+            .merchants-grid {
+                grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+                gap: 16px;
+            }
+
+            .merchants-logos {
+                gap: 24px;
+            }
+
+            .merchant-logo-preview {
+                height: 40px;
             }
 
             .hero-buttons {
                 flex-direction: column;
+            }
+
+            .hero .btn {
+                width: 100%;
+            }
+
+            .cta-section {
+                padding: 70px 24px;
+            }
+
+            .cta-section h2 {
+                font-size: 2rem;
+            }
+
+            .cta-section p {
+                font-size: 1.1rem;
+            }
+
+            /* FAQ responsive */
+            .faq-question-btn {
+                padding: 18px;
+                font-size: 1rem;
+            }
+
+            .faq-icon {
+                width: 28px;
+                height: 28px;
+                font-size: 1rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .nav-container {
+                padding: 12px 16px;
+            }
+
+            .logo {
+                font-size: 1.4rem;
+            }
+
+            .btn {
+                padding: 8px 16px;
+                font-size: 0.9rem;
+            }
+
+            .hero {
+                padding: 50px 16px;
+            }
+
+            .merchants-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .activity-feed {
+                padding: 20px;
+            }
+
+            .activity-item {
+                padding: 14px;
+            }
+
+            .activity-info {
+                font-size: 0.85rem;
+            }
+
+            .activity-header {
+                font-size: 0.9rem;
+            }
+
+            .activity-cashback-line {
+                font-size: 0.95rem;
+            }
+
+            .start-steps-grid {
+                grid-template-columns: 1fr;
+                gap: 24px;
+            }
+
+            .start-step-card {
+                padding: 24px 20px;
+            }
+
+            .cta-box {
+                padding: 30px 24px;
+            }
+
+            .cta-box h3 {
+                font-size: 1.4rem;
+            }
+
+            .faq-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .faq-card {
+                padding: 20px;
+            }
+
+            .faq-question {
+                font-size: 1rem;
             }
         }
     </style>
@@ -207,9 +1205,7 @@
     <!-- Navbar -->
     <nav class="navbar">
         <div class="nav-container">
-            <div class="logo">
-                🎯 Cashback System
-            </div>
+            <div class="logo">Chắt Chiu.Online</div>
             <div class="nav-buttons">
                 <a href="/login" class="btn btn-outline">Đăng nhập</a>
                 <a href="/register" class="btn btn-primary">Đăng ký ngay</a>
@@ -219,94 +1215,684 @@
 
     <!-- Hero Section -->
     <section class="hero">
-        <h1>💰 Mua Sắm & Nhận Cashback</h1>
-        <p>Kiếm tiền hoàn lại khi mua sắm tại các sàn thương mại điện tử hàng đầu Việt Nam</p>
-        <div class="hero-buttons">
-            <a href="/register" class="btn btn-primary">Bắt đầu miễn phí</a>
-            <a href="#features" class="btn btn-outline">Tìm hiểu thêm</a>
-        </div>
-    </section>
+        <div class="hero-container">
+            <div class="hero-content">
+                <h1>CHẮT CHIU. ONLINE</h1>
+                <p class="subtitle">Nhận lại tiền cashback từ mỗi đơn hàng online bạn mua.<br>Đơn giản, minh bạch, tiết kiệm</p>
+                <p class="description">
+                    Thay vì mua và không nhận được gì, giờ đây bạn sẽ thu về một khoản nhỏ để dành dụm -
+                    đúng như tên gọi "Chắt Chiu" - tiết kiệm cẩn thận từng chút một, vì tiền rất quý!
+                </p>
 
-    <!-- Features -->
-    <section class="features" id="features">
-        <div class="feature-card">
-            <div class="feature-icon">🎁</div>
-            <h3>Hoàn tiền tự động</h3>
-            <p>Nhận 70% hoa hồng từ mọi đơn hàng được duyệt. Tiền về tài khoản tự động.</p>
-        </div>
+                <!-- Link Converter -->
+                <div class="link-converter">
+                    <div class="link-converter-title">Nhập link sản phẩm, mua hàng để nhận lại 1 phần tiền</div>
+                    <div class="link-converter-form">
+                        <input
+                            type="text"
+                            id="affiliateLink"
+                            class="link-input"
+                            placeholder="Dán link sản phẩm vào đây (Shopee, Lazada, Tiki...)"
+                        >
+                        <button id="convertBtn" class="btn-convert">Tạo link mua</button>
+                    </div>
+                </div>
 
-        <div class="feature-card">
-            <div class="feature-icon">🏪</div>
-            <h3>Nhiều merchant</h3>
-            <p>Liên kết với Shopee, Lazada, Tiki, Sendo và nhiều sàn TMĐT khác.</p>
-        </div>
+                <!-- Community Stats Banner -->
+                <div class="community-stats-banner" id="communityStats">
+                    <div class="stats-icon">🎉</div>
+                    <div class="stats-text">
+                        Đã có <strong id="totalUsers">0</strong> tài khoản đã mua <strong id="totalRevenue">0₫</strong> để nhận cashback. Hãy chắt chiu cùng nhau nào!
+                    </div>
+                </div>
 
-        <div class="feature-card">
-            <div class="feature-icon">📊</div>
-            <h3>Theo dõi chi tiết</h3>
-            <p>Dashboard trực quan giúp bạn theo dõi đơn hàng, cashback và lịch sử giao dịch.</p>
-        </div>
-
-        <div class="feature-card">
-            <div class="feature-icon">⚡</div>
-            <h3>Tạo link nhanh</h3>
-            <p>Tạo link affiliate chỉ trong 1 click, chia sẻ và kiếm tiền dễ dàng.</p>
-        </div>
-
-        <div class="feature-card">
-            <div class="feature-icon">🔒</div>
-            <h3>An toàn & bảo mật</h3>
-            <p>Dữ liệu được mã hóa, bảo vệ thông tin cá nhân tuyệt đối.</p>
-        </div>
-
-        <div class="feature-card">
-            <div class="feature-icon">💳</div>
-            <h3>Rút tiền dễ dàng</h3>
-            <p>Rút cashback về tài khoản ngân hàng nhanh chóng, minh bạch.</p>
-        </div>
-    </section>
-
-    <!-- Merchants -->
-    <section class="merchants">
-        <h2>🛒 Merchant Partners</h2>
-        <div class="merchants-grid">
-            <div class="merchant-card">
-                <img src="https://down-vn.img.susercontent.com/file/vn-50009109-159200e3e365de418aae52b840f24185" alt="Shopee" class="merchant-logo">
-                <div class="merchant-name">Shopee</div>
-                <div class="merchant-rate">3-8% Cashback</div>
-            </div>
-
-            <div class="merchant-card">
-                <img src="https://laz-img-cdn.alicdn.com/images/ims-web/TB1T7D3dpXXXXXMXFXXXXXXXXXX.png" alt="Lazada" class="merchant-logo">
-                <div class="merchant-name">Lazada</div>
-                <div class="merchant-rate">2-6% Cashback</div>
-            </div>
-
-            <div class="merchant-card">
-                <img src="https://salt.tikicdn.com/ts/upload/0e/07/78/ee828743c9afa9792cf20d75995e134e.png" alt="Tiki" class="merchant-logo">
-                <div class="merchant-name">Tiki</div>
-                <div class="merchant-rate">2-5% Cashback</div>
-            </div>
-
-            <div class="merchant-card">
-                <img src="https://media.sendo.vn/image/png/sendo_logo.png" alt="Sendo" class="merchant-logo">
-                <div class="merchant-name">Sendo</div>
-                <div class="merchant-rate">1-4% Cashback</div>
+                <!-- Realtime Orders Display -->
+                <div class="realtime-orders" id="realtimeOrders">
+                    <div class="realtime-orders-empty">Đang tải đơn hàng gần đây...</div>
+                </div>
             </div>
         </div>
     </section>
 
+    <!-- Merchants Preview -->
+    <section class="merchants-preview">
+        <div class="container">
+            <h3>Mua sắm tại các sàn thương mại điện tử quen thuộc:</h3>
+            <div class="merchants-logos" id="merchantsLogosPreview">
+                <div class="loading">Đang tải...</div>
+            </div>
+        </div>
+    </section> 
+
+    <!-- How It Works Section -->
+    <section class="how-it-works" id="how-it-works">
+        <div class="container">
+            <h2 class="section-title">Hoạt Động Như Thế Nào?</h2>
+            <p class="section-subtitle">Quy trình 4 bước đơn giản để nhận cashback</p>
+
+            <div class="steps-timeline">
+                <!-- Step 1 -->
+                <div class="step-timeline-item">
+                    <div class="step-circle">1</div>
+                    <h3>ĐẶT HÀNG</h3>
+                    <p>Chọn merchant bạn muốn mua sắm, click vào icon/nút của merchant, và mua hàng bình thường như mọi khi</p>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="step-timeline-item">
+                    <div class="step-circle">2</div>
+                    <h3>CHỜ XÁC NHẬN</h3>
+                    <p>Đơn hàng của bạn được xác nhận thành công và hệ thống ghi nhận giao dịch</p>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="step-timeline-item">
+                    <div class="step-circle">3</div>
+                    <h3>NHẬN CASHBACK</h3>
+                    <p>Số tiền cashback được cộng vào tài khoản Chắt Chiu của bạn sau khi đối soát với sàn thương mại điện tử</p>
+                </div>
+
+                <!-- Step 4 -->
+                <div class="step-timeline-item">
+                    <div class="step-circle">4</div>
+                    <h3>RÚT TIỀN</h3>
+                    <p>Tích lũy đủ 100.000đ là có thể rút về tài khoản ngân hàng. Nhanh chóng, tiện lợi, an toàn</p>
+                </div>
+            </div>
+
+            <!-- Privacy Note -->
+            <div class="how-it-works-note">
+                🔒 Chắt Chiu không thu thập dữ liệu đặt hàng hay thông tin cá nhân của bạn
+            </div>
+
+            <!-- Example Box -->
+            <div class="example-box">
+                <h4>📌 Ví dụ minh họa:</h4>
+                <p>
+                    Bạn mua đơn hàng 1.000.000đ tại Shopee → Nhận cashback (1-5% tùy sản phẩm) →
+                    Mua 4 đơn tương tự → Rút 100.000đ về tài khoản. Đơn giản vậy thôi!
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Savings Section -->
+    <section class="section savings-section">
+        <div class="container">
+            <h2 class="section-title">Mỗi Sàn Tiết Kiệm Được Bao Nhiêu?</h2>
+            <p class="section-subtitle">Tỷ lệ cashback hấp dẫn từ các merchant hàng đầu</p>
+
+            <div class="merchants-grid" id="merchantsGrid">
+                <div class="loading">Đang tải thông tin merchant...</div>
+            </div>
+
+            <div class="savings-note">
+                Lưu ý: Tỷ lệ cashback có thể thay đổi theo từng chương trình khuyến mãi
+            </div>
+        </div>
+    </section>
+
+    <!-- Real-time Activity Section -->
+    <section class="section realtime-section">
+        <div class="container">
+            <h2 class="section-title">Hoạt Động Thực Tế</h2>
+            <p class="section-subtitle">Người Dùng Đang Tiết Kiệm</p>
+
+            <div class="activity-feed" id="activityFeed">
+                <div class="loading">Đang tải hoạt động...</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Getting Started Section -->
+    <section class="section getting-started">
+        <div class="container">
+            <h2 class="section-title">Chỉ Cần 3 Bước Để Bắt Đầu Tiết Kiệm</h2>
+            <p class="section-subtitle">Đơn giản, nhanh chóng, miễn phí</p>
+
+            <div class="start-steps-grid">
+                <!-- Step 1 -->
+                <div class="start-step-card">
+                    <div class="start-step-header">
+                        <div class="start-step-icon">📝</div>
+                        <h3>Đăng Ký Tài Khoản</h3>
+                    </div>
+                    <ul class="start-step-list">
+                        <li>Miễn phí 100%</li>
+                        <li>Chỉ cần email hoặc số điện thoại</li>
+                        <li>Xác thực nhanh chóng</li>
+                    </ul>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="start-step-card">
+                    <div class="start-step-header">
+                        <div class="start-step-icon">🏪</div>
+                        <h3>Chọn Merchant Yêu Thích</h3>
+                    </div>
+                    <ul class="start-step-list">
+                        <li>Click vào icon/logo merchant bạn muốn mua</li>
+                        <li>Tự động chuyển đến trang mua hàng</li>
+                        <li>Giao dịch được ghi nhận tự động</li>
+                    </ul>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="start-step-card">
+                    <div class="start-step-header">
+                        <div class="start-step-icon">🎁</div>
+                        <h3>Mua Sắm & Nhận Cashback</h3>
+                    </div>
+                    <ul class="start-step-list">
+                        <li>Mua hàng như bình thường</li>
+                        <li>Đợi xác nhận đơn hàng</li>
+                        <li>Nhận cashback về tài khoản Chắt Chiu</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- CTA Box -->
+            <div class="cta-box">
+                <h3>CHẮT CHIU, TIẾT KIỆM NGAY</h3>
+                <p>Để xem một năm bạn tiết kiệm thêm được bao nhiêu?</p>
+                <a href="/register" class="btn">Bắt đầu chắt chiu</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="section faq-section">
+        <div class="container">
+            <h2 class="section-title">Câu Hỏi Thường Gặp</h2>
+            <p class="section-subtitle">Giải đáp mọi thắc mắc của bạn</p>
+
+            <div class="faq-container">
+                <div class="faq-item">
+                    <button class="faq-question-btn" onclick="toggleFAQ(this)">
+                        <span>Có mất phí không?</span>
+                        <span class="faq-icon">▼</span>
+                    </button>
+                    <div class="faq-answer">
+                        Hoàn toàn miễn phí! Bạn không phải trả bất kỳ chi phí nào.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question-btn" onclick="toggleFAQ(this)">
+                        <span>Tại sao có cashback?</span>
+                        <span class="faq-icon">▼</span>
+                    </button>
+                    <div class="faq-answer">
+                        Các sàn thương mại điện tử trả hoa hồng cho Chắt Chiu, chúng tôi chia sẻ 70% lại cho bạn.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question-btn" onclick="toggleFAQ(this)">
+                        <span>Bao lâu nhận được tiền?</span>
+                        <span class="faq-icon">▼</span>
+                    </button>
+                    <div class="faq-answer">
+                        Sau khi đối soát thành công (thường 30-60 ngày), bạn có thể rút khi đủ 100.000đ.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question-btn" onclick="toggleFAQ(this)">
+                        <span>An toàn không?</span>
+                        <span class="faq-icon">▼</span>
+                    </button>
+                    <div class="faq-answer">
+                        Tuyệt đối an toàn. Chúng tôi không lưu trữ thông tin thanh toán của bạn.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="container">
+            <h2>Bắt Đầu Tiết Kiệm Ngay Hôm Nay</h2>
+            <p>Tham gia cùng hàng nghìn người dùng đang tiết kiệm thông minh với Chắt Chiu</p>
+            <a href="/register" class="btn">Đăng ký miễn phí</a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <p>&copy; 2025 Chắt Chiu - Mua Sắm Thông Minh, Tiết Kiệm Mỗi Ngày</p>
+        </div>
+    </footer>
+
+    <script src="js/config.js"></script>
     <script src="js/auth.js"></script>
     <script>
         // Redirect if already logged in
         if (isLoggedIn()) {
             const user = getUser();
             if (user && user.is_admin) {
-                window.location.href = 'admin/index.html';
+                window.location.href = '/admin';
             } else {
-                window.location.href = 'dashboard.html';
+                window.location.href = '/dashboard';
             }
         }
+
+        // Format currency
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('vi-VN', {
+                style: 'currency',
+                currency: 'VND'
+            }).format(amount);
+        }
+
+        // Load community stats (public API, no auth required)
+        async function loadCommunityStats() {
+            try {
+                const apiUrl = window.location.hostname === 'localhost'
+                    ? 'http://localhost:3007'
+                    : window.location.origin;
+                const response = await fetch(`${apiUrl}/api/dashboard/community-stats`);
+                const data = await response.json();
+
+                if (data.success) {
+                    const totalUsers = data.totalUsers || 0;
+                    const totalOrderValue = data.totalOrderValue || 0;
+
+                    document.getElementById('totalUsers').textContent = totalUsers.toLocaleString('vi-VN');
+                    document.getElementById('totalRevenue').textContent = formatCurrency(totalOrderValue);
+                }
+            } catch (error) {
+                console.error('Error loading community stats:', error);
+                // Keep default values on error
+            }
+        }
+
+        // Load merchants data
+        async function loadMerchants() {
+            try {
+                const apiUrl = window.location.hostname === 'localhost'
+                    ? 'http://localhost:3007'
+                    : window.location.origin;
+                const response = await fetch(`${apiUrl}/api/dashboard/merchants`);
+                const data = await response.json();
+
+                if (data.success && data.merchants) {
+                    // Render merchants preview logos
+                    renderMerchantsPreview(data.merchants);
+                    // Render full merchants grid
+                    renderMerchantsGrid(data.merchants);
+                } else {
+                    throw new Error('Failed to load merchants');
+                }
+            } catch (error) {
+                console.error('Error loading merchants:', error);
+                document.getElementById('merchantsLogosPreview').innerHTML =
+                    '<p style="color: var(--gray-600);">Không thể tải danh sách merchant</p>';
+                document.getElementById('merchantsGrid').innerHTML =
+                    '<p style="color: var(--gray-600);">Không thể tải thông tin merchant</p>';
+            }
+        }
+
+        // Render merchants preview (just logos)
+        function renderMerchantsPreview(merchants) {
+            const container = document.getElementById('merchantsLogosPreview');
+
+            if (merchants.length === 0) {
+                container.innerHTML = '<p style="color: var(--gray-600);">Chưa có merchant nào</p>';
+                return;
+            }
+
+            container.innerHTML = merchants.map(merchant => `
+                <img src="${merchant.logoUrl}"
+                     alt="${merchant.name}"
+                     class="merchant-logo-preview"
+                     title="${merchant.name}">
+            `).join('');
+        }
+
+        // Render merchants grid with details
+        function renderMerchantsGrid(merchants) {
+            const container = document.getElementById('merchantsGrid');
+
+            if (merchants.length === 0) {
+                container.innerHTML = '<p style="color: var(--gray-600);">Chưa có merchant nào</p>';
+                return;
+            }
+
+            container.innerHTML = merchants.map(merchant => {
+                const rate = merchant.commissionRate;
+
+                // Skip merchants without commission rate
+                if (!rate) {
+                    return '';
+                }
+
+                // Parse rate - handle both string formats like "3-8%" or numeric
+                let displayRate = rate;
+                let estimateCashback = 0;
+                const estimateAmount = 1000000; // 1 million VND
+
+                if (typeof rate === 'string') {
+                    // If rate is a range like "3-8%", use the average
+                    const match = rate.match(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)/);
+                    if (match) {
+                        const minRate = parseFloat(match[1]);
+                        const maxRate = parseFloat(match[2]);
+                        const avgRate = (minRate + maxRate) / 2;
+                        estimateCashback = estimateAmount * (avgRate / 100);
+                        displayRate = rate.replace('%', ''); // Keep the range format
+                    } else {
+                        // Single rate like "3%"
+                        const numRate = parseFloat(rate);
+                        if (!isNaN(numRate)) {
+                            estimateCashback = estimateAmount * (numRate / 100);
+                            displayRate = rate.replace('%', '');
+                        }
+                    }
+                } else {
+                    // Numeric rate
+                    estimateCashback = estimateAmount * (parseFloat(rate) / 100);
+                    displayRate = rate;
+                }
+
+                return `
+                    <div class="merchant-card">
+                        <img src="${merchant.logoUrl}"
+                             alt="${merchant.name}"
+                             class="merchant-logo">
+                        <div class="merchant-name">${merchant.name}</div>
+                        <div class="merchant-rate">${displayRate}%</div>
+                        <div class="merchant-estimate">
+                            Ước tính với đơn 1 triệu: <strong>${formatCurrency(estimateCashback)}</strong>
+                        </div>
+                    </div>
+                `;
+            }).filter(html => html !== '').join('');
+        }
+
+        // Sample activity data (will be replaced with real data later)
+        function generateSampleActivities() {
+            const sampleOrders = [
+                { order_code: 'SH12345', order_amount: 1250000, commission: 62500 },
+                { order_code: 'LZ67890', order_amount: 890000, commission: 35600 },
+                { order_code: 'TK45678', order_amount: 2150000, commission: 75250 },
+                { order_code: 'SH98765', order_amount: 750000, commission: 37500 },
+                { order_code: 'LZ23456', order_amount: 1580000, commission: 55300 },
+                { order_code: 'TK78901', order_amount: 920000, commission: 32200 },
+                { order_code: 'SH34567', order_amount: 1420000, commission: 71000 },
+                { order_code: 'LZ56789', order_amount: 680000, commission: 27200 },
+                { order_code: 'TK89012', order_amount: 1950000, commission: 68250 },
+                { order_code: 'SH11223', order_amount: 1100000, commission: 55000 }
+            ];
+            return sampleOrders;
+        }
+
+        // Load real-time activity from public API
+        async function loadRealtimeActivity() {
+            try {
+                const apiUrl = window.location.hostname === 'localhost'
+                    ? 'http://localhost:3007'
+                    : window.location.origin;
+
+                // Fetch real data from public endpoint
+                const response = await fetch(`${apiUrl}/api/dashboard/public-activity?limit=10`);
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.orders && data.orders.length > 0) {
+                        renderActivityFeed(data.orders);
+                        startActivityRotation(data.orders);
+                        return;
+                    }
+                }
+
+                // Fallback to sample data if no real data
+                console.log('No real activity data, using sample data');
+                const sampleOrders = generateSampleActivities();
+                renderActivityFeed(sampleOrders);
+                startActivityRotation(sampleOrders);
+            } catch (error) {
+                console.log('Error loading activity, using sample data:', error);
+                // Use sample data on error
+                const sampleOrders = generateSampleActivities();
+                renderActivityFeed(sampleOrders);
+                startActivityRotation(sampleOrders);
+            }
+        }
+
+        // Extract merchant from order code
+        function getMerchantFromOrderCode(orderCode) {
+            if (!orderCode) return 'Merchant';
+
+            const code = orderCode.toUpperCase();
+            if (code.startsWith('SH') || code.includes('SHOPEE')) return 'Shopee';
+            if (code.startsWith('LZ') || code.includes('LAZADA')) return 'Lazada';
+            if (code.startsWith('TK') || code.includes('TIKI')) return 'Tiki';
+            if (code.startsWith('SD') || code.includes('SENDO')) return 'Sendo';
+
+            // Default fallback
+            return 'Shopee';
+        }
+
+        // Render activity feed
+        function renderActivityFeed(orders, startIndex = 0) {
+            const container = document.getElementById('activityFeed');
+            const displayCount = 5;
+            const displayOrders = [];
+
+            // Get 5 orders starting from startIndex (circular)
+            for (let i = 0; i < displayCount; i++) {
+                const index = (startIndex + i) % orders.length;
+                displayOrders.push(orders[index]);
+            }
+
+            container.innerHTML = displayOrders.map(order => {
+                const cashback = parseFloat(order.commission || 0) * 0.7;
+                const orderCode = order.order_code || 'N/A';
+                const orderAmount = parseFloat(order.order_amount || 0);
+                const merchant = getMerchantFromOrderCode(orderCode);
+
+                return `
+                    <div class="activity-item">
+                        <div class="activity-info">
+                            <div class="activity-header">🎉 Đơn hàng #${orderCode}</div>
+                            <div class="activity-details">
+                                Mua tại <span class="activity-merchant">${merchant}</span> có tổng tiền là <span class="activity-amount">${formatCurrency(orderAmount)}</span>
+                            </div>
+                            <div class="activity-cashback-line">💰 Được cashback: ${formatCurrency(cashback)}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Rotate activity feed
+        let activityRotationInterval;
+        let currentActivityIndex = 0;
+        let allOrders = [];
+
+        function startActivityRotation(orders) {
+            allOrders = orders;
+            currentActivityIndex = 0;
+
+            // Clear any existing interval
+            if (activityRotationInterval) {
+                clearInterval(activityRotationInterval);
+            }
+
+            // Rotate every 5 seconds
+            activityRotationInterval = setInterval(() => {
+                currentActivityIndex = (currentActivityIndex + 1) % allOrders.length;
+                renderActivityFeed(allOrders, currentActivityIndex);
+            }, 5000);
+        }
+
+        // Load merchants and activity on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadMerchants();
+            loadRealtimeActivity();
+            loadCommunityStats();
+        });
+
+        // Clean up interval when leaving page
+        window.addEventListener('beforeunload', () => {
+            if (activityRotationInterval) {
+                clearInterval(activityRotationInterval);
+            }
+        });
+
+        // FAQ Accordion Toggle
+        function toggleFAQ(button) {
+            const item = button.parentElement;
+            const answer = item.querySelector('.faq-answer');
+            const isActive = button.classList.contains('active');
+
+            // Close all other FAQs
+            document.querySelectorAll('.faq-question-btn.active').forEach(btn => {
+                if (btn !== button) {
+                    btn.classList.remove('active');
+                    btn.parentElement.querySelector('.faq-answer').classList.remove('active');
+                }
+            });
+
+            // Toggle current FAQ
+            if (isActive) {
+                button.classList.remove('active');
+                answer.classList.remove('active');
+            } else {
+                button.classList.add('active');
+                answer.classList.add('active');
+            }
+        }
+
+        /**
+         * Realtime Orders Display
+         */
+        let currentOrderIndex = 0;
+        let ordersData = [];
+
+        async function loadRealtimeOrders() {
+            try {
+                const apiUrl = window.location.hostname === 'localhost'
+                    ? 'http://localhost:3007'
+                    : window.location.origin;
+
+                // Fetch recent approved conversions
+                const response = await fetch(`${apiUrl}/api/public/recent-orders`);
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch orders');
+                }
+
+                const data = await response.json();
+
+                if (data.success && data.orders && data.orders.length > 0) {
+                    ordersData = data.orders;
+                    displayNextOrder();
+                    // Rotate orders every 5 seconds
+                    setInterval(displayNextOrder, 5000);
+                } else {
+                    // Show empty state
+                    document.getElementById('realtimeOrders').innerHTML =
+                        '<div class="realtime-orders-empty">Chưa có đơn hàng gần đây</div>';
+                }
+            } catch (error) {
+                console.error('Error loading realtime orders:', error);
+                document.getElementById('realtimeOrders').innerHTML =
+                    '<div class="realtime-orders-empty">Không thể tải đơn hàng</div>';
+            }
+        }
+
+        function displayNextOrder() {
+            if (ordersData.length === 0) return;
+
+            const order = ordersData[currentOrderIndex];
+            const orderContainer = document.getElementById('realtimeOrders');
+
+            // Display order with new format
+            orderContainer.innerHTML = `
+                <div class="order-item">
+                    <div class="order-title">Đơn hàng #${order.order_code || 'N/A'}</div>
+                    <div class="order-info">
+                        Mua tại <span class="order-merchant-name">${order.merchant || 'N/A'}</span>
+                        có tổng tiền là <span class="order-amount">${formatCurrency(order.order_amount || 0)}</span>
+                        Được cashback: <span class="order-cashback">${formatCurrency(order.cashback_amount)}</span>
+                    </div>
+                </div>
+            `;
+
+            // Move to next order
+            currentOrderIndex = (currentOrderIndex + 1) % ordersData.length;
+        }
+
+        function getTimeAgo(dateString) {
+            const date = new Date(dateString);
+            const now = new Date();
+            const seconds = Math.floor((now - date) / 1000);
+
+            if (seconds < 60) return 'Vừa xong';
+            if (seconds < 3600) return Math.floor(seconds / 60) + ' phút trước';
+            if (seconds < 86400) return Math.floor(seconds / 3600) + ' giờ trước';
+            return Math.floor(seconds / 86400) + ' ngày trước';
+        }
+
+        /**
+         * Link Converter
+         */
+        const convertBtn = document.getElementById('convertBtn');
+        const affiliateLink = document.getElementById('affiliateLink');
+
+        if (convertBtn && affiliateLink) {
+            convertBtn.addEventListener('click', handleLinkConvert);
+
+            // Also allow Enter key
+            affiliateLink.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    handleLinkConvert();
+                }
+            });
+        }
+
+        async function handleLinkConvert() {
+            const link = affiliateLink.value.trim();
+
+            if (!link) {
+                alert('Vui lòng nhập link sản phẩm');
+                return;
+            }
+
+            // Validate URL
+            try {
+                new URL(link);
+            } catch {
+                alert('Link không hợp lệ. Vui lòng nhập link đầy đủ (bắt đầu với http:// hoặc https://)');
+                return;
+            }
+
+            // Check if user is logged in
+            if (!isLoggedIn()) {
+                // Save link to redirect after login
+                sessionStorage.setItem('pendingConvertLink', link);
+                // Redirect to login
+                window.location.href = '/login?redirect=dashboard&convert=true';
+                return;
+            }
+
+            // User is logged in, redirect to dashboard with link
+            sessionStorage.setItem('pendingConvertLink', link);
+            window.location.href = '/dashboard';
+        }
+
+        // Initialize realtime orders when page loads
+        loadRealtimeOrders();
+
+        // Initialize merchants and activity
+        loadMerchants();
+        loadRealtimeActivity();
+        loadCommunityStats();
     </script>
+    <script src="js/analytics.js"></script>
 </body>
 </html>

@@ -14,6 +14,8 @@ if (user && user.is_admin) {
 // State
 let currentMerchant = null;
 let merchants = [];
+let currentClicksPage = 0;
+const clicksPerPage = 10;
 
 // DOM Elements
 const userName = document.getElementById('userName');
@@ -120,14 +122,17 @@ function renderMerchants() {
 }
 
 /**
- * Load recent orders
+ * Load recent orders with pagination
  */
 async function loadRecentOrders() {
     try {
-        const response = await apiRequest('/dashboard/recent-clicks?limit=10');
+        const offset = currentClicksPage * clicksPerPage;
+        const response = await apiRequest(`/dashboard/recent-clicks?limit=${clicksPerPage}&offset=${offset}`);
 
         if (response.success) {
+            // Backend already sorted: clicks with conversions first, then by date
             renderRecentOrders(response.clicks);
+            updateClicksPagination(response.clicks.length);
         }
     } catch (error) {
         console.error('Error loading recent orders:', error);
@@ -135,7 +140,7 @@ async function loadRecentOrders() {
 }
 
 /**
- * Render recent orders
+ * Render recent orders with highlighting for conversions
  */
 function renderRecentOrders(clicks) {
     if (clicks.length === 0) {
@@ -162,19 +167,46 @@ function renderRecentOrders(clicks) {
             ? `<a href="${click.affiliateUrl}" target="_blank" class="link-btn">🔗 Mở link</a>`
             : '<span class="link-none">-</span>';
 
+        // Highlight row if has conversion
+        const rowStyle = click.hasConversion ?
+            'background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-left: 4px solid #10b981;' :
+            '';
+
+        // Icon for conversion
+        const conversionIcon = click.hasConversion ? '🎉 ' : '';
+
         return `
-            <tr>
-                <td>${click.merchantName}</td>
+            <tr style="${rowStyle}">
+                <td><strong>${conversionIcon}${click.merchantName}</strong></td>
                 <td>${click.clickType === 'button' ? '🎯 Tự do' : '🔗 Link SP'}</td>
                 <td>${formatDate(click.clickedAt)}</td>
                 <td>
                     ${statusClass ? `<span class="status-badge ${statusClass}">${statusText}</span>` : statusText}
                 </td>
-                <td>${click.cashback ? formatCurrency(click.cashback) : '-'}</td>
+                <td><strong style="color: ${click.hasConversion ? '#10b981' : '#666'};">${click.cashback ? formatCurrency(click.cashback) : '-'}</strong></td>
                 <td>${linkButton}</td>
             </tr>
         `;
     }).join('');
+}
+
+/**
+ * Update clicks pagination controls
+ */
+function updateClicksPagination(clicksCount) {
+    const pagination = document.getElementById('clicksPagination');
+    const prevBtn = document.getElementById('prevClicksBtn');
+    const nextBtn = document.getElementById('nextClicksBtn');
+    const pageInfo = document.getElementById('clicksPageInfo');
+
+    if (clicksCount > 0) {
+        pagination.style.display = 'flex';
+        prevBtn.disabled = currentClicksPage === 0;
+        nextBtn.disabled = clicksCount < clicksPerPage;
+        pageInfo.textContent = `Trang ${currentClicksPage + 1}`;
+    } else {
+        pagination.style.display = 'none';
+    }
 }
 
 /**
@@ -330,6 +362,19 @@ generateLinkBtn.addEventListener('click', handleGenerateLinkClick);
 logoutBtn.addEventListener('click', (e) => {
     e.preventDefault();
     logout();
+});
+
+// Pagination event listeners
+document.getElementById('prevClicksBtn')?.addEventListener('click', () => {
+    if (currentClicksPage > 0) {
+        currentClicksPage--;
+        loadRecentOrders();
+    }
+});
+
+document.getElementById('nextClicksBtn')?.addEventListener('click', () => {
+    currentClicksPage++;
+    loadRecentOrders();
 });
 
 // Close modal on ESC key

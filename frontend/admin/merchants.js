@@ -65,7 +65,15 @@ async function loadMerchants() {
 
         if (response.success) {
             merchants = response.merchants || [];
-            updateStats();
+            console.log('Loaded merchants:', merchants);
+
+            // Log first merchant to see data structure
+            if (merchants.length > 0) {
+                console.log('First merchant:', merchants[0]);
+                console.log('total_clicks:', merchants[0].total_clicks);
+                console.log('total_conversions:', merchants[0].total_conversions);
+            }
+
             renderMerchants();
         }
     } catch (error) {
@@ -74,18 +82,7 @@ async function loadMerchants() {
     }
 }
 
-/**
- * Update stats
- */
-function updateStats() {
-    const totalMerchants = merchants.length;
-    const activeMerchants = merchants.filter(m => m.is_active === true).length;
-
-    document.getElementById('totalMerchants').textContent = totalMerchants;
-    document.getElementById('activeMerchants').textContent = activeMerchants;
-    document.getElementById('totalClicks').textContent = '0';
-    document.getElementById('totalCommission').textContent = '0đ';
-}
+// Stats section removed - no longer needed
 
 /**
  * Render merchants table
@@ -147,8 +144,12 @@ function renderMerchants() {
                     ${merchant.is_active ? 'Active' : 'Inactive'}
                 </span>
             </td>
-            <td>0</td>
-            <td>0</td>
+            <td style="text-align: center;">
+                <strong>${(merchant.total_clicks || 0).toLocaleString()}</strong>
+            </td>
+            <td style="text-align: center;">
+                <strong>${(merchant.total_conversions || 0).toLocaleString()}</strong>
+            </td>
             <td>
                 <button class="btn btn-sm btn-primary" onclick="editMerchant('${merchant.id}')">
                     Edit
@@ -173,6 +174,33 @@ function updatePagination(totalItems) {
 }
 
 /**
+ * Add new merchant
+ */
+function addMerchant() {
+    // Clear form
+    document.getElementById('merchantId').value = '';
+    document.getElementById('merchantIdInput').value = '';
+    document.getElementById('merchantIdInput').disabled = false; // Enable ID input for new merchant
+    document.getElementById('merchantIdInput').readOnly = false; // Allow editing ID for new merchant
+    document.getElementById('merchantName').value = '';
+    document.getElementById('logoUrl').value = '';
+    document.getElementById('campaignId').value = '';
+    document.getElementById('commissionRate').value = '';
+    document.getElementById('deepLinkBase').value = '';
+    document.getElementById('policyNote').value = '';
+    document.getElementById('merchantStatus').value = 'active';
+
+    // Update modal title
+    document.getElementById('modalTitle').textContent = 'Thêm Merchant Mới';
+    document.getElementById('isEditMode').value = 'false';
+
+    // Show modal
+    const modal = document.getElementById('editModal');
+    modal.style.display = 'flex';
+    modal.classList.add('show');
+}
+
+/**
  * Edit merchant
  */
 function editMerchant(merchantId) {
@@ -182,6 +210,8 @@ function editMerchant(merchantId) {
     // Populate form
     document.getElementById('merchantId').value = merchant.id;
     document.getElementById('merchantIdInput').value = merchant.id;
+    document.getElementById('merchantIdInput').disabled = true; // Disable ID input for editing
+    document.getElementById('merchantIdInput').readOnly = true; // Make ID readonly for editing
     document.getElementById('merchantName').value = merchant.name || '';
     document.getElementById('logoUrl').value = merchant.logo_url || '';
     document.getElementById('campaignId').value = merchant.campaign_id || '';
@@ -191,7 +221,7 @@ function editMerchant(merchantId) {
     document.getElementById('merchantStatus').value = merchant.is_active ? 'active' : 'inactive';
 
     // Update modal title
-    document.getElementById('modalTitle').textContent = 'Edit Merchant';
+    document.getElementById('modalTitle').textContent = 'Chỉnh Sửa Merchant';
     document.getElementById('isEditMode').value = 'true';
 
     // Show modal
@@ -201,6 +231,12 @@ function editMerchant(merchantId) {
 }
 
 // Event Listeners
+
+// Add merchant button
+const addMerchantBtn = document.getElementById('addMerchantBtn');
+if (addMerchantBtn) {
+    addMerchantBtn.addEventListener('click', addMerchant);
+}
 
 const searchInput = document.getElementById('searchInput');
 if (searchInput) {
@@ -246,8 +282,10 @@ document.getElementById('cancelBtn').addEventListener('click', () => {
 
 document.getElementById('editMerchantForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+    console.log('Form submitted!');
 
-    const merchantId = document.getElementById('merchantId').value;
+    const isEditMode = document.getElementById('isEditMode').value === 'true';
+    const merchantId = document.getElementById('merchantIdInput').value;
     const merchantName = document.getElementById('merchantName').value;
     const logoUrl = document.getElementById('logoUrl').value;
     const campaignId = document.getElementById('campaignId').value;
@@ -256,39 +294,78 @@ document.getElementById('editMerchantForm').addEventListener('submit', async (e)
     const policyNote = document.getElementById('policyNote').value;
     const statusValue = document.getElementById('merchantStatus').value;
 
+    console.log('Form data:', {
+        isEditMode,
+        merchantId,
+        merchantName,
+        logoUrl,
+        campaignId,
+        commissionRate,
+        deepLinkBase,
+        policyNote,
+        statusValue
+    });
+
+    // Validate
+    if (!merchantId || !merchantName) {
+        console.log('Validation failed:', { merchantId, merchantName });
+        showToast('Merchant ID và Name là bắt buộc', 'error');
+        return;
+    }
+
     const submitBtn = document.getElementById('submitBtn');
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Saving...';
+    submitBtn.textContent = 'Đang lưu...';
 
     try {
-        const response = await apiRequest(`/admin/merchant/${merchantId}`, {
-            method: 'PUT',
-            body: JSON.stringify({
-                name: merchantName,
-                logo_url: logoUrl || null,
-                campaign_id: campaignId || null,
-                commission_rate: commissionRate || null,
-                deep_link_base: deepLinkBase || null,
-                policy_note: policyNote || null,
-                is_active: statusValue === 'active'
-            })
-        });
+        const merchantData = {
+            id: merchantId,
+            name: merchantName,
+            logo_url: logoUrl || null,
+            campaign_id: campaignId || null,
+            commission_rate: commissionRate || null,
+            deep_link_base: deepLinkBase || null,
+            policy_note: policyNote || null,
+            is_active: statusValue === 'active'
+        };
+
+        console.log('Sending merchant data:', merchantData);
+
+        let response;
+        if (isEditMode) {
+            // Update existing merchant
+            console.log('Updating merchant...');
+            response = await apiRequest(`/admin/merchant/${merchantId}`, {
+                method: 'PUT',
+                body: JSON.stringify(merchantData)
+            });
+        } else {
+            // Create new merchant
+            console.log('Creating new merchant...');
+            response = await apiRequest('/admin/merchants', {
+                method: 'POST',
+                body: JSON.stringify(merchantData)
+            });
+        }
+
+        console.log('API Response:', response);
 
         if (response.success) {
-            showToast('Merchant updated successfully', 'success');
+            showToast(isEditMode ? 'Cập nhật merchant thành công' : 'Thêm merchant mới thành công', 'success');
             const modal = document.getElementById('editModal');
             modal.style.display = 'none';
             modal.classList.remove('show');
             await loadMerchants();
         } else {
-            throw new Error(response.message || 'Update failed');
+            console.error('Response not successful:', response);
+            throw new Error(response.message || (isEditMode ? 'Update failed' : 'Create failed'));
         }
     } catch (error) {
-        console.error('Update failed:', error);
-        showToast('Failed to update merchant: ' + error.message, 'error');
+        console.error('Save failed:', error);
+        showToast('Lỗi: ' + error.message, 'error');
     } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Save Changes';
+        submitBtn.textContent = 'Lưu';
     }
 });
 

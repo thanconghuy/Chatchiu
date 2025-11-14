@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lịch sử đối soát - Cashback System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2 class="logo">Chatchiu.Online</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item">
+                    <span class="icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/history" class="nav-item">
+                    <span class="icon">📜</span>
+                    <span>Lịch sử</span>
+                </a>
+                <a href="/reconciliation-history" class="nav-item active">
+                    <span class="icon">📋</span>
+                    <span>Đối soát</span>
+                </a>
+                <a href="#" class="nav-item" id="logoutBtn">
+                    <span class="icon">🚪</span>
+                    <span>Đăng xuất</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-wrapper">
+                <!-- Header -->
+                <header class="header">
+                    <div class="welcome">
+                        <h1>📋 Lịch sử đối soát cashback</h1>
+                        <p class="subtitle">Xem các kỳ đối soát và số tiền hoàn đã được xác nhận</p>
+                    </div>
+                </header>
+
+                <!-- Info Box -->
+                <div style="background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%); border: 2px solid #3b82f6; border-radius: 12px; padding: 20px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);">
+                    <div style="display: flex; gap: 12px; align-items: flex-start;">
+                        <div style="flex-shrink: 0; width: 40px; height: 40px; background: #3b82f6; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                            ℹ️
+                        </div>
+                        <div style="flex: 1;">
+                            <h4 style="margin: 0 0 8px 0; color: #1e40af; font-size: 1rem; font-weight: 600;">
+                                Đối soát cashback là gì?
+                            </h4>
+                            <p style="margin: 0; color: #1f2937; line-height: 1.6; font-size: 0.9rem;">
+                                Đối soát là quá trình xác nhận số tiền hoàn (cashback) mà bạn sẽ nhận được từ các đơn hàng đã được duyệt.
+                                Sau khi admin tạo kỳ đối soát và xác nhận, số tiền sẽ được chuyển vào số dư và có thể rút về ngân hàng của bạn.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reconciliation List -->
+                <section class="section">
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Kỳ đối soát</th>
+                                    <th>Từ ngày - Đến ngày</th>
+                                    <th>Số đơn hàng</th>
+                                    <th>Tổng cashback</th>
+                                    <th>Trạng thái</th>
+                                    <th>Ngày tạo</th>
+                                    <th>Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reconciliationTable">
+                                <tr class="loading-state">
+                                    <td colspan="7">
+                                        <div class="loading">Đang tải...</div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div class="pagination" id="pagination" style="display: none;">
+                        <button class="btn-secondary" id="prevBtn" disabled>« Trước</button>
+                        <span id="pageInfo">Trang 1</span>
+                        <button class="btn-secondary" id="nextBtn">Sau »</button>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div id="emptyState" style="display: none; text-align: center; padding: 60px 20px;">
+                        <div style="font-size: 64px; margin-bottom: 20px; opacity: 0.3;">📋</div>
+                        <h3 style="color: #666; margin-bottom: 10px;">Chưa có kỳ đối soát nào</h3>
+                        <p style="color: #999;">Khi admin tạo kỳ đối soát cho các đơn hàng của bạn, chúng sẽ hiển thị ở đây.</p>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Details Modal -->
+    <div id="detailsModal" class="modal" style="display: none;">
+        <div class="modal-overlay"></div>
+        <div class="modal-content" style="max-width: 900px; margin: 50px auto; background: white; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+            <div class="modal-header" style="padding: 20px 24px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+                <h2 id="modalTitle" style="margin: 0; font-size: 1.25rem;">Chi tiết kỳ đối soát</h2>
+                <button class="modal-close" id="closeModal" style="background: none; border: none; font-size: 28px; cursor: pointer; color: #999;">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody" style="padding: 24px; max-height: 600px; overflow-y: auto;">
+                <div class="loading">Đang tải...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/mobile-menu.js"></script>
+    <script src="js/reconciliation-history.js"></script>
+    <script src="js/analytics.js"></script>
+</body>
+</html>

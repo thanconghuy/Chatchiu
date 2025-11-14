@@ -116,7 +116,7 @@ function setupFilters() {
  */
 async function loadConversions() {
     try {
-        conversionsTable.innerHTML = '<tr class="loading-state"><td colspan="8"><div class="loading">Đang tải...</div></td></tr>';
+        conversionsTable.innerHTML = '<tr class="loading-state"><td colspan="7"><div class="loading">Đang tải...</div></td></tr>';
 
         const offset = conversionsPage * ITEMS_PER_PAGE;
         let url = `/dashboard/conversions?limit=${ITEMS_PER_PAGE}&offset=${offset}`;
@@ -135,7 +135,7 @@ async function loadConversions() {
         console.error('Error loading conversions:', error);
         conversionsTable.innerHTML = `
             <tr class="error-state">
-                <td colspan="8">
+                <td colspan="7">
                     <div class="error">Không thể tải dữ liệu</div>
                 </td>
             </tr>
@@ -150,7 +150,7 @@ function renderConversions(conversions) {
     if (conversions.length === 0) {
         conversionsTable.innerHTML = `
             <tr class="empty-state">
-                <td colspan="8">
+                <td colspan="7">
                     <p>Chưa có đơn hàng nào</p>
                 </td>
             </tr>
@@ -175,7 +175,6 @@ function renderConversions(conversions) {
                 </td>
                 <td>${conv.orderCode || '-'}</td>
                 <td>${formatCurrency(conv.orderAmount)}</td>
-                <td>${formatCurrency(conv.commission)}</td>
                 <td class="highlight">${formatCurrency(conv.cashbackAmount)}</td>
                 <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                 <td>${formatDate(conv.orderTime)}</td>
@@ -195,23 +194,24 @@ function updateConversionsPagination(itemCount) {
 }
 
 /**
- * Load clicks
+ * Load clicks with pagination
  */
 async function loadClicks() {
     try {
-        clicksTable.innerHTML = '<tr class="loading-state"><td colspan="6"><div class="loading">Đang tải...</div></td></tr>';
+        clicksTable.innerHTML = '<tr class="loading-state"><td colspan="7"><div class="loading">Đang tải...</div></td></tr>';
 
-        const limit = 100; // Show more clicks since they're smaller
-        const response = await apiRequest(`/dashboard/recent-clicks?limit=${limit}`);
+        const offset = clicksPage * ITEMS_PER_PAGE;
+        const response = await apiRequest(`/dashboard/recent-clicks?limit=${ITEMS_PER_PAGE}&offset=${offset}`);
 
         if (response.success) {
             renderClicks(response.clicks);
+            updateClicksPagination(response.clicks.length);
         }
     } catch (error) {
         console.error('Error loading clicks:', error);
         clicksTable.innerHTML = `
             <tr class="error-state">
-                <td colspan="6">
+                <td colspan="7">
                     <div class="error">Không thể tải dữ liệu</div>
                 </td>
             </tr>
@@ -220,7 +220,7 @@ async function loadClicks() {
 }
 
 /**
- * Render clicks table
+ * Render clicks table with highlighting for conversions
  */
 function renderClicks(clicks) {
     if (clicks.length === 0) {
@@ -235,6 +235,14 @@ function renderClicks(clicks) {
     }
 
     clicksTable.innerHTML = clicks.map(click => {
+        // Highlight row if has conversion
+        const rowStyle = click.hasConversion ?
+            'background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-left: 4px solid #10b981;' :
+            '';
+
+        // Icon for conversion
+        const conversionIcon = click.hasConversion ? '🎉 ' : '';
+
         // Click type badge
         const clickTypeBadge = click.clickType === 'button'
             ? '<span class="click-type-badge click-type-button">🎯 Tự do</span>'
@@ -263,17 +271,17 @@ function renderClicks(clicks) {
             statusCell = `<span class="status-badge ${statusClass}">${statusText}</span>`;
         }
 
-        // Cashback cell
+        // Cashback cell with highlight color
         const cashbackCell = click.cashback > 0
-            ? `<span class="cashback-amount">${formatCurrency(click.cashback)}</span>`
+            ? `<strong style="color: ${click.hasConversion ? '#10b981' : '#666'};">${formatCurrency(click.cashback)}</strong>`
             : '<span class="cashback-none">-</span>';
 
         return `
-            <tr>
+            <tr style="${rowStyle}">
                 <td>
                     <div class="merchant-cell">
                         ${click.merchantLogo ? `<img src="${click.merchantLogo}" alt="${click.merchantName}" class="merchant-mini-logo">` : ''}
-                        <span>${click.merchantName}</span>
+                        <strong>${conversionIcon}${click.merchantName}</strong>
                     </div>
                 </td>
                 <td>${clickTypeBadge}</td>
