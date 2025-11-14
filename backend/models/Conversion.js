@@ -25,6 +25,9 @@ class Conversion {
             utmContent = null,
             orderTime = null,
             approvalTime = null,
+            // Reconciliation fields (from migration 001)
+            isConfirmed = 0,
+            confirmedTime = null,
             orderApproved = 0,
             productsCount = 0,
             orderPending = 0,
@@ -36,8 +39,9 @@ class Conversion {
                 user_id, click_id, accesstrade_id, merchant_id, merchant_name,
                 order_code, order_amount, commission, cashback_amount,
                 status, aff_sid, utm_source, utm_medium, utm_campaign, utm_content,
-                order_time, approval_time, order_approved, products_count, order_pending, order_reject
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+                order_time, approval_time,
+                is_confirmed, confirmed_time, order_approved, products_count, order_pending, order_reject
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
             RETURNING *
         `;
 
@@ -59,6 +63,8 @@ class Conversion {
             utmContent,
             orderTime,
             approvalTime,
+            isConfirmed,
+            confirmedTime,
             orderApproved,
             productsCount,
             orderPending,

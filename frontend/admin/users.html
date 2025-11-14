@@ -421,6 +421,10 @@
                     <span class="nav-icon">📦</span>
                     <span class="nav-text">Dữ liệu đơn AT</span>
                 </a>
+                <a href="/admin/reconciliation" class="nav-item">
+                    <span class="nav-icon">📋</span>
+                    <span class="nav-text">Đối soát</span>
+                </a>
                 <a href="/admin/merchants" class="nav-item">
                     <span class="nav-icon">🏪</span>
                     <span class="nav-text">Merchants</span>
@@ -438,14 +442,15 @@
 
         <!-- Main Content -->
         <main class="main-content">
-            <div class="content-header">
-                <h1>Users Management</h1>
-                <div class="user-info">
-                    <span id="userName">Admin</span>
+            <div class="content-wrapper">
+                <div class="content-header">
+                    <h1>Users Management</h1>
+                    <div class="user-info">
+                        <span id="userName">Admin</span>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Search Bar -->
+                <!-- Search Bar -->
             <div class="search-bar">
                 <input type="text" id="searchInput" class="search-input" placeholder="Tìm kiếm theo email, username, hoặc tên...">
                 <button class="search-btn" id="searchBtn">🔍 Tìm kiếm</button>
@@ -458,13 +463,13 @@
                         <tr>
                             <th>Username</th>
                             <th>Email</th>
-                            <th>Full Name</th>
-                            <th>Phone</th>
-                            <th>Available Balance</th>
-                            <th>Pending Balance</th>
-                            <th>Total Clicks</th>
-                            <th>Total Conversions</th>
-                            <th>Created At</th>
+                            <th>Họ tên</th>
+                            <th>Điện thoại</th>
+                            <th>Số dư khả dụng</th>
+                            <th>Số dư chờ xử lý</th>
+                            <th>Tổng clicks</th>
+                            <th>Tổng conversions</th>
+                            <th>Ngày tạo</th>
                         </tr>
                     </thead>
                     <tbody id="usersTable">
@@ -508,9 +513,19 @@
 
             <!-- Pagination -->
             <div class="pagination">
-                <button class="btn-secondary" id="prevBtn" disabled>« Previous</button>
-                <span id="pageInfo">Page 1</span>
-                <button class="btn-secondary" id="nextBtn">Next »</button>
+                <div class="rows-per-page">
+                    <label for="rowsPerPage">Hiển thị:</label>
+                    <select id="rowsPerPage">
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50" selected>50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+                <button class="btn-secondary" id="prevBtn" disabled>« Trước</button>
+                <span id="pageInfo">1</span>
+                <button class="btn-secondary" id="nextBtn">Sau »</button>
+            </div>
             </div>
         </main>
     </div>

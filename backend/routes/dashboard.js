@@ -8,6 +8,7 @@ const Merchant = require('../models/Merchant');
 const Conversion = require('../models/Conversion');
 const SystemConversion = require('../models/SystemConversion');
 const { generateAffiliateLink } = require('../services/linkGenerator');
+const reconciliationService = require('../services/reconciliationService');
 
 /**
  * GET /api/dashboard/stats
@@ -15,34 +16,48 @@ const { generateAffiliateLink } = require('../services/linkGenerator');
  */
 router.get('/stats', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findById(req.userId);
-    const stats = await User.getStats(req.userId);
-    const clickStats = await Click.getStats(req.userId);
-    const conversionStats = await Conversion.getUserStats(req.userId);
+    console.log('[Dashboard Stats] Loading stats for userId:', req.userId);
 
-    res.json({
+    const user = await User.findById(req.userId);
+    console.log('[Dashboard Stats] User found:', user ? user.email : 'null');
+
+    const stats = await User.getStats(req.userId);
+    console.log('[Dashboard Stats] User stats:', stats);
+
+    const clickStats = await Click.getStats(req.userId);
+    console.log('[Dashboard Stats] Click stats:', clickStats);
+
+    const conversionStats = await Conversion.getUserStats(req.userId);
+    console.log('[Dashboard Stats] Conversion stats:', conversionStats);
+
+    const responseData = {
       success: true,
       stats: {
-        availableBalance: parseFloat(user.available_balance),
-        pendingBalance: parseFloat(user.pending_balance),
-        totalCashback: parseFloat(user.total_cashback),
-        totalConversions: parseInt(conversionStats.total_conversions),
-        approvedConversions: parseInt(conversionStats.approved_conversions),
-        pendingConversions: parseInt(conversionStats.pending_conversions),
-        rejectedConversions: parseInt(conversionStats.rejected_conversions),
-        totalApprovedCashback: parseFloat(conversionStats.total_approved_cashback),
-        totalPendingCashback: parseFloat(conversionStats.total_pending_cashback),
-        totalApprovedOrderValue: parseFloat(conversionStats.total_approved_order_value),
-        totalOrderValue: parseFloat(conversionStats.total_order_value),
-        totalClicks: parseInt(clickStats.total_clicks),
-        convertedClicks: parseInt(clickStats.converted_clicks)
+        availableBalance: parseFloat(user.available_balance) || 0,
+        pendingBalance: parseFloat(user.pending_balance) || 0,
+        totalCashback: parseFloat(user.total_cashback) || 0,
+        totalConversions: parseInt(conversionStats.total_conversions) || 0,
+        approvedConversions: parseInt(conversionStats.approved_conversions) || 0,
+        pendingConversions: parseInt(conversionStats.pending_conversions) || 0,
+        rejectedConversions: parseInt(conversionStats.rejected_conversions) || 0,
+        totalApprovedCashback: parseFloat(conversionStats.total_approved_cashback) || 0,
+        totalPendingCashback: parseFloat(conversionStats.total_pending_cashback) || 0,
+        totalApprovedOrderValue: parseFloat(conversionStats.total_approved_order_value) || 0,
+        totalOrderValue: parseFloat(conversionStats.total_order_value) || 0,
+        totalClicks: parseInt(clickStats.total_clicks) || 0,
+        convertedClicks: parseInt(clickStats.converted_clicks) || 0
       }
-    });
+    };
+
+    console.log('[Dashboard Stats] Sending response:', responseData);
+    res.json(responseData);
   } catch (error) {
-    console.error('Get stats error:', error);
+    console.error('[Dashboard Stats] Error:', error);
+    console.error('[Dashboard Stats] Error stack:', error.stack);
     res.status(500).json({
       success: false,
-      message: 'Failed to get statistics'
+      message: 'Failed to get statistics',
+      error: error.message
     });
   }
 });
@@ -419,6 +434,78 @@ router.get('/conversion/:id', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to get conversion details'
+    });
+  }
+});
+
+/**
+ * GET /api/dashboard/reconciliations
+ * Get user's reconciliation periods (confirmed only)
+ */
+router.get('/reconciliations', authenticateToken, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = parseInt(req.query.offset) || 0;
+
+    const reconciliations = await reconciliationService.getUserReconciliations(req.userId, {
+      limit,
+      offset
+    });
+
+    res.json({
+      success: true,
+      reconciliations: reconciliations.map(r => ({
+        id: r.id,
+        periodLabel: r.period_label,
+        periodStart: r.period_start,
+        periodEnd: r.period_end,
+        totalOrders: parseInt(r.total_orders),
+        totalOrderAmount: parseFloat(r.total_order_amount),
+        totalCashback: parseFloat(r.total_cashback),
+        status: r.status,
+        confirmedAt: r.confirmed_at,
+        paidAt: r.paid_at,
+        itemCount: parseInt(r.item_count)
+      }))
+    });
+  } catch (error) {
+    console.error('Get user reconciliations error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get reconciliations'
+    });
+  }
+});
+
+/**
+ * GET /api/dashboard/reconciliation/:id/items
+ * Get user's orders in a specific reconciliation period
+ */
+router.get('/reconciliation/:id/items', authenticateToken, async (req, res) => {
+  try {
+    const items = await reconciliationService.getUserReconciliationItems(
+      req.params.id,
+      req.userId
+    );
+
+    res.json({
+      success: true,
+      items: items.map(item => ({
+        id: item.id,
+        orderCode: item.order_code,
+        merchantName: item.merchant_name,
+        orderAmount: parseFloat(item.order_amount),
+        commission: parseFloat(item.commission),
+        cashbackAmount: parseFloat(item.cashback_amount),
+        orderTime: item.order_time,
+        confirmedTime: item.confirmed_time
+      }))
+    });
+  } catch (error) {
+    console.error('Get user reconciliation items error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to get reconciliation items'
     });
   }
 });

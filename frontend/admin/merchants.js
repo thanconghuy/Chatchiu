@@ -4,6 +4,7 @@
 
 let currentPage = 1;
 let merchants = [];
+let ITEMS_PER_PAGE = 50;
 
 // Check auth on load
 if (!requireAuth()) {
@@ -26,7 +27,7 @@ async function checkAdminAccess() {
             saveAuth(getToken(), response.user);
 
             const user = response.user;
-            document.getElementById('userName').textContent = user.fullName || user.username || user.email;
+            displayUserName('userName');
 
             if (!user.is_admin) {
                 showToast('Access denied: Admin only', 'error');
@@ -111,9 +112,8 @@ function renderMerchants() {
         return;
     }
 
-    const itemsPerPage = 20;
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
     const pageItems = filtered.slice(startIndex, endIndex);
 
     tbody.innerHTML = pageItems.map(merchant => {
@@ -158,15 +158,16 @@ function renderMerchants() {
         </tr>
     `}).join('');
 
-    updatePagination(filtered.length, itemsPerPage);
+    updatePagination(filtered.length);
 }
 
 /**
  * Update pagination
  */
-function updatePagination(totalItems, itemsPerPage) {
-    const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
-    document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
+function updatePagination(totalItems) {
+    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE) || 1;
+    // Show only page number
+    document.getElementById('pageInfo').textContent = currentPage;
 
     document.getElementById('prevBtn').disabled = currentPage === 1;
     document.getElementById('nextBtn').disabled = currentPage >= totalPages;
@@ -241,6 +242,15 @@ const searchInput = document.getElementById('searchInput');
 if (searchInput) {
     searchInput.addEventListener('input', () => {
         currentPage = 1;
+        renderMerchants();
+    });
+}
+
+const rowsPerPageSelect = document.getElementById('rowsPerPage');
+if (rowsPerPageSelect) {
+    rowsPerPageSelect.addEventListener('change', () => {
+        ITEMS_PER_PAGE = parseInt(rowsPerPageSelect.value);
+        currentPage = 1; // Reset to first page
         renderMerchants();
     });
 }

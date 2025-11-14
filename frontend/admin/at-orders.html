@@ -7,22 +7,6 @@
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="admin.css">
     <style>
-        /* App Container & Main Content Width */
-        .app-container {
-            display: flex;
-            width: 100%;
-            max-width: 100vw;
-            overflow-x: hidden;
-        }
-
-        .main-content {
-            flex: 1;
-            padding: 24px;
-            box-sizing: border-box;
-            min-width: 0;
-            margin-left: var(--sidebar-width);
-        }
-
         .search-bar {
             background: white;
             padding: 24px;
@@ -33,9 +17,13 @@
 
         .search-row {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
             gap: 16px;
             margin-bottom: 16px;
+        }
+
+        .search-row:last-of-type {
+            margin-bottom: 0;
         }
 
         .search-input-group {
@@ -70,11 +58,12 @@
             display: flex;
             gap: 12px;
             justify-content: flex-end;
-            margin-top: 16px;
+            margin-top: 20px;
+            flex-wrap: wrap;
         }
 
         .btn-search {
-            padding: 12px 32px;
+            padding: 10px 20px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
@@ -82,6 +71,11 @@
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
+            white-space: nowrap;
+            width: auto;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .btn-search:hover {
@@ -90,7 +84,7 @@
         }
 
         .btn-reset {
-            padding: 12px 24px;
+            padding: 10px 20px;
             background: white;
             color: var(--gray-700);
             border: 2px solid var(--gray-300);
@@ -98,11 +92,139 @@
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
+            white-space: nowrap;
+            width: auto;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .btn-reset:hover {
             border-color: var(--gray-400);
             background: var(--gray-50);
+        }
+
+        /* Filter Component Styles */
+        .table-filters {
+            display: flex;
+            align-items: flex-end;
+            justify-content: flex-end;
+            gap: 16px;
+            margin-bottom: 16px;
+            padding: 16px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 200px;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--gray-700);
+        }
+
+        .filter-dropdown {
+            position: relative;
+        }
+
+        .filter-dropdown-btn {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid var(--gray-300);
+            border-radius: 8px;
+            background: white;
+            font-size: 1rem;
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .filter-dropdown-btn:hover {
+            border-color: var(--primary);
+        }
+
+        .filter-dropdown-btn:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .filter-dropdown-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 4px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .filter-dropdown-menu.show {
+            display: block;
+            animation: dropdownFadeIn 0.2s ease-out;
+        }
+
+        @keyframes dropdownFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .filter-search-box {
+            position: sticky;
+            top: 0;
+            background: white;
+            padding: 12px;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .filter-search-box input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .filter-search-box input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .filter-option {
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .filter-option:hover {
+            background: var(--gray-50);
+        }
+
+        .filter-option.selected {
+            background: rgba(102, 126, 234, 0.1);
+            color: var(--primary);
+            font-weight: 600;
         }
 
         .stats-row {
@@ -129,6 +251,65 @@
             font-size: 1.5rem;
             font-weight: 700;
             color: var(--gray-900);
+        }
+
+        /* New stat card styles */
+        .stat-icon {
+            font-size: 1.5rem;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+
+        .stat-subvalue {
+            font-size: 0.85rem;
+            color: var(--gray-600);
+            margin-top: 4px;
+        }
+
+        /* Status-specific card styles */
+        .stat-approved {
+            border-left: 4px solid #10b981;
+            background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
+        }
+
+        .stat-approved .stat-value {
+            color: #10b981;
+        }
+
+        .stat-pending {
+            border-left: 4px solid #f59e0b;
+            background: linear-gradient(135deg, #ffffff 0%, #fffbeb 100%);
+        }
+
+        .stat-pending .stat-value {
+            color: #f59e0b;
+        }
+
+        .stat-rejected {
+            border-left: 4px solid #ef4444;
+            background: linear-gradient(135deg, #ffffff 0%, #fef2f2 100%);
+        }
+
+        .stat-rejected .stat-value {
+            color: #ef4444;
+        }
+
+        .stat-confirmed {
+            border-left: 4px solid #3b82f6;
+            background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%);
+        }
+
+        .stat-confirmed .stat-value {
+            color: #3b82f6;
+        }
+
+        .stat-not-confirmed {
+            border-left: 4px solid #8b5cf6;
+            background: linear-gradient(135deg, #ffffff 0%, #faf5ff 100%);
+        }
+
+        .stat-not-confirmed .stat-value {
+            color: #8b5cf6;
         }
 
         .table-wrapper {
@@ -184,12 +365,6 @@
             color: #155724;
         }
 
-        .status-temp-approved {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-
         .status-rejected {
             background: #f8d7da;
             color: #721c24;
@@ -225,6 +400,33 @@
         .pagination button:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+        }
+
+        .pagination #pageInfo {
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--gray-700);
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .rows-per-page {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .rows-per-page label {
+            font-size: 0.9rem;
+            color: var(--gray-600);
+        }
+
+        .rows-per-page select {
+            padding: 6px 12px;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            cursor: pointer;
         }
 
         .empty-state {
@@ -301,12 +503,48 @@
             }
         }
 
+        /* Responsive styles for 5-card layout */
+        @media (max-width: 1400px) {
+            /* Stack 5 cards into 3 + 2 on smaller desktops */
+            .stats-row[style*="repeat(5"] {
+                grid-template-columns: repeat(3, 1fr) !important;
+            }
+            .stats-row[style*="repeat(5"] .stat-box:nth-child(4),
+            .stats-row[style*="repeat(5"] .stat-box:nth-child(5) {
+                grid-column: span 1;
+            }
+        }
+
+        @media (max-width: 1600px) {
+            .search-row {
+                grid-template-columns: 1fr 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 1400px) {
+            .btn-search,
+            .btn-reset {
+                min-width: 150px;
+            }
+        }
+
         @media (max-width: 1200px) {
             .search-row {
                 grid-template-columns: 1fr 1fr;
             }
             .stats-row {
-                grid-template-columns: repeat(2, 1fr);
+                grid-template-columns: repeat(2, 1fr) !important;
+            }
+
+            .search-actions {
+                justify-content: stretch;
+            }
+
+            .btn-search,
+            .btn-reset {
+                flex: 1;
+                min-width: 120px;
+                max-width: none;
             }
         }
 
@@ -315,7 +553,16 @@
                 grid-template-columns: 1fr;
             }
             .stats-row {
-                grid-template-columns: 1fr;
+                grid-template-columns: 1fr !important;
+            }
+
+            .search-actions {
+                flex-direction: column;
+            }
+
+            .btn-search,
+            .btn-reset {
+                width: 100%;
             }
         }
     </style>
@@ -349,6 +596,10 @@
                     <span class="nav-icon">📦</span>
                     <span class="nav-text">Dữ liệu đơn AT</span>
                 </a>
+                <a href="/admin/reconciliation" class="nav-item">
+                    <span class="nav-icon">📋</span>
+                    <span class="nav-text">Đối soát</span>
+                </a>
                 <a href="/admin/merchants" class="nav-item">
                     <span class="nav-icon">🏪</span>
                     <span class="nav-text">Merchants</span>
@@ -366,35 +617,21 @@
 
         <!-- Main Content -->
         <main class="main-content">
-            <div class="content-header">
-                <h1>📦 Tất cả dữ liệu đơn hàng trên AccessTrade</h1>
-                <div class="user-info">
-                    <span id="userName">Admin</span>
+            <div class="content-wrapper">
+                <div class="content-header">
+                    <h1>📦 Tất cả dữ liệu đơn hàng trên AccessTrade</h1>
+                    <div class="user-info">
+                        <span id="userName">Admin</span>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Search & Filter -->
+                <!-- Search & Filter -->
             <div class="search-bar">
                 <div class="search-row">
                     <div class="search-input-group">
                         <label for="searchKeyword">🔍 Tìm kiếm</label>
                         <input type="text" id="searchKeyword" placeholder="Order ID, Merchant, Aff Sid...">
                     </div>
-                    <div class="search-input-group">
-                        <label for="filterStatus">Trạng thái</label>
-                        <select id="filterStatus">
-                            <option value="">Tất cả</option>
-                            <option value="pending">Pending</option>
-                            <option value="approved">Approved</option>
-                            <option value="rejected">Rejected</option>
-                        </select>
-                    </div>
-                    <div class="search-input-group">
-                        <label for="filterMerchant">Merchant</label>
-                        <input type="text" id="filterMerchant" placeholder="Tên merchant...">
-                    </div>
-                </div>
-                <div class="search-row">
                     <div class="search-input-group">
                         <label for="filterDateFrom">Từ ngày</label>
                         <input type="date" id="filterDateFrom">
@@ -408,13 +645,14 @@
                         <input type="text" id="filterUser" placeholder="User ID hoặc email...">
                     </div>
                 </div>
+
                 <div class="search-actions">
                     <button class="btn-reset" id="resetBtn">🔄 Reset</button>
                     <button class="btn-search" id="searchBtn">🔍 Tìm kiếm</button>
                 </div>
             </div>
 
-            <!-- Statistics -->
+            <!-- Statistics - Tổng quan -->
             <div class="stats-row">
                 <div class="stat-box">
                     <div class="stat-label">Tổng đơn hàng</div>
@@ -430,6 +668,106 @@
                 </div>
             </div>
 
+            <!-- Statistics - Trạng thái đơn hàng và đối soát (5 cards) -->
+            <div class="stats-row" style="grid-template-columns: repeat(5, 1fr);">
+                <!-- Order Status Cards -->
+                <div class="stat-box stat-approved">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-label" style="margin: 0;">Đã duyệt</div>
+                    </div>
+                    <div class="stat-value" id="statApproved">0</div>
+                    <div class="stat-subvalue" id="statApprovedAmount">0đ</div>
+                </div>
+                <div class="stat-box stat-pending">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <div class="stat-icon">⏳</div>
+                        <div class="stat-label" style="margin: 0;">Đang xử lý</div>
+                    </div>
+                    <div class="stat-value" id="statPending">0</div>
+                    <div class="stat-subvalue" id="statPendingAmount">0đ</div>
+                </div>
+                <div class="stat-box stat-rejected">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <div class="stat-icon">❌</div>
+                        <div class="stat-label" style="margin: 0;">Hủy</div>
+                    </div>
+                    <div class="stat-value" id="statRejected">0</div>
+                    <div class="stat-subvalue" id="statRejectedAmount">0đ</div>
+                </div>
+
+                <!-- Confirmed Status Cards -->
+                <div class="stat-box stat-confirmed">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-label" style="margin: 0;">Đã đối soát</div>
+                    </div>
+                    <div class="stat-value" id="statConfirmed">0</div>
+                    <div class="stat-subvalue" id="statConfirmedCommission">0đ hoa hồng</div>
+                </div>
+                <div class="stat-box stat-not-confirmed">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <div class="stat-icon">🔓</div>
+                        <div class="stat-label" style="margin: 0;">Chưa đối soát</div>
+                    </div>
+                    <div class="stat-value" id="statNotConfirmed">0</div>
+                    <div class="stat-subvalue" id="statNotConfirmedCommission">0đ hoa hồng</div>
+                </div>
+            </div>
+
+            <!-- Table Filters (Above Table) -->
+            <div class="table-filters">
+                <div class="filter-group">
+                    <label>TT Đơn hàng</label>
+                    <div class="filter-dropdown">
+                        <button class="filter-dropdown-btn" id="statusFilterBtn" type="button">
+                            <span id="statusFilterText">Tất cả</span>
+                            <span>▼</span>
+                        </button>
+                        <div class="filter-dropdown-menu" id="statusFilterMenu">
+                            <div class="filter-option selected" data-value="">Tất cả</div>
+                            <div class="filter-option" data-value="pending">Đang xử lý</div>
+                            <div class="filter-option" data-value="approved">Đã duyệt</div>
+                            <div class="filter-option" data-value="rejected">Hủy</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <label>TT Đối soát</label>
+                    <div class="filter-dropdown">
+                        <button class="filter-dropdown-btn" id="confirmedFilterBtn" type="button">
+                            <span id="confirmedFilterText">Tất cả</span>
+                            <span>▼</span>
+                        </button>
+                        <div class="filter-dropdown-menu" id="confirmedFilterMenu">
+                            <div class="filter-option selected" data-value="">Tất cả</div>
+                            <div class="filter-option" data-value="1">Đã đối soát</div>
+                            <div class="filter-option" data-value="0">Chưa đối soát</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <label>Merchant</label>
+                    <div class="filter-dropdown">
+                        <button class="filter-dropdown-btn" id="merchantFilterBtn" type="button">
+                            <span id="merchantFilterText">Tất cả</span>
+                            <span>▼</span>
+                        </button>
+                        <div class="filter-dropdown-menu" id="merchantFilterMenu">
+                            <div class="filter-search-box">
+                                <input type="text" id="merchantSearchInput" placeholder="🔍 Tìm merchant...">
+                            </div>
+                            <div id="merchantOptions">
+                                <div class="filter-option selected" data-value="">Tất cả</div>
+                                <!-- Merchant options will be loaded dynamically -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Data Table -->
             <div class="table-wrapper">
                 <table class="data-table">
@@ -441,7 +779,8 @@
                             <th>Giá trị đơn</th>
                             <th>Commission</th>
                             <th>Cashback</th>
-                            <th>Trạng thái</th>
+                            <th>TT Đơn hàng</th>
+                            <th>TT Đối soát</th>
                             <th>Aff Sid</th>
                             <th>Thời gian</th>
                         </tr>
@@ -455,6 +794,7 @@
                             <td><div class="skeleton skeleton-text"></div></td>
                             <td><div class="skeleton skeleton-text"></div></td>
                             <td><div class="skeleton skeleton-text"></div></td>
+                            <td><div class="skeleton skeleton-badge"></div></td>
                             <td><div class="skeleton skeleton-badge"></div></td>
                             <td><div class="skeleton skeleton-text"></div></td>
                             <td><div class="skeleton skeleton-text"></div></td>
@@ -487,14 +827,19 @@
 
             <!-- Pagination -->
             <div class="pagination">
-                <button id="firstBtn" disabled>«« Đầu</button>
-                <button id="prevBtn" disabled>‹ Trước</button>
-                <span id="pageInfo" style="font-weight: 600; min-width: 200px; text-align: center;">Trang 1</span>
-                <button id="nextBtn">Sau ›</button>
-                <button id="lastBtn">Cuối »»</button>
+                <div class="rows-per-page">
+                    <label for="rowsPerPage">Hiển thị:</label>
+                    <select id="rowsPerPage">
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50" selected>50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+                <button id="prevBtn" class="btn-secondary" disabled>« Trước</button>
+                <span id="pageInfo">1</span>
+                <button id="nextBtn" class="btn-secondary">Sau »</button>
             </div>
-            <div style="text-align: center; color: var(--gray-600); font-size: 0.9rem; margin-top: 12px;" id="recordsInfo">
-                Hiển thị 0 kết quả
             </div>
         </main>
     </div>
@@ -596,6 +941,5 @@
     <script src="../js/auth.js"></script>
     <script src="../js/mobile-menu.js"></script>
     <script src="at-orders.js"></script>
-    <script src="../js/analytics.js"></script>
 </body>
 </html>

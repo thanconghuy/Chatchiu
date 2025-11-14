@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reconciliation Management - Admin</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/admin/admin.css">
+    <style>
+        .reconciliation-filters {
+            background: white;
+            padding: 28px;
+            border-radius: 16px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            border: 2px solid #e5e7eb;
+            transition: all 0.3s;
+        }
+
+        .reconciliation-filters:hover {
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+        }
+
+        .reconciliation-filters h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+        }
+
+        .filter-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-group label {
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .filter-group input,
+        .filter-group select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .filter-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn-primary, .btn-success, .btn-secondary {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+            color: white;
+            box-shadow: 0 4px 6px rgba(100, 116, 139, 0.3);
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(100, 116, 139, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+        }
+
+        .btn-warning:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(245, 158, 11, 0.4);
+        }
+
+        .reconciliation-list {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            border: 2px solid #e5e7eb;
+            transition: all 0.3s;
+        }
+
+        .reconciliation-list:hover {
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+        }
+
+        .reconciliation-list h3 {
+            padding: 20px;
+            margin: 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .reconciliation-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .reconciliation-table th,
+        .reconciliation-table td {
+            padding: 16px 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .reconciliation-table th {
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            font-weight: 700;
+            color: #374151;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .reconciliation-table tr {
+            transition: all 0.2s;
+        }
+
+        .reconciliation-table tbody tr:hover {
+            background: #f9fafb;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .status-badge {
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-draft {
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+            color: #1e40af;
+            border: 1px solid #93c5fd;
+        }
+
+        .status-confirmed {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            color: #065f46;
+            border: 1px solid #6ee7b7;
+        }
+
+        .status-paid {
+            background: linear-gradient(135deg, #e9d5ff 0%, #d8b4fe 100%);
+            color: #581c87;
+            border: 1px solid #c084fc;
+        }
+
+        .status-cancelled {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+
+        .preview-section {
+            background: white;
+            padding: 24px;
+            border-radius: 16px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            display: none;
+            transition: all 0.3s;
+        }
+
+        .preview-section:hover {
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+        }
+
+        .preview-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .preview-stat {
+            padding: 20px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border-radius: 12px;
+            text-align: center;
+            border: 2px solid #e5e7eb;
+            transition: all 0.3s;
+        }
+
+        .preview-stat:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        .preview-stat-label {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+        }
+
+        .preview-stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 3% auto;
+            padding: 0;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 1000px;
+            max-height: 85vh;
+            overflow: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            padding: 24px 28px;
+            border-bottom: 2px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border-radius: 16px 16px 0 0;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            color: #1f2937;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .modal-body {
+            padding: 28px;
+        }
+
+        .modal-footer {
+            padding: 20px 28px;
+            border-top: 2px solid #e5e7eb;
+            text-align: right;
+            background: #f9fafb;
+            border-radius: 0 0 16px 16px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .close-btn {
+            font-size: 28px;
+            font-weight: bold;
+            color: #9ca3af;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+        }
+
+        .close-btn:hover {
+            color: #1f2937;
+            background: #e5e7eb;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="logo">
+                <span class="logo-icon">⚡</span>
+                <span class="logo-text">Admin</span>
+            </div>
+
+            <nav class="nav">
+                <a href="/admin" class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+                <a href="/admin/users" class="nav-item">
+                    <span class="nav-icon">👥</span>
+                    <span class="nav-text">Users</span>
+                </a>
+                <a href="/admin/conversions" class="nav-item">
+                    <span class="nav-icon">💰</span>
+                    <span class="nav-text">Conversions</span>
+                </a>
+                <a href="/admin/at-orders" class="nav-item">
+                    <span class="nav-icon">📦</span>
+                    <span class="nav-text">Dữ liệu đơn AT</span>
+                </a>
+                <a href="/admin/reconciliation" class="nav-item active">
+                    <span class="nav-icon">📋</span>
+                    <span class="nav-text">Đối soát</span>
+                </a>
+                <a href="/admin/merchants" class="nav-item">
+                    <span class="nav-icon">🏪</span>
+                    <span class="nav-text">Merchants</span>
+                </a>
+                <a href="/admin/tools" class="nav-item">
+                    <span class="nav-icon">🔧</span>
+                    <span class="nav-text">Tools</span>
+                </a>
+                <a href="#" class="nav-item" id="logoutBtn">
+                    <span class="nav-icon">🚪</span>
+                    <span class="nav-text">Logout</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-wrapper">
+                <div class="content-header">
+                    <h1>📋 Quản Lý Đối Soát Cashback</h1>
+                    <div class="user-info">
+                        <span id="userName">Admin</span>
+                    </div>
+                </div>
+
+                <!-- Instructions Box -->
+            <div style="background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%); border: 2px solid #3b82f6; border-radius: 16px; padding: 24px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);">
+                <div style="display: flex; gap: 16px; align-items: flex-start;">
+                    <div style="flex-shrink: 0; width: 48px; height: 48px; background: #3b82f6; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px;">
+                        📚
+                    </div>
+                    <div style="flex: 1;">
+                        <h4 style="margin: 0 0 12px 0; color: #1e40af; font-size: 1.125rem; font-weight: 700;">
+                            🎯 Hướng Dẫn Tạo Kỳ Đối Soát
+                        </h4>
+                        <div style="background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px;">
+                            <p style="margin: 0 0 12px 0; color: #1f2937; font-weight: 600;">📝 Các bước thực hiện:</p>
+                            <ol style="margin: 0; padding-left: 24px; color: #374151; line-height: 1.8;">
+                                <li><strong>Chọn khoảng thời gian:</strong> Chọn "Từ ngày" và "Đến ngày" là thời gian AccessTrade <strong>xác nhận thanh toán</strong> (confirmed_time)</li>
+                                <li><strong>Nhập nhãn kỳ đối soát:</strong> VD: "Tháng 8/2025 - Đơn hàng tháng 5" để dễ phân biệt</li>
+                                <li><strong>Chọn UTM Source:</strong> Chọn "Tất cả" hoặc "chatchiu" tùy nguồn traffic</li>
+                                <li><strong>Nhấn "🔍 Xem trước":</strong> Xem danh sách đơn hàng đủ điều kiện trước khi tạo</li>
+                                <li><strong>Kiểm tra kết quả:</strong> Xem tổng số đơn, tổng tiền hoàn, chi tiết từng đơn</li>
+                                <li><strong>Nhấn "✅ Tạo Kỳ Đối Soát":</strong> Hoàn tất tạo kỳ đối soát mới</li>
+                            </ol>
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
+                            <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; border-radius: 8px;">
+                                <p style="margin: 0; color: #92400e; font-size: 0.875rem;">
+                                    <strong>⚠️ Lưu ý về thời gian:</strong><br>
+                                    Chọn thời gian <strong>confirmed_time</strong> (ngày AT xác nhận), KHÔNG phải order_time (ngày đặt hàng)
+                                </p>
+                            </div>
+                            <div style="background: #dcfce7; border-left: 4px solid #10b981; padding: 12px; border-radius: 8px;">
+                                <p style="margin: 0; color: #065f46; font-size: 0.875rem;">
+                                    <strong>✅ Điều kiện đủ đối soát:</strong><br>
+                                    is_confirmed = 1 + status = approved + chưa đối soát trước đó
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+                <!-- Create Section -->
+            <div class="reconciliation-filters">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                    <div>
+                        <h3 style="margin: 0 0 8px 0; font-size: 1.25rem; color: #1f2937;">Tạo Kỳ Đối Soát Mới</h3>
+                        <p style="margin: 0 0 8px 0; font-size: 0.875rem; color: #6b7280;">Chọn khoảng thời gian <strong>xác nhận thanh toán</strong> từ AccessTrade để tạo kỳ đối soát cashback</p>
+                        <p style="margin: 0; font-size: 0.8rem; color: #9ca3af; font-style: italic;">
+                            💡 Lưu ý: Thời gian là ngày AccessTrade xác nhận thanh toán (<code>confirmed_time</code>), không phải ngày đặt hàng
+                        </p>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 20px; border-radius: 12px; font-size: 2rem; box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);">
+                        📊
+                    </div>
+                </div>
+
+                <!-- Single Row Layout -->
+                <div style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 16px;">
+                    <div style="flex: 0 0 auto; min-width: 160px;">
+                        <label for="periodStart" style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 0.875rem;">Từ ngày</label>
+                        <input type="date" id="periodStart" required style="padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 0.95rem; transition: all 0.2s; width: 100%;">
+                    </div>
+                    <div style="flex: 0 0 auto; min-width: 160px;">
+                        <label for="periodEnd" style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 0.875rem;">Đến ngày</label>
+                        <input type="date" id="periodEnd" required style="padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 0.95rem; transition: all 0.2s; width: 100%;">
+                    </div>
+                    <div style="flex: 1 1 200px; min-width: 200px;">
+                        <label for="periodLabel" style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 0.875rem;">Nhãn kỳ đối soát</label>
+                        <input type="text" id="periodLabel" placeholder="VD: Tháng 11/2025" style="padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 0.95rem; width: 100%;">
+                    </div>
+                    <div style="flex: 0 0 auto; min-width: 150px;">
+                        <label for="utmSource" style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 0.875rem;">UTM Source</label>
+                        <select id="utmSource" style="padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 0.95rem; width: 100%; cursor: pointer; background: white;">
+                            <option value="all">Tất cả</option>
+                            <option value="chatchiu">chatchiu</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1 1 250px; min-width: 250px;">
+                        <label for="notes" style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 0.875rem;">Ghi chú (tùy chọn)</label>
+                        <input type="text" id="notes" placeholder="Thêm ghi chú cho kỳ đối soát này..." style="padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 0.95rem; width: 100%;">
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <button class="btn-secondary" id="previewBtn" style="padding: 10px 20px; border-radius: 8px; font-weight: 600; font-size: 0.95rem; transition: all 0.2s;">
+                        🔍 Xem trước
+                    </button>
+                    <button class="btn-success" id="createBtn" style="display: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; font-size: 0.95rem; box-shadow: 0 4px 6px rgba(33, 150, 243, 0.3);">
+                        ✅ Tạo Kỳ Đối Soát
+                    </button>
+                </div>
+            </div>
+
+            <!-- Preview Results -->
+            <div class="preview-section" id="previewSection" style="border: 2px solid #e5e7eb;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="margin: 0; color: #1f2937; font-size: 1.125rem;">Kết Quả Xem Trước</h3>
+                    <span style="background: #eff6ff; color: #2563eb; padding: 6px 12px; border-radius: 8px; font-size: 0.875rem; font-weight: 600;">Preview</span>
+                </div>
+
+                <div class="preview-stats" id="previewStats" style="gap: 20px;"></div>
+
+                <div style="margin-top: 20px; padding: 16px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px;">
+                    <p style="margin: 0 0 8px 0; color: #92400e; font-size: 0.875rem; line-height: 1.5;">
+                        <strong style="color: #78350f;">💡 Điều kiện đơn hàng đủ điều kiện đối soát:</strong>
+                    </p>
+                    <ul style="margin: 0; padding-left: 20px; color: #92400e; font-size: 0.875rem; line-height: 1.5;">
+                        <li>✅ <strong>is_confirmed = 1</strong> - Đã được AccessTrade xác nhận thanh toán</li>
+                        <li>✅ <strong>status = approved</strong> - Đã được admin duyệt</li>
+                        <li>✅ <strong>confirmed_time</strong> trong khoảng thời gian đã chọn</li>
+                        <li>✅ Chưa nằm trong kỳ đối soát nào trước đó</li>
+                    </ul>
+                </div>
+
+                <!-- Preview Details Table -->
+                <div id="previewDetailsSection" style="margin-top: 24px; display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <h4 style="margin: 0; color: #1f2937; font-size: 1rem;">Chi tiết đơn hàng đủ điều kiện</h4>
+                        <button onclick="togglePreviewDetails()" style="padding: 6px 12px; background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 0.875rem;">
+                            <span id="togglePreviewDetailsIcon">▼</span> Thu gọn
+                        </button>
+                    </div>
+                    <div id="previewDetailsTable" style="overflow-x: auto; max-height: 400px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+                            <thead style="background: #f9fafb; position: sticky; top: 0; z-index: 1;">
+                                <tr>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #e5e7eb; font-weight: 600; color: #374151;">Người dùng</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #e5e7eb; font-weight: 600; color: #374151;">Nhà bán hàng</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #e5e7eb; font-weight: 600; color: #374151;">Mã đơn</th>
+                                    <th style="padding: 12px; text-align: right; border-bottom: 2px solid #e5e7eb; font-weight: 600; color: #374151;">Giá trị đơn</th>
+                                    <th style="padding: 12px; text-align: right; border-bottom: 2px solid #e5e7eb; font-weight: 600; color: #374151;">Hoa hồng</th>
+                                    <th style="padding: 12px; text-align: right; border-bottom: 2px solid #e5e7eb; font-weight: 600; color: #374151;">Tiền hoàn</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #e5e7eb; font-weight: 600; color: #374151;">Nguồn UTM</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #e5e7eb; font-weight: 600; color: #374151;">Thời gian đặt hàng</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #e5e7eb; font-weight: 600; color: #374151;">Thời gian thanh toán</th>
+                                </tr>
+                            </thead>
+                            <tbody id="previewOrdersTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reconciliation List -->
+            <div class="reconciliation-list">
+                <h3 style="padding: 24px; margin: 0; border-bottom: 2px solid #e5e7eb; font-size: 1.125rem; color: #1f2937;">Danh Sách Kỳ Đối Soát</h3>
+
+                <div id="loadingState" class="loading">
+                    <div style="font-size: 1.125rem;">⏳ Đang tải dữ liệu...</div>
+                </div>
+
+                <div id="emptyState" class="empty-state" style="display: none; padding: 80px 20px;">
+                    <div style="margin: 0 auto 24px; width: 120px; height: 120px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                        </svg>
+                    </div>
+                    <h3 style="font-size: 1.5rem; color: #1f2937; margin: 0 0 12px 0; font-weight: 700;">Chưa có kỳ đối soát nào</h3>
+                    <p style="font-size: 1rem; color: #6b7280; margin: 0 0 24px 0; max-width: 400px; margin-left: auto; margin-right: auto;">
+                        Bắt đầu tạo kỳ đối soát đầu tiên bằng cách chọn khoảng thời gian và nhấn "Xem trước" ở phía trên
+                    </p>
+                    <div style="display: flex; gap: 8px; justify-content: center; align-items: center; color: #9ca3af; font-size: 0.875rem;">
+                        <span>💡</span>
+                        <span>Mẹo: Nên tạo kỳ đối soát theo tháng để dễ quản lý</span>
+                    </div>
+                </div>
+
+                <table class="reconciliation-table" id="reconciliationTable" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th style="font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">Kỳ</th>
+                            <th style="font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">Từ ngày - Đến ngày</th>
+                            <th style="font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">Số đơn</th>
+                            <th style="font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">Tổng cashback</th>
+                            <th style="font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">Trạng thái</th>
+                            <th style="font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">Phiên bản</th>
+                            <th style="font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">Ngày tạo</th>
+                            <th style="font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reconciliationTableBody"></tbody>
+                </table>
+            </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Details Modal -->
+    <div id="detailsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Chi Tiết Kỳ Đối Soát</h2>
+                <span class="close-btn" id="closeDetailsModal">&times;</span>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <div class="loading">⏳ Đang tải...</div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="closeDetailsBtn">Đóng</button>
+                <button class="btn-success" id="exportCsvBtn" style="display: none;">📥 Export CSV</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/config.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/mobile-menu.js"></script>
+    <script src="reconciliation.js"></script>
+</body>
+</html>
