@@ -100,7 +100,41 @@ class Merchant {
       const urlDomain = getDomain(urlObj.hostname);
       const merchantDomain = getDomain(merchantUrlObj.hostname);
 
-      return urlDomain === merchantDomain;
+      // Check if domains match
+      if (urlDomain === merchantDomain) {
+        return true;
+      }
+
+      // Special handling for short link domains
+      // Map of short domains to their full domains
+      const shortLinkMap = {
+        'shp.ee': 'shopee.vn',      // Shopee short links: vn.shp.ee, th.shp.ee, etc.
+        'lzd.co': 'lazada.vn',       // Lazada short links
+        'tk.vn': 'tiki.vn',          // Tiki short links (if any)
+        's.shopee.vn': 'shopee.vn'   // Another Shopee short link format
+      };
+
+      // Check if input URL is a short link that maps to merchant domain
+      for (const [shortDomain, fullDomain] of Object.entries(shortLinkMap)) {
+        if (urlDomain === shortDomain || urlObj.hostname.endsWith(shortDomain)) {
+          if (merchantDomain === fullDomain) {
+            return true;
+          }
+        }
+      }
+
+      // Check reverse: if merchant domain has a short link and URL uses it
+      const merchantShortDomains = Object.entries(shortLinkMap)
+        .filter(([_, fullDomain]) => fullDomain === merchantDomain)
+        .map(([shortDomain, _]) => shortDomain);
+
+      for (const shortDomain of merchantShortDomains) {
+        if (urlDomain === shortDomain || urlObj.hostname.endsWith(shortDomain)) {
+          return true;
+        }
+      }
+
+      return false;
     } catch (error) {
       return false;
     }

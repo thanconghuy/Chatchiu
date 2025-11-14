@@ -61,6 +61,11 @@ pages.forEach(page => {
   });
 });
 
+// Reconciliation history - temporarily disabled (will be a separate module from history)
+// app.get('/reconciliation-history', (req, res) => {
+//   res.redirect(301, '/history');
+// });
+
 // Admin routes (clean URLs without .html)
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend', 'admin', 'index.html'));
