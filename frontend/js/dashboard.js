@@ -274,6 +274,16 @@ function closeMerchantModal() {
     // Reset state
     currentMerchant = null;
     productUrlInput.value = '';
+
+    // Reset buttons
+    if (freeShoppingBtn) {
+        freeShoppingBtn.disabled = false;
+        freeShoppingBtn.innerHTML = 'Đi đến ' + (currentMerchant?.name || 'Shopee');
+    }
+    if (generateLinkBtn) {
+        generateLinkBtn.disabled = false;
+        generateLinkBtn.innerHTML = 'Tạo link mua hàng';
+    }
 }
 
 /**
@@ -282,7 +292,15 @@ function closeMerchantModal() {
 async function handleFreeShoppingClick() {
     if (!currentMerchant) return;
 
+    // Disable button and show loading
+    freeShoppingBtn.disabled = true;
+    const originalText = freeShoppingBtn.innerHTML;
+    freeShoppingBtn.innerHTML = '<span class="spinner"></span> Đang tạo link...';
+
     try {
+        // Show loading toast
+        showToast(`Đang chuyển đến trang ${currentMerchant.name} mua hàng, đợi trong vài giây...`, 'info');
+
         const response = await apiRequest('/dashboard/generate-link', {
             method: 'POST',
             body: JSON.stringify({
@@ -305,6 +323,10 @@ async function handleFreeShoppingClick() {
         }
     } catch (error) {
         showToast(error.message || 'Không thể tạo link', 'error');
+
+        // Restore button
+        freeShoppingBtn.disabled = false;
+        freeShoppingBtn.innerHTML = originalText;
     }
 }
 
@@ -327,7 +349,15 @@ async function handleGenerateLinkClick() {
         return;
     }
 
+    // Disable button and show loading
+    generateLinkBtn.disabled = true;
+    const originalText = generateLinkBtn.innerHTML;
+    generateLinkBtn.innerHTML = '<span class="spinner"></span> Đang tạo link...';
+
     try {
+        // Show loading toast
+        showToast(`Đang chuyển đến trang ${currentMerchant.name} mua hàng, đợi trong vài giây...`, 'info');
+
         const response = await apiRequest('/dashboard/generate-link', {
             method: 'POST',
             body: JSON.stringify({
@@ -351,6 +381,10 @@ async function handleGenerateLinkClick() {
         }
     } catch (error) {
         showToast(error.message || 'Không thể tạo link', 'error');
+
+        // Restore button
+        generateLinkBtn.disabled = false;
+        generateLinkBtn.innerHTML = originalText;
     }
 }
 

@@ -64,6 +64,60 @@
             padding: 24px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             margin-bottom: 24px;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        /* Full width table container for hourly stats */
+        .chart-container .table-container {
+            width: 100%;
+            max-width: 100%;
+            margin: 0;
+            padding: 0;
+            overflow-x: visible;
+        }
+
+        .chart-container .table {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: collapse;
+        }
+
+        /* Column widths for hourly stats table */
+        .chart-container .table th:nth-child(1),
+        .chart-container .table td:nth-child(1) {
+            width: 15%; /* Thời Gian */
+            min-width: 120px;
+        }
+
+        .chart-container .table th:nth-child(2),
+        .chart-container .table td:nth-child(2) {
+            width: 10%; /* Tổng */
+            text-align: center;
+        }
+
+        .chart-container .table th:nth-child(3),
+        .chart-container .table td:nth-child(3) {
+            width: 15%; /* Thành Công */
+            text-align: center;
+        }
+
+        .chart-container .table th:nth-child(4),
+        .chart-container .table td:nth-child(4) {
+            width: 10%; /* Lỗi */
+            text-align: center;
+        }
+
+        .chart-container .table th:nth-child(5),
+        .chart-container .table td:nth-child(5) {
+            width: 15%; /* Tỷ Lệ */
+            text-align: center;
+        }
+
+        .chart-container .table th:nth-child(6),
+        .chart-container .table td:nth-child(6) {
+            width: 35%; /* Progress */
+            text-align: center;
         }
 
         .chart-container h2 {
@@ -199,6 +253,21 @@
             color: #742a2a;
         }
 
+        .status-badge.status-success {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .status-badge.status-warning {
+            background: #feebc8;
+            color: #744210;
+        }
+
+        .status-badge.status-danger {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
         .period-selector {
             display: flex;
             gap: 8px;
@@ -265,6 +334,42 @@
             color: var(--gray-900);
         }
 
+        /* Animation for table rows */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Table improvements */
+        .table thead th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+            padding: 12px;
+            border: none;
+        }
+
+        .table tbody tr {
+            transition: all 0.2s;
+        }
+
+        .table tbody tr:hover {
+            background: #f7fafc;
+            transform: scale(1.01);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .table tbody td {
+            padding: 12px;
+            vertical-align: middle;
+        }
+
         @media (max-width: 768px) {
             .breakdown-grid {
                 grid-template-columns: 1fr;
@@ -316,6 +421,10 @@
                 <a href="/admin/monitoring" class="nav-item active">
                     <span class="nav-icon">📈</span>
                     <span class="nav-text">Monitoring</span>
+                </a>
+                <a href="/admin/settings" class="nav-item">
+                    <span class="nav-icon">⚙️</span>
+                    <span class="nav-text">Settings</span>
                 </a>
                 <a href="#" class="nav-item" id="logoutBtn">
                     <span class="nav-icon">🚪</span>
@@ -423,6 +532,83 @@
                         <h3>Trạng Thái Cron Jobs</h3>
                         <div id="cronJobsContainer">
                             <p style="text-align: center; color: var(--gray-500);">Đang tải...</p>
+                        </div>
+                    </div>
+
+                    <!-- Link Generation Metrics -->
+                    <div class="chart-container">
+                        <h2>📊 Thống Kê Tạo Link</h2>
+
+                        <!-- Link Generation Summary -->
+                        <div class="metrics-grid" style="margin-top: 20px;">
+                            <div class="metric-card success">
+                                <div class="metric-label">Tỷ Lệ Thành Công</div>
+                                <div class="metric-value" id="linkSuccessRate">--</div>
+                                <div class="metric-subtext">Link được tạo thành công</div>
+                            </div>
+
+                            <div class="metric-card">
+                                <div class="metric-label">Tổng Clicks</div>
+                                <div class="metric-value" id="linkTotalClicks">--</div>
+                                <div class="metric-subtext">Tổng số lượt tạo link</div>
+                            </div>
+
+                            <div class="metric-card success">
+                                <div class="metric-label">Link Thành Công</div>
+                                <div class="metric-value" id="linkSuccessful">--</div>
+                                <div class="metric-subtext">Có đầy đủ tracking data</div>
+                            </div>
+
+                            <div class="metric-card danger">
+                                <div class="metric-label">Link Lỗi</div>
+                                <div class="metric-value" id="linkOrphaned">--</div>
+                                <div class="metric-subtext">Thiếu tracking parameters</div>
+                            </div>
+                        </div>
+
+                        <!-- Hourly Breakdown -->
+                        <div class="chart-container" style="margin-top: 24px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                                <h3 style="margin: 0;">📊 Thống Kê Theo Giờ</h3>
+                                <div class="rows-per-page">
+                                    <label for="hourlyRowsPerPage">Hiển thị:</label>
+                                    <select id="hourlyRowsPerPage">
+                                        <option value="10" selected>10</option>
+                                        <option value="20">20</option>
+                                        <option value="50">50</option>
+                                        <option value="100">Tất cả</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="table-container">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th style="min-width: 120px;">⏰ Thời Gian</th>
+                                            <th style="text-align: center;">📝 Tổng</th>
+                                            <th style="text-align: center;">✅ Thành Công</th>
+                                            <th style="text-align: center;">❌ Lỗi</th>
+                                            <th style="text-align: center;">📊 Tỷ Lệ</th>
+                                            <th style="text-align: center;">📈 Progress</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="linkHourlyBreakdown">
+                                        <tr>
+                                            <td colspan="6" style="text-align: center; color: var(--gray-500); padding: 40px;">
+                                                <div style="font-size: 1.1rem;">⏳ Đang tải dữ liệu...</div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Pagination -->
+                            <div class="pagination" id="hourlyPagination" style="margin-top: 20px; display: none;">
+                                <button class="btn-secondary" id="prevHourlyBtn" disabled>« Trước</button>
+                                <span id="hourlyPageInfo" style="font-weight: 600; color: var(--gray-700);">Trang 1</span>
+                                <button class="btn-secondary" id="nextHourlyBtn">Sau »</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -536,11 +722,169 @@
                 // Draw chart
                 drawMatchTrendChart(data.matchRateTrends);
 
+                // Load link generation metrics
+                await loadLinkGenerationMetrics();
+
             } catch (error) {
                 console.error('Error loading monitoring data:', error);
                 alert('Không thể tải dữ liệu monitoring');
             }
         }
+
+        // Load link generation metrics
+        async function loadLinkGenerationMetrics() {
+            try {
+                const period = currentDays === 1 ? '24h' : currentDays === 7 ? '7d' : '30d';
+                const response = await fetch(`/api/admin/monitoring/link-generation?period=${period}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) throw new Error('Failed to load link generation metrics');
+
+                const result = await response.json();
+                const data = result.data;
+
+                // Update summary metrics
+                document.getElementById('linkSuccessRate').textContent = data.summary.successRate + '%';
+                document.getElementById('linkTotalClicks').textContent = data.summary.totalClicks.toLocaleString();
+                document.getElementById('linkSuccessful').textContent = data.summary.successfulLinks.toLocaleString();
+                document.getElementById('linkOrphaned').textContent = data.summary.orphanedClicks.toLocaleString();
+
+                // Update hourly breakdown table
+                updateLinkHourlyBreakdown(data.hourlyData);
+
+            } catch (error) {
+                console.error('Error loading link generation metrics:', error);
+                // Don't show alert, just log the error
+            }
+        }
+
+        // Pagination state
+        let allHourlyData = [];
+        let currentHourlyPage = 0;
+        let hourlyRowsPerPage = 10;
+
+        // Update link generation hourly breakdown
+        function updateLinkHourlyBreakdown(hourlyData) {
+            const tbody = document.getElementById('linkHourlyBreakdown');
+            const pagination = document.getElementById('hourlyPagination');
+
+            if (!hourlyData || hourlyData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: var(--gray-500); padding: 40px;">
+                            <div style="font-size: 1.1rem;">📭 Chưa có dữ liệu</div>
+                        </td>
+                    </tr>
+                `;
+                pagination.style.display = 'none';
+                return;
+            }
+
+            // Store all data
+            allHourlyData = hourlyData;
+
+            // Render current page
+            renderHourlyPage();
+
+            // Show pagination if needed
+            if (hourlyData.length > hourlyRowsPerPage) {
+                pagination.style.display = 'flex';
+                updateHourlyPaginationControls();
+            } else {
+                pagination.style.display = 'none';
+            }
+        }
+
+        // Render hourly page
+        function renderHourlyPage() {
+            const tbody = document.getElementById('linkHourlyBreakdown');
+            const start = currentHourlyPage * hourlyRowsPerPage;
+            const end = start + hourlyRowsPerPage;
+            const pageData = allHourlyData.slice(start, end);
+
+            const html = pageData.map((row, index) => {
+                const hour = new Date(row.hour);
+                const hourStr = hour.toLocaleString('vi-VN', {
+                    timeZone: 'Asia/Ho_Chi_Minh',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                const successBadge = row.successRate >= 95 ? 'success' : row.successRate >= 80 ? 'warning' : 'danger';
+                const progressColor = row.successRate >= 95 ? '#38a169' : row.successRate >= 80 ? '#ed8936' : '#e53e3e';
+
+                return `
+                    <tr style="animation: fadeIn 0.3s ease-in-out ${index * 0.05}s backwards;">
+                        <td style="font-weight: 600;">${hourStr}</td>
+                        <td style="text-align: center; font-weight: 600;">${row.total}</td>
+                        <td style="text-align: center; color: #38a169; font-weight: 600;">${row.successful}</td>
+                        <td style="text-align: center; color: #e53e3e; font-weight: 600;">${row.failed}</td>
+                        <td style="text-align: center;">
+                            <span class="status-badge status-${successBadge}">${row.successRate}%</span>
+                        </td>
+                        <td style="text-align: center;">
+                            <div style="width: 100%; max-width: 150px; margin: 0 auto;">
+                                <div style="background: #e0e0e0; border-radius: 10px; height: 10px; overflow: hidden;">
+                                    <div style="background: ${progressColor}; height: 100%; width: ${row.successRate}%; transition: width 0.5s ease;"></div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            tbody.innerHTML = html;
+        }
+
+        // Update pagination controls
+        function updateHourlyPaginationControls() {
+            const totalPages = Math.ceil(allHourlyData.length / hourlyRowsPerPage);
+            const prevBtn = document.getElementById('prevHourlyBtn');
+            const nextBtn = document.getElementById('nextHourlyBtn');
+            const pageInfo = document.getElementById('hourlyPageInfo');
+
+            prevBtn.disabled = currentHourlyPage === 0;
+            nextBtn.disabled = currentHourlyPage >= totalPages - 1;
+            pageInfo.textContent = `Trang ${currentHourlyPage + 1} / ${totalPages}`;
+        }
+
+        // Event listeners for pagination
+        document.getElementById('hourlyRowsPerPage')?.addEventListener('change', (e) => {
+            hourlyRowsPerPage = parseInt(e.target.value);
+            currentHourlyPage = 0;
+            renderHourlyPage();
+
+            // Update pagination visibility
+            const pagination = document.getElementById('hourlyPagination');
+            if (allHourlyData.length > hourlyRowsPerPage) {
+                pagination.style.display = 'flex';
+                updateHourlyPaginationControls();
+            } else {
+                pagination.style.display = 'none';
+            }
+        });
+
+        document.getElementById('prevHourlyBtn')?.addEventListener('click', () => {
+            if (currentHourlyPage > 0) {
+                currentHourlyPage--;
+                renderHourlyPage();
+                updateHourlyPaginationControls();
+            }
+        });
+
+        document.getElementById('nextHourlyBtn')?.addEventListener('click', () => {
+            const totalPages = Math.ceil(allHourlyData.length / hourlyRowsPerPage);
+            if (currentHourlyPage < totalPages - 1) {
+                currentHourlyPage++;
+                renderHourlyPage();
+                updateHourlyPaginationControls();
+            }
+        });
 
         // Update cron jobs status
         function updateCronJobsStatus(cronStatus) {

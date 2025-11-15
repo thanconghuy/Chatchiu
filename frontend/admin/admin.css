@@ -639,6 +639,13 @@
     overflow-x: hidden;
 }
 
+/* Content Wrapper - Auto fit to available space */
+.content-wrapper {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
 /* Content Header */
 .content-header {
     display: flex;

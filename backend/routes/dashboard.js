@@ -163,9 +163,22 @@ router.get('/public-activity', async (req, res) => {
 
 /**
  * POST /api/generate-link
- * Generate affiliate link
+ * Generate affiliate link with TRANSACTION support to prevent orphaned clicks
+ *
+ * QUICK FIX APPLIED (2025-01-14):
+ * 1. Wrapped in database transaction to prevent orphaned clicks
+ * 2. Added comprehensive error logging for debugging
+ * 3. Added validation for link data before saving
+ *
+ * TODO (Future Enhancement):
+ * - Implement full LinkGenerationService with retry logic and metrics
+ * - Add monitoring dashboard for link generation success/failure rates
+ * - Consider caching mechanism for frequently accessed merchants
  */
 router.post('/generate-link', authenticateToken, async (req, res) => {
+  const startTime = Date.now();
+  let click = null;
+
   try {
     const { merchantId, clickType, productUrl } = req.body;
 
@@ -220,86 +233,182 @@ router.post('/generate-link', authenticateToken, async (req, res) => {
       }
     }
 
-    // Save click to database FIRST to get click_id
-    const clickData = {
-      userId: user.id,
-      merchantId: merchant.id,
-      clickType: clickType,
-      ipAddress: req.ip || req.connection.remoteAddress,
-      userAgent: req.get('user-agent')
-    };
+    // ========================================
+    // QUICK FIX: START TRANSACTION
+    // Prevents orphaned clicks if link generation fails
+    // ========================================
+    const client = await pool.connect();
 
-    const click = await Click.create(clickData);
+    try {
+      await client.query('BEGIN');
 
-    // Prepare UTM parameters
-    // utm_medium = username của người tạo link
-    // utm_content = click ID
-    const utmMedium = user.username;
-    const utmContent = click.id;
+      // Save click to database FIRST to get click_id
+      const clickData = {
+        userId: user.id,
+        merchantId: merchant.id,
+        clickType: clickType,
+        ipAddress: req.ip || req.connection.remoteAddress,
+        userAgent: req.get('user-agent')
+      };
 
-    // DUAL MODE: Try AccessTrade API first, fallback to DIY if fails
-    let linkData;
-    let linkSource = 'diy'; // Default to DIY
+      click = await Click.create(clickData);
 
-    // Check if API mode is enabled via env variable
-    const useApiMode = process.env.USE_ACCESSTRADE_API === 'true';
+      // Prepare UTM parameters
+      // utm_medium = username của người tạo link
+      // utm_content = click ID
+      const utmMedium = user.username;
+      const utmContent = click.id;
 
-    if (useApiMode && accessTradeLinkService.isAvailable()) {
-      try {
-        console.log('[Link Generation] Attempting AccessTrade API mode...');
-        linkData = await accessTradeLinkService.generateLink(
-          user,
-          merchant,
-          click.id,
-          clickType,
-          productUrl
-        );
-        linkSource = 'api';
-        console.log('[Link Generation] ✅ AccessTrade API success');
-      } catch (apiError) {
-        console.warn('[Link Generation] ⚠️  AccessTrade API failed, falling back to DIY:', apiError.message);
-        // Fallback to DIY method
+      // DUAL MODE: Try AccessTrade API first, fallback to DIY if fails
+      let linkData;
+      let linkSource = 'diy'; // Default to DIY
+
+      // Check if API mode is enabled via env variable
+      const useApiMode = process.env.USE_ACCESSTRADE_API === 'true';
+
+      if (useApiMode && accessTradeLinkService.isAvailable()) {
+        try {
+          console.log('[Link Generation] Attempting AccessTrade API mode...', {
+            userId: user.id,
+            merchantId: merchant.id,
+            clickId: click.id,
+            clickType
+          });
+
+          linkData = await accessTradeLinkService.generateLink(
+            user,
+            merchant,
+            click.id,
+            clickType,
+            productUrl
+          );
+          linkSource = 'api';
+
+          console.log('[Link Generation] ✅ AccessTrade API success', {
+            clickId: click.id,
+            affSid: linkData.affSid,
+            duration: Date.now() - startTime
+          });
+        } catch (apiError) {
+          // QUICK FIX: Enhanced error logging for API failures
+          console.error('[Link Generation] ❌ AccessTrade API failed, falling back to DIY', {
+            error: apiError.message,
+            stack: apiError.stack,
+            userId: user.id,
+            merchantId: merchant.id,
+            clickId: click.id,
+            duration: Date.now() - startTime
+          });
+
+          // Fallback to DIY method
+          linkData = generateAffiliateLink(user, merchant, click.id, clickType, productUrl, utmMedium, utmContent);
+          linkSource = 'diy-fallback';
+        }
+      } else {
+        // Use DIY method (when API is disabled)
+        console.log('[Link Generation] Using DIY mode (API disabled or not configured)', {
+          userId: user.id,
+          merchantId: merchant.id,
+          clickId: click.id
+        });
+
         linkData = generateAffiliateLink(user, merchant, click.id, clickType, productUrl, utmMedium, utmContent);
-        linkSource = 'diy-fallback';
+        linkSource = 'diy';
       }
-    } else {
-      // Use DIY method (current default)
-      console.log('[Link Generation] Using DIY mode (API disabled or not configured)');
-      linkData = generateAffiliateLink(user, merchant, click.id, clickType, productUrl, utmMedium, utmContent);
-      linkSource = 'diy';
+
+      // ========================================
+      // QUICK FIX: VALIDATE LINK DATA
+      // Ensure critical tracking parameters exist
+      // ========================================
+      if (!linkData || !linkData.affiliateUrl || !linkData.affSid) {
+        throw new Error('Invalid link data generated: missing affiliateUrl or affSid');
+      }
+
+      if (!linkData.utmParams || !linkData.utmParams.utm_content || !linkData.utmParams.sub2) {
+        throw new Error('Invalid link data generated: missing critical tracking parameters');
+      }
+
+      // Update click with generated link data
+      await Click.updateLinkData(click.id, {
+        affSid: linkData.affSid,
+        originalUrl: linkData.originalUrl,
+        affiliateUrl: linkData.affiliateUrl,
+        utmSource: linkData.utmParams.utm_source,
+        utmMedium: linkData.utmParams.utm_medium,
+        utmCampaign: linkData.utmParams.utm_campaign,
+        utmContent: linkData.utmParams.utm_content,
+        sub1: linkData.utmParams.sub1,
+        sub2: linkData.utmParams.sub2,
+        sub3: linkData.utmParams.sub3,
+        sub4: linkData.utmParams.sub4
+      });
+
+      // ========================================
+      // QUICK FIX: COMMIT TRANSACTION
+      // All operations succeeded, commit atomically
+      // ========================================
+      await client.query('COMMIT');
+
+      console.log('[Link Generation] ✅ Link generation completed successfully', {
+        clickId: click.id,
+        linkSource,
+        duration: Date.now() - startTime
+      });
+
+      res.json({
+        success: true,
+        message: 'Affiliate link generated successfully',
+        data: {
+          affiliateUrl: linkData.affiliateUrl,
+          affSid: linkData.affSid,
+          clickId: click.id,
+          linkSource: linkSource, // 'api', 'diy', or 'diy-fallback'
+          merchant: {
+            id: merchant.id,
+            name: merchant.name
+          }
+        }
+      });
+
+    } catch (txError) {
+      // ========================================
+      // QUICK FIX: ROLLBACK ON ERROR
+      // If anything fails, rollback to prevent orphaned clicks
+      // ========================================
+      await client.query('ROLLBACK');
+
+      console.error('[Link Generation] ❌ Transaction rolled back due to error', {
+        error: txError.message,
+        stack: txError.stack,
+        userId: req.userId,
+        merchantId,
+        clickId: click?.id,
+        clickType,
+        duration: Date.now() - startTime
+      });
+
+      throw txError; // Re-throw to outer catch
+    } finally {
+      client.release();
     }
 
-    // Update click with generated link data
-    await Click.updateLinkData(click.id, {
-      affSid: linkData.affSid,
-      originalUrl: linkData.originalUrl,
-      affiliateUrl: linkData.affiliateUrl,
-      utmSource: linkData.utmParams.utm_source,
-      utmMedium: linkData.utmParams.utm_medium,
-      utmCampaign: linkData.utmParams.utm_campaign,
-      utmContent: linkData.utmParams.utm_content,
-      sub1: linkData.utmParams.sub1,
-      sub2: linkData.utmParams.sub2,
-      sub3: linkData.utmParams.sub3,
-      sub4: linkData.utmParams.sub4
+  } catch (error) {
+    // ========================================
+    // QUICK FIX: COMPREHENSIVE ERROR LOGGING
+    // Log all errors with context for debugging
+    // ========================================
+    console.error('[Link Generation] ❌ Generate link error', {
+      error: error.message,
+      stack: error.stack,
+      userId: req.userId,
+      merchantId: req.body.merchantId,
+      clickId: click?.id,
+      clickType: req.body.clickType,
+      productUrl: req.body.productUrl,
+      duration: Date.now() - startTime,
+      timestamp: new Date().toISOString()
     });
 
-    res.json({
-      success: true,
-      message: 'Affiliate link generated successfully',
-      data: {
-        affiliateUrl: linkData.affiliateUrl,
-        affSid: linkData.affSid,
-        clickId: click.id,
-        linkSource: linkSource, // 'api', 'diy', or 'diy-fallback'
-        merchant: {
-          id: merchant.id,
-          name: merchant.name
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Generate link error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to generate link'

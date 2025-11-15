@@ -20,13 +20,18 @@ if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
   neonConfig.pipelineConnect = 'password';
 }
 
-// Create connection pool optimized for serverless
+// Create connection pool optimized for both serverless and local dev
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // Serverless-optimized settings
-  max: 1, // Single connection per function invocation
-  idleTimeoutMillis: 0, // Disable idle timeout in serverless
-  connectionTimeoutMillis: 10000, // Quick timeout for serverless
+  // Increased for better concurrent request handling
+  max: 10, // Allow up to 10 concurrent connections
+  min: 2, // Keep 2 connections warm
+  idleTimeoutMillis: 30000, // Close idle connections after 30s
+  connectionTimeoutMillis: 15000, // 15 seconds timeout (increased from 10s)
+  // Enable connection retry
+  allowExitOnIdle: false, // Keep connections alive
+  // Set timezone to Vietnam (UTC+7)
+  options: '-c timezone=Asia/Ho_Chi_Minh'
 });
 
 // Handle pool errors gracefully - don't exit process
