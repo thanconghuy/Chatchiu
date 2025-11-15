@@ -104,7 +104,7 @@ class Merchant {
       const merchantUrlObj = new URL(merchant.deep_link_base);
 
       // Special case: Shopee has multiple shortened domain aliases
-      const shopeeAliases = ['shope.ee', 's.shopee.vn', 'vn.shp.ee'];
+      const shopeeAliases = ['shp.ee', 'shope.ee', 's.shopee.vn', 'shopee.vn'];
       const urlHostname = urlObj.hostname.toLowerCase();
 
       // Check if merchant is Shopee (contains shopee.vn)

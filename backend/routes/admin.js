@@ -18,6 +18,8 @@ const cronJobsService = require('../jobs/cronJobs');
 const logger = require('../utils/logger');
 const AutoSyncConfig = require('../models/AutoSyncConfig');
 const autoSyncService = require('../services/autoSyncService');
+const SystemSettings = require('../services/systemSettings');
+const { ActivityLogger, ACTIVITY_TYPES } = require('../services/activityLogger');
 
 /**
  * GET /api/admin/stats
@@ -176,8 +178,8 @@ router.get('/users/:userId', authenticateAdmin, async (req, res) => {
     // Get user's clicks
     const clicksQuery = `
       SELECT COUNT(*) as total_clicks,
-             COUNT(CASE WHEN link_mode = 'button' THEN 1 END) as button_clicks,
-             COUNT(CASE WHEN link_mode = 'link' THEN 1 END) as link_clicks
+             COUNT(CASE WHEN click_type = 'button' THEN 1 END) as button_clicks,
+             COUNT(CASE WHEN click_type = 'link' THEN 1 END) as link_clicks
       FROM clicks
       WHERE user_id = $1
     `;
@@ -3181,10 +3183,14 @@ router.get('/check-single-order', authenticateAdmin, async (req, res) => {
  */
 router.get('/settings', authenticateAdmin, async (req, res) => {
   try {
+    // Read from database for persistence
+    const autoCronEnabled = await SystemSettings.get('auto_cron_enabled', false);
+    const apiModeEnabled = await SystemSettings.get('api_mode_enabled', false);
+
     const settings = {
-      AUTO_CRON_ENABLED: process.env.AUTO_CRON_ENABLED || 'false',
+      AUTO_CRON_ENABLED: autoCronEnabled ? 'true' : 'false',
       RETRY_CRON_SCHEDULE: process.env.RETRY_CRON_SCHEDULE || '0 */6 * * *',
-      USE_ACCESSTRADE_API: process.env.USE_ACCESSTRADE_API || 'false',
+      USE_ACCESSTRADE_API: apiModeEnabled ? 'true' : 'false',
       ACCESSTRADE_API_URL: process.env.ACCESSTRADE_API_URL || 'https://api.accesstrade.vn/v1',
       COMMISSION_SPLIT: process.env.COMMISSION_SPLIT || '0.7',
       PORT: process.env.PORT || '3007'
@@ -3211,7 +3217,10 @@ router.post('/settings/auto-cron', authenticateAdmin, async (req, res) => {
   try {
     const { enabled } = req.body;
 
-    // Note: This updates the runtime value, but .env file needs manual update
+    // Save to database for persistence across restarts
+    await SystemSettings.set('auto_cron_enabled', enabled, req.userId);
+
+    // Also update runtime value
     process.env.AUTO_CRON_ENABLED = enabled ? 'true' : 'false';
 
     logger.info('Auto cron setting updated', {
@@ -3221,7 +3230,7 @@ router.post('/settings/auto-cron', authenticateAdmin, async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Cập nhật thành công. Vui lòng update file .env và restart server để áp dụng vĩnh viễn.'
+      message: enabled ? 'Đã bật Auto Cron Jobs' : 'Đã tắt Auto Cron Jobs'
     });
   } catch (error) {
     logger.error('Update auto cron setting error:', error);
@@ -3240,6 +3249,9 @@ router.post('/settings/api-mode', authenticateAdmin, async (req, res) => {
   try {
     const { enabled } = req.body;
 
+    // Save to database for persistence across restarts
+    await SystemSettings.set('api_mode_enabled', enabled, req.userId);
+
     // Update runtime value
     process.env.USE_ACCESSTRADE_API = enabled ? 'true' : 'false';
 
@@ -3250,7 +3262,7 @@ router.post('/settings/api-mode', authenticateAdmin, async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Cập nhật thành công. Vui lòng update file .env và restart server để áp dụng vĩnh viễn.'
+      message: enabled ? 'Đã bật API Mode' : 'Đã tắt API Mode (dùng DIY)'
     });
   } catch (error) {
     logger.error('Update API mode setting error:', error);
@@ -3553,6 +3565,319 @@ router.get('/monitoring/link-generation', authenticateAdmin, async (req, res) =>
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to get link generation metrics'
+    });
+  }
+});
+
+// ========================================
+// ACTIVITY LOGS ENDPOINTS
+// ========================================
+
+/**
+ * GET /api/admin/activity-logs
+ * Get activity logs with filters and pagination
+ */
+router.get('/activity-logs', authenticateAdmin, async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 50,
+      activityType,
+      userId,
+      merchantId,
+      status,
+      dateFrom,
+      dateTo
+    } = req.query;
+
+    const offset = (page - 1) * limit;
+    const queryParams = [];
+    let whereConditions = [];
+    let paramIndex = 1;
+
+    // Build WHERE conditions
+    if (activityType) {
+      whereConditions.push(`activity_type = $${paramIndex++}`);
+      queryParams.push(activityType);
+    }
+
+    if (userId) {
+      whereConditions.push(`user_id = $${paramIndex++}`);
+      queryParams.push(userId);
+    }
+
+    if (merchantId) {
+      whereConditions.push(`merchant_id = $${paramIndex++}`);
+      queryParams.push(merchantId);
+    }
+
+    if (status) {
+      whereConditions.push(`status = $${paramIndex++}`);
+      queryParams.push(status);
+    }
+
+    if (dateFrom) {
+      whereConditions.push(`created_at >= $${paramIndex++}`);
+      queryParams.push(dateFrom);
+    }
+
+    if (dateTo) {
+      whereConditions.push(`created_at <= $${paramIndex++}`);
+      queryParams.push(dateTo);
+    }
+
+    const whereClause = whereConditions.length > 0
+      ? 'WHERE ' + whereConditions.join(' AND ')
+      : '';
+
+    // Get total count
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM user_activity_logs
+      ${whereClause}
+    `;
+    const countResult = await pool.query(countQuery, queryParams);
+    const total = parseInt(countResult.rows[0].total);
+
+    // Get paginated data
+    const dataQuery = `
+      SELECT
+        ual.*,
+        u.email as user_email,
+        u.full_name as user_name,
+        m.name as merchant_name
+      FROM user_activity_logs ual
+      LEFT JOIN users u ON ual.user_id = u.id
+      LEFT JOIN merchants m ON ual.merchant_id = m.id
+      ${whereClause}
+      ORDER BY ual.created_at DESC
+      LIMIT $${paramIndex++}
+      OFFSET $${paramIndex++}
+    `;
+    queryParams.push(limit, offset);
+    const dataResult = await pool.query(dataQuery, queryParams);
+
+    res.json({
+      success: true,
+      data: {
+        logs: dataResult.rows,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          totalPages: Math.ceil(total / limit)
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error('Get activity logs error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to get activity logs'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/activity-logs/stats
+ * Get activity logs statistics
+ */
+router.get('/activity-logs/stats', authenticateAdmin, async (req, res) => {
+  try {
+    const { dateFrom, dateTo } = req.query;
+    const queryParams = [];
+    let whereConditions = [];
+    let paramIndex = 1;
+
+    if (dateFrom) {
+      whereConditions.push(`created_at >= $${paramIndex++}`);
+      queryParams.push(dateFrom);
+    }
+
+    if (dateTo) {
+      whereConditions.push(`created_at <= $${paramIndex++}`);
+      queryParams.push(dateTo);
+    }
+
+    const whereClause = whereConditions.length > 0
+      ? 'WHERE ' + whereConditions.join(' AND ')
+      : '';
+
+    // Get overall stats
+    const statsQuery = `
+      SELECT
+        COUNT(*) as total_activities,
+        COUNT(DISTINCT user_id) as unique_users,
+        COUNT(CASE WHEN status = 'success' THEN 1 END) as success_count,
+        COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_count,
+        AVG(CASE WHEN response_time_ms IS NOT NULL THEN response_time_ms END)::INTEGER as avg_response_time,
+        COUNT(CASE WHEN activity_type = 'link_generate_success' THEN 1 END) as total_links_generated
+      FROM user_activity_logs
+      ${whereClause}
+    `;
+    const statsResult = await pool.query(statsQuery, queryParams);
+
+    // Get activity breakdown by type
+    const breakdownQuery = `
+      SELECT
+        activity_type,
+        COUNT(*) as count,
+        COUNT(CASE WHEN status = 'success' THEN 1 END) as success_count,
+        COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_count
+      FROM user_activity_logs
+      ${whereClause}
+      GROUP BY activity_type
+      ORDER BY count DESC
+    `;
+    const breakdownResult = await pool.query(breakdownQuery, queryParams);
+
+    // Get top merchants
+    const merchantsQuery = `
+      SELECT
+        m.id,
+        m.name,
+        COUNT(*) as activity_count
+      FROM user_activity_logs ual
+      JOIN merchants m ON ual.merchant_id = m.id
+      ${whereClause}
+      GROUP BY m.id, m.name
+      ORDER BY activity_count DESC
+      LIMIT 10
+    `;
+    const merchantsResult = await pool.query(merchantsQuery, queryParams);
+
+    res.json({
+      success: true,
+      data: {
+        overall: statsResult.rows[0],
+        breakdown: breakdownResult.rows,
+        topMerchants: merchantsResult.rows
+      }
+    });
+
+  } catch (error) {
+    logger.error('Get activity stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to get activity stats'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/activity-logs/top-products
+ * Get top products by link generation count
+ */
+router.get('/activity-logs/top-products', authenticateAdmin, async (req, res) => {
+  try {
+    const { limit = 20, dateFrom, dateTo } = req.query;
+
+    const queryParams = [limit];
+    let paramIndex = 2;
+    let dateConditions = '';
+
+    if (dateFrom && dateTo) {
+      dateConditions = `AND created_at BETWEEN $${paramIndex++} AND $${paramIndex++}`;
+      queryParams.push(dateFrom, dateTo);
+    } else if (dateFrom) {
+      dateConditions = `AND created_at >= $${paramIndex++}`;
+      queryParams.push(dateFrom);
+    } else if (dateTo) {
+      dateConditions = `AND created_at <= $${paramIndex++}`;
+      queryParams.push(dateTo);
+    }
+
+    const topProducts = await pool.query(`
+      SELECT
+        product_url,
+        COUNT(*) as click_count,
+        COUNT(DISTINCT user_id) as unique_users,
+        MAX(created_at) as last_clicked
+      FROM user_activity_logs
+      WHERE activity_type = 'link_generate_success'
+        AND product_url IS NOT NULL
+        ${dateConditions}
+      GROUP BY product_url
+      ORDER BY click_count DESC
+      LIMIT $1
+    `, queryParams);
+
+    res.json({
+      success: true,
+      data: topProducts.rows
+    });
+
+  } catch (error) {
+    logger.error('Get top products error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to get top products'
+    });
+  }
+});
+
+/**
+ * DELETE /api/admin/activity-logs
+ * Delete activity logs by date range
+ */
+router.delete('/activity-logs', authenticateAdmin, async (req, res) => {
+  try {
+    const { dateFrom, dateTo } = req.body;
+
+    if (!dateFrom || !dateTo) {
+      return res.status(400).json({
+        success: false,
+        message: 'dateFrom and dateTo are required'
+      });
+    }
+
+    const result = await pool.query(`
+      DELETE FROM user_activity_logs
+      WHERE created_at BETWEEN $1 AND $2
+    `, [dateFrom, dateTo]);
+
+    logger.info(`Deleted ${result.rowCount} activity logs from ${dateFrom} to ${dateTo}`);
+
+    res.json({
+      success: true,
+      message: `Deleted ${result.rowCount} activity logs`,
+      deletedCount: result.rowCount
+    });
+
+  } catch (error) {
+    logger.error('Delete activity logs error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to delete activity logs'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/activity-logs/cleanup
+ * Manual cleanup of logs older than 90 days
+ */
+router.post('/activity-logs/cleanup', authenticateAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      DELETE FROM user_activity_logs
+      WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '90 days'
+    `);
+
+    logger.info(`Manual cleanup: Deleted ${result.rowCount} activity logs older than 90 days`);
+
+    res.json({
+      success: true,
+      message: `Cleaned up ${result.rowCount} logs older than 90 days`,
+      deletedCount: result.rowCount
+    });
+
+  } catch (error) {
+    logger.error('Cleanup activity logs error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to cleanup activity logs'
     });
   }
 });

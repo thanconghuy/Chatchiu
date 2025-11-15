@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activity Logs - Admin Dashboard</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/admin/admin.css">
+    <style>
+        .activity-logs-container {
+            display: grid;
+            gap: 24px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid var(--primary);
+        }
+
+        .stat-card.success {
+            border-left-color: #38a169;
+        }
+
+        .stat-card.danger {
+            border-left-color: #e53e3e;
+        }
+
+        .stat-card.info {
+            border-left-color: #3182ce;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--gray-600);
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        .filters-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 24px;
+        }
+
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-group label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--gray-700);
+            margin-bottom: 4px;
+        }
+
+        .filter-group select,
+        .filter-group input {
+            padding: 8px 12px;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 0.875rem;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .logs-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table th {
+            background: var(--gray-50);
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--gray-700);
+            border-bottom: 2px solid var(--gray-200);
+            font-size: 0.875rem;
+        }
+
+        .table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--gray-200);
+            font-size: 0.875rem;
+        }
+
+        .table tr:hover {
+            background: var(--gray-50);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-badge.success {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .status-badge.failed {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .activity-type {
+            font-size: 0.75rem;
+            color: var(--gray-600);
+            background: var(--gray-100);
+            padding: 2px 8px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 24px;
+            padding: 16px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .pagination .rows-per-page {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .pagination .rows-per-page label {
+            font-size: 0.875rem;
+            color: var(--gray-700);
+            font-weight: 500;
+        }
+
+        .pagination .rows-per-page select {
+            padding: 6px 12px;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+
+        .pagination button {
+            padding: 8px 16px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: var(--primary-dark);
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination #pageInfo {
+            font-size: 0.875rem;
+            color: var(--gray-700);
+            font-weight: 500;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        .cleanup-section {
+            background: #fff5f5;
+            border: 1px solid #feb2b2;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 24px;
+        }
+
+        .cleanup-section h3 {
+            color: #742a2a;
+            margin-bottom: 12px;
+            font-size: 1rem;
+        }
+
+        .cleanup-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .product-url {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .product-url:hover {
+            overflow: visible;
+            white-space: normal;
+            word-break: break-all;
+        }
+
+        .event-data {
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: var(--gray-600);
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+
+        .event-data:hover {
+            overflow: visible;
+            white-space: pre-wrap;
+            background: var(--gray-50);
+            padding: 4px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
+
+    <div class="app-container" style="display: flex; width: 100%; max-width: 100vw;">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="logo">
+                <span class="logo-icon">⚡</span>
+                <span class="logo-text">Admin</span>
+            </div>
+
+            <nav class="nav">
+                <a href="/admin" class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+                <a href="/admin/users" class="nav-item">
+                    <span class="nav-icon">👥</span>
+                    <span class="nav-text">Users</span>
+                </a>
+                <a href="/admin/conversions" class="nav-item">
+                    <span class="nav-icon">💰</span>
+                    <span class="nav-text">Conversions</span>
+                </a>
+                <a href="/admin/at-orders" class="nav-item">
+                    <span class="nav-icon">📦</span>
+                    <span class="nav-text">Dữ liệu đơn AT</span>
+                </a>
+                <a href="/admin/reconciliation" class="nav-item">
+                    <span class="nav-icon">📋</span>
+                    <span class="nav-text">Đối soát</span>
+                </a>
+                <a href="/admin/merchants" class="nav-item">
+                    <span class="nav-icon">🏪</span>
+                    <span class="nav-text">Merchants</span>
+                </a>
+                <a href="/admin/tools" class="nav-item">
+                    <span class="nav-icon">🔧</span>
+                    <span class="nav-text">Tools</span>
+                </a>
+                <a href="/admin/monitoring" class="nav-item">
+                    <span class="nav-icon">📈</span>
+                    <span class="nav-text">Monitoring</span>
+                </a>
+                <a href="/admin/activity-logs" class="nav-item active">
+                    <span class="nav-icon">📝</span>
+                    <span class="nav-text">Activity Logs</span>
+                </a>
+                <a href="/admin/settings" class="nav-item">
+                    <span class="nav-icon">⚙️</span>
+                    <span class="nav-text">Settings</span>
+                </a>
+                <a href="#" class="nav-item" id="logoutBtn">
+                    <span class="nav-icon">🚪</span>
+                    <span class="nav-text">Logout</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="activity-logs-container">
+                <h1>Activity Logs</h1>
+
+                <!-- Stats Cards -->
+                <div class="stats-grid" id="statsGrid">
+                    <div class="stat-card">
+                        <div class="stat-label">Tổng Hoạt Động</div>
+                        <div class="stat-value" id="totalActivities">-</div>
+                    </div>
+                    <div class="stat-card success">
+                        <div class="stat-label">Thành Công</div>
+                        <div class="stat-value" id="successCount">-</div>
+                    </div>
+                    <div class="stat-card danger">
+                        <div class="stat-label">Thất Bại</div>
+                        <div class="stat-value" id="failedCount">-</div>
+                    </div>
+                    <div class="stat-card info">
+                        <div class="stat-label">Người Dùng Hoạt Động</div>
+                        <div class="stat-value" id="uniqueUsers">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Avg Response Time</div>
+                        <div class="stat-value" id="avgResponseTime">-</div>
+                    </div>
+                </div>
+
+                <!-- Filters -->
+                <div class="filters-card">
+                    <h2>Bộ Lọc</h2>
+                    <div class="filters-grid">
+                        <div class="filter-group">
+                            <label>Loại Hoạt Động</label>
+                            <select id="activityTypeFilter">
+                                <option value="">Tất cả</option>
+                                <option value="link_generate_success">Tạo Link Thành Công</option>
+                                <option value="link_generate_failed">Tạo Link Thất Bại</option>
+                                <option value="login">Đăng Nhập</option>
+                                <option value="logout">Đăng Xuất</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Trạng Thái</label>
+                            <select id="statusFilter">
+                                <option value="">Tất cả</option>
+                                <option value="success">Thành công</option>
+                                <option value="failed">Thất bại</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Từ Ngày</label>
+                            <input type="date" id="dateFromFilter">
+                        </div>
+                        <div class="filter-group">
+                            <label>Đến Ngày</label>
+                            <input type="date" id="dateToFilter">
+                        </div>
+                    </div>
+                    <div class="filter-actions">
+                        <button class="btn btn-primary" onclick="applyFilters()">Áp Dụng</button>
+                        <button class="btn" onclick="resetFilters()">Reset</button>
+                    </div>
+                </div>
+
+                <!-- Logs Table -->
+                <div class="logs-card">
+                    <h2>Lịch Sử Hoạt Động</h2>
+                    <div class="table-container">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Thời Gian</th>
+                                    <th>Người Dùng</th>
+                                    <th>Loại</th>
+                                    <th>Merchant</th>
+                                    <th>Sản Phẩm</th>
+                                    <th>Trạng Thái</th>
+                                    <th>Response Time</th>
+                                    <th>Device</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logsTableBody">
+                                <tr>
+                                    <td colspan="8" style="text-align: center; padding: 40px;">
+                                        Đang tải dữ liệu...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div class="pagination">
+                        <div class="rows-per-page">
+                            <label for="rowsPerPage">Hiển thị:</label>
+                            <select id="rowsPerPage">
+                                <option value="10">10</option>
+                                <option value="20">20</option>
+                                <option value="50" selected>50</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
+                        <button class="btn-secondary" id="prevBtn" disabled>« Trước</button>
+                        <span id="pageInfo">Trang 1</span>
+                        <button class="btn-secondary" id="nextBtn">Sau »</button>
+                    </div>
+                </div>
+
+                <!-- Cleanup Section -->
+                <div class="cleanup-section">
+                    <h3>⚠️ Quản Lý Dữ Liệu</h3>
+                    <p style="color: #742a2a; margin-bottom: 12px; font-size: 0.875rem;">
+                        Logs sẽ tự động xóa sau 90 ngày. Bạn cũng có thể xóa thủ công bằng các tùy chọn bên dưới.
+                    </p>
+                    <div class="cleanup-actions">
+                        <button class="btn" onclick="manualCleanup90Days()" style="background: #f56565; color: white;">
+                            Xóa Logs > 90 Ngày
+                        </button>
+                        <button class="btn" onclick="customDateRangeDelete()" style="background: #ed8936; color: white;">
+                            Xóa Theo Khoảng Ngày
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/mobile-menu.js"></script>
+    <script>
+        // Check authentication
+        requireAuth();
+
+        // State
+        let currentPage = 1;
+        let totalPages = 1;
+        let limit = 50;
+        let currentFilters = {};
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Setup logout
+            const logoutBtn = document.getElementById('logoutBtn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    logout();
+                });
+            }
+
+            // Setup rows per page selector
+            const rowsPerPageSelect = document.getElementById('rowsPerPage');
+            if (rowsPerPageSelect) {
+                rowsPerPageSelect.addEventListener('change', (e) => {
+                    limit = parseInt(e.target.value);
+                    currentPage = 1;
+                    loadLogs();
+                });
+            }
+
+            // Setup pagination buttons
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+
+            if (prevBtn) {
+                prevBtn.addEventListener('click', () => {
+                    if (currentPage > 1) {
+                        currentPage--;
+                        loadLogs();
+                    }
+                });
+            }
+
+            if (nextBtn) {
+                nextBtn.addEventListener('click', () => {
+                    if (currentPage < totalPages) {
+                        currentPage++;
+                        loadLogs();
+                    }
+                });
+            }
+
+            // Load initial data
+            loadStats();
+            loadLogs();
+
+            // Set default date range to last 7 days
+            const today = new Date();
+            const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+            document.getElementById('dateFromFilter').valueAsDate = lastWeek;
+            document.getElementById('dateToFilter').valueAsDate = today;
+        });
+
+        async function loadStats() {
+            try {
+                const params = new URLSearchParams();
+                if (currentFilters.dateFrom) params.append('dateFrom', currentFilters.dateFrom);
+                if (currentFilters.dateTo) params.append('dateTo', currentFilters.dateTo);
+
+                const response = await fetch(`${CONFIG.API_BASE_URL}/admin/activity-logs/stats?${params}`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    const stats = result.data.overall;
+                    document.getElementById('totalActivities').textContent = stats.total_activities || 0;
+                    document.getElementById('successCount').textContent = stats.success_count || 0;
+                    document.getElementById('failedCount').textContent = stats.failed_count || 0;
+                    document.getElementById('uniqueUsers').textContent = stats.unique_users || 0;
+                    document.getElementById('avgResponseTime').textContent =
+                        stats.avg_response_time ? `${stats.avg_response_time}ms` : '-';
+                }
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+            }
+        }
+
+        async function loadLogs() {
+            try {
+                const params = new URLSearchParams();
+                params.append('page', currentPage);
+                params.append('limit', limit);
+
+                if (currentFilters.activityType) params.append('activityType', currentFilters.activityType);
+                if (currentFilters.status) params.append('status', currentFilters.status);
+                if (currentFilters.dateFrom) params.append('dateFrom', currentFilters.dateFrom);
+                if (currentFilters.dateTo) params.append('dateTo', currentFilters.dateTo);
+
+                const response = await fetch(`${CONFIG.API_BASE_URL}/admin/activity-logs?${params}`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    displayLogs(result.data.logs);
+                    updatePagination(result.data.pagination);
+                }
+            } catch (error) {
+                console.error('Failed to load logs:', error);
+                document.getElementById('logsTableBody').innerHTML = `
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 40px; color: red;">
+                            Lỗi tải dữ liệu: ${error.message}
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        function displayLogs(logs) {
+            const tbody = document.getElementById('logsTableBody');
+
+            if (logs.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 40px;">
+                            Không có dữ liệu
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = logs.map(log => `
+                <tr>
+                    <td>${formatDateTime(log.created_at)}</td>
+                    <td>${escapeHtml(log.user_name || log.user_email || '-')}</td>
+                    <td><span class="activity-type">${formatActivityType(log.activity_type)}</span></td>
+                    <td>${escapeHtml(log.merchant_name || '-')}</td>
+                    <td><div class="product-url" title="${escapeHtml(log.product_url || '')}">${escapeHtml(truncateUrl(log.product_url))}</div></td>
+                    <td><span class="status-badge ${log.status}">${log.status}</span></td>
+                    <td>${log.response_time_ms ? `${log.response_time_ms}ms` : '-'}</td>
+                    <td>${formatDevice(log.device_type, log.browser)}</td>
+                </tr>
+            `).join('');
+        }
+
+        function updatePagination(pagination) {
+            currentPage = pagination.page;
+            totalPages = pagination.totalPages;
+
+            document.getElementById('pageInfo').textContent =
+                `Trang ${currentPage} / ${totalPages} (${pagination.total} logs)`;
+
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+
+            if (prevBtn) {
+                prevBtn.disabled = currentPage === 1;
+            }
+            if (nextBtn) {
+                nextBtn.disabled = currentPage === totalPages;
+            }
+        }
+
+        function applyFilters() {
+            currentFilters = {
+                activityType: document.getElementById('activityTypeFilter').value,
+                status: document.getElementById('statusFilter').value,
+                dateFrom: document.getElementById('dateFromFilter').value,
+                dateTo: document.getElementById('dateToFilter').value
+            };
+            currentPage = 1;
+            loadStats();
+            loadLogs();
+        }
+
+        function resetFilters() {
+            document.getElementById('activityTypeFilter').value = '';
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('dateFromFilter').value = '';
+            document.getElementById('dateToFilter').value = '';
+            currentFilters = {};
+            currentPage = 1;
+            loadStats();
+            loadLogs();
+        }
+
+
+        async function manualCleanup90Days() {
+            if (!confirm('Bạn có chắc muốn xóa tất cả logs cũ hơn 90 ngày?')) return;
+
+            try {
+                const response = await fetch(`${CONFIG.API_BASE_URL}/admin/activity-logs/cleanup`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    alert(`✅ ${result.message}`);
+                    loadStats();
+                    loadLogs();
+                } else {
+                    alert(`❌ ${result.message}`);
+                }
+            } catch (error) {
+                alert(`❌ Lỗi: ${error.message}`);
+            }
+        }
+
+        async function customDateRangeDelete() {
+            const dateFrom = prompt('Từ ngày (YYYY-MM-DD):');
+            if (!dateFrom) return;
+
+            const dateTo = prompt('Đến ngày (YYYY-MM-DD):');
+            if (!dateTo) return;
+
+            if (!confirm(`Bạn có chắc muốn xóa logs từ ${dateFrom} đến ${dateTo}?`)) return;
+
+            try {
+                const response = await fetch(`${CONFIG.API_BASE_URL}/admin/activity-logs`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ dateFrom, dateTo })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    alert(`✅ ${result.message}`);
+                    loadStats();
+                    loadLogs();
+                } else {
+                    alert(`❌ ${result.message}`);
+                }
+            } catch (error) {
+                alert(`❌ Lỗi: ${error.message}`);
+            }
+        }
+
+        // Utility functions
+        function formatDateTime(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleString('vi-VN', {
+                timeZone: 'Asia/Ho_Chi_Minh',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function formatActivityType(type) {
+            const types = {
+                'link_generate_success': 'Tạo Link ✓',
+                'link_generate_failed': 'Tạo Link ✗',
+                'login': 'Đăng Nhập',
+                'logout': 'Đăng Xuất'
+            };
+            return types[type] || type;
+        }
+
+        function formatDevice(deviceType, browser) {
+            if (!deviceType && !browser) return '-';
+            return `${deviceType || 'unknown'} / ${browser || 'unknown'}`;
+        }
+
+        function truncateUrl(url) {
+            if (!url) return '-';
+            if (url.length <= 40) return url;
+            return url.substring(0, 40) + '...';
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '-';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
