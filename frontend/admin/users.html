@@ -204,22 +204,7 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         }
 
-        .pagination button {
-            padding: 8px 16px;
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-
-        .pagination button:hover:not(:disabled) {
-            background: var(--primary-dark);
-        }
-
-        .pagination button:disabled {
+        .pagination .btn-secondary:disabled {
             opacity: 0.5;
             cursor: not-allowed;
         }

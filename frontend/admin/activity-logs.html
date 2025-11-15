@@ -190,23 +190,7 @@
             cursor: pointer;
         }
 
-        .pagination button {
-            padding: 8px 16px;
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.875rem;
-            font-weight: 500;
-            transition: all 0.3s;
-        }
-
-        .pagination button:hover:not(:disabled) {
-            background: var(--primary-dark);
-        }
-
-        .pagination button:disabled {
+        .pagination .btn-secondary:disabled {
             opacity: 0.5;
             cursor: not-allowed;
         }
