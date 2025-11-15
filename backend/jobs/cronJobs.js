@@ -51,6 +51,9 @@ class CronJobsService {
     // Job 3: Alert expiring clicks (daily at 9 AM)
     this.scheduleExpiringAlert();
 
+    // Job 4: Cleanup old activity logs (daily at 2 AM)
+    this.scheduleActivityLogsCleanup();
+
     this.isInitialized = true;
     logger.success(`Initialized ${this.jobs.length} cron jobs`);
   }
@@ -202,6 +205,58 @@ class CronJobsService {
   }
 
   /**
+   * Job 4: Cleanup old activity logs
+   * Schedule: Daily at 2 AM
+   * Purpose: Delete activity logs older than 90 days
+   */
+  scheduleActivityLogsCleanup() {
+    const schedule = '0 2 * * *'; // Daily at 2 AM
+
+    const job = cron.schedule(schedule, async () => {
+      logger.info('🗑️  Cron: Activity logs cleanup started');
+
+      try {
+        const { pool } = require('../config/database');
+
+        // Delete logs older than 90 days
+        const result = await pool.query(`
+          DELETE FROM user_activity_logs
+          WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '90 days'
+        `);
+
+        const deletedCount = result.rowCount;
+
+        logger.success('🗑️  Cron: Activity logs cleanup completed', {
+          deletedCount
+        });
+
+        // Warn if large number of logs deleted
+        if (deletedCount > 10000) {
+          logger.warn('⚠️  Large number of activity logs deleted', {
+            count: deletedCount
+          });
+        }
+
+      } catch (error) {
+        logger.error('🗑️  Cron: Activity logs cleanup failed', {
+          error: error.message
+        });
+      }
+    }, {
+      scheduled: true,
+      timezone: "Asia/Ho_Chi_Minh"
+    });
+
+    this.jobs.push({
+      name: 'cleanup-activity-logs',
+      schedule,
+      job
+    });
+
+    logger.info(`✅ Scheduled: Activity logs cleanup (${schedule})`);
+  }
+
+  /**
    * Stop all cron jobs
    */
   stopAll() {
@@ -256,6 +311,14 @@ class CronJobsService {
 
       case 'expiring-alert':
         return await retryService.getExpiringClicksReport(3, 100);
+
+      case 'cleanup-activity-logs':
+        const { pool: activityPool } = require('../config/database');
+        const cleanupResult = await activityPool.query(`
+          DELETE FROM user_activity_logs
+          WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '90 days'
+        `);
+        return { deletedCount: cleanupResult.rowCount };
 
       default:
         throw new Error(`Unknown job: ${jobName}`);

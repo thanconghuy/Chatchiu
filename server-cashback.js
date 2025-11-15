@@ -2,6 +2,10 @@
 if (!process.env.VERCEL) {
   require('dotenv').config();
 }
+
+// Set timezone to Vietnam (UTC+7)
+process.env.TZ = process.env.TZ || 'Asia/Ho_Chi_Minh';
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');

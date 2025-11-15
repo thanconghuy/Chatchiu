@@ -10,6 +10,7 @@ const SystemConversion = require('../models/SystemConversion');
 const { generateAffiliateLink } = require('../services/linkGenerator');
 const accessTradeLinkService = require('../services/accessTradeLink');
 const reconciliationService = require('../services/reconciliationService');
+const { ActivityLogger, ACTIVITY_TYPES } = require('../services/activityLogger');
 
 /**
  * GET /api/dashboard/stats
@@ -355,6 +356,23 @@ router.post('/generate-link', authenticateToken, async (req, res) => {
         duration: Date.now() - startTime
       });
 
+      // Log successful link generation activity
+      ActivityLogger.log({
+        userId: req.userId,
+        activityType: ACTIVITY_TYPES.LINK_GENERATE_SUCCESS,
+        merchantId: merchant.id,
+        productUrl: clickType === 'link' ? productUrl : null,
+        eventData: {
+          clickType,
+          linkSource,
+          clickId: click.id,
+          merchantName: merchant.name
+        },
+        req,
+        status: 'success',
+        responseTime: Date.now() - startTime
+      });
+
       res.json({
         success: true,
         message: 'Affiliate link generated successfully',
@@ -387,6 +405,23 @@ router.post('/generate-link', authenticateToken, async (req, res) => {
         duration: Date.now() - startTime
       });
 
+      // Log failed link generation activity (transaction error)
+      ActivityLogger.log({
+        userId: req.userId,
+        activityType: ACTIVITY_TYPES.LINK_GENERATE_FAILED,
+        merchantId,
+        productUrl: clickType === 'link' ? productUrl : null,
+        eventData: {
+          clickType,
+          clickId: click?.id,
+          errorType: 'transaction_error'
+        },
+        req,
+        status: 'failed',
+        errorMessage: txError.message,
+        responseTime: Date.now() - startTime
+      });
+
       throw txError; // Re-throw to outer catch
     } finally {
       client.release();
@@ -407,6 +442,23 @@ router.post('/generate-link', authenticateToken, async (req, res) => {
       productUrl: req.body.productUrl,
       duration: Date.now() - startTime,
       timestamp: new Date().toISOString()
+    });
+
+    // Log failed link generation activity (outer catch error)
+    ActivityLogger.log({
+      userId: req.userId,
+      activityType: ACTIVITY_TYPES.LINK_GENERATE_FAILED,
+      merchantId: req.body.merchantId,
+      productUrl: req.body.clickType === 'link' ? req.body.productUrl : null,
+      eventData: {
+        clickType: req.body.clickType,
+        clickId: click?.id,
+        errorType: 'general_error'
+      },
+      req,
+      status: 'failed',
+      errorMessage: error.message,
+      responseTime: Date.now() - startTime
     });
 
     res.status(500).json({
