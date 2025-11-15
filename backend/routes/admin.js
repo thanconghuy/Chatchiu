@@ -178,8 +178,8 @@ router.get('/users/:userId', authenticateAdmin, async (req, res) => {
     // Get user's clicks
     const clicksQuery = `
       SELECT COUNT(*) as total_clicks,
-             COUNT(CASE WHEN link_mode = 'button' THEN 1 END) as button_clicks,
-             COUNT(CASE WHEN link_mode = 'link' THEN 1 END) as link_clicks
+             COUNT(CASE WHEN click_type = 'button' THEN 1 END) as button_clicks,
+             COUNT(CASE WHEN click_type = 'link' THEN 1 END) as link_clicks
       FROM clicks
       WHERE user_id = $1
     `;
