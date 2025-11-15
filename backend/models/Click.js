@@ -92,7 +92,8 @@ class Click {
       sub1,
       sub2,
       sub3,
-      sub4
+      sub4,
+      linkSource
     } = linkData;
 
     const query = `
@@ -108,7 +109,8 @@ class Click {
         sub1 = $9,
         sub2 = $10,
         sub3 = $11,
-        sub4 = $12
+        sub4 = $12,
+        link_source = $13
       WHERE id = $1
       RETURNING *
     `;
@@ -125,7 +127,8 @@ class Click {
       sub1 || null,
       sub2 || null,
       sub3 || null,
-      sub4 || 'oneatweb'
+      sub4 || 'oneatweb',
+      linkSource || 'diy'
     ];
 
     const result = await pool.query(query, values);

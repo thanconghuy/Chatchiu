@@ -2574,6 +2574,7 @@ router.get('/monitoring/metrics', authenticateAdmin, async (req, res) => {
     const linkModeQuery = `
       SELECT
         CASE
+          WHEN link_source IN ('api', 'diy', 'diy-fallback') THEN link_source
           WHEN affiliate_url LIKE '%click.accesstrade.vn%' THEN 'api'
           ELSE 'diy'
         END as link_mode,
