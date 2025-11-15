@@ -3223,10 +3223,20 @@ router.post('/settings/auto-cron', authenticateAdmin, async (req, res) => {
     // Also update runtime value
     process.env.AUTO_CRON_ENABLED = enabled ? 'true' : 'false';
 
-    logger.info('Auto cron setting updated', {
-      enabled,
-      adminId: req.userId
-    });
+    // Start or stop cron jobs based on the setting
+    if (enabled) {
+      cronJobsService.initialize();
+      const status = cronJobsService.getStatus();
+      logger.info('Auto cron jobs enabled and started', {
+        adminId: req.userId,
+        jobsCount: status.jobsCount
+      });
+    } else {
+      cronJobsService.stopAll();
+      logger.info('Auto cron jobs disabled and stopped', {
+        adminId: req.userId
+      });
+    }
 
     res.json({
       success: true,

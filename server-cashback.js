@@ -163,6 +163,15 @@ if (process.env.VERCEL !== '1') {
     console.log(`⏰ Auto Sync: DISABLED (Manual sync only)`);
     console.log('='.repeat(60));
 
+    // Load auto cron setting from database
+    try {
+      const SystemSettings = require('./backend/services/systemSettings');
+      const autoCronEnabled = await SystemSettings.get('auto_cron_enabled', false);
+      process.env.AUTO_CRON_ENABLED = autoCronEnabled ? 'true' : 'false';
+    } catch (error) {
+      logger.warn('Failed to load auto cron setting from database, using default', { error: error.message });
+    }
+
     // Initialize cron jobs for retry and cleanup
     try {
       cronJobsService.initialize();
