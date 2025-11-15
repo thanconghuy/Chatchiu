@@ -159,19 +159,49 @@
 
         .pagination {
             display: flex;
-            justify-content: center;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 24px;
+            padding: 16px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .pagination .rows-per-page {
+            display: flex;
             align-items: center;
             gap: 8px;
-            margin-top: 24px;
+        }
+
+        .pagination .rows-per-page label {
+            font-size: 0.875rem;
+            color: var(--gray-700);
+            font-weight: 500;
+        }
+
+        .pagination .rows-per-page select {
+            padding: 6px 12px;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 0.875rem;
+            cursor: pointer;
         }
 
         .pagination button {
             padding: 8px 16px;
-            border: 1px solid var(--gray-300);
-            background: white;
+            background: var(--primary);
+            color: white;
+            border: none;
             border-radius: 6px;
             cursor: pointer;
             font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: var(--primary-dark);
         }
 
         .pagination button:disabled {
@@ -179,13 +209,12 @@
             cursor: not-allowed;
         }
 
-        .pagination button:not(:disabled):hover {
-            background: var(--gray-50);
-        }
-
-        .pagination .page-info {
+        .pagination #pageInfo {
             font-size: 0.875rem;
-            color: var(--gray-600);
+            color: var(--gray-700);
+            font-weight: 500;
+            min-width: 120px;
+            text-align: center;
         }
 
         .cleanup-section {
@@ -396,11 +425,18 @@
 
                     <!-- Pagination -->
                     <div class="pagination">
-                        <button onclick="goToPage(1)" id="firstPageBtn">First</button>
-                        <button onclick="goToPrevPage()" id="prevPageBtn">Previous</button>
-                        <span class="page-info" id="pageInfo">Page 1 of 1</span>
-                        <button onclick="goToNextPage()" id="nextPageBtn">Next</button>
-                        <button onclick="goToLastPage()" id="lastPageBtn">Last</button>
+                        <div class="rows-per-page">
+                            <label for="rowsPerPage">Hiển thị:</label>
+                            <select id="rowsPerPage">
+                                <option value="10">10</option>
+                                <option value="20">20</option>
+                                <option value="50" selected>50</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
+                        <button class="btn-secondary" id="prevBtn" disabled>« Trước</button>
+                        <span id="pageInfo">Trang 1</span>
+                        <button class="btn-secondary" id="nextBtn">Sau »</button>
                     </div>
                 </div>
 
@@ -433,6 +469,7 @@
         // State
         let currentPage = 1;
         let totalPages = 1;
+        let limit = 50;
         let currentFilters = {};
 
         // Initialize
@@ -443,6 +480,38 @@
                 logoutBtn.addEventListener('click', (e) => {
                     e.preventDefault();
                     logout();
+                });
+            }
+
+            // Setup rows per page selector
+            const rowsPerPageSelect = document.getElementById('rowsPerPage');
+            if (rowsPerPageSelect) {
+                rowsPerPageSelect.addEventListener('change', (e) => {
+                    limit = parseInt(e.target.value);
+                    currentPage = 1;
+                    loadLogs();
+                });
+            }
+
+            // Setup pagination buttons
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+
+            if (prevBtn) {
+                prevBtn.addEventListener('click', () => {
+                    if (currentPage > 1) {
+                        currentPage--;
+                        loadLogs();
+                    }
+                });
+            }
+
+            if (nextBtn) {
+                nextBtn.addEventListener('click', () => {
+                    if (currentPage < totalPages) {
+                        currentPage++;
+                        loadLogs();
+                    }
                 });
             }
 
@@ -463,7 +532,7 @@
                 if (currentFilters.dateFrom) params.append('dateFrom', currentFilters.dateFrom);
                 if (currentFilters.dateTo) params.append('dateTo', currentFilters.dateTo);
 
-                const response = await fetch(`${API_BASE_URL}/api/admin/activity-logs/stats?${params}`, {
+                const response = await fetch(`${CONFIG.API_BASE_URL}/admin/activity-logs/stats?${params}`, {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
                     }
@@ -488,14 +557,14 @@
             try {
                 const params = new URLSearchParams();
                 params.append('page', currentPage);
-                params.append('limit', 50);
+                params.append('limit', limit);
 
                 if (currentFilters.activityType) params.append('activityType', currentFilters.activityType);
                 if (currentFilters.status) params.append('status', currentFilters.status);
                 if (currentFilters.dateFrom) params.append('dateFrom', currentFilters.dateFrom);
                 if (currentFilters.dateTo) params.append('dateTo', currentFilters.dateTo);
 
-                const response = await fetch(`${API_BASE_URL}/api/admin/activity-logs?${params}`, {
+                const response = await fetch(`${CONFIG.API_BASE_URL}/admin/activity-logs?${params}`, {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
                     }
@@ -551,12 +620,17 @@
             totalPages = pagination.totalPages;
 
             document.getElementById('pageInfo').textContent =
-                `Page ${currentPage} of ${totalPages} (${pagination.total} records)`;
+                `Trang ${currentPage} / ${totalPages} (${pagination.total} logs)`;
 
-            document.getElementById('firstPageBtn').disabled = currentPage === 1;
-            document.getElementById('prevPageBtn').disabled = currentPage === 1;
-            document.getElementById('nextPageBtn').disabled = currentPage === totalPages;
-            document.getElementById('lastPageBtn').disabled = currentPage === totalPages;
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+
+            if (prevBtn) {
+                prevBtn.disabled = currentPage === 1;
+            }
+            if (nextBtn) {
+                nextBtn.disabled = currentPage === totalPages;
+            }
         }
 
         function applyFilters() {
@@ -582,35 +656,12 @@
             loadLogs();
         }
 
-        function goToPage(page) {
-            currentPage = page;
-            loadLogs();
-        }
-
-        function goToPrevPage() {
-            if (currentPage > 1) {
-                currentPage--;
-                loadLogs();
-            }
-        }
-
-        function goToNextPage() {
-            if (currentPage < totalPages) {
-                currentPage++;
-                loadLogs();
-            }
-        }
-
-        function goToLastPage() {
-            currentPage = totalPages;
-            loadLogs();
-        }
 
         async function manualCleanup90Days() {
             if (!confirm('Bạn có chắc muốn xóa tất cả logs cũ hơn 90 ngày?')) return;
 
             try {
-                const response = await fetch(`${API_BASE_URL}/api/admin/activity-logs/cleanup`, {
+                const response = await fetch(`${CONFIG.API_BASE_URL}/admin/activity-logs/cleanup`, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -641,7 +692,7 @@
             if (!confirm(`Bạn có chắc muốn xóa logs từ ${dateFrom} đến ${dateTo}?`)) return;
 
             try {
-                const response = await fetch(`${API_BASE_URL}/api/admin/activity-logs`, {
+                const response = await fetch(`${CONFIG.API_BASE_URL}/admin/activity-logs`, {
                     method: 'DELETE',
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`,
