@@ -17,11 +17,37 @@ const { generateAffSid, buildUtmParams } = require('./linkGenerator');
 class AccessTradeLinkService {
   constructor() {
     this.apiUrl = process.env.ACCESSTRADE_API_URL || 'https://api.accesstrade.vn/v1';
-    this.accessToken = process.env.ACCESSTRADE_ACCESS_TOKEN;
+    this.accessToken = null;
+    this.lastTokenCheck = 0;
+    this.tokenCheckInterval = 60000; // Check every 60 seconds
 
-    if (!this.accessToken) {
+    // Initialize token
+    this.loadToken();
+  }
+
+  /**
+   * Load token from environment (updated by admin settings)
+   */
+  async loadToken() {
+    this.accessToken = process.env.ACCESSTRADE_ACCESS_TOKEN;
+    this.lastTokenCheck = Date.now();
+
+    if (this.accessToken) {
+      logger.info('AccessTrade token loaded from environment');
+    } else {
       logger.warn('AccessTrade API token not configured - API mode disabled');
     }
+  }
+
+  /**
+   * Get current token (reload if needed)
+   */
+  async getToken() {
+    // Reload token if cache expired
+    if (Date.now() - this.lastTokenCheck > this.tokenCheckInterval) {
+      await this.loadToken();
+    }
+    return this.accessToken;
   }
 
   /**
@@ -36,7 +62,9 @@ class AccessTradeLinkService {
    */
   async generateLink(user, merchant, clickId, clickType, productUrl = null) {
     try {
-      if (!this.accessToken) {
+      // Get latest token
+      const token = await this.getToken();
+      if (!token) {
         throw new Error('AccessTrade API token not configured');
       }
 
@@ -86,7 +114,7 @@ class AccessTradeLinkService {
         requestData,
         {
           headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
+            'Authorization': `Token ${token}`,  // AccessTrade uses "Token" not "Bearer"
             'Content-Type': 'application/json'
           },
           timeout: 10000 // 10 second timeout
@@ -154,10 +182,11 @@ class AccessTradeLinkService {
 
   /**
    * Check if API mode is available
-   * @returns {boolean}
+   * @returns {Promise<boolean>}
    */
-  isAvailable() {
-    return !!this.accessToken;
+  async isAvailable() {
+    const token = await this.getToken();
+    return !!token;
   }
 
   /**
@@ -166,19 +195,23 @@ class AccessTradeLinkService {
    */
   async testConnection() {
     try {
-      if (!this.accessToken) {
+      // Get latest token from database
+      await this.loadToken();
+      const token = this.accessToken;
+
+      if (!token) {
         return {
           success: false,
           message: 'API token not configured'
         };
       }
 
-      // Try a simple API call
+      // Try a simple API call - get campaigns list
       const response = await axios.get(
-        `${this.apiUrl}/merchants`,
+        `${this.apiUrl}/campaigns`,
         {
           headers: {
-            'Authorization': `Bearer ${this.accessToken}`
+            'Authorization': `Token ${token}`  // AccessTrade uses "Token" not "Bearer"
           },
           timeout: 5000
         }

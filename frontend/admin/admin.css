@@ -1308,6 +1308,13 @@ body {
     transform: translateY(0);
 }
 
+/* Content Wrapper - Auto fit to available space */
+.content-wrapper {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
 .dropdown-item {
     display: flex;
     align-items: center;

@@ -15,13 +15,17 @@ function formatCurrency(amount) {
 // Format date
 function formatDate(dateString) {
     if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('vi-VN');
+    return new Date(dateString).toLocaleDateString('vi-VN', {
+        timeZone: 'Asia/Ho_Chi_Minh'
+    });
 }
 
 // Format datetime
 function formatDateTime(dateString) {
     if (!dateString) return '-';
-    return new Date(dateString).toLocaleString('vi-VN');
+    return new Date(dateString).toLocaleString('vi-VN', {
+        timeZone: 'Asia/Ho_Chi_Minh'
+    });
 }
 
 // Get auth token

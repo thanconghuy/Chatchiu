@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Cấu Hình Hệ Thống</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/admin/admin.css">
+    <style>
+        .settings-container {
+            display: grid;
+            gap: 24px;
+        }
+
+        .settings-section {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .settings-section h2 {
+            margin: 0 0 20px 0;
+            color: var(--gray-900);
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .settings-section h3 {
+            margin: 20px 0 12px 0;
+            color: var(--gray-800);
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .settings-grid {
+            display: grid;
+            gap: 20px;
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            background: var(--gray-50);
+            border-radius: 8px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .setting-info {
+            flex: 1;
+        }
+
+        .setting-label {
+            font-weight: 600;
+            color: var(--gray-900);
+            margin-bottom: 4px;
+        }
+
+        .setting-description {
+            font-size: 0.85rem;
+            color: var(--gray-600);
+            margin-bottom: 8px;
+        }
+
+        .setting-value {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            color: var(--primary);
+            background: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        .setting-control {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 30px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 30px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: var(--primary);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(30px);
+        }
+
+        .btn-edit {
+            padding: 8px 16px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-edit:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            padding: 8px 16px;
+            background: var(--gray-300);
+            color: var(--gray-700);
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-secondary:hover {
+            background: var(--gray-400);
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-badge.enabled {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .status-badge.disabled {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .alert-box {
+            background: #e6f7ff;
+            border-left: 4px solid #667eea;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+
+        .alert-box.warning {
+            background: #fffaf0;
+            border-left-color: #ed8936;
+        }
+
+        .alert-box.danger {
+            background: #fff5f5;
+            border-left-color: #e53e3e;
+        }
+
+        .alert-title {
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--gray-900);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: var(--gray-700);
+            margin-bottom: 8px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 0.95rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .btn-save {
+            padding: 12px 24px;
+            background: #38a169;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-save:hover {
+            background: #2f855a;
+        }
+
+        .btn-test {
+            padding: 12px 24px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-test:hover {
+            background: var(--primary-dark);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            color: var(--gray-900);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--gray-600);
+        }
+
+        @media (max-width: 768px) {
+            .setting-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .setting-control {
+                width: 100%;
+                justify-content: flex-end;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
+
+    <div class="app-container" style="display: flex; width: 100%; max-width: 100vw;">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="logo">
+                <span class="logo-icon">⚡</span>
+                <span class="logo-text">Admin</span>
+            </div>
+
+            <nav class="nav">
+                <a href="/admin" class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+                <a href="/admin/users" class="nav-item">
+                    <span class="nav-icon">👥</span>
+                    <span class="nav-text">Users</span>
+                </a>
+                <a href="/admin/conversions" class="nav-item">
+                    <span class="nav-icon">💰</span>
+                    <span class="nav-text">Conversions</span>
+                </a>
+                <a href="/admin/at-orders" class="nav-item">
+                    <span class="nav-icon">📦</span>
+                    <span class="nav-text">Dữ liệu đơn AT</span>
+                </a>
+                <a href="/admin/reconciliation" class="nav-item">
+                    <span class="nav-icon">📋</span>
+                    <span class="nav-text">Đối soát</span>
+                </a>
+                <a href="/admin/merchants" class="nav-item">
+                    <span class="nav-icon">🏪</span>
+                    <span class="nav-text">Merchants</span>
+                </a>
+                <a href="/admin/tools" class="nav-item">
+                    <span class="nav-icon">🔧</span>
+                    <span class="nav-text">Tools</span>
+                </a>
+                <a href="/admin/monitoring" class="nav-item">
+                    <span class="nav-icon">📈</span>
+                    <span class="nav-text">Monitoring</span>
+                </a>
+                <a href="/admin/settings" class="nav-item active">
+                    <span class="nav-icon">⚙️</span>
+                    <span class="nav-text">Settings</span>
+                </a>
+                <a href="#" class="nav-item" id="logoutBtn">
+                    <span class="nav-icon">🚪</span>
+                    <span class="nav-text">Logout</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-wrapper">
+                <div class="content-header">
+                    <h1>⚙️ Cài Đặt Hệ Thống</h1>
+                    <div class="user-info">
+                        <span id="userName">Admin</span>
+                    </div>
+                </div>
+
+                <div class="settings-container">
+                    <!-- Alert -->
+                    <div class="alert-box warning">
+                        <div class="alert-title">⚠️ Lưu Ý Quan Trọng</div>
+                        <p>Thay đổi cấu hình có thể ảnh hưởng đến hoạt động của hệ thống. Hãy chắc chắn bạn hiểu rõ từng cài đặt trước khi thay đổi.</p>
+                    </div>
+
+                    <!-- Cron Jobs Configuration -->
+                    <div class="settings-section">
+                        <h2>⏰ Cấu Hình Cron Jobs</h2>
+
+                        <div class="settings-grid">
+                            <!-- Auto Cron Enabled -->
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <div class="setting-label">Kích Hoạt Auto Cron</div>
+                                    <div class="setting-description">
+                                        Bật/tắt tự động retry cho unmatched clicks
+                                    </div>
+                                    <div class="setting-value" id="autoCronStatus">Loading...</div>
+                                </div>
+                                <div class="setting-control">
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="autoCronToggle">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Retry Schedule -->
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <div class="setting-label">Lịch Retry Clicks</div>
+                                    <div class="setting-description">
+                                        Cron expression cho việc retry unmatched clicks
+                                    </div>
+                                    <div class="setting-value" id="retryScheduleValue">Loading...</div>
+                                </div>
+                                <div class="setting-control">
+                                    <button class="btn-edit" onclick="editRetrySched ule()">Chỉnh sửa</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- API Configuration -->
+                    <div class="settings-section">
+                        <h2>🔌 Cấu Hình API</h2>
+
+                        <div class="settings-grid">
+                            <!-- AccessTrade API Mode -->
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <div class="setting-label">Chế Độ Tạo Link</div>
+                                    <div class="setting-description">
+                                        API Mode: Dùng API chính thức (tỷ lệ match cao hơn)<br>
+                                        DIY Mode: Tạo link thủ công (backup)
+                                    </div>
+                                    <div class="setting-value" id="apiModeStatus">Loading...</div>
+                                </div>
+                                <div class="setting-control">
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="apiModeToggle">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- AccessTrade API Token -->
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <div class="setting-label">AccessTrade API Token</div>
+                                    <div class="setting-description">
+                                        Token để truy cập AccessTrade API
+                                    </div>
+                                    <div class="setting-value" id="apiTokenValue">••••••••••</div>
+                                </div>
+                                <div class="setting-control">
+                                    <button class="btn-test" onclick="testAccessTradeAPI()">Test API</button>
+                                    <button class="btn-edit" onclick="editApiToken()">Chỉnh sửa</button>
+                                </div>
+                            </div>
+
+                            <!-- API URL -->
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <div class="setting-label">AccessTrade API URL</div>
+                                    <div class="setting-description">
+                                        Base URL của AccessTrade API
+                                    </div>
+                                    <div class="setting-value" id="apiUrlValue">Loading...</div>
+                                </div>
+                                <div class="setting-control">
+                                    <button class="btn-edit" onclick="editApiUrl()">Chỉnh sửa</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- System Configuration -->
+                    <div class="settings-section">
+                        <h2>🔧 Cấu Hình Hệ Thống</h2>
+
+                        <div class="settings-grid">
+                            <!-- Commission Split -->
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <div class="setting-label">Tỷ Lệ Chia Hoa Hồng</div>
+                                    <div class="setting-description">
+                                        Phần trăm hoa hồng dành cho user (phần còn lại là của platform)
+                                    </div>
+                                    <div class="setting-value" id="commissionSplitValue">Loading...</div>
+                                </div>
+                                <div class="setting-control">
+                                    <button class="btn-edit" onclick="editCommissionSplit()">Chỉnh sửa</button>
+                                </div>
+                            </div>
+
+                            <!-- Server Port -->
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <div class="setting-label">Server Port</div>
+                                    <div class="setting-description">
+                                        Port mà server đang chạy (yêu cầu restart server)
+                                    </div>
+                                    <div class="setting-value" id="serverPortValue">Loading...</div>
+                                </div>
+                                <div class="setting-control">
+                                    <button class="btn-secondary" onclick="viewServerInfo()">Xem thông tin</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Future AI/ML Configuration -->
+                    <div class="settings-section">
+                        <h2>🤖 AI/ML Configuration (Coming Soon)</h2>
+
+                        <div class="alert-box">
+                            <div class="alert-title">🚀 Tính Năng Sắp Ra Mắt</div>
+                            <p>Section này dành cho cấu hình các AI/ML modules trong tương lai:</p>
+                            <ul style="margin: 10px 0 0 20px; color: var(--gray-700);">
+                                <li>Auto-matching AI cho conversions</li>
+                                <li>Fraud detection ML model</li>
+                                <li>User behavior analytics</li>
+                                <li>Smart retry strategy optimization</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Edit Modal -->
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Chỉnh Sửa Cấu Hình</h3>
+                <button class="modal-close" onclick="closeEditModal()">×</button>
+            </div>
+            <div id="modalBody">
+                <!-- Dynamic content -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/mobile-menu.js"></script>
+    <script>
+        // Check authentication
+        requireAuth();
+
+        // Auth token
+        const token = getToken();
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            displayUserName('userName');
+            loadSettings();
+        });
+
+        // Load all settings
+        async function loadSettings() {
+            try {
+                const response = await apiRequest('/admin/settings');
+
+                if (response.success) {
+                    const settings = response.settings;
+
+                    // Update UI
+                    updateAutoCronStatus(settings.AUTO_CRON_ENABLED);
+                    updateApiModeStatus(settings.USE_ACCESSTRADE_API);
+
+                    document.getElementById('retryScheduleValue').textContent = settings.RETRY_CRON_SCHEDULE || 'Not set';
+                    document.getElementById('apiUrlValue').textContent = settings.ACCESSTRADE_API_URL;
+                    document.getElementById('commissionSplitValue').textContent = (parseFloat(settings.COMMISSION_SPLIT) * 100) + '%';
+                    document.getElementById('serverPortValue').textContent = settings.PORT;
+
+                    // Set toggle states
+                    document.getElementById('autoCronToggle').checked = settings.AUTO_CRON_ENABLED === 'true';
+                    document.getElementById('apiModeToggle').checked = settings.USE_ACCESSTRADE_API === 'true';
+                }
+            } catch (error) {
+                console.error('Error loading settings:', error);
+                showToast('Không thể tải cấu hình', 'error');
+            }
+        }
+
+        // Update auto cron status
+        function updateAutoCronStatus(enabled) {
+            const statusEl = document.getElementById('autoCronStatus');
+            const isEnabled = enabled === 'true';
+            statusEl.innerHTML = `<span class="status-badge ${isEnabled ? 'enabled' : 'disabled'}">${isEnabled ? 'Enabled' : 'Disabled'}</span>`;
+        }
+
+        // Update API mode status
+        function updateApiModeStatus(enabled) {
+            const statusEl = document.getElementById('apiModeStatus');
+            const isEnabled = enabled === 'true';
+            statusEl.innerHTML = `<span class="status-badge ${isEnabled ? 'enabled' : 'disabled'}">${isEnabled ? 'API Mode' : 'DIY Mode'}</span>`;
+        }
+
+        // Toggle auto cron
+        document.getElementById('autoCronToggle')?.addEventListener('change', async (e) => {
+            const enabled = e.target.checked;
+            try {
+                const response = await apiRequest('/admin/settings/auto-cron', {
+                    method: 'POST',
+                    body: JSON.stringify({ enabled })
+                });
+
+                if (response.success) {
+                    updateAutoCronStatus(enabled.toString());
+                    showToast('Cập nhật thành công. Server cần restart để áp dụng.', 'success');
+                } else {
+                    e.target.checked = !enabled;
+                    showToast(response.message || 'Cập nhật thất bại', 'error');
+                }
+            } catch (error) {
+                e.target.checked = !enabled;
+                showToast('Không thể cập nhật cấu hình', 'error');
+            }
+        });
+
+        // Toggle API mode
+        document.getElementById('apiModeToggle')?.addEventListener('change', async (e) => {
+            const enabled = e.target.checked;
+            try {
+                const response = await apiRequest('/admin/settings/api-mode', {
+                    method: 'POST',
+                    body: JSON.stringify({ enabled })
+                });
+
+                if (response.success) {
+                    updateApiModeStatus(enabled.toString());
+                    showToast('Cập nhật thành công. Server cần restart để áp dụng.', 'success');
+                } else {
+                    e.target.checked = !enabled;
+                    showToast(response.message || 'Cập nhật thất bại', 'error');
+                }
+            } catch (error) {
+                e.target.checked = !enabled;
+                showToast('Không thể cập nhật cấu hình', 'error');
+            }
+        });
+
+        // Edit retry schedule
+        function editRetrySchedule() {
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+
+            modalTitle.textContent = 'Chỉnh Sửa Lịch Retry';
+            modalBody.innerHTML = `
+                <div class="form-group">
+                    <label for="retrySchedule">Cron Expression</label>
+                    <input type="text" id="retrySchedule" placeholder="0 */6 * * *" value="${document.getElementById('retryScheduleValue').textContent}">
+                    <small style="color: var(--gray-600); display: block; margin-top: 8px;">
+                        Ví dụ: "0 */6 * * *" = mỗi 6 giờ
+                    </small>
+                </div>
+                <button class="btn-save" onclick="saveRetrySchedule()">Lưu</button>
+                <button class="btn-secondary" onclick="closeEditModal()" style="margin-left: 10px;">Hủy</button>
+            `;
+
+            document.getElementById('editModal').classList.add('show');
+        }
+
+        // Save retry schedule
+        async function saveRetrySchedule() {
+            const schedule = document.getElementById('retrySchedule').value;
+
+            try {
+                const response = await apiRequest('/admin/settings/retry-schedule', {
+                    method: 'POST',
+                    body: JSON.stringify({ schedule })
+                });
+
+                if (response.success) {
+                    document.getElementById('retryScheduleValue').textContent = schedule;
+                    showToast('Cập nhật thành công', 'success');
+                    closeEditModal();
+                } else {
+                    showToast(response.message || 'Cập nhật thất bại', 'error');
+                }
+            } catch (error) {
+                showToast('Không thể cập nhật cấu hình', 'error');
+            }
+        }
+
+        // Edit API token
+        function editApiToken() {
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+
+            modalTitle.textContent = 'Chỉnh Sửa API Token';
+            modalBody.innerHTML = `
+                <div class="alert-box warning">
+                    <p>⚠️ Token này rất quan trọng. Không chia sẻ với người khác.</p>
+                </div>
+                <div class="form-group">
+                    <label for="apiToken">AccessTrade API Token</label>
+                    <textarea id="apiToken" placeholder="Nhập API token..." rows="3"></textarea>
+                </div>
+                <button class="btn-save" onclick="saveApiToken()">Lưu</button>
+                <button class="btn-secondary" onclick="closeEditModal()" style="margin-left: 10px;">Hủy</button>
+            `;
+
+            document.getElementById('editModal').classList.add('show');
+        }
+
+        // Save API token
+        async function saveApiToken() {
+            const token = document.getElementById('apiToken').value.trim();
+
+            if (!token) {
+                showToast('Vui lòng nhập API token', 'error');
+                return;
+            }
+
+            try {
+                const response = await apiRequest('/admin/settings/api-token', {
+                    method: 'POST',
+                    body: JSON.stringify({ token })
+                });
+
+                if (response.success) {
+                    document.getElementById('apiTokenValue').textContent = '••••••••••';
+                    showToast('Cập nhật thành công', 'success');
+                    closeEditModal();
+                } else {
+                    showToast(response.message || 'Cập nhật thất bại', 'error');
+                }
+            } catch (error) {
+                showToast('Không thể cập nhật cấu hình', 'error');
+            }
+        }
+
+        // Test AccessTrade API
+        async function testAccessTradeAPI() {
+            try {
+                showToast('Đang test API...', 'info');
+
+                const response = await fetch(`${CONFIG.API_BASE_URL}/admin/settings/test-api`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${getToken()}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showToast(`✅ API hoạt động bình thường! Tìm thấy ${data.data?.merchants || 0} merchants`, 'success');
+                } else {
+                    showToast('❌ API test failed: ' + data.message, 'error');
+                }
+            } catch (error) {
+                console.error('Test API error:', error);
+                showToast('❌ Không thể kết nối API: ' + error.message, 'error');
+            }
+        }
+
+        // Edit API URL
+        function editApiUrl() {
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+
+            modalTitle.textContent = 'Chỉnh Sửa API URL';
+            modalBody.innerHTML = `
+                <div class="form-group">
+                    <label for="apiUrl">AccessTrade API URL</label>
+                    <input type="text" id="apiUrl" value="${document.getElementById('apiUrlValue').textContent}">
+                </div>
+                <button class="btn-save" onclick="saveApiUrl()">Lưu</button>
+                <button class="btn-secondary" onclick="closeEditModal()" style="margin-left: 10px;">Hủy</button>
+            `;
+
+            document.getElementById('editModal').classList.add('show');
+        }
+
+        // Save API URL
+        async function saveApiUrl() {
+            const url = document.getElementById('apiUrl').value.trim();
+
+            try {
+                const response = await apiRequest('/admin/settings/api-url', {
+                    method: 'POST',
+                    body: JSON.stringify({ url })
+                });
+
+                if (response.success) {
+                    document.getElementById('apiUrlValue').textContent = url;
+                    showToast('Cập nhật thành công', 'success');
+                    closeEditModal();
+                } else {
+                    showToast(response.message || 'Cập nhật thất bại', 'error');
+                }
+            } catch (error) {
+                showToast('Không thể cập nhật cấu hình', 'error');
+            }
+        }
+
+        // Edit commission split
+        function editCommissionSplit() {
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+
+            const currentValue = parseFloat(document.getElementById('commissionSplitValue').textContent);
+
+            modalTitle.textContent = 'Chỉnh Sửa Tỷ Lệ Chia Hoa Hồng';
+            modalBody.innerHTML = `
+                <div class="form-group">
+                    <label for="commissionSplit">Phần trăm cho User (%)</label>
+                    <input type="number" id="commissionSplit" min="0" max="100" step="1" value="${currentValue}">
+                    <small style="color: var(--gray-600); display: block; margin-top: 8px;">
+                        Phần còn lại sẽ là của platform. VD: 70% = user nhận 70%, platform nhận 30%
+                    </small>
+                </div>
+                <button class="btn-save" onclick="saveCommissionSplit()">Lưu</button>
+                <button class="btn-secondary" onclick="closeEditModal()" style="margin-left: 10px;">Hủy</button>
+            `;
+
+            document.getElementById('editModal').classList.add('show');
+        }
+
+        // Save commission split
+        async function saveCommissionSplit() {
+            const percent = parseFloat(document.getElementById('commissionSplit').value);
+
+            if (percent < 0 || percent > 100) {
+                showToast('Giá trị phải từ 0-100%', 'error');
+                return;
+            }
+
+            const split = percent / 100;
+
+            try {
+                const response = await apiRequest('/admin/settings/commission-split', {
+                    method: 'POST',
+                    body: JSON.stringify({ split })
+                });
+
+                if (response.success) {
+                    document.getElementById('commissionSplitValue').textContent = percent + '%';
+                    showToast('Cập nhật thành công', 'success');
+                    closeEditModal();
+                } else {
+                    showToast(response.message || 'Cập nhật thất bại', 'error');
+                }
+            } catch (error) {
+                showToast('Không thể cập nhật cấu hình', 'error');
+            }
+        }
+
+        // View server info
+        function viewServerInfo() {
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+
+            modalTitle.textContent = 'Thông Tin Server';
+            modalBody.innerHTML = `
+                <div class="alert-box">
+                    <p><strong>Port:</strong> ${document.getElementById('serverPortValue').textContent}</p>
+                    <p><strong>URL:</strong> http://localhost:${document.getElementById('serverPortValue').textContent}</p>
+                    <p><strong>Node.js:</strong> ${process?.version || 'Unknown'}</p>
+                    <p style="margin-top: 16px; color: var(--gray-600);">
+                        Để thay đổi port, cần chỉnh sửa file .env và restart server.
+                    </p>
+                </div>
+                <button class="btn-secondary" onclick="closeEditModal()">Đóng</button>
+            `;
+
+            document.getElementById('editModal').classList.add('show');
+        }
+
+        // Close edit modal
+        function closeEditModal() {
+            document.getElementById('editModal').classList.remove('show');
+        }
+
+        // Logout
+        document.getElementById('logoutBtn').addEventListener('click', (e) => {
+            e.preventDefault();
+            logout();
+        });
+    </script>
+</body>
+</html>

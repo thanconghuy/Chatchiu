@@ -9,7 +9,8 @@ requireAuth();
 let currentTab = 'conversions';
 let conversionsPage = 0;
 let clicksPage = 0;
-const ITEMS_PER_PAGE = 20;
+let conversionsItemsPerPage = 20;
+let clicksItemsPerPage = 20;
 let currentStatusFilter = '';
 
 // DOM Elements
@@ -25,9 +26,11 @@ const logoutBtn = document.getElementById('logoutBtn');
 const prevConversions = document.getElementById('prevConversions');
 const nextConversions = document.getElementById('nextConversions');
 const conversionsPageInfo = document.getElementById('conversionsPageInfo');
+const conversionsRowsPerPage = document.getElementById('conversionsRowsPerPage');
 const prevClicks = document.getElementById('prevClicks');
 const nextClicks = document.getElementById('nextClicks');
 const clicksPageInfo = document.getElementById('clicksPageInfo');
+const clicksRowsPerPage = document.getElementById('clicksRowsPerPage');
 
 // Initialize
 init();
@@ -86,6 +89,15 @@ function setupPagination() {
         loadConversions();
     });
 
+    // Conversions rows per page
+    if (conversionsRowsPerPage) {
+        conversionsRowsPerPage.addEventListener('change', (e) => {
+            conversionsItemsPerPage = parseInt(e.target.value);
+            conversionsPage = 0; // Reset to first page
+            loadConversions();
+        });
+    }
+
     // Clicks pagination
     prevClicks.addEventListener('click', () => {
         if (clicksPage > 0) {
@@ -98,6 +110,15 @@ function setupPagination() {
         clicksPage++;
         loadClicks();
     });
+
+    // Clicks rows per page
+    if (clicksRowsPerPage) {
+        clicksRowsPerPage.addEventListener('change', (e) => {
+            clicksItemsPerPage = parseInt(e.target.value);
+            clicksPage = 0; // Reset to first page
+            loadClicks();
+        });
+    }
 }
 
 /**
@@ -118,8 +139,8 @@ async function loadConversions() {
     try {
         conversionsTable.innerHTML = '<tr class="loading-state"><td colspan="7"><div class="loading">Đang tải...</div></td></tr>';
 
-        const offset = conversionsPage * ITEMS_PER_PAGE;
-        let url = `/dashboard/conversions?limit=${ITEMS_PER_PAGE}&offset=${offset}`;
+        const offset = conversionsPage * conversionsItemsPerPage;
+        let url = `/dashboard/conversions?limit=${conversionsItemsPerPage}&offset=${offset}`;
 
         if (currentStatusFilter) {
             url += `&status=${currentStatusFilter}`;
@@ -190,7 +211,7 @@ function renderConversions(conversions) {
 function updateConversionsPagination(itemCount) {
     conversionsPageInfo.textContent = `Trang ${conversionsPage + 1}`;
     prevConversions.disabled = conversionsPage === 0;
-    nextConversions.disabled = itemCount < ITEMS_PER_PAGE;
+    nextConversions.disabled = itemCount < conversionsItemsPerPage;
 }
 
 /**
@@ -200,8 +221,8 @@ async function loadClicks() {
     try {
         clicksTable.innerHTML = '<tr class="loading-state"><td colspan="7"><div class="loading">Đang tải...</div></td></tr>';
 
-        const offset = clicksPage * ITEMS_PER_PAGE;
-        const response = await apiRequest(`/dashboard/recent-clicks?limit=${ITEMS_PER_PAGE}&offset=${offset}`);
+        const offset = clicksPage * clicksItemsPerPage;
+        const response = await apiRequest(`/dashboard/recent-clicks?limit=${clicksItemsPerPage}&offset=${offset}`);
 
         if (response.success) {
             renderClicks(response.clicks);
@@ -301,7 +322,7 @@ function renderClicks(clicks) {
 function updateClicksPagination(itemCount) {
     clicksPageInfo.textContent = `Trang ${clicksPage + 1}`;
     prevClicks.disabled = clicksPage === 0;
-    nextClicks.disabled = itemCount < ITEMS_PER_PAGE;
+    nextClicks.disabled = itemCount < clicksItemsPerPage;
 }
 
 // Logout handler

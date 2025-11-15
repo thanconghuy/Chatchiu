@@ -3175,4 +3175,386 @@ router.get('/check-single-order', authenticateAdmin, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/admin/settings
+ * Get all system settings
+ */
+router.get('/settings', authenticateAdmin, async (req, res) => {
+  try {
+    const settings = {
+      AUTO_CRON_ENABLED: process.env.AUTO_CRON_ENABLED || 'false',
+      RETRY_CRON_SCHEDULE: process.env.RETRY_CRON_SCHEDULE || '0 */6 * * *',
+      USE_ACCESSTRADE_API: process.env.USE_ACCESSTRADE_API || 'false',
+      ACCESSTRADE_API_URL: process.env.ACCESSTRADE_API_URL || 'https://api.accesstrade.vn/v1',
+      COMMISSION_SPLIT: process.env.COMMISSION_SPLIT || '0.7',
+      PORT: process.env.PORT || '3007'
+    };
+
+    res.json({
+      success: true,
+      settings
+    });
+  } catch (error) {
+    logger.error('Get settings error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to get settings'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/settings/auto-cron
+ * Toggle auto cron enabled
+ */
+router.post('/settings/auto-cron', authenticateAdmin, async (req, res) => {
+  try {
+    const { enabled } = req.body;
+
+    // Note: This updates the runtime value, but .env file needs manual update
+    process.env.AUTO_CRON_ENABLED = enabled ? 'true' : 'false';
+
+    logger.info('Auto cron setting updated', {
+      enabled,
+      adminId: req.userId
+    });
+
+    res.json({
+      success: true,
+      message: 'Cập nhật thành công. Vui lòng update file .env và restart server để áp dụng vĩnh viễn.'
+    });
+  } catch (error) {
+    logger.error('Update auto cron setting error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to update setting'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/settings/api-mode
+ * Toggle API mode
+ */
+router.post('/settings/api-mode', authenticateAdmin, async (req, res) => {
+  try {
+    const { enabled } = req.body;
+
+    // Update runtime value
+    process.env.USE_ACCESSTRADE_API = enabled ? 'true' : 'false';
+
+    logger.info('API mode setting updated', {
+      enabled,
+      adminId: req.userId
+    });
+
+    res.json({
+      success: true,
+      message: 'Cập nhật thành công. Vui lòng update file .env và restart server để áp dụng vĩnh viễn.'
+    });
+  } catch (error) {
+    logger.error('Update API mode setting error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to update setting'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/settings/retry-schedule
+ * Update retry schedule
+ */
+router.post('/settings/retry-schedule', authenticateAdmin, async (req, res) => {
+  try {
+    const { schedule } = req.body;
+
+    // Basic validation
+    if (!schedule || typeof schedule !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid schedule format'
+      });
+    }
+
+    // Update runtime value
+    process.env.RETRY_CRON_SCHEDULE = schedule;
+
+    logger.info('Retry schedule updated', {
+      schedule,
+      adminId: req.userId
+    });
+
+    res.json({
+      success: true,
+      message: 'Cập nhật thành công. Vui lòng update file .env và restart server để áp dụng vĩnh viễn.'
+    });
+  } catch (error) {
+    logger.error('Update retry schedule error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to update setting'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/settings/api-token
+ * Update API token
+ */
+router.post('/settings/api-token', authenticateAdmin, async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token is required'
+      });
+    }
+
+    // Update runtime value
+    process.env.ACCESSTRADE_ACCESS_TOKEN = token;
+
+    logger.info('API token updated', {
+      tokenLength: token.length,
+      adminId: req.userId
+    });
+
+    res.json({
+      success: true,
+      message: 'Cập nhật thành công. Vui lòng update file .env và restart server để áp dụng vĩnh viễn.'
+    });
+  } catch (error) {
+    logger.error('Update API token error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to update setting'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/settings/api-url
+ * Update API URL
+ */
+router.post('/settings/api-url', authenticateAdmin, async (req, res) => {
+  try {
+    const { url } = req.body;
+
+    if (!url) {
+      return res.status(400).json({
+        success: false,
+        message: 'URL is required'
+      });
+    }
+
+    // Update runtime value
+    process.env.ACCESSTRADE_API_URL = url;
+
+    logger.info('API URL updated', {
+      url,
+      adminId: req.userId
+    });
+
+    res.json({
+      success: true,
+      message: 'Cập nhật thành công. Vui lòng update file .env và restart server để áp dụng vĩnh viễn.'
+    });
+  } catch (error) {
+    logger.error('Update API URL error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to update setting'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/settings/commission-split
+ * Update commission split
+ */
+router.post('/settings/commission-split', authenticateAdmin, async (req, res) => {
+  try {
+    const { split } = req.body;
+
+    if (typeof split !== 'number' || split < 0 || split > 1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Split must be a number between 0 and 1'
+      });
+    }
+
+    // Update runtime value
+    process.env.COMMISSION_SPLIT = split.toString();
+
+    logger.info('Commission split updated', {
+      split,
+      adminId: req.userId
+    });
+
+    res.json({
+      success: true,
+      message: 'Cập nhật thành công. Vui lòng update file .env và restart server để áp dụng vĩnh viễn.'
+    });
+  } catch (error) {
+    logger.error('Update commission split error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to update setting'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/settings/test-api
+ * Test AccessTrade API connection
+ */
+router.post('/settings/test-api', authenticateAdmin, async (req, res) => {
+  try {
+    const accessTradeLinkService = require('../services/accessTradeLink');
+
+    // Test API by fetching campaigns
+    logger.info('Testing AccessTrade API connection...');
+    const testResult = await accessTradeLinkService.testConnection();
+    logger.info('Test result:', testResult);
+
+    if (testResult.success) {
+      res.json({
+        success: true,
+        message: testResult.message || 'API connection successful',
+        data: {
+          merchants: testResult.merchantsCount || 0,
+          token: accessTradeLinkService.accessToken ? 'configured' : 'not_configured'
+        }
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: testResult.message || 'API test failed',
+        error: testResult.error
+      });
+    }
+  } catch (error) {
+    logger.error('Test API error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to test API'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/monitoring/link-generation
+ * Get link generation metrics for monitoring dashboard
+ */
+router.get('/monitoring/link-generation', authenticateAdmin, async (req, res) => {
+  try {
+    const { period = '24h' } = req.query;
+
+    // Calculate time range
+    let hoursAgo;
+    switch (period) {
+      case '24h':
+        hoursAgo = 24;
+        break;
+      case '7d':
+        hoursAgo = 24 * 7;
+        break;
+      case '30d':
+        hoursAgo = 24 * 30;
+        break;
+      default:
+        hoursAgo = 24;
+    }
+
+    const startTime = new Date(Date.now() - hoursAgo * 60 * 60 * 1000);
+
+    // Get total clicks created in period
+    const totalClicksQuery = `
+      SELECT COUNT(*) as total
+      FROM clicks
+      WHERE clicked_at >= $1
+    `;
+    const totalClicksResult = await pool.query(totalClicksQuery, [startTime]);
+    const totalClicks = parseInt(totalClicksResult.rows[0].total);
+
+    // Get clicks with successful link generation (have affiliate_url)
+    const successfulLinksQuery = `
+      SELECT COUNT(*) as successful
+      FROM clicks
+      WHERE clicked_at >= $1
+        AND affiliate_url IS NOT NULL
+        AND aff_sid IS NOT NULL
+    `;
+    const successfulLinksResult = await pool.query(successfulLinksQuery, [startTime]);
+    const successfulLinks = parseInt(successfulLinksResult.rows[0].successful);
+
+    // Get clicks with missing tracking data (orphaned clicks)
+    const orphanedClicksQuery = `
+      SELECT COUNT(*) as orphaned
+      FROM clicks
+      WHERE clicked_at >= $1
+        AND (affiliate_url IS NULL OR aff_sid IS NULL OR sub2 IS NULL)
+    `;
+    const orphanedClicksResult = await pool.query(orphanedClicksQuery, [startTime]);
+    const orphanedClicks = parseInt(orphanedClicksResult.rows[0].orphaned);
+
+    // Calculate success rate
+    const successRate = totalClicks > 0
+      ? ((successfulLinks / totalClicks) * 100).toFixed(2)
+      : 0;
+
+    // Calculate failure rate
+    const failureRate = totalClicks > 0
+      ? ((orphanedClicks / totalClicks) * 100).toFixed(2)
+      : 0;
+
+    // Get hourly breakdown for chart
+    const hourlyQuery = `
+      SELECT
+        DATE_TRUNC('hour', clicked_at) as hour,
+        COUNT(*) as total,
+        COUNT(CASE WHEN affiliate_url IS NOT NULL AND aff_sid IS NOT NULL THEN 1 END) as successful,
+        COUNT(CASE WHEN affiliate_url IS NULL OR aff_sid IS NULL OR sub2 IS NULL THEN 1 END) as failed
+      FROM clicks
+      WHERE clicked_at >= $1
+      GROUP BY DATE_TRUNC('hour', clicked_at)
+      ORDER BY hour DESC
+      LIMIT 24
+    `;
+    const hourlyResult = await pool.query(hourlyQuery, [startTime]);
+
+    const hourlyData = hourlyResult.rows.map(row => ({
+      hour: row.hour,
+      total: parseInt(row.total),
+      successful: parseInt(row.successful),
+      failed: parseInt(row.failed),
+      successRate: row.total > 0 ? ((row.successful / row.total) * 100).toFixed(2) : 0
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        period,
+        summary: {
+          totalClicks,
+          successfulLinks,
+          orphanedClicks,
+          successRate: parseFloat(successRate),
+          failureRate: parseFloat(failureRate)
+        },
+        hourlyData
+      }
+    });
+
+  } catch (error) {
+    logger.error('Get link generation metrics error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to get link generation metrics'
+    });
+  }
+});
+
 module.exports = router;
