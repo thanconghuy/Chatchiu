@@ -83,18 +83,31 @@ class AccessTradeLinkService {
       const utmParams = buildUtmParams(user.username, clickId, extraParams);
 
       // Determine destination URL
-      const destinationUrl = clickType === 'button'
+      let destinationUrl = clickType === 'button'
         ? (merchant.deep_link_base || `https://${merchant.id}.vn`)
         : productUrl;
 
-      // Build API request
+      // Clean URL: Remove existing tracking parameters (uls_trackid, utm_*, etc.)
+      // AccessTrade API requires clean URLs without existing tracking
+      if (destinationUrl && destinationUrl.includes('?')) {
+        try {
+          const urlObj = new URL(destinationUrl);
+          // Keep only the pathname and hash, remove all query parameters
+          destinationUrl = `${urlObj.origin}${urlObj.pathname}${urlObj.hash}`;
+        } catch (error) {
+          logger.warn('Failed to clean URL, using original', { error: error.message });
+        }
+      }
+
+      // Build API request according to AccessTrade documentation
+      // https://developers.accesstrade.vn/api-publisher-vietnamese/tao-tracking-link
       const requestData = {
-        url: destinationUrl,
+        campaign_id: merchant.campaign_id, // REQUIRED: Campaign ID from merchant
+        urls: [destinationUrl], // REQUIRED: Array of URLs (not single url string)
         utm_source: utmParams.utm_source,
         utm_medium: utmParams.utm_medium,
         utm_campaign: utmParams.utm_campaign,
         utm_content: utmParams.utm_content,
-        utm_term: affSid, // Use utm_term for aff_sid (AccessTrade convention)
         // Sub parameters for backup tracking
         sub1: utmParams.sub1,
         sub2: utmParams.sub2,
@@ -109,8 +122,9 @@ class AccessTradeLinkService {
       });
 
       // Call AccessTrade API
+      // Endpoint: POST /v1/product_link/create
       const response = await axios.post(
-        `${this.apiUrl}/links/create`,
+        `${this.apiUrl}/product_link/create`,
         requestData,
         {
           headers: {
@@ -121,11 +135,12 @@ class AccessTradeLinkService {
         }
       );
 
-      if (!response.data || !response.data.data || !response.data.data.tracking_link) {
+      // Response format: { success: true, data: { success_link: [{ aff_link: "..." }] } }
+      if (!response.data || !response.data.success || !response.data.data || !response.data.data.success_link || response.data.data.success_link.length === 0) {
         throw new Error('Invalid response from AccessTrade API');
       }
 
-      const affiliateUrl = response.data.data.tracking_link;
+      const affiliateUrl = response.data.data.success_link[0].aff_link;
 
       logger.success('AccessTrade API link generated successfully', {
         merchant: merchant.name || merchant.id,

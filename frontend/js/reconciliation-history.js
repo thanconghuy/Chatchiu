@@ -5,7 +5,7 @@ let totalReconciliations = 0;
 
 // Helper function to make API calls with authentication
 async function apiCall(url, options = {}) {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN);
 
     const defaultOptions = {
         headers: {

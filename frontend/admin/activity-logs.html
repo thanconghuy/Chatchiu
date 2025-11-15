@@ -25,6 +25,8 @@
             padding: 20px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             border-left: 4px solid var(--primary);
+            display: flex;
+            flex-direction: column;
         }
 
         .stat-card.success {
@@ -64,7 +66,7 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 16px;
-            margin-bottom: 16px;
+            align-items: end;
         }
 
         .filter-group {
@@ -389,10 +391,10 @@
                             <label>Đến Ngày</label>
                             <input type="date" id="dateToFilter">
                         </div>
-                    </div>
-                    <div class="filter-actions">
-                        <button class="btn btn-primary" onclick="applyFilters()">Áp Dụng</button>
-                        <button class="btn" onclick="resetFilters()">Reset</button>
+                        <div class="filter-actions">
+                            <button class="btn btn-primary" onclick="applyFilters()">Áp Dụng</button>
+                            <button class="btn" onclick="resetFilters()">Reset</button>
+                        </div>
                     </div>
                 </div>
 
@@ -534,7 +536,7 @@
 
                 const response = await fetch(`${CONFIG.API_BASE_URL}/admin/activity-logs/stats?${params}`, {
                     headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        'Authorization': `Bearer ${localStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN)}`
                     }
                 });
 
@@ -566,7 +568,7 @@
 
                 const response = await fetch(`${CONFIG.API_BASE_URL}/admin/activity-logs?${params}`, {
                     headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        'Authorization': `Bearer ${localStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN)}`
                     }
                 });
 
@@ -664,7 +666,7 @@
                 const response = await fetch(`${CONFIG.API_BASE_URL}/admin/activity-logs/cleanup`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        'Authorization': `Bearer ${localStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN)}`,
                         'Content-Type': 'application/json'
                     }
                 });
@@ -695,7 +697,7 @@
                 const response = await fetch(`${CONFIG.API_BASE_URL}/admin/activity-logs`, {
                     method: 'DELETE',
                     headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        'Authorization': `Bearer ${localStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN)}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ dateFrom, dateTo })
