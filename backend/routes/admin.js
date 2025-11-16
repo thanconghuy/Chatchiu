@@ -36,10 +36,10 @@ router.get('/dashboard/stats', authenticateAdmin, async (req, res) => {
     // Users statistics
     const usersStats = await pool.query(`
       SELECT
-        COUNT(*) FILTER (WHERE created_at < $1) as total_users,
-        COUNT(*) FILTER (WHERE created_at >= $1) as new_this_month,
-        COUNT(*) FILTER (WHERE created_at >= $2 AND created_at < $3) as last_month_users,
-        COUNT(*) FILTER (WHERE created_at >= $1 AND last_login_at < $2) as churned_users
+        COUNT(*) as total_users,
+        COUNT(CASE WHEN created_at >= $1 THEN 1 END) as new_this_month,
+        COUNT(CASE WHEN created_at >= $2 AND created_at < $3 THEN 1 END) as last_month_users,
+        0 as churned_users
       FROM users
       WHERE is_admin = FALSE
     `, [thisMonthStart, lastMonthStart, lastMonthEnd]);
@@ -94,10 +94,10 @@ router.get('/dashboard/stats', authenticateAdmin, async (req, res) => {
     // Conversion statistics by year
     const conversionsByYear = await pool.query(`
       SELECT
-        EXTRACT(YEAR FROM created_at) as year,
-        COUNT(*) FILTER (WHERE status = 'approved') as approved,
-        COUNT(*) FILTER (WHERE status = 'pending') as pending,
-        COUNT(*) FILTER (WHERE status = 'rejected') as rejected
+        EXTRACT(YEAR FROM created_at)::integer as year,
+        COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved,
+        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
+        COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected
       FROM conversions
       WHERE created_at >= NOW() - INTERVAL '3 years'
       GROUP BY year
