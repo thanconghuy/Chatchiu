@@ -234,25 +234,25 @@ router.get('/users/:userId', authenticateAdmin, async (req, res) => {
         pendingBalance: parseFloat(user.pending_balance),
         totalCashback: parseFloat(user.total_cashback),
         isAdmin: user.is_admin,
-        createdAt: user.created_at,
-        stats: {
-          totalClicks: parseInt(clicksResult.rows[0].total_clicks),
-          buttonClicks: parseInt(clicksResult.rows[0].button_clicks),
-          linkClicks: parseInt(clicksResult.rows[0].link_clicks),
-          totalConversions: parseInt(conversionsResult.rows[0].total_conversions),
-          approvedConversions: parseInt(conversionsResult.rows[0].approved_conversions),
-          pendingConversions: parseInt(conversionsResult.rows[0].pending_conversions),
-          rejectedConversions: parseInt(conversionsResult.rows[0].rejected_conversions),
-          approvedCashback: parseFloat(conversionsResult.rows[0].approved_cashback),
-          pendingCashback: parseFloat(conversionsResult.rows[0].pending_cashback)
-        },
-        recentActivity: activityResult.rows.map(a => ({
-          type: a.type,
-          timestamp: a.timestamp,
-          merchantName: a.merchant_name,
-          amount: a.amount ? parseFloat(a.amount) : null
-        }))
-      }
+        createdAt: user.created_at
+      },
+      stats: {
+        totalClicks: parseInt(clicksResult.rows[0].total_clicks),
+        buttonClicks: parseInt(clicksResult.rows[0].button_clicks),
+        linkClicks: parseInt(clicksResult.rows[0].link_clicks),
+        totalConversions: parseInt(conversionsResult.rows[0].total_conversions),
+        approvedConversions: parseInt(conversionsResult.rows[0].approved_conversions),
+        pendingConversions: parseInt(conversionsResult.rows[0].pending_conversions),
+        rejectedConversions: parseInt(conversionsResult.rows[0].rejected_conversions),
+        approvedCashback: parseFloat(conversionsResult.rows[0].approved_cashback),
+        pendingCashback: parseFloat(conversionsResult.rows[0].pending_cashback)
+      },
+      clicks: activityResult.rows.map(a => ({
+        type: a.type,
+        timestamp: a.timestamp,
+        merchantName: a.merchant_name,
+        amount: a.amount ? parseFloat(a.amount) : null
+      }))
     });
   } catch (error) {
     console.error('Get user details error:', error);
