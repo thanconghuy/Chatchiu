@@ -1,4 +1,5 @@
 // Load environment variables (safe to call multiple times)
+// Updated: Fixed homepage route to serve index.html instead of dashboard.html
 if (!process.env.VERCEL) {
   require('dotenv').config();
 }
@@ -101,9 +102,9 @@ app.get('/admin/:page', (req, res, next) => {
   res.sendFile(path.join(__dirname, 'frontend', 'admin', `${page}.html`));
 });
 
-// Default route - serve dashboard
+// Default route - serve landing page (index.html)
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend', 'dashboard.html'));
+  res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
 });
 
 // Serve static files AFTER all specific routes
