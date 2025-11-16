@@ -6,6 +6,33 @@
 // Check authentication
 requireAuth();
 
+/**
+ * Check if user is admin
+ */
+async function checkAdminAccess() {
+    try {
+        const response = await apiRequest('/auth/me');
+        if (response.success && response.user) {
+            saveAuth(getToken(), response.user);
+            if (!response.user.is_admin) {
+                window.location.href = '/dashboard';
+                return false;
+            }
+            // Update user name display
+            const userName = document.getElementById('userName');
+            if (userName) {
+                userName.textContent = response.user.username || response.user.email;
+            }
+            return true;
+        }
+        throw new Error('Failed to verify admin access');
+    } catch (error) {
+        console.error('Admin access check failed:', error);
+        window.location.href = '/login';
+        return false;
+    }
+}
+
 // Check admin access
 (async () => {
     await checkAdminAccess();
