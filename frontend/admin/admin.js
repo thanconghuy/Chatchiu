@@ -66,10 +66,13 @@ async function init() {
  */
 async function loadDashboardData() {
     try {
+        console.log('[Dashboard] Loading data from /admin/dashboard/stats...');
         const response = await apiRequest('/admin/dashboard/stats');
+        console.log('[Dashboard] API Response:', response);
 
-        if (response.success) {
+        if (response.success && response.data) {
             const { users, revenue, conversions, merchants, transactions } = response.data;
+            console.log('[Dashboard] Data loaded:', { users, revenue, conversions, merchants, transactions });
 
             // Update stat cards
             updateStatCards(users, revenue);
@@ -81,9 +84,13 @@ async function loadDashboardData() {
 
             // Update transactions table
             updateTransactionsTable(transactions);
+        } else {
+            console.error('[Dashboard] Invalid response:', response);
+            showToast('Không thể tải dữ liệu dashboard', 'error');
         }
     } catch (error) {
-        console.error('Error loading dashboard data:', error);
+        console.error('[Dashboard] Error loading data:', error);
+        showToast('Lỗi khi tải dữ liệu: ' + error.message, 'error');
         throw error;
     }
 }
