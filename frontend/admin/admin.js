@@ -1,166 +1,471 @@
 /**
- * Admin Dashboard Logic
+ * Enhanced Admin Dashboard
+ * With Chart.js visualizations and merchant conversion metrics
  */
 
 // Check authentication
 requireAuth();
 
-// Check admin access (async)
+// Check admin access
 (async () => {
     await checkAdminAccess();
-    init();
+    await init();
 })();
 
-// DOM Elements
-const userName = document.getElementById('userName');
-const logoutBtn = document.getElementById('logoutBtn');
-const syncBtn = document.getElementById('syncBtn');
+// Charts instances
+let merchantConversionChart = null;
+let revenueTypesChart = null;
+let conversionRateChart = null;
 
-// Stats elements
-const totalUsers = document.getElementById('totalUsers');
-const totalCommission = document.getElementById('totalCommission');
-const totalCashbackPaid = document.getElementById('totalCashbackPaid');
-const platformProfit = document.getElementById('platformProfit');
-const approvedConversions = document.getElementById('approvedConversions');
-const pendingConversions = document.getElementById('pendingConversions');
-const rejectedConversions = document.getElementById('rejectedConversions');
-const totalOrderValue = document.getElementById('totalOrderValue');
-const totalUserBalance = document.getElementById('totalUserBalance');
-const totalPendingBalance = document.getElementById('totalPendingBalance');
-const totalClicks = document.getElementById('totalClicks');
-const totalConversions = document.getElementById('totalConversions');
-const conversionRate = document.getElementById('conversionRate');
-
-/**
- * Check if user is admin
- */
-async function checkAdminAccess() {
-    try {
-        // Get fresh user data from API to ensure is_admin is up to date
-        const response = await apiRequest('/auth/me');
-
-        if (response.success && response.user) {
-            // Update localStorage with fresh data
-            const currentUser = getUser();
-            if (currentUser) {
-                saveAuth(getToken(), response.user);
-            }
-
-            if (!response.user.is_admin) {
-                showToast('Access denied: Admin only', 'error');
-                setTimeout(() => {
-                    window.location.href = '../dashboard.html';
-                }, 2000);
-                return false;
-            }
-            return true;
-        } else {
-            throw new Error('Failed to verify admin status');
-        }
-    } catch (error) {
-        console.error('Admin check error:', error);
-        showToast('Access denied: Admin only', 'error');
-        setTimeout(() => {
-            window.location.href = '../dashboard.html';
-        }, 2000);
-        return false;
-    }
-}
-
-/**
- * Initialize dashboard
- */
+// Initialize dashboard
 async function init() {
-    const user = getUser();
-    if (user) {
-        displayUserName('userName');
-    }
-
-    await loadStats();
-
-    // Auto-refresh every 30 seconds
-    setInterval(loadStats, 30000);
-}
-
-/**
- * Load admin statistics
- */
-async function loadStats() {
     try {
-        const response = await apiRequest('/admin/stats');
+        // Load dashboard data
+        await loadDashboardData();
 
-        if (response.success) {
-            const stats = response.stats;
-
-            // Update stats
-            totalUsers.textContent = stats.totalUsers.toLocaleString();
-            totalCommission.textContent = formatCurrency(stats.totalCommission);
-            totalCashbackPaid.textContent = formatCurrency(stats.totalCashbackPaid);
-            platformProfit.textContent = formatCurrency(stats.platformProfit);
-
-            approvedConversions.textContent = stats.approvedConversions.toLocaleString();
-            pendingConversions.textContent = stats.pendingConversions.toLocaleString();
-            rejectedConversions.textContent = stats.rejectedConversions.toLocaleString();
-            totalOrderValue.textContent = formatCurrency(stats.totalOrderValue);
-
-            totalUserBalance.textContent = formatCurrency(stats.totalUserBalance);
-            totalPendingBalance.textContent = formatCurrency(stats.totalPendingBalance);
-
-            totalClicks.textContent = stats.totalClicks.toLocaleString();
-            totalConversions.textContent = stats.totalConversions.toLocaleString();
-
-            // Calculate conversion rate
-            const rate = stats.totalClicks > 0
-                ? ((stats.totalConversions / stats.totalClicks) * 100).toFixed(1)
-                : '0.0';
-            conversionRate.textContent = `${rate}%`;
-        }
-    } catch (error) {
-        console.error('Error loading stats:', error);
-        showToast('Failed to load statistics', 'error');
-    }
-}
-
-/**
- * Trigger manual sync
- */
-async function triggerSync() {
-    try {
-        syncBtn.style.opacity = '0.6';
-        syncBtn.style.pointerEvents = 'none';
-
-        const response = await apiRequest('/admin/sync-conversions', {
-            method: 'POST'
+        // Setup logout
+        document.getElementById('logoutBtn')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            logout();
         });
-
-        if (response.success) {
-            showToast('Sync started in background', 'success');
-
-            // Reload stats after a few seconds
-            setTimeout(loadStats, 5000);
-        }
     } catch (error) {
-        console.error('Error triggering sync:', error);
-        showToast('Failed to trigger sync', 'error');
-    } finally {
-        setTimeout(() => {
-            syncBtn.style.opacity = '1';
-            syncBtn.style.pointerEvents = 'auto';
-        }, 3000);
+        console.error('Dashboard initialization error:', error);
+        showToast('Không thể tải dữ liệu dashboard', 'error');
     }
 }
 
-// Event listeners
-logoutBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    logout();
-});
+/**
+ * Load dashboard data from API
+ */
+async function loadDashboardData() {
+    try {
+        const response = await apiRequest('/admin/dashboard/stats');
 
-if (syncBtn) {
-    syncBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (confirm('Trigger manual conversion sync from AccessTrade?')) {
-            triggerSync();
+        if (response.success) {
+            const { users, revenue, conversions, merchants, transactions } = response.data;
+
+            // Update stat cards
+            updateStatCards(users, revenue);
+
+            // Update charts
+            initMerchantConversionChart(merchants);
+            initRevenueTypesChart(revenue);
+            initConversionRateChart(conversions);
+
+            // Update transactions table
+            updateTransactionsTable(transactions);
+        }
+    } catch (error) {
+        console.error('Error loading dashboard data:', error);
+        throw error;
+    }
+}
+
+/**
+ * Update stat cards with data
+ */
+function updateStatCards(users, revenue) {
+    // Total Users
+    document.getElementById('totalUsers').textContent = users.total.toLocaleString();
+    document.getElementById('usersGrowth').textContent = formatGrowth(users.growth);
+
+    // New Users
+    document.getElementById('newUsers').textContent = users.newThisMonth.toLocaleString();
+    document.getElementById('newUsersGrowth').textContent = `+${users.newThisMonth}`;
+
+    // Total Revenue
+    document.getElementById('totalRevenue').textContent = formatCurrency(revenue.total);
+    document.getElementById('revenueGrowth').textContent = formatGrowth(revenue.growth);
+
+    // Churned Users
+    document.getElementById('churnedUsers').textContent = users.churned.toLocaleString();
+    document.getElementById('churnGrowth').textContent = formatGrowth(users.churnRate);
+
+    // Update growth indicators
+    updateGrowthIndicators('usersGrowth', users.growth);
+    updateGrowthIndicators('revenueGrowth', revenue.growth);
+}
+
+/**
+ * Update growth indicator colors
+ */
+function updateGrowthIndicators(elementId, growth) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+
+    const parentDiv = element.closest('.stat-growth');
+    if (growth >= 0) {
+        parentDiv.classList.remove('negative');
+        parentDiv.classList.add('positive');
+        parentDiv.querySelector('.stat-growth-icon').textContent = '↑';
+    } else {
+        parentDiv.classList.remove('positive');
+        parentDiv.classList.add('negative');
+        parentDiv.querySelector('.stat-growth-icon').textContent = '↓';
+    }
+}
+
+/**
+ * Initialize Merchant Conversion Chart (Area Chart)
+ */
+function initMerchantConversionChart(merchants) {
+    const ctx = document.getElementById('merchantConversionChart');
+    if (!ctx) return;
+
+    // Destroy existing chart
+    if (merchantConversionChart) {
+        merchantConversionChart.destroy();
+    }
+
+    // Prepare data - top 5 merchants by conversions
+    const topMerchants = merchants.topMerchants.slice(0, 5);
+    const labels = topMerchants.map(m => m.name);
+    const conversions = topMerchants.map(m => m.conversions);
+    const conversionRates = topMerchants.map(m => m.conversionRate);
+
+    merchantConversionChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Conversions',
+                data: conversions,
+                backgroundColor: 'rgba(99, 102, 241, 0.8)',
+                borderColor: 'rgba(99, 102, 241, 1)',
+                borderWidth: 2,
+                borderRadius: 8,
+                yAxisID: 'y'
+            }, {
+                label: 'Conversion Rate (%)',
+                data: conversionRates,
+                type: 'line',
+                borderColor: 'rgba(16, 185, 129, 1)',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                borderWidth: 3,
+                tension: 0.4,
+                fill: true,
+                yAxisID: 'y1'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: { size: 14, weight: 'bold' },
+                    bodyFont: { size: 13 },
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.datasetIndex === 1) {
+                                label += context.parsed.y.toFixed(2) + '%';
+                            } else {
+                                label += context.parsed.y;
+                            }
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Conversions'
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Conversion Rate (%)'
+                    },
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            }
         }
     });
+
+    // Update merchant metrics
+    if (topMerchants.length > 0) {
+        document.getElementById('topMerchant').textContent = topMerchants[0].name;
+        document.getElementById('topMerchantRate').textContent = `${topMerchants[0].conversionRate.toFixed(2)}% conv rate`;
+    }
+    document.getElementById('avgConvRate').textContent = `${merchants.avgConversionRate.toFixed(2)}%`;
+    document.getElementById('totalActiveMerchants').textContent = merchants.activeCount;
+}
+
+/**
+ * Initialize Revenue Types Pie Chart
+ */
+function initRevenueTypesChart(revenue) {
+    const ctx = document.getElementById('revenueTypesChart');
+    if (!ctx) return;
+
+    // Destroy existing chart
+    if (revenueTypesChart) {
+        revenueTypesChart.destroy();
+    }
+
+    revenueTypesChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Commission Revenue', 'Platform Fee', 'Cashback Paid'],
+            datasets: [{
+                data: [
+                    revenue.commissionRevenue,
+                    revenue.platformFee,
+                    revenue.cashbackPaid
+                ],
+                backgroundColor: [
+                    'rgba(99, 102, 241, 0.8)',
+                    'rgba(16, 185, 129, 0.8)',
+                    'rgba(245, 158, 11, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(99, 102, 241, 1)',
+                    'rgba(16, 185, 129, 1)',
+                    'rgba(245, 158, 11, 1)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        font: {
+                            size: 12
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed || 0;
+                            return label + ': ' + formatCurrency(value);
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+/**
+ * Initialize Conversion Rate Chart (Stacked Bar)
+ */
+function initConversionRateChart(conversions) {
+    const ctx = document.getElementById('conversionRateChart');
+    if (!ctx) return;
+
+    // Destroy existing chart
+    if (conversionRateChart) {
+        conversionRateChart.destroy();
+    }
+
+    const years = conversions.byYear.map(y => y.year);
+    const approved = conversions.byYear.map(y => y.approved);
+    const pending = conversions.byYear.map(y => y.pending);
+    const rejected = conversions.byYear.map(y => y.rejected);
+
+    conversionRateChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: years,
+            datasets: [
+                {
+                    label: 'Approved',
+                    data: approved,
+                    backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                    borderColor: 'rgba(16, 185, 129, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Pending',
+                    data: pending,
+                    backgroundColor: 'rgba(245, 158, 11, 0.8)',
+                    borderColor: 'rgba(245, 158, 11, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Rejected',
+                    data: rejected,
+                    backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                    borderColor: 'rgba(239, 68, 68, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                }
+            },
+            scales: {
+                x: {
+                    stacked: true,
+                    grid: {
+                        display: false
+                    }
+                },
+                y: {
+                    stacked: true,
+                    title: {
+                        display: true,
+                        text: 'Number of Conversions'
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                }
+            }
+        }
+    });
+}
+
+/**
+ * Update transactions table
+ */
+function updateTransactionsTable(transactions) {
+    const tbody = document.getElementById('transactionsTableBody');
+    if (!tbody) return;
+
+    if (!transactions || transactions.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" style="text-align: center; padding: 40px; color: #9ca3af;">
+                    Chưa có giao dịch nào
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = transactions.map(tx => {
+        const initials = tx.userName ? tx.userName.substring(0, 2).toUpperCase() : 'U';
+        const paymentClass = tx.paymentMethod === 'cashback' ? 'transfer' : 'shares';
+
+        return `
+            <tr>
+                <td>
+                    <div class="transaction-user">
+                        <div class="user-avatar">${initials}</div>
+                        <div>
+                            <div style="font-weight: 600;">${tx.userName || 'Unknown'}</div>
+                            <div style="font-size: 0.75rem; color: #9ca3af;">${tx.userEmail || '-'}</div>
+                        </div>
+                    </div>
+                </td>
+                <td>${formatDate(tx.createdAt)}</td>
+                <td>${tx.merchantName || '-'}</td>
+                <td>
+                    <span class="payment-badge ${paymentClass}">
+                        ${tx.paymentMethod || 'Cashback'}
+                    </span>
+                </td>
+                <td style="font-weight: 600; color: #10b981;">${formatCurrency(tx.cashbackAmount)}</td>
+                <td>
+                    <button class="action-btn" onclick="viewTransaction('${tx.id}')">View more</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+/**
+ * View transaction details
+ */
+function viewTransaction(transactionId) {
+    // Navigate to conversions page with filter
+    window.location.href = `/admin/conversions?id=${transactionId}`;
+}
+
+/**
+ * Format growth percentage
+ */
+function formatGrowth(value) {
+    const sign = value >= 0 ? '+' : '';
+    return `${sign}${value.toFixed(1)}%`;
+}
+
+/**
+ * Format currency
+ */
+function formatCurrency(amount) {
+    return new Intl.NumberFormat('vi-VN', {
+        style: 'currency',
+        currency: 'VND'
+    }).format(amount);
+}
+
+/**
+ * Format date
+ */
+function formatDate(dateString) {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('vi-VN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    });
+}
+
+/**
+ * Show toast notification
+ */
+function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+
+    toast.textContent = message;
+    toast.className = `toast ${type}`;
+    toast.style.display = 'block';
+
+    setTimeout(() => {
+        toast.style.display = 'none';
+    }, 3000);
 }
