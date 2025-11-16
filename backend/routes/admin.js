@@ -91,7 +91,17 @@ router.get('/dashboard/stats', authenticateAdmin, async (req, res) => {
       ? merchantStats.rows.reduce((sum, m) => sum + parseFloat(m.conversion_rate), 0) / merchantStats.rows.length
       : 0;
 
-    // Conversion statistics by year
+    // Conversion statistics (overall + by year)
+    const conversionStats = await pool.query(`
+      SELECT
+        COUNT(*) as total_conversions,
+        COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved,
+        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
+        COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected,
+        COALESCE(SUM(CASE WHEN status = 'approved' THEN order_amount ELSE 0 END), 0) as total_order_value
+      FROM conversions
+    `);
+
     const conversionsByYear = await pool.query(`
       SELECT
         EXTRACT(YEAR FROM created_at)::integer as year,
@@ -122,6 +132,8 @@ router.get('/dashboard/stats', authenticateAdmin, async (req, res) => {
       LIMIT 10
     `);
 
+    const convStats = conversionStats.rows[0];
+
     res.json({
       success: true,
       data: {
@@ -137,7 +149,8 @@ router.get('/dashboard/stats', authenticateAdmin, async (req, res) => {
           commissionRevenue: parseFloat(revenue.total_commission),
           cashbackPaid: parseFloat(revenue.total_cashback),
           platformFee: parseFloat(revenue.platform_fee),
-          growth: parseFloat(revenueGrowth.toFixed(2))
+          growth: parseFloat(revenueGrowth.toFixed(2)),
+          totalOrderValue: parseFloat(convStats.total_order_value)
         },
         merchants: {
           topMerchants: merchantStats.rows.map(m => ({
@@ -151,6 +164,10 @@ router.get('/dashboard/stats', authenticateAdmin, async (req, res) => {
           activeCount: merchantStats.rows.length
         },
         conversions: {
+          total: parseInt(convStats.total_conversions),
+          approved: parseInt(convStats.approved),
+          pending: parseInt(convStats.pending),
+          rejected: parseInt(convStats.rejected),
           byYear: conversionsByYear.rows.map(y => ({
             year: parseInt(y.year),
             approved: parseInt(y.approved),
