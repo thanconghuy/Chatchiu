@@ -535,6 +535,7 @@ router.get('/conversions', authenticateAdmin, async (req, res) => {
         commission: parseFloat(sc.commission || 0),
         cashbackAmount: parseFloat(sc.cashback_amount || 0),
         status: sc.status,
+        isConfirmed: sc.is_confirmed || false,
         orderTime: sc.order_time,
         approvalTime: sc.approval_time,
         matchedAt: sc.matched_at,
@@ -559,20 +560,40 @@ router.get('/conversion/:id', authenticateAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const query = `
+    // Try conversions table first (regular cashback conversions)
+    let query = `
       SELECT
-        sc.*,
+        c.*,
         u.username,
         u.email,
         u.full_name,
+        m.name as merchant_name,
         m.logo_url as merchant_logo
-      FROM system_conversions sc
-      LEFT JOIN users u ON sc.user_id = u.id
-      LEFT JOIN merchants m ON sc.merchant_id = m.id
-      WHERE sc.id = $1
+      FROM conversions c
+      LEFT JOIN users u ON c.user_id = u.id
+      LEFT JOIN merchants m ON c.merchant_id = m.id
+      WHERE c.id = $1
     `;
 
-    const result = await pool.query(query, [id]);
+    let result = await pool.query(query, [id]);
+
+    // If not found in conversions, try system_conversions
+    if (result.rows.length === 0) {
+      query = `
+        SELECT
+          sc.*,
+          u.username,
+          u.email,
+          u.full_name,
+          m.logo_url as merchant_logo
+        FROM system_conversions sc
+        LEFT JOIN users u ON sc.user_id = u.id
+        LEFT JOIN merchants m ON sc.merchant_id = m.id
+        WHERE sc.id = $1
+      `;
+
+      result = await pool.query(query, [id]);
+    }
 
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -3799,6 +3820,187 @@ router.get('/monitoring/link-generation', authenticateAdmin, async (req, res) =>
     });
   }
 });
+
+/**
+ * GET /api/admin/monitoring/tiktok-api
+ * Monitor TikTok Shop API performance and usage
+ */
+router.get('/monitoring/tiktok-api', authenticateAdmin, async (req, res) => {
+  try {
+    const { period = '7d' } = req.query;
+
+    // Calculate time range
+    let daysAgo;
+    switch (period) {
+      case '24h':
+        daysAgo = 1;
+        break;
+      case '7d':
+        daysAgo = 7;
+        break;
+      case '30d':
+        daysAgo = 30;
+        break;
+      default:
+        daysAgo = 7;
+    }
+
+    const startTime = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
+
+    // Get TikTok Shop link statistics
+    const tiktokStatsQuery = `
+      SELECT
+        COUNT(*) as total_links,
+        COUNT(CASE WHEN link_source = 'tiktok-api' THEN 1 END) as api_links,
+        COUNT(CASE WHEN link_source = 'diy-fallback' AND merchant_id = 'tiktok' THEN 1 END) as fallback_links,
+        COUNT(CASE WHEN product_info IS NOT NULL THEN 1 END) as links_with_product_info
+      FROM clicks
+      WHERE clicked_at >= $1
+        AND (merchant_id = 'tiktok' OR link_source = 'tiktok-api')
+    `;
+
+    const statsResult = await pool.query(tiktokStatsQuery, [startTime]);
+    const stats = statsResult.rows[0];
+
+    // Calculate success rate
+    const totalLinks = parseInt(stats.total_links) || 0;
+    const apiLinks = parseInt(stats.api_links) || 0;
+    const fallbackLinks = parseInt(stats.fallback_links) || 0;
+    const apiSuccessRate = totalLinks > 0 ? ((apiLinks / totalLinks) * 100).toFixed(2) : 0;
+    const apiFailureRate = totalLinks > 0 ? ((fallbackLinks / totalLinks) * 100).toFixed(2) : 0;
+
+    // Get daily breakdown
+    const dailyQuery = `
+      SELECT
+        DATE(clicked_at) as date,
+        COUNT(*) as total,
+        COUNT(CASE WHEN link_source = 'tiktok-api' THEN 1 END) as api_success,
+        COUNT(CASE WHEN link_source = 'diy-fallback' THEN 1 END) as api_fallback,
+        COUNT(CASE WHEN product_info IS NOT NULL THEN 1 END) as with_product_info
+      FROM clicks
+      WHERE clicked_at >= $1
+        AND (merchant_id = 'tiktok' OR link_source = 'tiktok-api')
+      GROUP BY DATE(clicked_at)
+      ORDER BY date DESC
+    `;
+
+    const dailyResult = await pool.query(dailyQuery, [startTime]);
+    const dailyData = dailyResult.rows.map(row => ({
+      date: row.date,
+      total: parseInt(row.total),
+      apiSuccess: parseInt(row.api_success),
+      apiFallback: parseInt(row.api_fallback),
+      withProductInfo: parseInt(row.with_product_info),
+      successRate: row.total > 0 ? ((row.api_success / row.total) * 100).toFixed(2) : 0
+    }));
+
+    // Get product info statistics
+    const productInfoQuery = `
+      SELECT
+        COUNT(*) as total_products,
+        AVG((product_info->>'commission'->>'rate')::numeric) as avg_commission_rate,
+        SUM((product_info->>'price'->>'amount')::numeric) as total_product_value
+      FROM clicks
+      WHERE clicked_at >= $1
+        AND product_info IS NOT NULL
+        AND link_source = 'tiktok-api'
+    `;
+
+    const productInfoResult = await pool.query(productInfoQuery, [startTime]);
+    const productStats = productInfoResult.rows[0];
+
+    // Get conversion rate for TikTok links
+    const conversionQuery = `
+      SELECT
+        COUNT(DISTINCT c.id) as total_clicks,
+        COUNT(DISTINCT co.id) as conversions
+      FROM clicks c
+      LEFT JOIN conversions co ON c.id = co.click_id
+      WHERE c.clicked_at >= $1
+        AND (c.merchant_id = 'tiktok' OR c.link_source = 'tiktok-api')
+    `;
+
+    const conversionResult = await pool.query(conversionQuery, [startTime]);
+    const conversionData = conversionResult.rows[0];
+    const conversionRate = conversionData.total_clicks > 0
+      ? ((conversionData.conversions / conversionData.total_clicks) * 100).toFixed(2)
+      : 0;
+
+    res.json({
+      success: true,
+      data: {
+        period,
+        summary: {
+          totalLinks,
+          apiLinks,
+          fallbackLinks,
+          apiSuccessRate: parseFloat(apiSuccessRate),
+          apiFailureRate: parseFloat(apiFailureRate),
+          linksWithProductInfo: parseInt(stats.links_with_product_info),
+          conversionRate: parseFloat(conversionRate)
+        },
+        productMetrics: {
+          totalProducts: parseInt(productStats.total_products) || 0,
+          avgCommissionRate: parseFloat(productStats.avg_commission_rate) || 0,
+          totalProductValue: parseFloat(productStats.total_product_value) || 0
+        },
+        dailyData,
+        recommendations: getApiRecommendations(apiSuccessRate, fallbackLinks, totalLinks)
+      }
+    });
+
+  } catch (error) {
+    logger.error('Get TikTok API metrics error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to get TikTok API metrics'
+    });
+  }
+});
+
+/**
+ * Helper function to generate API recommendations
+ */
+function getApiRecommendations(successRate, fallbackCount, totalCount) {
+  const recommendations = [];
+
+  if (totalCount === 0) {
+    recommendations.push({
+      type: 'info',
+      message: 'No TikTok Shop links generated yet. Start creating links to see metrics.'
+    });
+  } else {
+    if (successRate < 50) {
+      recommendations.push({
+        type: 'warning',
+        message: `Low API success rate (${successRate}%). Check AccessTrade API token configuration.`
+      });
+    }
+
+    if (successRate >= 90) {
+      recommendations.push({
+        type: 'success',
+        message: `Excellent API performance! ${successRate}% success rate.`
+      });
+    }
+
+    if (fallbackCount > totalCount * 0.3) {
+      recommendations.push({
+        type: 'warning',
+        message: `High fallback rate detected. ${fallbackCount} links fell back to DIY mode.`
+      });
+    }
+
+    if (recommendations.length === 0) {
+      recommendations.push({
+        type: 'info',
+        message: 'TikTok Shop API performing normally.'
+      });
+    }
+  }
+
+  return recommendations;
+}
 
 // ========================================
 // ACTIVITY LOGS ENDPOINTS

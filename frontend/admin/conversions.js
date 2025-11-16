@@ -150,6 +150,7 @@ async function loadConversions() {
                 <td><div class="skeleton skeleton-text"></div></td>
                 <td><div class="skeleton skeleton-text"></div></td>
                 <td><div class="skeleton skeleton-badge"></div></td>
+                <td><div class="skeleton skeleton-badge"></div></td>
                 <td><div class="skeleton skeleton-text"></div></td>
                 <td><div class="skeleton skeleton-text"></div></td>
             </tr>
@@ -173,7 +174,7 @@ async function loadConversions() {
         console.error('Error loading conversions:', error);
         conversionsTable.innerHTML = `
             <tr class="error-state">
-                <td colspan="9">
+                <td colspan="10">
                     <div class="error">Failed to load conversions</div>
                 </td>
             </tr>
@@ -188,7 +189,7 @@ function renderConversions(conversions) {
     if (conversions.length === 0) {
         conversionsTable.innerHTML = `
             <tr class="empty-state">
-                <td colspan="9">
+                <td colspan="10">
                     <div style="padding: 60px 20px;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto 24px; display: block; color: var(--gray-400);">
                             <line x1="12" y1="1" x2="12" y2="23"></line>
@@ -209,6 +210,10 @@ function renderConversions(conversions) {
                            'status-rejected';
         const statusText = conv.status === 'approved' ? 'Đã duyệt' :
                           conv.status === 'pending' ? 'Đang xử lý' : 'Đã hủy';
+
+        // Reconciliation status badge
+        const reconciliationClass = conv.isConfirmed ? 'status-approved' : 'status-pending';
+        const reconciliationText = conv.isConfirmed ? 'Đã đối soát' : 'Chưa đối soát';
 
         // Actions dropdown - always show for all statuses
         actions = `
@@ -256,6 +261,7 @@ function renderConversions(conversions) {
                 <td>${formatCurrency(conv.commission)}</td>
                 <td class="highlight">${formatCurrency(conv.cashbackAmount)}</td>
                 <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                <td><span class="status-badge ${reconciliationClass}">${reconciliationText}</span></td>
                 <td>${formatDate(conv.orderTime)}</td>
                 <td style="white-space: nowrap;">${actions}</td>
             </tr>

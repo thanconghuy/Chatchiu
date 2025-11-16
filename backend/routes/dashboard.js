@@ -9,6 +9,7 @@ const Conversion = require('../models/Conversion');
 const SystemConversion = require('../models/SystemConversion');
 const { generateAffiliateLink } = require('../services/linkGenerator');
 const accessTradeLinkService = require('../services/accessTradeLink');
+const tiktokShopLinkService = require('../services/tiktokShopLink');
 const reconciliationService = require('../services/reconciliationService');
 const { ActivityLogger, ACTIVITY_TYPES } = require('../services/activityLogger');
 
@@ -260,54 +261,119 @@ router.post('/generate-link', authenticateToken, async (req, res) => {
       const utmMedium = user.username;
       const utmContent = click.id;
 
-      // DUAL MODE: Try AccessTrade API first, fallback to DIY if fails
+      // MULTI-MODE: TikTok Shop V2 API → Generic V1 API → DIY fallback
       let linkData;
       let linkSource = 'diy'; // Default to DIY
 
       // Check if API mode is enabled via env variable
       const useApiMode = process.env.USE_ACCESSTRADE_API === 'true';
 
-      if (useApiMode && accessTradeLinkService.isAvailable()) {
-        try {
-          console.log('[Link Generation] Attempting AccessTrade API mode...', {
+      if (useApiMode) {
+        // Detect if this is a TikTok Shop link
+        // Priority 1: Check merchant's api_type field
+        // Priority 2: Detect TikTok URL pattern
+        const isTikTokShopMerchant = merchant.api_type === 'tiktok_v2';
+        const isTikTokShopUrl = clickType === 'link' && productUrl && tiktokShopLinkService.isTikTokShopUrl(productUrl);
+        const isTikTokShop = isTikTokShopMerchant || isTikTokShopUrl;
+
+        if (isTikTokShop && await tiktokShopLinkService.isAvailable()) {
+          // ===== TIKTOK SHOP V2 API MODE =====
+          try {
+            console.log('[Link Generation] Attempting TikTok Shop V2 API mode...', {
+              userId: user.id,
+              merchantId: merchant.id,
+              clickId: click.id,
+              productUrl: productUrl.substring(0, 50) + '...'
+            });
+
+            linkData = await tiktokShopLinkService.generateLink(
+              user,
+              click.id,
+              productUrl
+            );
+            linkSource = 'tiktok-api';
+
+            // Save product info to database
+            if (linkData.productInfo && linkData.productInfo.id) {
+              await Click.updateProductInfo(click.id, linkData.productInfo);
+              console.log('[Link Generation] ✅ Product info saved', {
+                productId: linkData.productInfo.id,
+                productName: linkData.productInfo.name?.substring(0, 30) + '...',
+                commission: linkData.productInfo.commission?.amount || 'N/A'
+              });
+            }
+
+            console.log('[Link Generation] ✅ TikTok Shop V2 API success', {
+              clickId: click.id,
+              affSid: linkData.affSid,
+              shortUrl: linkData.shortUrl ? 'yes' : 'no',
+              hasProductInfo: !!(linkData.productInfo?.name),
+              duration: Date.now() - startTime
+            });
+
+          } catch (tiktokError) {
+            console.error('[Link Generation] ❌ TikTok Shop API failed, falling back to DIY', {
+              error: tiktokError.message,
+              productUrl: productUrl.substring(0, 50) + '...',
+              duration: Date.now() - startTime
+            });
+
+            // Fallback to DIY method
+            linkData = generateAffiliateLink(user, merchant, click.id, clickType, productUrl, utmMedium, utmContent);
+            linkSource = 'diy-fallback';
+          }
+        } else if (await accessTradeLinkService.isAvailable()) {
+          // ===== GENERIC V1 API MODE (Lazada, Shopee, etc.) =====
+          try {
+            console.log('[Link Generation] Attempting AccessTrade V1 API mode...', {
+              userId: user.id,
+              merchantId: merchant.id,
+              clickId: click.id,
+              clickType
+            });
+
+            linkData = await accessTradeLinkService.generateLink(
+              user,
+              merchant,
+              click.id,
+              clickType,
+              productUrl
+            );
+            linkSource = 'api';
+
+            console.log('[Link Generation] ✅ AccessTrade V1 API success', {
+              clickId: click.id,
+              affSid: linkData.affSid,
+              duration: Date.now() - startTime
+            });
+          } catch (apiError) {
+            console.error('[Link Generation] ❌ AccessTrade V1 API failed, falling back to DIY', {
+              error: apiError.message,
+              stack: apiError.stack,
+              userId: user.id,
+              merchantId: merchant.id,
+              clickId: click.id,
+              duration: Date.now() - startTime
+            });
+
+            // Fallback to DIY method
+            linkData = generateAffiliateLink(user, merchant, click.id, clickType, productUrl, utmMedium, utmContent);
+            linkSource = 'diy-fallback';
+          }
+        } else {
+          // API mode enabled but no token configured
+          console.log('[Link Generation] API mode enabled but token not configured, using DIY', {
             userId: user.id,
             merchantId: merchant.id,
-            clickId: click.id,
-            clickType
+            clickId: click.id
           });
 
-          linkData = await accessTradeLinkService.generateLink(
-            user,
-            merchant,
-            click.id,
-            clickType,
-            productUrl
-          );
-          linkSource = 'api';
-
-          console.log('[Link Generation] ✅ AccessTrade API success', {
-            clickId: click.id,
-            affSid: linkData.affSid,
-            duration: Date.now() - startTime
-          });
-        } catch (apiError) {
-          // QUICK FIX: Enhanced error logging for API failures
-          console.error('[Link Generation] ❌ AccessTrade API failed, falling back to DIY', {
-            error: apiError.message,
-            stack: apiError.stack,
-            userId: user.id,
-            merchantId: merchant.id,
-            clickId: click.id,
-            duration: Date.now() - startTime
-          });
-
-          // Fallback to DIY method
           linkData = generateAffiliateLink(user, merchant, click.id, clickType, productUrl, utmMedium, utmContent);
-          linkSource = 'diy-fallback';
+          linkSource = 'diy';
         }
       } else {
-        // Use DIY method (when API is disabled)
-        console.log('[Link Generation] Using DIY mode (API disabled or not configured)', {
+        // ===== DIY MODE (API disabled) =====
+        console.log('[Link Generation] Using DIY mode (API disabled)', {
           userId: user.id,
           merchantId: merchant.id,
           clickId: click.id
@@ -374,19 +440,28 @@ router.post('/generate-link', authenticateToken, async (req, res) => {
         responseTime: Date.now() - startTime
       });
 
+      // Prepare response data
+      const responseData = {
+        affiliateUrl: linkData.affiliateUrl,
+        affSid: linkData.affSid,
+        clickId: click.id,
+        linkSource: linkSource, // 'tiktok-api', 'api', 'diy', or 'diy-fallback'
+        merchant: {
+          id: merchant.id,
+          name: merchant.name
+        }
+      };
+
+      // Include TikTok Shop specific data
+      if (linkSource === 'tiktok-api' && linkData.productInfo) {
+        responseData.productInfo = linkData.productInfo;
+        responseData.shortUrl = linkData.shortUrl;
+      }
+
       res.json({
         success: true,
         message: 'Affiliate link generated successfully',
-        data: {
-          affiliateUrl: linkData.affiliateUrl,
-          affSid: linkData.affSid,
-          clickId: click.id,
-          linkSource: linkSource, // 'api', 'diy', or 'diy-fallback'
-          merchant: {
-            id: merchant.id,
-            name: merchant.name
-          }
-        }
+        data: responseData
       });
 
     } catch (txError) {

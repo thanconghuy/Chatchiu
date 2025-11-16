@@ -494,7 +494,7 @@ function updateTransactionsTable(transactions) {
                 </td>
                 <td style="font-weight: 600; color: #10b981;">${formatCurrency(tx.cashbackAmount)}</td>
                 <td>
-                    <button class="action-btn" onclick="viewTransaction('${tx.id}')">View more</button>
+                    <button class="action-btn" onclick="viewTransaction('${tx.id}')">Xem chi tiết</button>
                 </td>
             </tr>
         `;

@@ -313,6 +313,24 @@ class Click {
   }
 
   /**
+   * Update product info for TikTok Shop links
+   * @param {string} clickId
+   * @param {Object} productInfo - Product metadata from TikTok Shop API V2
+   * @returns {Object} Updated click
+   */
+  static async updateProductInfo(clickId, productInfo) {
+    const query = `
+      UPDATE clicks
+      SET product_info = $2
+      WHERE id = $1
+      RETURNING *
+    `;
+
+    const result = await pool.query(query, [clickId, JSON.stringify(productInfo)]);
+    return result.rows[0];
+  }
+
+  /**
    * Update last_checked_at timestamp for a click
    * @param {string} clickId
    * @returns {Object} Updated click
