@@ -22,6 +22,164 @@ const SystemSettings = require('../services/systemSettings');
 const { ActivityLogger, ACTIVITY_TYPES } = require('../services/activityLogger');
 
 /**
+ * GET /api/admin/dashboard/stats
+ * Get enhanced dashboard statistics with charts data
+ */
+router.get('/dashboard/stats', authenticateAdmin, async (req, res) => {
+  try {
+    // Get date ranges
+    const now = new Date();
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+
+    // Users statistics
+    const usersStats = await pool.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE created_at < $1) as total_users,
+        COUNT(*) FILTER (WHERE created_at >= $1) as new_this_month,
+        COUNT(*) FILTER (WHERE created_at >= $2 AND created_at < $3) as last_month_users,
+        COUNT(*) FILTER (WHERE created_at >= $1 AND last_login_at < $2) as churned_users
+      FROM users
+      WHERE is_admin = FALSE
+    `, [thisMonthStart, lastMonthStart, lastMonthEnd]);
+
+    const users = usersStats.rows[0];
+    const usersGrowth = users.last_month_users > 0
+      ? ((users.new_this_month - users.last_month_users) / users.last_month_users) * 100
+      : 0;
+
+    // Revenue statistics
+    const revenueStats = await pool.query(`
+      SELECT
+        COALESCE(SUM(commission), 0) as total_commission,
+        COALESCE(SUM(cashback_amount), 0) as total_cashback,
+        COALESCE(SUM(commission - cashback_amount), 0) as platform_fee,
+        COALESCE(SUM(CASE WHEN created_at >= $1 THEN commission ELSE 0 END), 0) as this_month_revenue,
+        COALESCE(SUM(CASE WHEN created_at >= $2 AND created_at < $3 THEN commission ELSE 0 END), 0) as last_month_revenue
+      FROM conversions
+      WHERE status = 'approved'
+    `, [thisMonthStart, lastMonthStart, lastMonthEnd]);
+
+    const revenue = revenueStats.rows[0];
+    const revenueGrowth = parseFloat(revenue.last_month_revenue) > 0
+      ? ((parseFloat(revenue.this_month_revenue) - parseFloat(revenue.last_month_revenue)) / parseFloat(revenue.last_month_revenue)) * 100
+      : 0;
+
+    // Merchant conversion metrics (top 10 merchants by conversions in last 30 days)
+    const merchantStats = await pool.query(`
+      SELECT
+        m.name,
+        m.id,
+        COUNT(DISTINCT c.id) as conversions,
+        COUNT(DISTINCT cl.id) as clicks,
+        CASE
+          WHEN COUNT(DISTINCT cl.id) > 0
+          THEN (COUNT(DISTINCT c.id)::float / COUNT(DISTINCT cl.id)::float * 100)
+          ELSE 0
+        END as conversion_rate
+      FROM merchants m
+      LEFT JOIN clicks cl ON cl.merchant_id = m.id AND cl.clicked_at >= NOW() - INTERVAL '30 days'
+      LEFT JOIN conversions c ON c.merchant_id = m.id AND c.created_at >= NOW() - INTERVAL '30 days'
+      GROUP BY m.id, m.name
+      HAVING COUNT(DISTINCT cl.id) > 0
+      ORDER BY conversions DESC
+      LIMIT 10
+    `);
+
+    const avgConversionRate = merchantStats.rows.length > 0
+      ? merchantStats.rows.reduce((sum, m) => sum + parseFloat(m.conversion_rate), 0) / merchantStats.rows.length
+      : 0;
+
+    // Conversion statistics by year
+    const conversionsByYear = await pool.query(`
+      SELECT
+        EXTRACT(YEAR FROM created_at) as year,
+        COUNT(*) FILTER (WHERE status = 'approved') as approved,
+        COUNT(*) FILTER (WHERE status = 'pending') as pending,
+        COUNT(*) FILTER (WHERE status = 'rejected') as rejected
+      FROM conversions
+      WHERE created_at >= NOW() - INTERVAL '3 years'
+      GROUP BY year
+      ORDER BY year DESC
+    `);
+
+    // Recent transactions (last 10 approved conversions)
+    const recentTransactions = await pool.query(`
+      SELECT
+        c.id,
+        c.merchant_id,
+        c.merchant_name,
+        c.cashback_amount,
+        c.created_at,
+        u.username as user_name,
+        u.email as user_email
+      FROM conversions c
+      JOIN clicks cl ON c.click_id = cl.id
+      JOIN users u ON cl.user_id = u.id
+      WHERE c.status = 'approved'
+      ORDER BY c.created_at DESC
+      LIMIT 10
+    `);
+
+    res.json({
+      success: true,
+      data: {
+        users: {
+          total: parseInt(users.total_users),
+          newThisMonth: parseInt(users.new_this_month),
+          churned: parseInt(users.churned_users),
+          growth: parseFloat(usersGrowth.toFixed(2)),
+          churnRate: users.total_users > 0 ? (parseInt(users.churned_users) / parseInt(users.total_users) * 100).toFixed(2) : 0
+        },
+        revenue: {
+          total: parseFloat(revenue.total_commission),
+          commissionRevenue: parseFloat(revenue.total_commission),
+          cashbackPaid: parseFloat(revenue.total_cashback),
+          platformFee: parseFloat(revenue.platform_fee),
+          growth: parseFloat(revenueGrowth.toFixed(2))
+        },
+        merchants: {
+          topMerchants: merchantStats.rows.map(m => ({
+            id: m.id,
+            name: m.name,
+            conversions: parseInt(m.conversions),
+            clicks: parseInt(m.clicks),
+            conversionRate: parseFloat(m.conversion_rate)
+          })),
+          avgConversionRate: parseFloat(avgConversionRate.toFixed(2)),
+          activeCount: merchantStats.rows.length
+        },
+        conversions: {
+          byYear: conversionsByYear.rows.map(y => ({
+            year: parseInt(y.year),
+            approved: parseInt(y.approved),
+            pending: parseInt(y.pending),
+            rejected: parseInt(y.rejected)
+          }))
+        },
+        transactions: recentTransactions.rows.map(tx => ({
+          id: tx.id,
+          merchantId: tx.merchant_id,
+          merchantName: tx.merchant_name,
+          cashbackAmount: parseFloat(tx.cashback_amount),
+          createdAt: tx.created_at,
+          userName: tx.user_name,
+          userEmail: tx.user_email,
+          paymentMethod: 'cashback'
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Dashboard stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to load dashboard statistics'
+    });
+  }
+});
+
+/**
  * GET /api/admin/stats
  * Get admin dashboard statistics
  */
