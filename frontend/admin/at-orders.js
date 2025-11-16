@@ -134,54 +134,66 @@ function formatDateForPicker(date) {
  * Setup event listeners
  */
 function setupEventListeners() {
-    searchBtn.addEventListener('click', () => {
-        currentPage = 1;
-        loadOrders();
-    });
+    if (searchBtn) {
+        searchBtn.addEventListener('click', () => {
+            currentPage = 1;
+            loadOrders();
+        });
+    }
 
-    resetBtn.addEventListener('click', () => {
-        resetFilters();
-    });
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            resetFilters();
+        });
+    }
 
     // Allow Enter key to search
     [searchKeyword, filterUser].forEach(input => {
-        input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                currentPage = 1;
-                loadOrders();
-            }
-        });
+        if (input) {
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    currentPage = 1;
+                    loadOrders();
+                }
+            });
+        }
     });
 
     // Close dropdowns when clicking outside
     document.addEventListener('click', (e) => {
-        if (!statusFilterBtn.contains(e.target)) {
+        if (statusFilterBtn && statusFilterMenu && !statusFilterBtn.contains(e.target)) {
             statusFilterMenu.classList.remove('show');
         }
-        if (!confirmedFilterBtn.contains(e.target)) {
+        if (confirmedFilterBtn && confirmedFilterMenu && !confirmedFilterBtn.contains(e.target)) {
             confirmedFilterMenu.classList.remove('show');
         }
-        if (!merchantFilterBtn.contains(e.target)) {
+        if (merchantFilterBtn && merchantFilterMenu && !merchantFilterBtn.contains(e.target)) {
             merchantFilterMenu.classList.remove('show');
         }
     });
 
-    prevBtn.addEventListener('click', () => {
-        if (currentPage > 1) {
-            currentPage--;
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                loadOrders();
+            }
+        });
+    }
+
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            currentPage++;
             loadOrders();
-        }
-    });
+        });
+    }
 
-    nextBtn.addEventListener('click', () => {
-        currentPage++;
-        loadOrders();
-    });
-
-    logoutBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        logout();
-    });
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            logout();
+        });
+    }
 
     if (rowsPerPageSelect) {
         rowsPerPageSelect.addEventListener('change', () => {

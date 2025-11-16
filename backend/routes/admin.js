@@ -49,7 +49,7 @@ router.get('/dashboard/stats', authenticateAdmin, async (req, res) => {
       ? ((users.new_this_month - users.last_month_users) / users.last_month_users) * 100
       : 0;
 
-    // Revenue statistics
+    // Revenue statistics (only from cashback system - conversions with click_id)
     const revenueStats = await pool.query(`
       SELECT
         COALESCE(SUM(commission), 0) as total_commission,
@@ -58,7 +58,7 @@ router.get('/dashboard/stats', authenticateAdmin, async (req, res) => {
         COALESCE(SUM(CASE WHEN created_at >= $1 THEN commission ELSE 0 END), 0) as this_month_revenue,
         COALESCE(SUM(CASE WHEN created_at >= $2 AND created_at < $3 THEN commission ELSE 0 END), 0) as last_month_revenue
       FROM conversions
-      WHERE status = 'approved'
+      WHERE status = 'approved' AND click_id IS NOT NULL
     `, [thisMonthStart, lastMonthStart, lastMonthEnd]);
 
     const revenue = revenueStats.rows[0];
@@ -91,7 +91,7 @@ router.get('/dashboard/stats', authenticateAdmin, async (req, res) => {
       ? merchantStats.rows.reduce((sum, m) => sum + parseFloat(m.conversion_rate), 0) / merchantStats.rows.length
       : 0;
 
-    // Conversion statistics (overall + by year)
+    // Conversion statistics (overall + by year, only from cashback system)
     const conversionStats = await pool.query(`
       SELECT
         COUNT(*) as total_conversions,
@@ -100,21 +100,42 @@ router.get('/dashboard/stats', authenticateAdmin, async (req, res) => {
         COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected,
         COALESCE(SUM(CASE WHEN status = 'approved' THEN order_amount ELSE 0 END), 0) as total_order_value
       FROM conversions
+      WHERE click_id IS NOT NULL
     `);
 
-    const conversionsByYear = await pool.query(`
+    const conversionsByMonth = await pool.query(`
       SELECT
-        EXTRACT(YEAR FROM created_at)::integer as year,
+        TO_CHAR(created_at, 'YYYY-MM') as month,
         COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved,
         COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
         COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected
       FROM conversions
-      WHERE created_at >= NOW() - INTERVAL '3 years'
-      GROUP BY year
-      ORDER BY year DESC
+      WHERE created_at >= NOW() - INTERVAL '12 months' AND click_id IS NOT NULL
+      GROUP BY month
+      ORDER BY month ASC
     `);
 
-    // Recent transactions (last 10 approved conversions)
+    // User balance statistics
+    // Available balance = cashback from approved conversions
+    // Pending balance = cashback from pending conversions
+    const userBalanceStats = await pool.query(`
+      SELECT
+        COALESCE(SUM(CASE WHEN c.status = 'approved' THEN c.cashback_amount ELSE 0 END), 0) as total_available_balance,
+        COALESCE(SUM(CASE WHEN c.status = 'pending' THEN c.cashback_amount ELSE 0 END), 0) as total_pending_balance
+      FROM conversions c
+      WHERE c.click_id IS NOT NULL
+    `);
+
+    // Total clicks and conversions for conversion rate
+    const clickConversionStats = await pool.query(`
+      SELECT
+        COUNT(DISTINCT cl.id) as total_clicks,
+        COUNT(DISTINCT c.id) as total_conversions
+      FROM clicks cl
+      LEFT JOIN conversions c ON c.click_id = cl.id AND c.click_id IS NOT NULL
+    `);
+
+    // Recent transactions (last 10 approved conversions from cashback system)
     const recentTransactions = await pool.query(`
       SELECT
         c.id,
@@ -123,16 +144,19 @@ router.get('/dashboard/stats', authenticateAdmin, async (req, res) => {
         c.cashback_amount,
         c.created_at,
         u.username as user_name,
+        u.full_name,
         u.email as user_email
       FROM conversions c
       JOIN clicks cl ON c.click_id = cl.id
       JOIN users u ON cl.user_id = u.id
-      WHERE c.status = 'approved'
+      WHERE c.status = 'approved' AND c.click_id IS NOT NULL
       ORDER BY c.created_at DESC
       LIMIT 10
     `);
 
     const convStats = conversionStats.rows[0];
+    const balanceStats = userBalanceStats.rows[0];
+    const clickConvStats = clickConversionStats.rows[0];
 
     res.json({
       success: true,
@@ -168,11 +192,11 @@ router.get('/dashboard/stats', authenticateAdmin, async (req, res) => {
           approved: parseInt(convStats.approved),
           pending: parseInt(convStats.pending),
           rejected: parseInt(convStats.rejected),
-          byYear: conversionsByYear.rows.map(y => ({
-            year: parseInt(y.year),
-            approved: parseInt(y.approved),
-            pending: parseInt(y.pending),
-            rejected: parseInt(y.rejected)
+          byMonth: conversionsByMonth.rows.map(m => ({
+            month: m.month,
+            approved: parseInt(m.approved),
+            pending: parseInt(m.pending),
+            rejected: parseInt(m.rejected)
           }))
         },
         transactions: recentTransactions.rows.map(tx => ({
@@ -182,9 +206,21 @@ router.get('/dashboard/stats', authenticateAdmin, async (req, res) => {
           cashbackAmount: parseFloat(tx.cashback_amount),
           createdAt: tx.created_at,
           userName: tx.user_name,
+          fullName: tx.full_name,
           userEmail: tx.user_email,
           paymentMethod: 'cashback'
-        }))
+        })),
+        balance: {
+          availableBalance: parseFloat(balanceStats.total_available_balance),
+          pendingBalance: parseFloat(balanceStats.total_pending_balance)
+        },
+        clicksAndConversions: {
+          totalClicks: parseInt(clickConvStats.total_clicks),
+          totalConversions: parseInt(clickConvStats.total_conversions),
+          conversionRate: parseInt(clickConvStats.total_clicks) > 0
+            ? (parseInt(clickConvStats.total_conversions) / parseInt(clickConvStats.total_clicks) * 100)
+            : 0
+        }
       }
     });
   } catch (error) {

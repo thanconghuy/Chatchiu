@@ -320,60 +320,8 @@
     <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
 
     <div class="app-container">
-        <!-- Sidebar -->
-        <aside class="sidebar" id="sidebar">
-            <div class="logo">
-                <span class="logo-icon">⚡</span>
-                <span class="logo-text">Admin</span>
-            </div>
-
-            <nav class="nav">
-                <a href="/admin" class="nav-item active">
-                    <span class="nav-icon">📊</span>
-                    <span class="nav-text">Dashboard</span>
-                </a>
-                <a href="/admin/users" class="nav-item">
-                    <span class="nav-icon">👥</span>
-                    <span class="nav-text">Users</span>
-                </a>
-                <a href="/admin/conversions" class="nav-item">
-                    <span class="nav-icon">💰</span>
-                    <span class="nav-text">Conversions</span>
-                </a>
-                <a href="/admin/at-orders" class="nav-item">
-                    <span class="nav-icon">📦</span>
-                    <span class="nav-text">Dữ liệu đơn AT</span>
-                </a>
-                <a href="/admin/reconciliation" class="nav-item">
-                    <span class="nav-icon">📋</span>
-                    <span class="nav-text">Đối soát</span>
-                </a>
-                <a href="/admin/merchants" class="nav-item">
-                    <span class="nav-icon">🏪</span>
-                    <span class="nav-text">Merchants</span>
-                </a>
-                <a href="/admin/tools" class="nav-item">
-                    <span class="nav-icon">🔧</span>
-                    <span class="nav-text">Tools</span>
-                </a>
-                <a href="/admin/monitoring" class="nav-item">
-                    <span class="nav-icon">📈</span>
-                    <span class="nav-text">Monitoring</span>
-                </a>
-                <a href="/admin/activity-logs" class="nav-item">
-                    <span class="nav-icon">📝</span>
-                    <span class="nav-text">Activity Logs</span>
-                </a>
-                <a href="/admin/settings" class="nav-item">
-                    <span class="nav-icon">⚙️</span>
-                    <span class="nav-text">Settings</span>
-                </a>
-                <a href="#" class="nav-item" id="logoutBtn">
-                    <span class="nav-icon">🚪</span>
-                    <span class="nav-text">Logout</span>
-                </a>
-            </nav>
-        </aside>
+        <!-- Sidebar - Rendered by sidebar.js -->
+        <div id="sidebarContainer"></div>
 
         <!-- Main Content -->
         <main class="main-content">
@@ -389,7 +337,7 @@
                     </div>
                 </div>
 
-                <!-- Main Stats Cards -->
+                <!-- Main Stats Cards - Row 1 -->
                 <div class="stat-cards-row">
                     <div class="enhanced-stat-card">
                         <div class="stat-header">
@@ -411,16 +359,16 @@
                     <div class="enhanced-stat-card success">
                         <div class="stat-header">
                             <div>
-                                <div class="stat-title">New Users</div>
+                                <div class="stat-title">Total Commission</div>
                             </div>
                             <div class="stat-icon-badge success">
-                                ✨
+                                💵
                             </div>
                         </div>
-                        <div class="stat-main-value" id="newUsers">0</div>
+                        <div class="stat-main-value" id="totalCommission">0đ</div>
                         <div class="stat-growth positive">
                             <span class="stat-growth-icon">↑</span>
-                            <span id="newUsersGrowth">+0%</span>
+                            <span id="commissionGrowth">+0%</span>
                             <span class="stat-period">this month</span>
                         </div>
                     </div>
@@ -428,34 +376,165 @@
                     <div class="enhanced-stat-card warning">
                         <div class="stat-header">
                             <div>
-                                <div class="stat-title">Total Revenue</div>
+                                <div class="stat-title">Cashback Paid</div>
                             </div>
                             <div class="stat-icon-badge warning">
                                 💰
                             </div>
                         </div>
-                        <div class="stat-main-value" id="totalRevenue">0đ</div>
+                        <div class="stat-main-value" id="cashbackPaid">0đ</div>
                         <div class="stat-growth positive">
                             <span class="stat-growth-icon">↑</span>
-                            <span id="revenueGrowth">+0%</span>
+                            <span id="cashbackGrowth">+0%</span>
                             <span class="stat-period">vs last month</span>
+                        </div>
+                    </div>
+
+                    <div class="enhanced-stat-card info">
+                        <div class="stat-header">
+                            <div>
+                                <div class="stat-title">Platform Profit</div>
+                            </div>
+                            <div class="stat-icon-badge">
+                                📈
+                            </div>
+                        </div>
+                        <div class="stat-main-value" id="platformProfit">0đ</div>
+                        <div class="stat-growth positive">
+                            <span class="stat-growth-icon">↑</span>
+                            <span id="profitGrowth">+0%</span>
+                            <span class="stat-period">this month</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Stats Cards - Row 2 -->
+                <div class="stat-cards-row">
+                    <div class="enhanced-stat-card success">
+                        <div class="stat-header">
+                            <div>
+                                <div class="stat-title">Đã duyệt</div>
+                            </div>
+                            <div class="stat-icon-badge success">
+                                ✅
+                            </div>
+                        </div>
+                        <div class="stat-main-value" id="approvedCount">0</div>
+                        <div class="stat-growth positive">
+                            <span id="approvedPercent">0%</span>
+                            <span class="stat-period">of total</span>
+                        </div>
+                    </div>
+
+                    <div class="enhanced-stat-card warning">
+                        <div class="stat-header">
+                            <div>
+                                <div class="stat-title">Đang xử lý</div>
+                            </div>
+                            <div class="stat-icon-badge warning">
+                                ⏳
+                            </div>
+                        </div>
+                        <div class="stat-main-value" id="pendingCount">0</div>
+                        <div class="stat-growth positive">
+                            <span id="pendingPercent">0%</span>
+                            <span class="stat-period">of total</span>
                         </div>
                     </div>
 
                     <div class="enhanced-stat-card danger">
                         <div class="stat-header">
                             <div>
-                                <div class="stat-title">Churned Users</div>
+                                <div class="stat-title">Đã hủy</div>
                             </div>
                             <div class="stat-icon-badge danger">
-                                📉
+                                ❌
                             </div>
                         </div>
-                        <div class="stat-main-value" id="churnedUsers">0</div>
+                        <div class="stat-main-value" id="rejectedCount">0</div>
                         <div class="stat-growth negative">
-                            <span class="stat-growth-icon">↓</span>
-                            <span id="churnGrowth">0%</span>
-                            <span class="stat-period">this month</span>
+                            <span id="rejectedPercent">0%</span>
+                            <span class="stat-period">of total</span>
+                        </div>
+                    </div>
+
+                    <div class="enhanced-stat-card info">
+                        <div class="stat-header">
+                            <div>
+                                <div class="stat-title">Tổng đơn hàng</div>
+                            </div>
+                            <div class="stat-icon-badge">
+                                🛒
+                            </div>
+                        </div>
+                        <div class="stat-main-value" id="totalOrderValue">0đ</div>
+                        <div class="stat-growth positive">
+                            <span class="stat-growth-icon">↑</span>
+                            <span id="orderValueGrowth">+0%</span>
+                            <span class="stat-period">vs last month</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Stats Cards with Circular Progress -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+                    <!-- Số dư người dùng Card -->
+                    <div class="chart-section">
+                        <h3 style="font-size: 1.125rem; font-weight: 600; margin-bottom: 20px; color: #111827;">Số dư người dùng</h3>
+                        <div style="display: grid; grid-template-columns: 200px 1fr; gap: 32px; align-items: center;">
+                            <div style="position: relative; width: 200px; height: 200px;">
+                                <svg width="200" height="200" style="transform: rotate(-90deg);">
+                                    <circle cx="100" cy="100" r="85" fill="none" stroke="#e5e7eb" stroke-width="20"></circle>
+                                    <circle id="userBalanceCircle" cx="100" cy="100" r="85" fill="none" stroke="#3b82f6" stroke-width="20"
+                                            stroke-dasharray="534" stroke-dashoffset="534" stroke-linecap="round"
+                                            style="transition: stroke-dashoffset 1s ease;"></circle>
+                                </svg>
+                                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                                    <div id="userBalancePercent" style="font-size: 2rem; font-weight: 700; color: #3b82f6;">0%</div>
+                                    <div style="font-size: 0.875rem; color: #6b7280;">Tỷ lệ</div>
+                                </div>
+                            </div>
+                            <div>
+                                <div style="margin-bottom: 16px;">
+                                    <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 4px;">Số dư khả dụng</div>
+                                    <div id="availableBalance" style="font-size: 1.5rem; font-weight: 700; color: #111827;">0 đ</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 4px;">Số dư chờ xử lý</div>
+                                    <div id="pendingBalance" style="font-size: 1.5rem; font-weight: 700; color: #111827;">0 đ</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tỷ lệ chuyển đổi Card -->
+                    <div class="chart-section">
+                        <h3 style="font-size: 1.125rem; font-weight: 600; margin-bottom: 20px; color: #111827;">Tỷ lệ chuyển đổi</h3>
+                        <div style="display: grid; grid-template-columns: 200px 1fr; gap: 32px; align-items: center;">
+                            <div style="position: relative; width: 200px; height: 200px;">
+                                <svg width="200" height="200" style="transform: rotate(-90deg);">
+                                    <circle cx="100" cy="100" r="85" fill="none" stroke="#e5e7eb" stroke-width="20"></circle>
+                                    <circle id="conversionRateCircle" cx="100" cy="100" r="85" fill="none" stroke="#10b981" stroke-width="20"
+                                            stroke-dasharray="534" stroke-dashoffset="534" stroke-linecap="round"
+                                            style="transition: stroke-dashoffset 1s ease;"></circle>
+                                </svg>
+                                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                                    <div id="conversionRatePercent" style="font-size: 2rem; font-weight: 700; color: #10b981;">0%</div>
+                                    <div style="font-size: 0.875rem; color: #6b7280;">Tỷ lệ</div>
+                                </div>
+                            </div>
+                            <div>
+                                <div style="margin-bottom: 16px;">
+                                    <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 4px;">
+                                        <span id="totalClicksCount">0</span> Clicks
+                                    </div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 4px;">
+                                        <span id="totalConversionsCount">0</span> Conversions
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -559,8 +638,12 @@
     <!-- Toast Notification -->
     <div id="toast" class="toast"></div>
 
+    <!-- Conversion Detail Modal Container -->
+    <div id="detailModalContainer"></div>
+
     <script src="/js/config.js"></script>
     <script src="/js/auth.js"></script>
+    <script src="/admin/sidebar.js"></script>
     <script src="/js/mobile-menu.js"></script>
     <script src="/admin/admin.js"></script>
 </body>

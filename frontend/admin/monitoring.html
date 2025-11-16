@@ -385,60 +385,8 @@
     <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
 
     <div class="app-container" style="display: flex; width: 100%; max-width: 100vw;">
-        <!-- Sidebar -->
-        <aside class="sidebar" id="sidebar">
-            <div class="logo">
-                <span class="logo-icon">⚡</span>
-                <span class="logo-text">Admin</span>
-            </div>
-
-            <nav class="nav">
-                <a href="/admin" class="nav-item">
-                    <span class="nav-icon">📊</span>
-                    <span class="nav-text">Dashboard</span>
-                </a>
-                <a href="/admin/users" class="nav-item">
-                    <span class="nav-icon">👥</span>
-                    <span class="nav-text">Users</span>
-                </a>
-                <a href="/admin/conversions" class="nav-item">
-                    <span class="nav-icon">💰</span>
-                    <span class="nav-text">Conversions</span>
-                </a>
-                <a href="/admin/at-orders" class="nav-item">
-                    <span class="nav-icon">📦</span>
-                    <span class="nav-text">Dữ liệu đơn AT</span>
-                </a>
-                <a href="/admin/reconciliation" class="nav-item">
-                    <span class="nav-icon">📋</span>
-                    <span class="nav-text">Đối soát</span>
-                </a>
-                <a href="/admin/merchants" class="nav-item">
-                    <span class="nav-icon">🏪</span>
-                    <span class="nav-text">Merchants</span>
-                </a>
-                <a href="/admin/tools" class="nav-item">
-                    <span class="nav-icon">🔧</span>
-                    <span class="nav-text">Tools</span>
-                </a>
-                <a href="/admin/monitoring" class="nav-item active">
-                    <span class="nav-icon">📈</span>
-                    <span class="nav-text">Monitoring</span>
-                </a>
-                <a href="/admin/activity-logs" class="nav-item">
-                    <span class="nav-icon">📝</span>
-                    <span class="nav-text">Activity Logs</span>
-                </a>
-                <a href="/admin/settings" class="nav-item">
-                    <span class="nav-icon">⚙️</span>
-                    <span class="nav-text">Settings</span>
-                </a>
-                <a href="#" class="nav-item" id="logoutBtn">
-                    <span class="nav-icon">🚪</span>
-                    <span class="nav-text">Logout</span>
-                </a>
-            </nav>
-        </aside>
+        <!-- Sidebar - Rendered by sidebar.js -->
+        <div id="sidebarContainer"></div>
 
         <!-- Main Content -->
         <main class="main-content">
@@ -612,9 +560,9 @@
 
                             <!-- Pagination -->
                             <div class="pagination" id="hourlyPagination" style="margin-top: 20px; display: none;">
-                                <button class="btn-secondary" id="prevHourlyBtn" disabled>« Trước</button>
-                                <span id="hourlyPageInfo" style="font-weight: 600; color: var(--gray-700);">Trang 1</span>
-                                <button class="btn-secondary" id="nextHourlyBtn">Sau »</button>
+                                <button id="prevHourlyBtn" disabled>« Trước</button>
+                                <span id="hourlyPageInfo">Trang 1</span>
+                                <button id="nextHourlyBtn">Sau »</button>
                             </div>
                         </div>
                     </div>
@@ -628,6 +576,7 @@
 
     <script src="/js/config.js"></script>
     <script src="/js/auth.js"></script>
+    <script src="/admin/sidebar.js"></script>
     <script src="/js/mobile-menu.js"></script>
     <script>
         // Check authentication

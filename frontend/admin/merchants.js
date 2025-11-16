@@ -75,6 +75,7 @@ async function loadMerchants() {
             }
 
             renderMerchants();
+            updateStats();
         }
     } catch (error) {
         console.error('Failed to load merchants:', error);
@@ -82,7 +83,39 @@ async function loadMerchants() {
     }
 }
 
-// Stats section removed - no longer needed
+/**
+ * Update statistics cards
+ */
+function updateStats() {
+    // Total merchants
+    const totalMerchants = merchants.length;
+    document.getElementById('totalMerchants').textContent = totalMerchants.toLocaleString();
+
+    // Active merchants
+    const activeMerchants = merchants.filter(m => m.is_active).length;
+    document.getElementById('activeMerchants').textContent = activeMerchants.toLocaleString();
+
+    // Total clicks (sum of all merchant clicks)
+    const totalClicks = merchants.reduce((sum, m) => sum + (parseInt(m.total_clicks) || 0), 0);
+    document.getElementById('totalClicks').textContent = totalClicks.toLocaleString();
+
+    // Total commission (sum of all merchant commissions)
+    const totalCommission = merchants.reduce((sum, m) => {
+        const commission = parseFloat(m.total_commission) || 0;
+        return sum + commission;
+    }, 0);
+    document.getElementById('totalCommission').textContent = formatCurrency(totalCommission);
+}
+
+/**
+ * Format currency
+ */
+function formatCurrency(amount) {
+    return new Intl.NumberFormat('vi-VN', {
+        style: 'currency',
+        currency: 'VND'
+    }).format(amount);
+}
 
 /**
  * Render merchants table

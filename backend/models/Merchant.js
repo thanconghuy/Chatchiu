@@ -73,11 +73,11 @@ class Merchant {
       SELECT
         m.*,
         COALESCE(COUNT(DISTINCT c.id), 0)::INTEGER as total_clicks,
-        COALESCE(COUNT(DISTINCT sc.id), 0)::INTEGER as total_conversions,
-        COALESCE(SUM(sc.commission), 0)::NUMERIC as total_commission
+        COALESCE(COUNT(DISTINCT conv.id), 0)::INTEGER as total_conversions,
+        COALESCE(SUM(CASE WHEN conv.status = 'approved' THEN conv.commission ELSE 0 END), 0)::NUMERIC as total_commission
       FROM merchants m
       LEFT JOIN clicks c ON c.merchant_id = m.id
-      LEFT JOIN system_conversions sc ON sc.merchant_id = m.id AND sc.status = 'approved'
+      LEFT JOIN conversions conv ON conv.click_id = c.id AND conv.click_id IS NOT NULL
       ${whereClause}
       GROUP BY m.id
       ORDER BY m.name

@@ -9,7 +9,8 @@ const logger = require('../utils/logger');
  */
 class PendingOrdersUpdateService {
   constructor() {
-    this.API_TOKEN = process.env.ACCESSTRADE_API_TOKEN;
+    // Support both ACCESSTRADE_ACCESS_TOKEN (standard) and ACCESSTRADE_API_TOKEN (legacy)
+    this.API_TOKEN = process.env.ACCESSTRADE_ACCESS_TOKEN || process.env.ACCESSTRADE_API_TOKEN;
     this.API_URL = process.env.ACCESSTRADE_API_URL || 'https://api.accesstrade.vn/v1';
     this.RATE_LIMIT = 10; // 10 requests per minute
     this.RATE_LIMIT_WINDOW = 60000; // 1 minute in ms
@@ -70,7 +71,7 @@ class PendingOrdersUpdateService {
     await this.checkRateLimit();
 
     if (!this.API_TOKEN) {
-      throw new Error('AccessTrade API token not configured. Please set ACCESSTRADE_API_TOKEN in Vercel environment variables (Dashboard → Settings → Environment Variables).');
+      throw new Error('AccessTrade API token not configured. Please set ACCESSTRADE_ACCESS_TOKEN in environment variables.');
     }
 
     try {
@@ -193,7 +194,7 @@ class PendingOrdersUpdateService {
           status: error.response?.status,
           message: error.response?.data?.message || error.message
         });
-        throw new Error('Invalid AccessTrade API token. Please check ACCESSTRADE_API_TOKEN configuration.');
+        throw new Error('Invalid AccessTrade API token. Please check ACCESSTRADE_ACCESS_TOKEN configuration.');
       }
 
       logger.error('Error fetching order details', {
@@ -370,7 +371,7 @@ class PendingOrdersUpdateService {
 
     // Validate API token first
     if (!this.API_TOKEN) {
-      throw new Error('AccessTrade API token not configured. Please set ACCESSTRADE_API_TOKEN in Vercel environment variables (Dashboard → Settings → Environment Variables).');
+      throw new Error('AccessTrade API token not configured. Please set ACCESSTRADE_ACCESS_TOKEN in environment variables.');
     }
 
     logger.info('='.repeat(60));

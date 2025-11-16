@@ -55,9 +55,9 @@ class Pagination {
             ${pageSizeOptionsHTML}
           </select>
         </div>
-        <button class="btn-secondary" id="${this.containerId}-prevBtn" disabled>« Trước</button>
+        <button id="${this.containerId}-prevBtn" disabled>« Trước</button>
         <span id="${this.containerId}-pageInfo">Trang 1 / 1 (0 items)</span>
-        <button class="btn-secondary" id="${this.containerId}-nextBtn" disabled>Sau »</button>
+        <button id="${this.containerId}-nextBtn" disabled>Sau »</button>
       </div>
     `;
   }

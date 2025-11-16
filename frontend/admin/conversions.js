@@ -14,7 +14,7 @@ requireAuth();
 // State
 let currentPage = 0;
 let currentStatus = '';
-const ITEMS_PER_PAGE = 50;
+let itemsPerPage = 20; // Default items per page
 
 // DOM Elements
 const userName = document.getElementById('userName');
@@ -23,6 +23,7 @@ const conversionsTable = document.getElementById('conversionsTable');
 const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
 const pageInfo = document.getElementById('pageInfo');
+const rowsPerPageSelect = document.getElementById('rowsPerPage');
 const logoutBtn = document.getElementById('logoutBtn');
 const syncBtn = document.getElementById('syncBtn');
 
@@ -101,6 +102,15 @@ function setupEventListeners() {
         console.log('✓ Next button listener attached');
     }
 
+    if (rowsPerPageSelect) {
+        rowsPerPageSelect.addEventListener('change', (e) => {
+            itemsPerPage = parseInt(e.target.value);
+            currentPage = 0; // Reset to first page
+            loadConversions();
+        });
+        console.log('✓ Rows per page listener attached');
+    }
+
     if (logoutBtn) {
         logoutBtn.addEventListener('click', (e) => {
             e.preventDefault();
@@ -146,8 +156,8 @@ async function loadConversions() {
         `).join('');
         conversionsTable.innerHTML = skeletonRows;
 
-        const offset = currentPage * ITEMS_PER_PAGE;
-        let url = `/admin/conversions?limit=${ITEMS_PER_PAGE}&offset=${offset}`;
+        const offset = currentPage * itemsPerPage;
+        let url = `/admin/conversions?limit=${itemsPerPage}&offset=${offset}`;
 
         if (currentStatus) {
             url += `&status=${currentStatus}`;
@@ -272,9 +282,9 @@ function renderConversions(conversions) {
  * Update pagination
  */
 function updatePagination(itemCount) {
-    pageInfo.textContent = `Page ${currentPage + 1}`;
+    pageInfo.textContent = `Trang ${currentPage + 1}`;
     prevBtn.disabled = currentPage === 0;
-    nextBtn.disabled = itemCount < ITEMS_PER_PAGE;
+    nextBtn.disabled = itemCount < itemsPerPage;
 }
 
 /**
