@@ -202,17 +202,27 @@ router.get('/users/:userId', authenticateAdmin, async (req, res) => {
     // Get recent activity
     const recentActivityQuery = `
       (
-        SELECT 'click' as type, clicked_at as timestamp, merchant_name, NULL as amount
-        FROM clicks
-        WHERE user_id = $1
-        ORDER BY clicked_at DESC
+        SELECT
+          'click' as type,
+          cl.clicked_at as timestamp,
+          COALESCE(m.name, cl.merchant_id) as merchant_name,
+          NULL as amount
+        FROM clicks cl
+        LEFT JOIN merchants m ON cl.merchant_id = m.id
+        WHERE cl.user_id = $1
+        ORDER BY cl.clicked_at DESC
         LIMIT 10
       )
       UNION ALL
       (
-        SELECT 'conversion' as type, c.created_at as timestamp, c.merchant_name, c.cashback_amount as amount
+        SELECT
+          'conversion' as type,
+          c.created_at as timestamp,
+          COALESCE(m.name, c.merchant_id) as merchant_name,
+          c.cashback_amount as amount
         FROM conversions c
         JOIN clicks cl ON c.click_id = cl.id
+        LEFT JOIN merchants m ON c.merchant_id = m.id
         WHERE cl.user_id = $1
         ORDER BY c.created_at DESC
         LIMIT 10
