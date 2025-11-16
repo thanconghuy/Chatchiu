@@ -199,38 +199,29 @@ router.get('/users/:userId', authenticateAdmin, async (req, res) => {
     `;
     const conversionsResult = await pool.query(conversionsQuery, [userId]);
 
-    // Get recent activity
-    const recentActivityQuery = `
-      (
-        SELECT
-          'click' as type,
-          cl.clicked_at as timestamp,
-          COALESCE(m.name, cl.merchant_id) as merchant_name,
-          NULL as amount
-        FROM clicks cl
-        LEFT JOIN merchants m ON cl.merchant_id = m.id
-        WHERE cl.user_id = $1
-        ORDER BY cl.clicked_at DESC
-        LIMIT 10
-      )
-      UNION ALL
-      (
-        SELECT
-          'conversion' as type,
-          c.created_at as timestamp,
-          COALESCE(m.name, c.merchant_id) as merchant_name,
-          c.cashback_amount as amount
-        FROM conversions c
-        JOIN clicks cl ON c.click_id = cl.id
-        LEFT JOIN merchants m ON c.merchant_id = m.id
-        WHERE cl.user_id = $1
-        ORDER BY c.created_at DESC
-        LIMIT 10
-      )
-      ORDER BY timestamp DESC
-      LIMIT 20
+    // Get user's detailed clicks with conversion status
+    const clicksDetailQuery = `
+      SELECT
+        cl.id as click_id,
+        cl.merchant_id,
+        COALESCE(m.name, cl.merchant_id) as merchant_name,
+        cl.click_type,
+        cl.clicked_at,
+        cl.affiliate_url,
+        c.id as conversion_id,
+        c.status as conversion_status,
+        c.cashback_amount,
+        c.order_approved,
+        c.order_pending,
+        c.order_reject
+      FROM clicks cl
+      LEFT JOIN merchants m ON cl.merchant_id = m.id
+      LEFT JOIN conversions c ON c.click_id = cl.id
+      WHERE cl.user_id = $1
+      ORDER BY cl.clicked_at DESC
+      LIMIT 50
     `;
-    const activityResult = await pool.query(recentActivityQuery, [userId]);
+    const clicksDetailResult = await pool.query(clicksDetailQuery, [userId]);
 
     res.json({
       success: true,
@@ -257,11 +248,19 @@ router.get('/users/:userId', authenticateAdmin, async (req, res) => {
         approvedCashback: parseFloat(conversionsResult.rows[0].approved_cashback),
         pendingCashback: parseFloat(conversionsResult.rows[0].pending_cashback)
       },
-      clicks: activityResult.rows.map(a => ({
-        type: a.type,
-        timestamp: a.timestamp,
-        merchantName: a.merchant_name,
-        amount: a.amount ? parseFloat(a.amount) : null
+      clicks: clicksDetailResult.rows.map(click => ({
+        clickId: click.click_id,
+        merchantId: click.merchant_id,
+        merchantName: click.merchant_name,
+        clickType: click.click_type,
+        clickedAt: click.clicked_at,
+        affiliateUrl: click.affiliate_url,
+        hasConversion: !!click.conversion_id,
+        conversionStatus: click.conversion_status,
+        cashback: click.cashback_amount ? parseFloat(click.cashback_amount) : null,
+        orderApproved: click.order_approved || 0,
+        orderPending: click.order_pending || 0,
+        orderReject: click.order_reject || 0
       }))
     });
   } catch (error) {

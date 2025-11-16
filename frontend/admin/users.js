@@ -15,6 +15,8 @@ requireAuth();
 let currentPage = 0;
 let currentSearch = '';
 let ITEMS_PER_PAGE = 50; // Changed to let for dynamic update
+let allClicksData = []; // Store all clicks data for pagination
+let clicksPaginator = null; // Pagination instance for clicks modal
 
 // DOM Elements
 const userName = document.getElementById('userName');
@@ -251,8 +253,24 @@ async function openUserDetail(userId) {
             document.getElementById('detailTotalClicks').textContent = stats.totalClicks;
             document.getElementById('detailTotalConversions').textContent = stats.totalConversions;
 
-            // Render clicks
-            renderUserClicks(clicks);
+            // Store clicks data for pagination
+            allClicksData = clicks || [];
+
+            // Initialize pagination for clicks if not already initialized
+            if (!clicksPaginator) {
+                clicksPaginator = new Pagination({
+                    containerId: 'clicksPagination',
+                    itemsPerPage: 10,
+                    onPageChange: (page, itemsPerPage) => {
+                        renderClicksPage(page, itemsPerPage);
+                    },
+                    pageSizeOptions: [10, 20, 50]
+                });
+            }
+
+            // Update pagination and render first page
+            clicksPaginator.update(allClicksData.length, 1);
+            renderClicksPage(1, clicksPaginator.getItemsPerPage());
         }
     } catch (error) {
         console.error('Error loading user details:', error);
@@ -266,6 +284,17 @@ async function openUserDetail(userId) {
  */
 function closeUserDetail() {
     userDetailModal.style.display = 'none';
+}
+
+/**
+ * Render clicks for a specific page
+ */
+function renderClicksPage(page, itemsPerPage) {
+    const startIndex = (page - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const pageClicks = allClicksData.slice(startIndex, endIndex);
+
+    renderUserClicks(pageClicks);
 }
 
 /**
