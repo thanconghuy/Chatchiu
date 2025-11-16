@@ -349,10 +349,13 @@ body {
     border-collapse: collapse;
     table-layout: auto; /* Auto layout for better responsiveness */
 }
-
+.data-table thead tr th {
+    color: white;
+}
 .orders-table thead,
 .data-table thead {
-    background: var(--gray-100);
+    background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+    color: white;
 }
 
 .orders-table th,
