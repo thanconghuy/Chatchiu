@@ -511,19 +511,6 @@
                                 </div>
                             </div>
 
-                            <!-- Server Port -->
-                            <div class="setting-item">
-                                <div class="setting-info">
-                                    <div class="setting-label">Server Port</div>
-                                    <div class="setting-description">
-                                        Port mà server đang chạy (yêu cầu restart server)
-                                    </div>
-                                    <div class="setting-value" id="serverPortValue">Loading...</div>
-                                </div>
-                                <div class="setting-control">
-                                    <button class="btn-secondary" onclick="viewServerInfo()">Xem thông tin</button>
-                                </div>
-                            </div>
                         </div>
                     </div>
 
@@ -594,7 +581,6 @@
                     document.getElementById('retryScheduleValue').textContent = settings.RETRY_CRON_SCHEDULE || 'Not set';
                     document.getElementById('apiUrlValue').textContent = settings.ACCESSTRADE_API_URL;
                     document.getElementById('commissionSplitValue').textContent = (parseFloat(settings.COMMISSION_SPLIT) * 100) + '%';
-                    document.getElementById('serverPortValue').textContent = settings.PORT;
 
                     // Set toggle states
                     document.getElementById('autoCronToggle').checked = settings.AUTO_CRON_ENABLED === 'true';
@@ -871,27 +857,6 @@
             } catch (error) {
                 showToast('Không thể cập nhật cấu hình', 'error');
             }
-        }
-
-        // View server info
-        function viewServerInfo() {
-            const modalTitle = document.getElementById('modalTitle');
-            const modalBody = document.getElementById('modalBody');
-
-            modalTitle.textContent = 'Thông Tin Server';
-            modalBody.innerHTML = `
-                <div class="alert-box">
-                    <p><strong>Port:</strong> ${document.getElementById('serverPortValue').textContent}</p>
-                    <p><strong>URL:</strong> http://localhost:${document.getElementById('serverPortValue').textContent}</p>
-                    <p><strong>Node.js:</strong> ${process?.version || 'Unknown'}</p>
-                    <p style="margin-top: 16px; color: var(--gray-600);">
-                        Để thay đổi port, cần chỉnh sửa file .env và restart server.
-                    </p>
-                </div>
-                <button class="btn-secondary" onclick="closeEditModal()">Đóng</button>
-            `;
-
-            document.getElementById('editModal').classList.add('show');
         }
 
         // Close edit modal
