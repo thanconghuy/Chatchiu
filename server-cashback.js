@@ -37,6 +37,7 @@ const neonAuthRoutes = require('./backend/routes/neonAuthRoutes');
 const dashboardRoutes = require('./backend/routes/dashboard');
 const adminRoutes = require('./backend/routes/admin');
 const reconciliationRoutes = require('./backend/routes/reconciliation');
+const publicRoutes = require('./backend/routes/public');
 
 // Mount API routes (BEFORE static files)
 app.use('/api/auth', authRoutes); // Keep old auth for backward compatibility
@@ -44,6 +45,7 @@ app.use('/api/neon-auth', neonAuthRoutes); // New Neon Auth routes
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/reconciliation', reconciliationRoutes); // Reconciliation module (admin only)
+app.use('/api/public', publicRoutes); // Public endpoints (no auth required)
 
 // Health check endpoint
 app.get('/health', (req, res) => {
