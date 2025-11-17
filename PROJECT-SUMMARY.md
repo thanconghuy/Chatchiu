@@ -481,6 +481,9 @@ node test-tiktok-link.js
 
 # Test TikTok API monitoring
 node test-tiktok-monitoring.js
+
+# Test timezone configuration (debug timezone issues)
+node test-timezone.js
 ```
 
 ---
@@ -513,6 +516,27 @@ psql $DATABASE_URL -f backend/migrations/011_add_product_info_to_clicks.sql
 ---
 
 ## 📝 Recent Updates
+
+### **Version 1.0.1 (17/11/2025)**
+
+**Critical Fix - Timezone Display Issue** 🐛
+
+1. **Problem:**
+   - Click timestamps displayed incorrect date/time on production
+   - Time showing next day (17/11 instead of 16/11)
+   - Root cause: timezone mismatch between database, server, and client
+
+2. **Solution:**
+   - Force `Asia/Ho_Chi_Minh` timezone in all formatDate functions
+   - Updated frontend/js/config.js and frontend/admin/shared/utils.js
+   - Created test-timezone.js debug script
+   - Added TIMEZONE-FIX.md documentation
+
+3. **Files Changed:**
+   - ✅ frontend/js/config.js
+   - ✅ frontend/admin/shared/utils.js
+   - ✅ test-timezone.js (new)
+   - ✅ TIMEZONE-FIX.md (new)
 
 ### **Version 1.0.0 (16/11/2025)**
 
@@ -586,6 +610,7 @@ psql $DATABASE_URL -f backend/migrations/011_add_product_info_to_clicks.sql
 ## 📚 Documentation References
 
 - [TikTok Shop Integration](./TIKTOK-SHOP-INTEGRATION.md)
+- [Timezone Fix Documentation](./TIMEZONE-FIX.md)
 - [AccessTrade API Docs](https://www.accesstrade.vn/api-documentation)
 - [Database Schema](./backend/migrations/)
 - [Test Scripts](./test-*.js)
@@ -598,6 +623,6 @@ Proprietary - All rights reserved
 
 ---
 
-**Last Updated:** 16/11/2025
-**Version:** 1.0.0
+**Last Updated:** 17/11/2025
+**Version:** 1.0.1
 **Status:** ✅ Production Ready
