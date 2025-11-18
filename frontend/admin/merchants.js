@@ -395,7 +395,7 @@ document.getElementById('editMerchantForm').addEventListener('submit', async (e)
         } else {
             // Create new merchant
             console.log('Creating new merchant...');
-            response = await apiRequest('/admin/merchants', {
+            response = await apiRequest('/admin/merchant', {
                 method: 'POST',
                 body: JSON.stringify(merchantData)
             });

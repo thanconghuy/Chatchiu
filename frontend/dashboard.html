@@ -10,6 +10,9 @@
     <!-- Mobile Menu Toggle -->
     <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
 
+    <!-- Sidebar Overlay Backdrop -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
     <div class="app-container">
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
@@ -39,47 +42,76 @@
         <!-- Main Content -->
         <main class="main-content">
             <div class="content-wrapper">
-                <!-- Header -->
-                <header class="header">
+                <!-- Desktop Header -->
+                <header class="desktop-header">
                     <div class="welcome">
-                        <h1>Xin chào, <span id="userName">User</span>! 👋</h1>
-                        <p class="subtitle">Chào mừng bạn quay trở lại</p>
+                        <h1>Xin chào, <span id="desktopUserName">User</span>! 👋</h1>
+                        <p class="subtitle">Chào bạn đã quay trở lại với CHẮT CHIU. ONLINE!</p>
                     </div>
                 </header>
 
-                <!-- Stats Cards -->
-        <section class="stats-section">
-            <div class="stats-grid">
-                <div class="stat-card gradient-green">
-                    <div class="stat-icon">💰</div>
-                    <div class="stat-content">
-                        <h3 class="stat-value" id="availableBalance">0 đ</h3>
-                        <p class="stat-label">Số dư khả dụng</p>
+                <!-- Mobile Header -->
+                <header class="mobile-header">
+                    <div class="mobile-header-content">
+                        <div class="user-greeting">
+                            <span class="greeting-text">Xin chào</span>
+                            <span class="user-name" id="mobileUserName">User</span>
+                        </div>
+                        <div class="user-avatar" id="userAvatar">
+                            <span id="avatarInitial">U</span>
+                        </div>
                     </div>
-                </div>
-                <div class="stat-card gradient-orange">
-                    <div class="stat-icon">⏳</div>
-                    <div class="stat-content">
-                        <h3 class="stat-value" id="pendingBalance">0 đ</h3>
-                        <p class="stat-label">Đang chờ duyệt</p>
+                    <p class="mobile-subtitle">Chào bạn đã quay trở lại với CHẮT CHIU. ONLINE!</p>
+                </header>
+
+                <!-- Hero Balance Card (Mobile-First Design) -->
+                <section class="hero-balance-section">
+                    <div class="hero-balance-card">
+                        <div class="balance-header">
+                            <span class="balance-label">Số dư khả dụng</span>
+                        </div>
+                        <div class="balance-amount-wrapper">
+                            <h2 class="balance-amount" id="heroBalance">0đ</h2>
+                        </div>
+                        <button class="balance-expand-btn" id="expandBalanceBtn">
+                            <span>+ xem chi tiết</span>
+                        </button>
                     </div>
-                </div>
-                <div class="stat-card gradient-blue">
-                    <div class="stat-icon">📦</div>
-                    <div class="stat-content">
-                        <h3 class="stat-value" id="totalOrders">0</h3>
-                        <p class="stat-label">Tổng đơn hàng</p>
+                </section>
+
+                <!-- Stats Cards Grid (Mobile: 2 cols, Desktop: 4 cols) -->
+                <section class="stats-section">
+                    <div class="stats-grid">
+                        <div class="stat-card stat-approved">
+                            <div class="stat-icon">✅</div>
+                            <div class="stat-content">
+                                <p class="stat-label">Đã duyệt</p>
+                                <h3 class="stat-value" id="approvedBalance">0đ</h3>
+                            </div>
+                        </div>
+                        <div class="stat-card stat-pending">
+                            <div class="stat-icon">⏳</div>
+                            <div class="stat-content">
+                                <p class="stat-label">Chờ duyệt</p>
+                                <h3 class="stat-value" id="pendingBalance">0đ</h3>
+                            </div>
+                        </div>
+                        <div class="stat-card stat-total">
+                            <div class="stat-icon">📦</div>
+                            <div class="stat-content">
+                                <p class="stat-label">Tổng đơn</p>
+                                <h3 class="stat-value" id="totalOrders">0</h3>
+                            </div>
+                        </div>
+                        <div class="stat-card stat-rate">
+                            <div class="stat-icon">📊</div>
+                            <div class="stat-content">
+                                <p class="stat-label">Tỷ lệ duyệt</p>
+                                <h3 class="stat-value" id="approvalRate">0%</h3>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div class="stat-card gradient-purple">
-                    <div class="stat-icon">✅</div>
-                    <div class="stat-content">
-                        <h3 class="stat-value" id="approvedOrders">0</h3>
-                        <p class="stat-label">Đã duyệt</p>
-                    </div>
-                </div>
-            </div>
-        </section>
+                </section>
 
         <!-- Merchants Section -->
         <section class="section">
@@ -100,12 +132,38 @@
                 <!-- Merchants will be loaded here -->
                 <div class="loading">Đang tải...</div>
             </div>
+
+            <!-- Carousel Navigation (Mobile only) -->
+            <div class="merchants-carousel-nav mobile-only" id="merchantsCarouselNav" style="display: none;">
+                <button class="carousel-nav-btn" id="prevCarouselBtn" aria-label="Previous">←</button>
+                <span class="carousel-page-info" id="carouselPageInfo">1 / 1</span>
+                <button class="carousel-nav-btn" id="nextCarouselBtn" aria-label="Next">→</button>
+            </div>
+
+            <!-- Pagination (Desktop only) -->
+            <div class="merchants-pagination desktop-only" id="merchantsPagination" style="display: none;">
+                <button id="prevMerchantsBtn" disabled>← Trước</button>
+                <span id="merchantsPageInfo">Trang 1</span>
+                <button id="nextMerchantsBtn">Sau →</button>
+            </div>
         </section>
 
         <!-- Recent Clicks Section -->
         <section class="section">
-            <h2 class="section-title">🖱️ Lượt click gần đây</h2>
-            <div class="table-container">
+            <div class="section-header">
+                <h2 class="section-title">📜 Lịch sử gần đây</h2>
+                <a href="/history" class="section-link">Xem tất cả →</a>
+            </div>
+
+            <!-- Mobile: Card List -->
+            <div class="history-cards mobile-only" id="historyCardsList">
+                <div class="empty-state-card">
+                    <p>Chưa có lịch sử click nào</p>
+                </div>
+            </div>
+
+            <!-- Desktop: Table -->
+            <div class="table-container desktop-only">
                 <table class="orders-table">
                     <thead>
                         <tr>
@@ -128,10 +186,21 @@
             </div>
 
             <!-- Pagination for Recent Clicks -->
-            <div class="pagination" id="clicksPagination" style="display: none; margin-top: 20px; justify-content: center; align-items: center; gap: 12px;">
-                <button class="btn-secondary" id="prevClicksBtn" disabled style="padding: 8px 16px;">« Trước</button>
-                <span id="clicksPageInfo" style="color: #666; font-weight: 500;">Trang 1</span>
-                <button class="btn-secondary" id="nextClicksBtn" style="padding: 8px 16px;">Sau »</button>
+            <div class="pagination" id="clicksPagination" style="display: none; margin-top: 20px; justify-content: space-between; align-items: center; gap: 12px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <label for="clicksPerPageSelect" style="color: #666; font-size: 0.9rem;">Hiển thị:</label>
+                    <select id="clicksPerPageSelect" style="padding: 6px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem;">
+                        <option value="10">10</option>
+                        <option value="20" selected>20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <button class="btn-secondary" id="prevClicksBtn" disabled style="padding: 8px 16px;">« Trước</button>
+                    <span id="clicksPageInfo" style="color: #666; font-weight: 500;">Trang 1</span>
+                    <button class="btn-secondary" id="nextClicksBtn" style="padding: 8px 16px;">Sau »</button>
+                </div>
             </div>
         </section>
     </div>

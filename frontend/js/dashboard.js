@@ -15,7 +15,11 @@ if (user && user.is_admin) {
 let currentMerchant = null;
 let merchants = [];
 let currentClicksPage = 0;
-const clicksPerPage = 10;
+let clicksPerPage = 20; // Default: 20 items per page
+let currentMerchantsPage = 0;
+const merchantsPerPage = 10; // Desktop: 10 merchants per page
+let currentCarouselSlide = 0; // Mobile: carousel slide index
+const merchantsPerSlide = 6; // Mobile: 6 merchants per slide (3x2 grid)
 
 // DOM Elements
 const userName = document.getElementById('userName');
@@ -51,39 +55,8 @@ async function init() {
 }
 
 /**
- * Load dashboard stats
+ * Load dashboard stats (defined later with mobile enhancements)
  */
-async function loadStats() {
-    try {
-        console.log('Loading dashboard stats...');
-        const response = await apiRequest('/dashboard/stats');
-        console.log('Stats response:', response);
-
-        if (response && response.success) {
-            const stats = response.stats;
-            console.log('Stats data:', stats);
-
-            // Update UI with stats
-            availableBalance.textContent = formatCurrency(stats.availableBalance || 0);
-            pendingBalance.textContent = formatCurrency(stats.pendingBalance || 0);
-            totalOrders.textContent = stats.totalConversions || 0;
-            approvedOrders.textContent = stats.approvedConversions || 0;
-
-            console.log('Stats loaded successfully');
-        } else {
-            console.error('Stats response not successful:', response);
-        }
-    } catch (error) {
-        console.error('Error loading stats:', error);
-        console.error('Error details:', error.message, error.stack);
-
-        // Show error to user (optional)
-        availableBalance.textContent = '0 đ';
-        pendingBalance.textContent = '0 đ';
-        totalOrders.textContent = '0';
-        approvedOrders.textContent = '0';
-    }
-}
 
 /**
  * Load merchants
@@ -103,7 +76,7 @@ async function loadMerchants() {
 }
 
 /**
- * Render merchants grid
+ * Render merchants grid (with carousel on mobile, pagination on desktop)
  */
 function renderMerchants() {
     if (merchants.length === 0) {
@@ -111,18 +84,193 @@ function renderMerchants() {
         return;
     }
 
-    merchantsGrid.innerHTML = merchants.map(merchant => `
-        <div class="merchant-card" onclick="openMerchantModal('${merchant.id}')">
-            <img src="${merchant.logoUrl || 'https://via.placeholder.com/80'}" alt="${merchant.name}" class="merchant-logo">
-            <div class="merchant-name">${merchant.name}</div>
-            <div class="merchant-commission">Hoa hồng: ${merchant.commissionRate}</div>
-            <button class="merchant-btn">Mua ngay</button>
-        </div>
-    `).join('');
+    // Check if desktop (>768px) - use pagination
+    const isDesktop = window.innerWidth > 768;
+
+    if (isDesktop) {
+        // Desktop: Show paginated merchants
+        const startIndex = currentMerchantsPage * merchantsPerPage;
+        const endIndex = startIndex + merchantsPerPage;
+        const paginatedMerchants = merchants.slice(startIndex, endIndex);
+
+        merchantsGrid.innerHTML = paginatedMerchants.map(merchant => `
+            <div class="merchant-card" onclick="openMerchantModal('${merchant.id}')">
+                <img src="${merchant.logoUrl || 'https://via.placeholder.com/80'}" alt="${merchant.name}" class="merchant-logo">
+                <div class="merchant-name">${merchant.name}</div>
+                <div class="merchant-commission">Hoa hồng: ${merchant.commissionRate}</div>
+                <button class="merchant-btn">Mua ngay</button>
+            </div>
+        `).join('');
+
+        // Update pagination controls
+        updateMerchantsPagination();
+    } else {
+        // Mobile: Show carousel (6 merchants per slide)
+        const startIndex = currentCarouselSlide * merchantsPerSlide;
+        const endIndex = startIndex + merchantsPerSlide;
+        const slideMerchants = merchants.slice(startIndex, endIndex);
+
+        merchantsGrid.innerHTML = slideMerchants.map(merchant => `
+            <div class="merchant-card" onclick="openMerchantModal('${merchant.id}')">
+                <img src="${merchant.logoUrl || 'https://via.placeholder.com/80'}" alt="${merchant.name}" class="merchant-logo">
+                <div class="merchant-name">${merchant.name}</div>
+                <div class="merchant-commission">Hoa hồng: ${merchant.commissionRate}</div>
+                <button class="merchant-btn">Mua ngay</button>
+            </div>
+        `).join('');
+
+        // Update carousel controls
+        updateCarouselNav();
+    }
 }
 
 /**
- * Load recent orders with pagination
+ * Update merchants pagination controls (Desktop)
+ */
+function updateMerchantsPagination() {
+    const pagination = document.getElementById('merchantsPagination');
+    const prevBtn = document.getElementById('prevMerchantsBtn');
+    const nextBtn = document.getElementById('nextMerchantsBtn');
+    const pageInfo = document.getElementById('merchantsPageInfo');
+
+    if (!pagination || !prevBtn || !nextBtn || !pageInfo) return;
+
+    const totalPages = Math.ceil(merchants.length / merchantsPerPage);
+
+    // Show/hide pagination
+    pagination.style.display = totalPages > 1 ? 'flex' : 'none';
+
+    // Update page info
+    pageInfo.textContent = `Trang ${currentMerchantsPage + 1} / ${totalPages}`;
+
+    // Update buttons
+    prevBtn.disabled = currentMerchantsPage === 0;
+    nextBtn.disabled = currentMerchantsPage >= totalPages - 1;
+}
+
+/**
+ * Update carousel navigation controls (Mobile)
+ */
+function updateCarouselNav() {
+    const carouselNav = document.getElementById('merchantsCarouselNav');
+    const prevBtn = document.getElementById('prevCarouselBtn');
+    const nextBtn = document.getElementById('nextCarouselBtn');
+    const pageInfo = document.getElementById('carouselPageInfo');
+
+    if (!carouselNav || !prevBtn || !nextBtn || !pageInfo) return;
+
+    const totalSlides = Math.ceil(merchants.length / merchantsPerSlide);
+
+    // Show/hide carousel nav
+    carouselNav.style.display = totalSlides > 1 ? 'flex' : 'none';
+
+    // Update page info
+    pageInfo.textContent = `${currentCarouselSlide + 1} / ${totalSlides}`;
+
+    // Update buttons
+    prevBtn.disabled = currentCarouselSlide === 0;
+    nextBtn.disabled = currentCarouselSlide >= totalSlides - 1;
+}
+
+/**
+ * Helper: Format time ago (e.g., "2 giờ trước", "Hôm qua")
+ */
+function formatTimeAgo(date) {
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Vừa xong';
+    if (diffMins < 60) return `${diffMins} phút trước`;
+    if (diffHours < 24) return `${diffHours} giờ trước`;
+    if (diffDays === 1) return 'Hôm qua';
+    if (diffDays < 7) return `${diffDays} ngày trước`;
+
+    return date.toLocaleDateString('vi-VN');
+}
+
+/**
+ * Helper: Escape HTML
+ */
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
+ * Render mobile history cards
+ */
+function renderMobileHistoryCards(orders) {
+    const historyCardsList = document.getElementById('historyCardsList');
+
+    if (!historyCardsList) {
+        console.error('historyCardsList element not found!');
+        return;
+    }
+
+    if (!orders || orders.length === 0) {
+        historyCardsList.innerHTML = `
+            <div class="empty-state-card">
+                <p>Chưa có lịch sử click nào</p>
+            </div>
+        `;
+        return;
+    }
+
+    historyCardsList.innerHTML = orders.map(order => {
+        // Match desktop logic: check hasConversion first
+        let statusClass = '';
+        let statusText = '';
+
+        if (order.hasConversion) {
+            // Has conversion - show actual status
+            statusClass = order.conversionStatus === 'approved' ? 'success' :
+                         order.conversionStatus === 'pending' ? 'pending' : 'rejected';
+            statusText = order.conversionStatus === 'approved' ? '✅ Đã duyệt' :
+                        order.conversionStatus === 'pending' ? '⏳ Đang xử lý' : '❌ Hủy';
+        } else {
+            // No conversion yet - show "Chưa mua"
+            statusClass = 'not-purchased';
+            statusText = '⏸️ Chưa mua';
+        }
+
+        const timeAgo = formatTimeAgo(new Date(order.clickedAt));
+        const cashback = order.cashback || 0;
+
+        // Generate link button HTML
+        const linkButton = order.affiliateUrl
+            ? `<button class="history-link-btn" onclick="window.open('${escapeHtml(order.affiliateUrl)}', '_blank')">
+                 🔗 Mở link
+               </button>`
+            : `<button class="history-link-btn" disabled style="opacity: 0.5;">
+                 🔗 Không có link
+               </button>`;
+
+        return `
+            <div class="history-card">
+                <div class="history-card-header">
+                    <span class="history-merchant">🛒 ${escapeHtml(order.merchantName)}</span>
+                    ${linkButton}
+                </div>
+                <div class="history-card-body">
+                    <div class="history-card-row">
+                        <span class="history-amount">+${formatCurrency(cashback)}</span>
+                        <span class="history-time">${timeAgo}</span>
+                    </div>
+                    <div class="history-card-row">
+                        <span class="history-status ${statusClass}">${statusText}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * Load recent orders with pagination (mobile + desktop)
  */
 async function loadRecentOrders() {
     try {
@@ -130,12 +278,25 @@ async function loadRecentOrders() {
         const response = await apiRequest(`/dashboard/recent-clicks?limit=${clicksPerPage}&offset=${offset}`);
 
         if (response.success) {
-            // Backend already sorted: clicks with conversions first, then by date
+            // Render desktop table
             renderRecentOrders(response.clicks);
             updateClicksPagination(response.clicks.length);
+
+            // Render mobile cards
+            renderMobileHistoryCards(response.clicks);
         }
     } catch (error) {
-        console.error('Error loading recent orders:', error);
+        console.error('❌ Error loading recent orders:', error);
+
+        // Show error in mobile cards too
+        const historyCardsList = document.getElementById('historyCardsList');
+        if (historyCardsList) {
+            historyCardsList.innerHTML = `
+                <div class="empty-state-card">
+                    <p>Lỗi tải lịch sử. Vui lòng thử lại.</p>
+                </div>
+            `;
+        }
     }
 }
 
@@ -203,7 +364,11 @@ function updateClicksPagination(clicksCount) {
         pagination.style.display = 'flex';
         prevBtn.disabled = currentClicksPage === 0;
         nextBtn.disabled = clicksCount < clicksPerPage;
-        pageInfo.textContent = `Trang ${currentClicksPage + 1}`;
+
+        // Display range info (e.g., "1-20 | Trang 1")
+        const startItem = currentClicksPage * clicksPerPage + 1;
+        const endItem = startItem + clicksCount - 1;
+        pageInfo.textContent = `${startItem}-${endItem} | Trang ${currentClicksPage + 1}`;
     } else {
         pagination.style.display = 'none';
     }
@@ -214,26 +379,52 @@ function updateClicksPagination(clicksCount) {
  */
 function openMerchantModal(merchantId) {
     const merchant = merchants.find(m => m.id === merchantId);
-    if (!merchant) return;
+    if (!merchant) {
+        console.error('Merchant not found:', merchantId);
+        return;
+    }
 
     currentMerchant = merchant;
 
+    // Get modal elements with defensive checks
+    const modalLogo = document.getElementById('modalMerchantLogo');
+    const modalName = document.getElementById('modalMerchantName');
+    const nameOption1 = document.getElementById('merchantNameOption1');
+    const nameBtn1 = document.getElementById('merchantNameBtn1');
+    const nameOption2 = document.getElementById('merchantNameOption2');
+    const modal = document.getElementById('merchantModal');
+    const productInput = document.getElementById('productUrlInput');
+
+    // Validate all required elements exist
+    if (!modalLogo || !modalName || !nameOption1 || !nameBtn1 || !nameOption2 || !modal || !productInput) {
+        console.error('Modal elements not found. Missing:', {
+            modalLogo: !modalLogo,
+            modalName: !modalName,
+            nameOption1: !nameOption1,
+            nameBtn1: !nameBtn1,
+            nameOption2: !nameOption2,
+            modal: !modal,
+            productInput: !productInput
+        });
+        return;
+    }
+
     // Update modal content
-    document.getElementById('modalMerchantLogo').src = merchant.logoUrl || 'https://via.placeholder.com/80';
-    document.getElementById('modalMerchantName').textContent = merchant.name;
-    document.getElementById('merchantNameOption1').textContent = merchant.name;
-    document.getElementById('merchantNameBtn1').textContent = merchant.name;
-    document.getElementById('merchantNameOption2').textContent = merchant.name;
+    modalLogo.src = merchant.logoUrl || 'https://via.placeholder.com/80';
+    modalName.textContent = merchant.name;
+    nameOption1.textContent = merchant.name;
+    nameBtn1.textContent = merchant.name;
+    nameOption2.textContent = merchant.name;
 
     // Update placeholder with merchant's domain
     const placeholderUrl = getMerchantPlaceholder(merchant.id, merchant.deepLinkBase);
-    productUrlInput.placeholder = placeholderUrl;
+    productInput.placeholder = placeholderUrl;
 
     // Clear input
-    productUrlInput.value = '';
+    productInput.value = '';
 
     // Show modal
-    merchantModal.classList.add('show');
+    modal.classList.add('show');
 }
 
 /**
@@ -269,20 +460,30 @@ function getMerchantPlaceholder(merchantId, deepLinkBase) {
  * Close merchant modal
  */
 function closeMerchantModal() {
-    merchantModal.classList.remove('show');
+    const modal = document.getElementById('merchantModal');
+    const productInput = document.getElementById('productUrlInput');
+    const freeBtn = document.getElementById('freeShoppingBtn');
+    const generateBtn = document.getElementById('generateLinkBtn');
+
+    if (modal) {
+        modal.classList.remove('show');
+    }
 
     // Reset state
     currentMerchant = null;
-    productUrlInput.value = '';
+
+    if (productInput) {
+        productInput.value = '';
+    }
 
     // Reset buttons
-    if (freeShoppingBtn) {
-        freeShoppingBtn.disabled = false;
-        freeShoppingBtn.innerHTML = 'Đi đến ' + (currentMerchant?.name || 'Shopee');
+    if (freeBtn) {
+        freeBtn.disabled = false;
+        freeBtn.innerHTML = 'Đi đến ' + (currentMerchant?.name || 'Merchant');
     }
-    if (generateLinkBtn) {
-        generateLinkBtn.disabled = false;
-        generateLinkBtn.innerHTML = 'Tạo link mua hàng';
+    if (generateBtn) {
+        generateBtn.disabled = false;
+        generateBtn.innerHTML = 'Tạo link mua hàng';
     }
 }
 
@@ -292,10 +493,13 @@ function closeMerchantModal() {
 async function handleFreeShoppingClick() {
     if (!currentMerchant) return;
 
+    const freeBtn = document.getElementById('freeShoppingBtn');
+    if (!freeBtn) return;
+
     // Disable button and show loading
-    freeShoppingBtn.disabled = true;
-    const originalText = freeShoppingBtn.innerHTML;
-    freeShoppingBtn.innerHTML = '<span class="spinner"></span> Đang tạo link...';
+    freeBtn.disabled = true;
+    const originalText = freeBtn.innerHTML;
+    freeBtn.innerHTML = '<span class="spinner"></span> Đang tạo link...';
 
     try {
         // Show loading toast
@@ -325,8 +529,10 @@ async function handleFreeShoppingClick() {
         showToast(error.message || 'Không thể tạo link', 'error');
 
         // Restore button
-        freeShoppingBtn.disabled = false;
-        freeShoppingBtn.innerHTML = originalText;
+        if (freeBtn) {
+            freeBtn.disabled = false;
+            freeBtn.innerHTML = originalText;
+        }
     }
 }
 
@@ -336,7 +542,12 @@ async function handleFreeShoppingClick() {
 async function handleGenerateLinkClick() {
     if (!currentMerchant) return;
 
-    const productUrl = productUrlInput.value.trim();
+    const productInput = document.getElementById('productUrlInput');
+    const generateBtn = document.getElementById('generateLinkBtn');
+
+    if (!productInput || !generateBtn) return;
+
+    const productUrl = productInput.value.trim();
 
     // Validate URL
     if (!productUrl) {
@@ -350,9 +561,9 @@ async function handleGenerateLinkClick() {
     }
 
     // Disable button and show loading
-    generateLinkBtn.disabled = true;
-    const originalText = generateLinkBtn.innerHTML;
-    generateLinkBtn.innerHTML = '<span class="spinner"></span> Đang tạo link...';
+    generateBtn.disabled = true;
+    const originalText = generateBtn.innerHTML;
+    generateBtn.innerHTML = '<span class="spinner"></span> Đang tạo link...';
 
     try {
         // Show loading toast
@@ -383,17 +594,19 @@ async function handleGenerateLinkClick() {
         showToast(error.message || 'Không thể tạo link', 'error');
 
         // Restore button
-        generateLinkBtn.disabled = false;
-        generateLinkBtn.innerHTML = originalText;
+        if (generateBtn) {
+            generateBtn.disabled = false;
+            generateBtn.innerHTML = originalText;
+        }
     }
 }
 
-// Event Listeners
-closeModal.addEventListener('click', closeMerchantModal);
-merchantModal.querySelector('.modal-overlay')?.addEventListener('click', closeMerchantModal);
-freeShoppingBtn.addEventListener('click', handleFreeShoppingClick);
-generateLinkBtn.addEventListener('click', handleGenerateLinkClick);
-logoutBtn.addEventListener('click', (e) => {
+// Event Listeners - with null checks
+closeModal?.addEventListener('click', closeMerchantModal);
+merchantModal?.querySelector('.modal-overlay')?.addEventListener('click', closeMerchantModal);
+freeShoppingBtn?.addEventListener('click', handleFreeShoppingClick);
+generateLinkBtn?.addEventListener('click', handleGenerateLinkClick);
+logoutBtn?.addEventListener('click', (e) => {
     e.preventDefault();
     logout();
 });
@@ -411,9 +624,196 @@ document.getElementById('nextClicksBtn')?.addEventListener('click', () => {
     loadRecentOrders();
 });
 
+// Items per page selector
+document.getElementById('clicksPerPageSelect')?.addEventListener('change', (e) => {
+    clicksPerPage = parseInt(e.target.value);
+    currentClicksPage = 0; // Reset to first page
+    loadRecentOrders();
+});
+
 // Close modal on ESC key
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && merchantModal.classList.contains('show')) {
+    const modal = document.getElementById('merchantModal');
+    if (e.key === 'Escape' && modal?.classList.contains('show')) {
         closeMerchantModal();
     }
 });
+
+/* ============================================
+   MOBILE-FIRST ENHANCEMENTS
+   ============================================ */
+
+// Mobile Sidebar Toggle
+const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+const sidebar = document.getElementById('sidebar');
+const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+if (mobileMenuToggle && sidebar && sidebarOverlay) {
+    // Toggle sidebar on button click
+    mobileMenuToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('active');
+        sidebarOverlay.classList.toggle('active');
+    });
+
+    // Close sidebar when clicking overlay
+    sidebarOverlay.addEventListener('click', () => {
+        sidebar.classList.remove('active');
+        sidebarOverlay.classList.remove('active');
+    });
+
+    // Close sidebar when clicking nav item
+    const navItems = sidebar.querySelectorAll('.nav-item');
+    navItems.forEach(item => {
+        item.addEventListener('click', () => {
+            sidebar.classList.remove('active');
+            sidebarOverlay.classList.remove('active');
+        });
+    });
+}
+
+// Update Hero Balance Card
+async function updateHeroBalance() {
+    try {
+        const response = await apiRequest('/dashboard/stats');
+        if (response && response.success) {
+            const heroBalance = document.getElementById('heroBalance');
+            const mobileUserName = document.getElementById('mobileUserName');
+            const avatarInitial = document.getElementById('avatarInitial');
+
+            if (heroBalance) {
+                heroBalance.textContent = formatCurrency(response.stats.availableBalance || 0);
+            }
+
+            // Update mobile user name and avatar (prefer full_name)
+            const user = getUser();
+            if (user) {
+                // Priority: full_name > username > 'User'
+                const displayName = user.full_name || user.username || 'User';
+
+                if (mobileUserName) {
+                    mobileUserName.textContent = displayName;
+                    console.log('Mobile user name updated:', displayName);
+                }
+                if (avatarInitial) {
+                    avatarInitial.textContent = displayName.charAt(0).toUpperCase();
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error updating hero balance:', error);
+    }
+}
+
+// Update stats to also update hero balance and new stat cards
+async function loadStats() {
+    try {
+        console.log('Loading dashboard stats...');
+        const response = await apiRequest('/dashboard/stats');
+        console.log('Stats response:', response);
+
+        if (response && response.success) {
+            const stats = response.stats;
+            console.log('Stats data:', stats);
+
+            // Update old stat cards (if they exist)
+            if (availableBalance) availableBalance.textContent = formatCurrency(stats.availableBalance || 0);
+            if (pendingBalance) pendingBalance.textContent = formatCurrency(stats.pendingBalance || 0);
+            if (totalOrders) totalOrders.textContent = stats.totalConversions || 0;
+            if (approvedOrders) approvedOrders.textContent = stats.approvedConversions || 0;
+
+            // Update new mobile-optimized cards
+            const heroBalance = document.getElementById('heroBalance');
+            const approvedBalance = document.getElementById('approvedBalance');
+            const approvalRate = document.getElementById('approvalRate');
+
+            if (heroBalance) {
+                heroBalance.textContent = formatCurrency(stats.availableBalance || 0);
+            }
+
+            if (approvedBalance) {
+                approvedBalance.textContent = formatCurrency(stats.approvedBalance || 0);
+            }
+
+            if (approvalRate) {
+                const total = stats.totalConversions || 0;
+                const approved = stats.approvedConversions || 0;
+                const rate = total > 0 ? ((approved / total) * 100).toFixed(1) : 0;
+                approvalRate.textContent = `${rate}%`;
+            }
+
+            console.log('Stats loaded successfully');
+        } else {
+            console.error('Stats response not successful:', response);
+        }
+    } catch (error) {
+        console.error('Error loading stats:', error);
+        console.error('Error details:', error.message, error.stack);
+    }
+}
+
+// Balance expand button handler
+const expandBalanceBtn = document.getElementById('expandBalanceBtn');
+if (expandBalanceBtn) {
+    expandBalanceBtn.addEventListener('click', () => {
+        // Navigate to history page
+        window.location.href = '/history';
+    });
+}
+
+// Initialize mobile enhancements on load
+updateHeroBalance();
+
+// Merchants pagination event listeners
+document.getElementById('prevMerchantsBtn')?.addEventListener('click', () => {
+    if (currentMerchantsPage > 0) {
+        currentMerchantsPage--;
+        renderMerchants();
+    }
+});
+
+document.getElementById('nextMerchantsBtn')?.addEventListener('click', () => {
+    const totalPages = Math.ceil(merchants.length / merchantsPerPage);
+    if (currentMerchantsPage < totalPages - 1) {
+        currentMerchantsPage++;
+        renderMerchants();
+    }
+});
+
+// Carousel navigation event listeners (Mobile)
+document.getElementById('prevCarouselBtn')?.addEventListener('click', () => {
+    if (currentCarouselSlide > 0) {
+        currentCarouselSlide--;
+        renderMerchants();
+    }
+});
+
+document.getElementById('nextCarouselBtn')?.addEventListener('click', () => {
+    const totalSlides = Math.ceil(merchants.length / merchantsPerSlide);
+    if (currentCarouselSlide < totalSlides - 1) {
+        currentCarouselSlide++;
+        renderMerchants();
+    }
+});
+
+// Re-render merchants on window resize (switch between mobile/desktop)
+let resizeTimer;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+        if (merchants.length > 0) {
+            renderMerchants();
+        }
+    }, 250);
+});
+
+// Update desktop user name (prefer full_name)
+const desktopUserName = document.getElementById('desktopUserName');
+if (desktopUserName) {
+    const user = getUser();
+    if (user) {
+        // Priority: full_name > username > 'User'
+        const displayName = user.full_name || user.username || 'User';
+        desktopUserName.textContent = displayName;
+        console.log('Desktop user name updated:', displayName);
+    }
+}

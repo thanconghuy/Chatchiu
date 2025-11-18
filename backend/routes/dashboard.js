@@ -71,17 +71,36 @@ router.get('/stats', authenticateToken, async (req, res) => {
  */
 router.get('/merchants', async (req, res) => {
   try {
-    const merchants = await Merchant.getAll(true);
+    // Get merchants with conversion counts
+    const query = `
+      SELECT
+        m.id,
+        m.name,
+        m.logo_url,
+        m.commission_rate,
+        m.deep_link_base,
+        m.policy_note,
+        m.is_active,
+        COUNT(DISTINCT sc.id) as conversion_count
+      FROM merchants m
+      LEFT JOIN system_conversions sc ON sc.merchant_id = m.id AND sc.status = 'approved'
+      WHERE m.is_active = true
+      GROUP BY m.id, m.name, m.logo_url, m.commission_rate, m.deep_link_base, m.policy_note, m.is_active
+      ORDER BY conversion_count DESC, m.name ASC
+    `;
+
+    const result = await pool.query(query);
 
     res.json({
       success: true,
-      merchants: merchants.map(m => ({
+      merchants: result.rows.map(m => ({
         id: m.id,
         name: m.name,
         logoUrl: m.logo_url,
         commissionRate: m.commission_rate,
         deepLinkBase: m.deep_link_base,
-        policyNote: m.policy_note
+        policyNote: m.policy_note,
+        conversionCount: parseInt(m.conversion_count) || 0
       }))
     });
   } catch (error) {
