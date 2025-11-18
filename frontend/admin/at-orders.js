@@ -49,6 +49,10 @@ const merchantFilterMenu = document.getElementById('merchantFilterMenu');
 const merchantSearchInput = document.getElementById('merchantSearchInput');
 const merchantOptions = document.getElementById('merchantOptions');
 
+const utmSourceFilterBtn = document.getElementById('utmSourceFilterBtn');
+const utmSourceFilterText = document.getElementById('utmSourceFilterText');
+const utmSourceFilterMenu = document.getElementById('utmSourceFilterMenu');
+
 // Stats elements - General
 const statTotal = document.getElementById('statTotal');
 const statTotalValue = document.getElementById('statTotalValue');
@@ -170,6 +174,9 @@ function setupEventListeners() {
         if (merchantFilterBtn && merchantFilterMenu && !merchantFilterBtn.contains(e.target)) {
             merchantFilterMenu.classList.remove('show');
         }
+        if (utmSourceFilterBtn && utmSourceFilterMenu && !utmSourceFilterBtn.contains(e.target)) {
+            utmSourceFilterMenu.classList.remove('show');
+        }
     });
 
     if (prevBtn) {
@@ -242,6 +249,7 @@ function setupFilterDropdowns() {
         statusFilterMenu.classList.toggle('show');
         confirmedFilterMenu.classList.remove('show');
         merchantFilterMenu.classList.remove('show');
+        utmSourceFilterMenu.classList.remove('show');
     });
 
     statusFilterMenu.querySelectorAll('.filter-option').forEach(option => {
@@ -266,6 +274,7 @@ function setupFilterDropdowns() {
         confirmedFilterMenu.classList.toggle('show');
         statusFilterMenu.classList.remove('show');
         merchantFilterMenu.classList.remove('show');
+        utmSourceFilterMenu.classList.remove('show');
     });
 
     confirmedFilterMenu.querySelectorAll('.filter-option').forEach(option => {
@@ -290,6 +299,7 @@ function setupFilterDropdowns() {
         merchantFilterMenu.classList.toggle('show');
         statusFilterMenu.classList.remove('show');
         confirmedFilterMenu.classList.remove('show');
+        utmSourceFilterMenu.classList.remove('show');
     });
 
     // Merchant search
@@ -307,6 +317,31 @@ function setupFilterDropdowns() {
     });
 
     setupMerchantOptions();
+
+    // UTM Source filter dropdown
+    utmSourceFilterBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        utmSourceFilterMenu.classList.toggle('show');
+        statusFilterMenu.classList.remove('show');
+        confirmedFilterMenu.classList.remove('show');
+        merchantFilterMenu.classList.remove('show');
+    });
+
+    utmSourceFilterMenu.querySelectorAll('.filter-option').forEach(option => {
+        option.addEventListener('click', () => {
+            const value = option.getAttribute('data-value');
+            currentFilters.utmSource = value;
+            utmSourceFilterText.textContent = option.textContent;
+
+            // Update selected state
+            utmSourceFilterMenu.querySelectorAll('.filter-option').forEach(o => o.classList.remove('selected'));
+            option.classList.add('selected');
+
+            utmSourceFilterMenu.classList.remove('show');
+            currentPage = 1;
+            loadOrders();
+        });
+    });
 }
 
 /**
@@ -362,6 +397,10 @@ function resetFilters() {
     merchantOptions.querySelectorAll('.filter-option').forEach(o => o.classList.remove('selected'));
     merchantOptions.querySelector('[data-value=""]').classList.add('selected');
 
+    utmSourceFilterText.textContent = 'Tất cả';
+    utmSourceFilterMenu.querySelectorAll('.filter-option').forEach(o => o.classList.remove('selected'));
+    utmSourceFilterMenu.querySelector('[data-value=""]').classList.add('selected');
+
     loadOrders();
 }
 
@@ -385,6 +424,10 @@ function buildFilters() {
 
     if (currentFilters.merchant) {
         filters.merchant = currentFilters.merchant;
+    }
+
+    if (currentFilters.utmSource) {
+        filters.utmSource = currentFilters.utmSource;
     }
 
     if (filterUser.value.trim()) {

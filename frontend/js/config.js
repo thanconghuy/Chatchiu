@@ -38,19 +38,22 @@ function formatCurrency(amount) {
 }
 
 /**
- * Format date
- * @param {string} dateString
+ * Format date - Always display in Vietnam timezone
+ * @param {string} dateString - ISO date string from backend
  * @returns {string}
  */
 function formatDate(dateString) {
+    if (!dateString) return '-';
     const date = new Date(dateString);
-    return date.toLocaleDateString('vi-VN', {
+    // Force Vietnam timezone regardless of client/server timezone
+    return date.toLocaleString('vi-VN', {
         timeZone: 'Asia/Ho_Chi_Minh',
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
-        minute: '2-digit'
+        minute: '2-digit',
+        hour12: false
     });
 }
 

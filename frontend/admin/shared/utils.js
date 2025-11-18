@@ -6,7 +6,10 @@
  */
 
 /**
- * Format date for display
+ * Format date for display - Always display in Vietnam timezone
+ * @param {string} dateString - ISO date string from backend
+ * @param {boolean} includeTime - Include time in output
+ * @returns {string}
  */
 function formatDate(dateString, includeTime = false) {
     if (!dateString) return '-';
@@ -14,16 +17,19 @@ function formatDate(dateString, includeTime = false) {
     const date = new Date(dateString);
 
     if (includeTime) {
+        // Force Vietnam timezone regardless of client/server timezone
         return date.toLocaleString('vi-VN', {
             timeZone: 'Asia/Ho_Chi_Minh',
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',
             hour: '2-digit',
-            minute: '2-digit'
+            minute: '2-digit',
+            hour12: false
         });
     }
 
+    // Force Vietnam timezone regardless of client/server timezone
     return date.toLocaleDateString('vi-VN', {
         timeZone: 'Asia/Ho_Chi_Minh',
         day: '2-digit',
