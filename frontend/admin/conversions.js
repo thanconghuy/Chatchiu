@@ -169,6 +169,7 @@ async function loadConversions() {
         if (response.success) {
             renderConversions(response.conversions);
             updatePagination(response.conversions.length);
+            // Stats removed to simplify
         }
     } catch (error) {
         console.error('Error loading conversions:', error);
@@ -291,6 +292,50 @@ function updatePagination(itemCount) {
     pageInfo.textContent = `Trang ${currentPage + 1}`;
     prevBtn.disabled = currentPage === 0;
     nextBtn.disabled = itemCount < itemsPerPage;
+}
+
+/**
+ * Update statistics cards
+ */
+function updateStats(stats) {
+    if (!stats) return;
+
+    // Pending orders
+    document.getElementById('statPending').textContent = stats.pending.count.toLocaleString();
+    document.getElementById('statPendingAmount').textContent = formatCurrency(stats.pending.amount);
+
+    // Rejected orders
+    document.getElementById('statRejected').textContent = stats.rejected.count.toLocaleString();
+    document.getElementById('statRejectedAmount').textContent = formatCurrency(stats.rejected.amount);
+
+    // Approved orders
+    document.getElementById('statApproved').textContent = stats.approved.count.toLocaleString();
+    document.getElementById('statApprovedAmount').textContent = formatCurrency(stats.approved.amount);
+
+    // Confirmed orders
+    document.getElementById('statConfirmed').textContent = stats.confirmed.count.toLocaleString();
+    document.getElementById('statConfirmedAmount').textContent = formatCurrency(stats.confirmed.amount);
+
+    // Unconfirmed orders
+    document.getElementById('statUnconfirmed').textContent = stats.unconfirmed.count.toLocaleString();
+    document.getElementById('statUnconfirmedAmount').textContent = formatCurrency(stats.unconfirmed.amount);
+
+    // Financial summary (3 cards)
+    // Total commission (need to calculate from approved/pending/rejected)
+    const totalCommission = (stats.approved?.commission || 0) + (stats.pending?.commission || 0) + (stats.rejected?.commission || 0);
+    document.getElementById('statTotalCommission').textContent = formatCurrency(totalCommission);
+    document.getElementById('statApprovedCommission').textContent = `Đã duyệt: ${formatCurrency(stats.approved?.commission || 0)}`;
+
+    // Total cashback (need to calculate from approved/pending/rejected)
+    const totalCashback = (stats.approved?.cashback || 0) + (stats.pending?.cashback || 0) + (stats.rejected?.cashback || 0);
+    document.getElementById('statTotalCashback').textContent = formatCurrency(totalCashback);
+    document.getElementById('statCashbackPaid').textContent = `Đã trả: ${formatCurrency(stats.approved?.cashback || 0)}`;
+
+    // Reconciliation rate
+    const totalOrders = stats.confirmed.count + stats.unconfirmed.count;
+    const reconciliationRate = totalOrders > 0 ? ((stats.confirmed.count / totalOrders) * 100).toFixed(1) : 0;
+    document.getElementById('statReconciliationRate').textContent = `${reconciliationRate}%`;
+    document.getElementById('statReconciledCount').textContent = `${stats.confirmed.count}/${totalOrders} đơn`;
 }
 
 /**

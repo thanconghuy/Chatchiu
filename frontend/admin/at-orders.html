@@ -535,7 +535,7 @@
             <div class="search-bar">
                 <div class="search-row">
                     <div class="search-input-group">
-                        <label for="searchKeyword">🔍 Tìm kiếm</label>
+                        <label for="searchKeyword">Tìm kiếm</label>
                         <input type="text" id="searchKeyword" placeholder="Order ID, Merchant, Aff Sid...">
                     </div>
                     <div class="search-input-group">
@@ -552,14 +552,14 @@
                     </div>
                 </div>
 
-                <div class="search-actions">
+                <div class="search-actions" style="justify-content: flex-end;">
                     <button class="btn-reset" id="resetBtn">🔄 Reset</button>
                     <button class="btn-search" id="searchBtn">🔍 Tìm kiếm</button>
                 </div>
             </div>
 
             <!-- Statistics - Tổng quan -->
-            <div class="stats-row">
+            <div class="stats-row" style="grid-template-columns: repeat(3, 1fr);">
                 <div class="stat-box">
                     <div class="stat-label">Tổng đơn hàng</div>
                     <div class="stat-value" id="statTotal">0</div>
@@ -623,7 +623,7 @@
 
             <!-- Table Filters (Above Table) -->
             <div class="table-filters">
-                <div class="filter-group">
+                <div class="filter-group" style="width: 220px;">
                     <label>TT Đơn hàng</label>
                     <div class="filter-dropdown">
                         <button class="filter-dropdown-btn" id="statusFilterBtn" type="button">
@@ -639,7 +639,7 @@
                     </div>
                 </div>
 
-                <div class="filter-group">
+                <div class="filter-group" style="width: 220px;">
                     <label>TT Đối soát</label>
                     <div class="filter-dropdown">
                         <button class="filter-dropdown-btn" id="confirmedFilterBtn" type="button">
@@ -654,7 +654,7 @@
                     </div>
                 </div>
 
-                <div class="filter-group">
+                <div class="filter-group" style="width: 240px;">
                     <label>Merchant</label>
                     <div class="filter-dropdown">
                         <button class="filter-dropdown-btn" id="merchantFilterBtn" type="button">
@@ -663,12 +663,26 @@
                         </button>
                         <div class="filter-dropdown-menu" id="merchantFilterMenu">
                             <div class="filter-search-box">
-                                <input type="text" id="merchantSearchInput" placeholder="🔍 Tìm merchant...">
+                                <input type="text" id="merchantSearchInput" placeholder="Tìm merchant...">
                             </div>
                             <div id="merchantOptions">
                                 <div class="filter-option selected" data-value="">Tất cả</div>
                                 <!-- Merchant options will be loaded dynamically -->
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="filter-group" style="width: 220px;">
+                    <label>UTM Source</label>
+                    <div class="filter-dropdown">
+                        <button class="filter-dropdown-btn" id="utmSourceFilterBtn" type="button">
+                            <span id="utmSourceFilterText">Tất cả</span>
+                            <span>▼</span>
+                        </button>
+                        <div class="filter-dropdown-menu" id="utmSourceFilterMenu">
+                            <div class="filter-option selected" data-value="">Tất cả</div>
+                            <div class="filter-option" data-value="chatchiu">chatchiu</div>
                         </div>
                     </div>
                 </div>

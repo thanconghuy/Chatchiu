@@ -28,19 +28,25 @@ class CronJobsService {
    * Called on server startup if AUTO_CRON_ENABLED=true
    */
   initialize() {
-    if (this.isInitialized) {
-      logger.warn('Cron jobs already initialized');
+    const autoCronEnabled = process.env.AUTO_CRON_ENABLED === 'true';
+
+    // If already initialized and jobs are running, don't reinitialize
+    if (this.isInitialized && this.jobs.length > 0) {
+      logger.warn('Cron jobs already initialized and running');
       return;
     }
 
-    const autoCronEnabled = process.env.AUTO_CRON_ENABLED === 'true';
-
+    // If not enabled, just mark as initialized
     if (!autoCronEnabled) {
       logger.info('Auto cron jobs DISABLED (set AUTO_CRON_ENABLED=true to enable)');
+      this.isInitialized = true;
       return;
     }
 
     logger.info('Initializing cron jobs...');
+
+    // Stop all existing jobs first (in case of reinit)
+    this.stopAll();
 
     // Job 1: Retry unmatched clicks (every 6 hours)
     this.scheduleRetryUnmatched();

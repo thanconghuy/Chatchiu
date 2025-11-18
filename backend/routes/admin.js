@@ -519,6 +519,53 @@ router.get('/conversions', authenticateAdmin, async (req, res) => {
 
     const result = await pool.query(query, values);
 
+    // Get statistics
+    let statsQuery = `
+      SELECT
+        -- Counts by status
+        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
+        COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected_count,
+        COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved_count,
+        -- Counts by confirmation status
+        COUNT(CASE WHEN is_confirmed = true THEN 1 END) as confirmed_count,
+        COUNT(CASE WHEN is_confirmed = false OR is_confirmed IS NULL THEN 1 END) as unconfirmed_count,
+        -- Amounts by status
+        COALESCE(SUM(CASE WHEN status = 'pending' THEN order_amount ELSE 0 END), 0) as pending_amount,
+        COALESCE(SUM(CASE WHEN status = 'rejected' THEN order_amount ELSE 0 END), 0) as rejected_amount,
+        COALESCE(SUM(CASE WHEN status = 'approved' THEN order_amount ELSE 0 END), 0) as approved_amount,
+        -- Commission by status
+        COALESCE(SUM(CASE WHEN status = 'pending' THEN commission ELSE 0 END), 0) as pending_commission,
+        COALESCE(SUM(CASE WHEN status = 'rejected' THEN commission ELSE 0 END), 0) as rejected_commission,
+        COALESCE(SUM(CASE WHEN status = 'approved' THEN commission ELSE 0 END), 0) as approved_commission,
+        -- Cashback by status
+        COALESCE(SUM(CASE WHEN status = 'pending' THEN cashback_amount ELSE 0 END), 0) as pending_cashback,
+        COALESCE(SUM(CASE WHEN status = 'rejected' THEN cashback_amount ELSE 0 END), 0) as rejected_cashback,
+        COALESCE(SUM(CASE WHEN status = 'approved' THEN cashback_amount ELSE 0 END), 0) as approved_cashback,
+        -- Amounts by confirmation status
+        COALESCE(SUM(CASE WHEN is_confirmed = true THEN order_amount ELSE 0 END), 0) as confirmed_amount,
+        COALESCE(SUM(CASE WHEN is_confirmed = false OR is_confirmed IS NULL THEN order_amount ELSE 0 END), 0) as unconfirmed_amount
+      FROM system_conversions
+      WHERE 1=1
+    `;
+
+    const statsValues = [];
+
+    // Apply same status filter to stats
+    if (status) {
+      statsValues.push(status);
+      statsQuery += ` AND status = $${statsValues.length}`;
+    }
+
+    let stats = {};
+    try {
+      const statsResult = await pool.query(statsQuery, statsValues);
+      stats = statsResult.rows[0] || {};
+    } catch (statsError) {
+      console.error('Stats query error:', statsError.message);
+      // Return empty stats if query fails
+      stats = {};
+    }
+
     res.json({
       success: true,
       conversions: result.rows.map(sc => ({
@@ -541,7 +588,35 @@ router.get('/conversions', authenticateAdmin, async (req, res) => {
         matchedAt: sc.matched_at,
         atConversionId: sc.at_conversion_id,
         createdAt: sc.created_at
-      }))
+      })),
+      stats: {
+        pending: {
+          count: parseInt(stats.pending_count || 0),
+          amount: parseFloat(stats.pending_amount || 0),
+          commission: parseFloat(stats.pending_commission || 0),
+          cashback: parseFloat(stats.pending_cashback || 0)
+        },
+        rejected: {
+          count: parseInt(stats.rejected_count || 0),
+          amount: parseFloat(stats.rejected_amount || 0),
+          commission: parseFloat(stats.rejected_commission || 0),
+          cashback: parseFloat(stats.rejected_cashback || 0)
+        },
+        approved: {
+          count: parseInt(stats.approved_count || 0),
+          amount: parseFloat(stats.approved_amount || 0),
+          commission: parseFloat(stats.approved_commission || 0),
+          cashback: parseFloat(stats.approved_cashback || 0)
+        },
+        confirmed: {
+          count: parseInt(stats.confirmed_count || 0),
+          amount: parseFloat(stats.confirmed_amount || 0)
+        },
+        unconfirmed: {
+          count: parseInt(stats.unconfirmed_count || 0),
+          amount: parseFloat(stats.unconfirmed_amount || 0)
+        }
+      }
     });
   } catch (error) {
     console.error('Get conversions error:', error);
@@ -1737,6 +1812,13 @@ router.get('/at-orders', authenticateAdmin, async (req, res) => {
       paramCount++;
     }
 
+    // UTM Source filter
+    if (req.query.utmSource) {
+      conditions.push(`c.utm_source = $${paramCount}`);
+      values.push(req.query.utmSource);
+      paramCount++;
+    }
+
     // Date range filter
     if (req.query.dateFrom) {
       conditions.push(`c.order_time >= $${paramCount}`);
@@ -1797,7 +1879,10 @@ router.get('/at-orders', authenticateAdmin, async (req, res) => {
       ORDER BY c.order_time DESC, c.created_at DESC
       LIMIT $${paramCount} OFFSET $${paramCount + 1}
     `;
+    const limitParam = paramCount;
+    const offsetParam = paramCount + 1;
     values.push(limit, offset);
+    paramCount += 2;
 
     const ordersResult = await pool.query(ordersQuery, values);
 
@@ -1807,6 +1892,7 @@ router.get('/at-orders', authenticateAdmin, async (req, res) => {
         COUNT(*) as total,
         COALESCE(SUM(c.order_amount), 0) as total_order_amount,
         COALESCE(SUM(c.commission), 0) as total_commission,
+        -- Total cashback directly from conversions table
         COALESCE(SUM(c.cashback_amount), 0) as total_cashback,
         -- Status breakdown
         COUNT(CASE WHEN c.status = 'approved' THEN 1 END) as approved_count,
@@ -1819,6 +1905,10 @@ router.get('/at-orders', authenticateAdmin, async (req, res) => {
         COALESCE(SUM(CASE WHEN c.status = 'approved' THEN c.order_amount ELSE 0 END), 0) as approved_amount,
         COALESCE(SUM(CASE WHEN c.status = 'pending' THEN c.order_amount ELSE 0 END), 0) as pending_amount,
         COALESCE(SUM(CASE WHEN c.status = 'rejected' THEN c.order_amount ELSE 0 END), 0) as rejected_amount,
+        -- Commission breakdown by status
+        COALESCE(SUM(CASE WHEN c.status = 'approved' THEN c.commission ELSE 0 END), 0) as approved_status_commission,
+        COALESCE(SUM(CASE WHEN c.status = 'pending' THEN c.commission ELSE 0 END), 0) as pending_status_commission,
+        COALESCE(SUM(CASE WHEN c.status = 'rejected' THEN c.commission ELSE 0 END), 0) as rejected_status_commission,
         -- Commission breakdown by confirmed status
         COALESCE(SUM(CASE WHEN c.is_confirmed = 1 THEN c.commission ELSE 0 END), 0) as confirmed_commission,
         COALESCE(SUM(CASE WHEN c.is_confirmed = 0 THEN c.commission ELSE 0 END), 0) as not_confirmed_commission
@@ -1826,8 +1916,33 @@ router.get('/at-orders', authenticateAdmin, async (req, res) => {
       LEFT JOIN users u ON c.user_id = u.id
       ${whereClause}
     `;
-    const statsResult = await pool.query(statsQuery, values.slice(0, -2)); // Remove limit and offset
-    const stats = statsResult.rows[0];
+
+    let stats = {};
+    try {
+      const statsResult = await pool.query(statsQuery, values.slice(0, -2)); // Remove limit and offset
+      stats = statsResult.rows[0] || {};
+    } catch (statsError) {
+      console.error('Stats query error:', statsError.message);
+      stats = {
+        total: 0,
+        total_order_amount: 0,
+        total_commission: 0,
+        total_cashback: 0,
+        approved_count: 0,
+        pending_count: 0,
+        rejected_count: 0,
+        confirmed_count: 0,
+        not_confirmed_count: 0,
+        approved_amount: 0,
+        pending_amount: 0,
+        rejected_amount: 0,
+        approved_status_commission: 0,
+        pending_status_commission: 0,
+        rejected_status_commission: 0,
+        confirmed_commission: 0,
+        not_confirmed_commission: 0
+      };
+    }
 
     res.json({
       success: true,
@@ -1869,15 +1984,18 @@ router.get('/at-orders', authenticateAdmin, async (req, res) => {
         statusBreakdown: {
           approved: {
             count: parseInt(stats.approved_count) || 0,
-            amount: parseFloat(stats.approved_amount) || 0
+            amount: parseFloat(stats.approved_amount) || 0,
+            commission: parseFloat(stats.approved_status_commission) || 0
           },
           pending: {
             count: parseInt(stats.pending_count) || 0,
-            amount: parseFloat(stats.pending_amount) || 0
+            amount: parseFloat(stats.pending_amount) || 0,
+            commission: parseFloat(stats.pending_status_commission) || 0
           },
           rejected: {
             count: parseInt(stats.rejected_count) || 0,
-            amount: parseFloat(stats.rejected_amount) || 0
+            amount: parseFloat(stats.rejected_amount) || 0,
+            commission: parseFloat(stats.rejected_status_commission) || 0
           }
         },
         // Confirmed status breakdown

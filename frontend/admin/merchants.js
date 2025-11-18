@@ -50,11 +50,14 @@ async function checkAdminAccess() {
     }
 }
 
-// Logout handler
-document.getElementById('logoutBtn').addEventListener('click', (e) => {
-    e.preventDefault();
-    logout();
-});
+// Logout handler - check if button exists (from sidebar)
+const logoutBtn = document.getElementById('logoutBtn');
+if (logoutBtn) {
+    logoutBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        logout();
+    });
+}
 
 /**
  * Load merchants from API
@@ -125,12 +128,16 @@ function renderMerchants() {
     const searchInput = document.getElementById('searchInput');
     const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
 
+    console.log('🔄 Rendering merchants. Total:', merchants.length);
+
     // Filter merchants
     const filtered = merchants.filter(m => {
         const nameMatch = m.name.toLowerCase().includes(searchTerm);
         const idMatch = m.id.toLowerCase().includes(searchTerm);
         return nameMatch || idMatch;
     });
+
+    console.log('   Filtered:', filtered.length);
 
     if (filtered.length === 0) {
         tbody.innerHTML = `
@@ -148,6 +155,17 @@ function renderMerchants() {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
     const pageItems = filtered.slice(startIndex, endIndex);
+
+    // Log TikTok Shop status for debugging
+    const tiktokMerchant = pageItems.find(m => m.id === 'tiktok');
+    if (tiktokMerchant) {
+        console.log('   TikTok Shop merchant data:', {
+            id: tiktokMerchant.id,
+            name: tiktokMerchant.name,
+            is_active: tiktokMerchant.is_active,
+            is_active_type: typeof tiktokMerchant.is_active
+        });
+    }
 
     tbody.innerHTML = pageItems.map(merchant => {
         const domainUrl = merchant.deep_link_base || '#';
@@ -326,6 +344,7 @@ document.getElementById('editMerchantForm').addEventListener('submit', async (e)
     const deepLinkBase = document.getElementById('deepLinkBase').value;
     const policyNote = document.getElementById('policyNote').value;
     const statusValue = document.getElementById('merchantStatus').value;
+    const isActiveBoolean = statusValue === 'active';
 
     console.log('Form data:', {
         isEditMode,
@@ -336,7 +355,8 @@ document.getElementById('editMerchantForm').addEventListener('submit', async (e)
         commissionRate,
         deepLinkBase,
         policyNote,
-        statusValue
+        statusValue,
+        isActiveBoolean  // Check boolean conversion
     });
 
     // Validate
@@ -384,11 +404,17 @@ document.getElementById('editMerchantForm').addEventListener('submit', async (e)
         console.log('API Response:', response);
 
         if (response.success) {
+            console.log('✅ Update successful! Updated merchant:', response.merchant);
+            console.log('   - is_active in response:', response.merchant?.is_active);
+
             showToast(isEditMode ? 'Cập nhật merchant thành công' : 'Thêm merchant mới thành công', 'success');
             const modal = document.getElementById('editModal');
             modal.style.display = 'none';
             modal.classList.remove('show');
+
+            console.log('Reloading merchants list...');
             await loadMerchants();
+            console.log('Merchants list reloaded');
         } else {
             console.error('Response not successful:', response);
             throw new Error(response.message || (isEditMode ? 'Update failed' : 'Create failed'));
