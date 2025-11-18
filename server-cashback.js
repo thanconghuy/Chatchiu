@@ -1,4 +1,5 @@
 // Load environment variables (safe to call multiple times)
+// Updated: Fixed homepage route to serve index.html instead of dashboard.html
 if (!process.env.VERCEL) {
   require('dotenv').config();
 }
@@ -36,6 +37,7 @@ const neonAuthRoutes = require('./backend/routes/neonAuthRoutes');
 const dashboardRoutes = require('./backend/routes/dashboard');
 const adminRoutes = require('./backend/routes/admin');
 const reconciliationRoutes = require('./backend/routes/reconciliation');
+const publicRoutes = require('./backend/routes/public');
 
 // Mount API routes (BEFORE static files)
 app.use('/api/auth', authRoutes); // Keep old auth for backward compatibility
@@ -43,6 +45,7 @@ app.use('/api/neon-auth', neonAuthRoutes); // New Neon Auth routes
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/reconciliation', reconciliationRoutes); // Reconciliation module (admin only)
+app.use('/api/public', publicRoutes); // Public endpoints (no auth required)
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -101,9 +104,9 @@ app.get('/admin/:page', (req, res, next) => {
   res.sendFile(path.join(__dirname, 'frontend', 'admin', `${page}.html`));
 });
 
-// Default route - serve dashboard
+// Default route - serve landing page (index.html)
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend', 'dashboard.html'));
+  res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
 });
 
 // Serve static files AFTER all specific routes
