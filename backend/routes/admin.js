@@ -351,6 +351,160 @@ router.get('/users', authenticateAdmin, async (req, res) => {
 });
 
 /**
+ * GET /api/admin/users/cashback-stats
+ * Get user cashback statistics with date range filter
+ * IMPORTANT: Must be BEFORE /users/:userId to avoid route conflict
+ */
+router.get('/users/cashback-stats', authenticateAdmin, async (req, res) => {
+  try {
+    const {
+      from_date,
+      to_date,
+      page = 0,
+      limit = 20,
+      sort_by = 'cashback_desc'
+    } = req.query;
+
+    // Parse pagination
+    const pageNum = parseInt(page) || 0;
+    const limitNum = Math.min(parseInt(limit) || 20, 100); // Max 100
+    const offset = pageNum * limitNum;
+
+    // Default date range: last 30 days
+    const defaultToDate = new Date();
+    const defaultFromDate = new Date();
+    defaultFromDate.setDate(defaultFromDate.getDate() - 30);
+
+    const fromDate = from_date ? new Date(from_date) : defaultFromDate;
+    const toDate = to_date ? new Date(to_date) : defaultToDate;
+
+    // Validate date range
+    if (fromDate > toDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'from_date must be before to_date'
+      });
+    }
+
+    // Determine sort order
+    let orderByClause;
+    if (sort_by === 'orders_desc') {
+      orderByClause = 'ORDER BY total_orders DESC';
+    } else if (sort_by === 'username_asc') {
+      orderByClause = 'ORDER BY u.username ASC';
+    } else {
+      // Default: cashback_desc
+      orderByClause = 'ORDER BY total_cashback_earned DESC';
+    }
+
+    // Query user cashback stats
+    const statsQuery = `
+      SELECT
+        u.id AS user_id,
+        u.username,
+        u.email,
+        u.full_name,
+        u.available_balance,
+        u.pending_balance,
+        u.total_cashback AS total_cashback_all_time,
+
+        -- Stats in date range
+        COUNT(DISTINCT sc.id) AS total_orders,
+        COALESCE(SUM(sc.order_amount), 0) AS total_order_value,
+        COALESCE(SUM(sc.cashback_amount), 0) AS total_cashback_earned,
+
+        -- Breakdown by status
+        COUNT(DISTINCT CASE WHEN sc.status = 'approved' THEN sc.id END) AS approved_orders,
+        COUNT(DISTINCT CASE WHEN sc.status = 'pending' THEN sc.id END) AS pending_orders,
+        COUNT(DISTINCT CASE WHEN sc.status = 'rejected' THEN sc.id END) AS rejected_orders,
+
+        COALESCE(SUM(CASE WHEN sc.status = 'approved' THEN sc.cashback_amount ELSE 0 END), 0) AS approved_cashback,
+        COALESCE(SUM(CASE WHEN sc.status = 'pending' THEN sc.cashback_amount ELSE 0 END), 0) AS pending_cashback
+
+      FROM users u
+      LEFT JOIN system_conversions sc
+        ON sc.user_id = u.id
+        AND sc.order_time >= $1
+        AND sc.order_time <= $2
+
+      WHERE u.is_admin = false
+
+      GROUP BY
+        u.id, u.username, u.email, u.full_name,
+        u.available_balance, u.pending_balance, u.total_cashback
+
+      ${orderByClause}
+
+      LIMIT $3 OFFSET $4
+    `;
+
+    console.log('Executing stats query with params:', { fromDate, toDate, limitNum, offset, orderByClause });
+    const statsResult = await pool.query(statsQuery, [fromDate, toDate, limitNum, offset]);
+
+    // Count total users for pagination
+    const countQuery = `
+      SELECT COUNT(DISTINCT u.id) as total_users
+      FROM users u
+      LEFT JOIN system_conversions sc
+        ON sc.user_id = u.id
+        AND sc.order_time >= $1
+        AND sc.order_time <= $2
+      WHERE u.is_admin = false
+    `;
+
+    const countResult = await pool.query(countQuery, [fromDate, toDate]);
+    const totalUsers = parseInt(countResult.rows[0].total_users);
+    const totalPages = Math.ceil(totalUsers / limitNum);
+
+    res.json({
+      success: true,
+      stats: statsResult.rows.map(row => ({
+        userId: row.user_id,
+        username: row.username,
+        email: row.email,
+        fullName: row.full_name,
+        availableBalance: parseFloat(row.available_balance),
+        pendingBalance: parseFloat(row.pending_balance),
+        totalCashbackAllTime: parseFloat(row.total_cashback_all_time),
+
+        periodStats: {
+          totalOrders: parseInt(row.total_orders),
+          totalOrderValue: parseFloat(row.total_order_value),
+          totalCashbackEarned: parseFloat(row.total_cashback_earned),
+
+          approvedOrders: parseInt(row.approved_orders),
+          approvedCashback: parseFloat(row.approved_cashback),
+
+          pendingOrders: parseInt(row.pending_orders),
+          pendingCashback: parseFloat(row.pending_cashback),
+
+          rejectedOrders: parseInt(row.rejected_orders)
+        }
+      })),
+      pagination: {
+        currentPage: pageNum,
+        limit: limitNum,
+        totalUsers: totalUsers,
+        totalPages: totalPages
+      },
+      dateRange: {
+        fromDate: fromDate.toISOString().split('T')[0],
+        toDate: toDate.toISOString().split('T')[0]
+      }
+    });
+
+  } catch (error) {
+    console.error('Get cashback stats error:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get cashback statistics',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+/**
  * GET /api/admin/users/:userId
  * Get detailed information for a specific user
  */

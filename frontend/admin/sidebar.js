@@ -7,6 +7,7 @@ const SIDEBAR_MENU_ITEMS = [
     { href: '/admin', icon: '📊', text: 'Dashboard', id: 'dashboard' },
     { href: '/admin/users', icon: '👥', text: 'Users', id: 'users' },
     { href: '/admin/conversions', icon: '💰', text: 'Conversions', id: 'conversions' },
+    { href: '/admin/cashback-stats', icon: '📈', text: 'Cashback Stats', id: 'cashback-stats' },
     { href: '/admin/at-orders', icon: '📦', text: 'Dữ liệu đơn AT', id: 'at-orders' },
     { href: '/admin/reconciliation', icon: '📋', text: 'Đối soát', id: 'reconciliation' },
     { href: '/admin/merchants', icon: '🏪', text: 'Merchants', id: 'merchants' },
@@ -71,6 +72,8 @@ function initSidebar() {
         activePageId = 'users';
     } else if (currentPath.includes('/conversions')) {
         activePageId = 'conversions';
+    } else if (currentPath.includes('/cashback-stats')) {
+        activePageId = 'cashback-stats';
     } else if (currentPath.includes('/at-orders')) {
         activePageId = 'at-orders';
     } else if (currentPath.includes('/reconciliation')) {
