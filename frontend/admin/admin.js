@@ -545,7 +545,7 @@ function updateTransactionsTable(transactions) {
 
         return `
             <tr>
-                <td>
+                <td data-cashback="${formatCurrency(tx.cashbackAmount)}">
                     <div class="transaction-user">
                         <div class="user-avatar">${initials}</div>
                         <div>

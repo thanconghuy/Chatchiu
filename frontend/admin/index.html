@@ -161,7 +161,8 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 16px;
-            margin-top: 16px;
+            margin-top: 20px;
+            width: 100%;
         }
 
         .merchant-metric-card {
@@ -169,6 +170,7 @@
             border-radius: 8px;
             padding: 16px;
             border-left: 3px solid #3b82f6;
+            min-height: 80px;
         }
 
         .merchant-metric-card .metric-name {
@@ -312,6 +314,471 @@
 
         .period-btn:hover {
             color: var(--primary);
+        }
+
+        /* ========================================
+           RESPONSIVE MOBILE OPTIMIZATIONS
+           ======================================== */
+
+        @media (max-width: 768px) {
+            /* Stat Cards - Two Columns for Mobile */
+            .stat-cards-row {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+                margin-bottom: 20px;
+            }
+
+            .enhanced-stat-card {
+                padding: 16px;
+            }
+
+            .stat-main-value {
+                font-size: 1.5rem;
+            }
+
+            .stat-icon-badge {
+                width: 36px;
+                height: 36px;
+                font-size: 18px;
+            }
+
+            .stat-title {
+                font-size: 0.75rem;
+            }
+
+            .stat-growth {
+                font-size: 0.75rem;
+            }
+
+            .stat-period {
+                font-size: 0.7rem;
+            }
+
+            /* Charts - Reduce Height */
+            .chart-container {
+                height: 250px;
+            }
+
+            .chart-container.large {
+                height: 300px;
+            }
+
+            .chart-section {
+                padding: 16px;
+                margin-bottom: 16px;
+            }
+
+            .chart-title {
+                font-size: 1.125rem;
+            }
+
+            .chart-subtitle {
+                font-size: 0.8rem;
+            }
+
+            /* Merchant Metrics Grid - 3 Columns Horizontal on Mobile */
+            .merchant-metrics-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+                margin-top: 16px;
+            }
+
+            .merchant-metric-card {
+                padding: 10px;
+                min-height: auto;
+            }
+
+            .merchant-metric-card .metric-name {
+                font-size: 0.7rem;
+                margin-bottom: 6px;
+            }
+
+            .merchant-metric-card .metric-value {
+                font-size: 1rem;
+                margin-bottom: 4px;
+            }
+
+            .merchant-metric-card .metric-rate {
+                font-size: 0.65rem;
+            }
+
+            /* Period Selector - Keep on One Line */
+            .period-selector {
+                flex-wrap: nowrap;
+                gap: 4px;
+                padding: 3px;
+            }
+
+            .period-btn {
+                padding: 6px 10px;
+                font-size: 0.75rem;
+                white-space: nowrap;
+                flex-shrink: 0;
+            }
+
+            .chart-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            /* Two-Column Grids → Single Column */
+            div[style*="grid-template-columns: 1fr 1fr"] {
+                grid-template-columns: 1fr !important;
+                gap: 16px !important;
+            }
+
+            div[style*="grid-template-columns: 2fr 1fr"] {
+                grid-template-columns: 1fr !important;
+                gap: 16px !important;
+            }
+
+            /* Circular Progress Cards - Stack Layout */
+            .chart-section > div[style*="grid-template-columns: 200px 1fr"] {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                gap: 20px !important;
+                text-align: center !important;
+            }
+
+            /* SVG container */
+            .chart-section div[style*="position: relative"][style*="width: 200px"] {
+                width: 200px !important;
+                height: 200px !important;
+                margin: 0 auto !important;
+                flex-shrink: 0 !important;
+                position: relative !important;
+                overflow: visible !important;
+            }
+
+            .chart-section div[style*="position: relative"][style*="width: 200px"] svg {
+                width: 200px !important;
+                height: 200px !important;
+                display: block !important;
+                transform: rotate(-90deg) !important;
+                overflow: visible !important;
+            }
+
+            /* Keep SVG circles with original attributes - don't override stroke properties */
+            .chart-section svg circle {
+                cx: 100 !important;
+                cy: 100 !important;
+            }
+
+            /* Ensure chart-section doesn't clip the SVG */
+            .chart-section:has(div[style*="grid-template-columns: 200px 1fr"]) {
+                overflow: visible !important;
+            }
+
+            /* Info section - center all children */
+            .chart-section > div[style*="grid-template-columns: 200px 1fr"] > div:not([style*="position: relative"]) {
+                width: 100% !important;
+                max-width: 300px !important;
+                text-align: center !important;
+            }
+
+            .chart-section > div[style*="grid-template-columns: 200px 1fr"] > div:not([style*="position: relative"]) > div {
+                margin: 0 auto 12px auto !important;
+                text-align: center !important;
+            }
+
+            .chart-section > div[style*="grid-template-columns: 200px 1fr"] > div:not([style*="position: relative"]) > div:last-child {
+                margin-bottom: 0 !important;
+            }
+
+            /* Card title on mobile */
+            .chart-section h3 {
+                font-size: 1rem !important;
+                margin-bottom: 16px !important;
+            }
+
+            /* Transactions Table - Mobile Optimized: Hide columns except User, Amount, Action */
+            .transactions-section {
+                padding: 16px;
+                overflow-x: visible;
+            }
+
+            .transactions-table {
+                width: 100%;
+                font-size: 0.8rem;
+            }
+
+            /* Hide Date, Merchant, Payment Method, Amount columns on mobile */
+            .transactions-table th:nth-child(2),
+            .transactions-table td:nth-child(2),
+            .transactions-table th:nth-child(3),
+            .transactions-table td:nth-child(3),
+            .transactions-table th:nth-child(4),
+            .transactions-table td:nth-child(4),
+            .transactions-table th:nth-child(5),
+            .transactions-table td:nth-child(5) {
+                display: none;
+            }
+
+            /* Show only 2 columns: User & Action */
+            .transactions-table th:nth-child(1),
+            .transactions-table td:nth-child(1) {
+                width: 70%;
+                padding-left: 12px;
+            }
+
+            .transactions-table th:nth-child(6),
+            .transactions-table td:nth-child(6) {
+                width: 30%;
+                text-align: center;
+                padding-right: 12px;
+            }
+
+            .transactions-table th,
+            .transactions-table td {
+                padding: 12px 8px;
+            }
+
+            /* Hide user avatar on mobile */
+            .user-avatar {
+                display: none !important;
+            }
+
+            .payment-badge {
+                display: none;
+            }
+
+            .action-btn {
+                padding: 6px 12px;
+                font-size: 0.75rem;
+                white-space: nowrap;
+            }
+
+            /* Update table headers text */
+            .transactions-table th:nth-child(6) {
+                font-size: 0.75rem;
+            }
+
+            /* User info - vertical layout with cashback */
+            .transaction-user {
+                gap: 0;
+                display: block !important;
+            }
+
+            .transaction-user > div {
+                font-size: 0.85rem;
+                font-weight: 600;
+                margin-bottom: 4px;
+            }
+
+            .transaction-user > div > div:first-child {
+                font-size: 0.85rem;
+                font-weight: 600;
+                color: #111827;
+                margin-bottom: 3px;
+            }
+
+            .transaction-user > div > div:last-child {
+                font-size: 0.7rem;
+                color: #6b7280;
+                margin-bottom: 6px;
+            }
+
+            /* Add cashback below email - using CSS to extract from td:nth-child(5) */
+            .transactions-table td:nth-child(1)::after {
+                content: attr(data-cashback);
+                display: block;
+                font-size: 0.8rem;
+                font-weight: 700;
+                color: #10b981;
+                margin-top: 4px;
+            }
+
+            /* Content Header */
+            .content-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .content-header h1 {
+                font-size: 1.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            /* Extra Small Devices - Keep 2 columns, smaller sizing */
+            .stat-cards-row {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+
+            .enhanced-stat-card {
+                padding: 12px;
+            }
+
+            .stat-main-value {
+                font-size: 1.25rem;
+            }
+
+            .stat-title {
+                font-size: 0.7rem;
+            }
+
+            .stat-growth {
+                font-size: 0.7rem;
+                flex-wrap: wrap;
+            }
+
+            .stat-icon-badge {
+                width: 32px;
+                height: 32px;
+                font-size: 16px;
+            }
+
+            .stat-period {
+                font-size: 0.65rem;
+            }
+
+            /* Charts */
+            .chart-container {
+                height: 220px;
+            }
+
+            .chart-container.large {
+                height: 250px;
+            }
+
+            .chart-section {
+                padding: 12px;
+            }
+
+            .chart-title {
+                font-size: 1rem;
+            }
+
+            /* Merchant Metrics - Smaller on very small screens */
+            .merchant-metrics-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 6px;
+            }
+
+            .merchant-metric-card {
+                padding: 8px;
+            }
+
+            .merchant-metric-card .metric-name {
+                font-size: 0.65rem;
+            }
+
+            .merchant-metric-card .metric-value {
+                font-size: 0.9rem;
+            }
+
+            .merchant-metric-card .metric-rate {
+                font-size: 0.6rem;
+            }
+
+            /* Circular Progress - Smaller for very small screens */
+            .chart-section div[style*="position: relative"][style*="width: 200px"] {
+                width: 170px !important;
+                height: 170px !important;
+                position: relative !important;
+                overflow: visible !important;
+            }
+
+            .chart-section div[style*="position: relative"][style*="width: 200px"] svg {
+                width: 170px !important;
+                height: 170px !important;
+                display: block !important;
+                transform: rotate(-90deg) !important;
+                overflow: visible !important;
+            }
+
+            .chart-section svg circle {
+                cx: 85 !important;
+                cy: 85 !important;
+            }
+
+            #userBalancePercent,
+            #conversionRatePercent {
+                font-size: 1.5rem !important;
+            }
+
+            #availableBalance,
+            #pendingBalance {
+                font-size: 1.05rem !important;
+            }
+
+            .chart-section h3 {
+                font-size: 0.95rem !important;
+            }
+
+            /* Text labels smaller */
+            .chart-section > div[style*="grid-template-columns: 200px 1fr"] > div:not([style*="position: relative"]) > div {
+                font-size: 0.8rem !important;
+            }
+
+            /* Transactions Table - Keep same optimization as 768px */
+            .transactions-table {
+                width: 100%;
+                font-size: 0.75rem;
+            }
+
+            .transactions-table th,
+            .transactions-table td {
+                padding: 8px 6px;
+            }
+
+            /* Keep only User & Action columns (hide amount too) */
+            .transactions-table th:nth-child(2),
+            .transactions-table td:nth-child(2),
+            .transactions-table th:nth-child(3),
+            .transactions-table td:nth-child(3),
+            .transactions-table th:nth-child(4),
+            .transactions-table td:nth-child(4),
+            .transactions-table th:nth-child(5),
+            .transactions-table td:nth-child(5) {
+                display: none;
+            }
+
+            .action-btn {
+                padding: 5px 10px;
+                font-size: 0.7rem;
+            }
+
+            /* User column width */
+            .transactions-table th:nth-child(1),
+            .transactions-table td:nth-child(1) {
+                width: 70%;
+            }
+
+            .transactions-table th:nth-child(6),
+            .transactions-table td:nth-child(6) {
+                width: 30%;
+            }
+
+            /* Smaller period buttons */
+            .period-btn {
+                padding: 5px 8px;
+                font-size: 0.7rem;
+            }
+
+            /* Content Header */
+            .content-header h1 {
+                font-size: 1.25rem;
+            }
+
+            .content-header p {
+                font-size: 0.85rem;
+            }
+        }
+
+        /* Landscape Mobile Optimization */
+        @media (max-width: 768px) and (orientation: landscape) {
+            .chart-container {
+                height: 200px;
+            }
+
+            .chart-container.large {
+                height: 250px;
+            }
         }
     </style>
 </head>
