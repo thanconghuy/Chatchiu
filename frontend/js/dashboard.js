@@ -34,7 +34,6 @@ const closeModal = document.getElementById('closeModal');
 const freeShoppingBtn = document.getElementById('freeShoppingBtn');
 const generateLinkBtn = document.getElementById('generateLinkBtn');
 const productUrlInput = document.getElementById('productUrlInput');
-const logoutBtn = document.getElementById('logoutBtn');
 
 // Initialize
 init();
@@ -606,10 +605,6 @@ closeModal?.addEventListener('click', closeMerchantModal);
 merchantModal?.querySelector('.modal-overlay')?.addEventListener('click', closeMerchantModal);
 freeShoppingBtn?.addEventListener('click', handleFreeShoppingClick);
 generateLinkBtn?.addEventListener('click', handleGenerateLinkClick);
-logoutBtn?.addEventListener('click', (e) => {
-    e.preventDefault();
-    logout();
-});
 
 // Pagination event listeners
 document.getElementById('prevClicksBtn')?.addEventListener('click', () => {

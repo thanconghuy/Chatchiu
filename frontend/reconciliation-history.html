@@ -10,31 +10,11 @@
     <!-- Mobile Menu Toggle -->
     <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
 
+    <!-- Sidebar Overlay Backdrop (for mobile menu) -->
+    <div class="sidebar-overlay"></div>
+
     <div class="app-container">
-        <!-- Sidebar -->
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <h2 class="logo">Chatchiu.Online</h2>
-            </div>
-            <nav class="sidebar-nav">
-                <a href="/dashboard" class="nav-item">
-                    <span class="icon">📊</span>
-                    <span>Dashboard</span>
-                </a>
-                <a href="/history" class="nav-item">
-                    <span class="icon">📜</span>
-                    <span>Lịch sử</span>
-                </a>
-                <a href="/reconciliation-history" class="nav-item active">
-                    <span class="icon">📋</span>
-                    <span>Đối soát</span>
-                </a>
-                <a href="#" class="nav-item" id="logoutBtn">
-                    <span class="icon">🚪</span>
-                    <span>Đăng xuất</span>
-                </a>
-            </nav>
-        </aside>
+        <!-- Sidebar will be loaded by user-sidebar.js -->
 
         <!-- Main Content -->
         <main class="main-content">
@@ -127,6 +107,7 @@
 
     <script src="js/config.js"></script>
     <script src="js/auth.js"></script>
+    <script src="js/user-sidebar.js"></script>
     <script src="js/mobile-menu.js"></script>
     <script src="js/reconciliation-history.js"></script>
     <script src="js/analytics.js"></script>

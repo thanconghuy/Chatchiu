@@ -20,7 +20,6 @@ const clicksTab = document.getElementById('clicksTab');
 const conversionsTable = document.getElementById('conversionsTable');
 const clicksTable = document.getElementById('clicksTable');
 const statusFilter = document.getElementById('statusFilter');
-const logoutBtn = document.getElementById('logoutBtn');
 
 // Pagination elements
 const prevConversions = document.getElementById('prevConversions');
@@ -137,7 +136,12 @@ function setupFilters() {
  */
 async function loadConversions() {
     try {
-        conversionsTable.innerHTML = '<tr class="loading-state"><td colspan="7"><div class="loading">Đang tải...</div></td></tr>';
+        const conversionsCards = document.getElementById('conversionsCards');
+
+        conversionsTable.innerHTML = '<tr class="loading-state"><td colspan="8"><div class="loading">Đang tải...</div></td></tr>';
+        if (conversionsCards) {
+            conversionsCards.innerHTML = '<div class="loading">Đang tải...</div>';
+        }
 
         const offset = conversionsPage * conversionsItemsPerPage;
         let url = `/dashboard/conversions?limit=${conversionsItemsPerPage}&offset=${offset}`;
@@ -154,13 +158,18 @@ async function loadConversions() {
         }
     } catch (error) {
         console.error('Error loading conversions:', error);
+        const conversionsCards = document.getElementById('conversionsCards');
+
         conversionsTable.innerHTML = `
             <tr class="error-state">
-                <td colspan="7">
+                <td colspan="8">
                     <div class="error">Không thể tải dữ liệu</div>
                 </td>
             </tr>
         `;
+        if (conversionsCards) {
+            conversionsCards.innerHTML = '<div class="error">Không thể tải dữ liệu</div>';
+        }
     }
 }
 
@@ -168,14 +177,19 @@ async function loadConversions() {
  * Render conversions table
  */
 function renderConversions(conversions) {
+    const conversionsCards = document.getElementById('conversionsCards');
+
     if (conversions.length === 0) {
         conversionsTable.innerHTML = `
             <tr class="empty-state">
-                <td colspan="7">
+                <td colspan="8">
                     <p>Chưa có đơn hàng nào</p>
                 </td>
             </tr>
         `;
+        if (conversionsCards) {
+            conversionsCards.innerHTML = '<div style="text-align: center; padding: 40px; color: #9ca3af;">Chưa có đơn hàng nào</div>';
+        }
         return;
     }
 
@@ -185,6 +199,26 @@ function renderConversions(conversions) {
                            'status-rejected';
         const statusText = conv.status === 'approved' ? 'Đã duyệt' :
                           conv.status === 'pending' ? 'Đang xử lý' : 'Hủy';
+
+        // Reconciliation status - Kiểm tra từ bảng reconciliation_items và reconciliations
+        let reconciliationBadge;
+        if (conv.isReconciled) {
+            // Đã đối soát = có trong reconciliation_items VÀ status = 'completed'
+            const periodInfo = conv.reconciliationPeriod ? ` (${conv.reconciliationPeriod})` : '';
+            reconciliationBadge = `<span class="status-badge status-approved" title="Đã hoàn thành đối soát${periodInfo}">Đã đối soát</span>`;
+        } else if (conv.reconciliationStatus && conv.reconciliationStatus !== 'completed') {
+            // Có trong reconciliation nhưng chưa completed
+            const statusMap = {
+                'draft': 'Nháp',
+                'pending': 'Chờ duyệt',
+                'cancelled': 'Đã hủy'
+            };
+            const statusText = statusMap[conv.reconciliationStatus] || conv.reconciliationStatus;
+            reconciliationBadge = `<span class="status-badge status-pending" title="Trạng thái: ${statusText}">Đang xử lý</span>`;
+        } else {
+            // Chưa có trong hệ thống đối soát
+            reconciliationBadge = '<span class="status-badge status-gray">Chưa đối soát</span>';
+        }
 
         return `
             <tr>
@@ -198,11 +232,76 @@ function renderConversions(conversions) {
                 <td>${formatCurrency(conv.orderAmount)}</td>
                 <td class="highlight">${formatCurrency(conv.cashbackAmount)}</td>
                 <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                <td>${reconciliationBadge}</td>
                 <td>${formatDate(conv.orderTime)}</td>
                 <td>${conv.approvalTime ? formatDate(conv.approvalTime) : '-'}</td>
             </tr>
         `;
     }).join('');
+
+    // Render mobile cards
+    if (conversionsCards) {
+        conversionsCards.innerHTML = conversions.map(conv => {
+            const statusClass = conv.status === 'approved' ? 'status-approved' :
+                               conv.status === 'pending' ? 'status-pending' :
+                               'status-rejected';
+            const statusText = conv.status === 'approved' ? 'Đã duyệt' :
+                              conv.status === 'pending' ? 'Đang xử lý' : 'Hủy';
+
+            // Reconciliation status
+            let reconciliationBadge;
+            if (conv.isReconciled) {
+                const periodInfo = conv.reconciliationPeriod ? ` (${conv.reconciliationPeriod})` : '';
+                reconciliationBadge = `<span class="status-badge status-approved" title="Đã hoàn thành đối soát${periodInfo}">Đã đối soát</span>`;
+            } else if (conv.reconciliationStatus && conv.reconciliationStatus !== 'completed') {
+                const statusMap = { 'draft': 'Nháp', 'pending': 'Chờ duyệt', 'cancelled': 'Đã hủy' };
+                const reconStatusText = statusMap[conv.reconciliationStatus] || conv.reconciliationStatus;
+                reconciliationBadge = `<span class="status-badge status-pending" title="Trạng thái: ${reconStatusText}">Đang xử lý</span>`;
+            } else {
+                reconciliationBadge = '<span class="status-badge status-gray">Chưa đối soát</span>';
+            }
+
+            return `
+                <div class="conversion-card">
+                    <div class="conversion-card-header">
+                        ${conv.merchantLogo ? `<img src="${conv.merchantLogo}" alt="${conv.merchantName}">` : ''}
+                        <div class="conversion-card-merchant">
+                            <div class="conversion-card-merchant-name">${conv.merchantName}</div>
+                            <div class="conversion-card-order-code">${conv.orderCode || '-'}</div>
+                        </div>
+                    </div>
+                    <div class="conversion-card-body">
+                        <div class="conversion-card-item">
+                            <div class="conversion-card-label">Giá trị đơn</div>
+                            <div class="conversion-card-value">${formatCurrency(conv.orderAmount)}</div>
+                        </div>
+                        <div class="conversion-card-item">
+                            <div class="conversion-card-label">Cashback</div>
+                            <div class="conversion-card-value highlight">${formatCurrency(conv.cashbackAmount)}</div>
+                        </div>
+                        <div class="conversion-card-item">
+                            <div class="conversion-card-label">TT Đơn hàng</div>
+                            <div class="conversion-card-value"><span class="status-badge ${statusClass}">${statusText}</span></div>
+                        </div>
+                        <div class="conversion-card-item">
+                            <div class="conversion-card-label">TT Đối soát</div>
+                            <div class="conversion-card-value">${reconciliationBadge}</div>
+                        </div>
+                    </div>
+                    <div class="conversion-card-footer">
+                        <div class="conversion-card-date">
+                            📅 ${formatDate(conv.orderTime)}
+                        </div>
+                        ${conv.approvalTime ? `
+                        <div class="conversion-card-date">
+                            ✅ ${formatDate(conv.approvalTime)}
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
 }
 
 /**
@@ -219,7 +318,12 @@ function updateConversionsPagination(itemCount) {
  */
 async function loadClicks() {
     try {
+        const clicksCards = document.getElementById('clicksCards');
+
         clicksTable.innerHTML = '<tr class="loading-state"><td colspan="7"><div class="loading">Đang tải...</div></td></tr>';
+        if (clicksCards) {
+            clicksCards.innerHTML = '<div class="loading">Đang tải...</div>';
+        }
 
         const offset = clicksPage * clicksItemsPerPage;
         const response = await apiRequest(`/dashboard/recent-clicks?limit=${clicksItemsPerPage}&offset=${offset}`);
@@ -230,6 +334,8 @@ async function loadClicks() {
         }
     } catch (error) {
         console.error('Error loading clicks:', error);
+        const clicksCards = document.getElementById('clicksCards');
+
         clicksTable.innerHTML = `
             <tr class="error-state">
                 <td colspan="7">
@@ -237,6 +343,9 @@ async function loadClicks() {
                 </td>
             </tr>
         `;
+        if (clicksCards) {
+            clicksCards.innerHTML = '<div class="error">Không thể tải dữ liệu</div>';
+        }
     }
 }
 
@@ -244,6 +353,8 @@ async function loadClicks() {
  * Render clicks table with highlighting for conversions
  */
 function renderClicks(clicks) {
+    const clicksCards = document.getElementById('clicksCards');
+
     if (clicks.length === 0) {
         clicksTable.innerHTML = `
             <tr class="empty-state">
@@ -252,6 +363,9 @@ function renderClicks(clicks) {
                 </td>
             </tr>
         `;
+        if (clicksCards) {
+            clicksCards.innerHTML = '<div style="text-align: center; padding: 40px; color: #9ca3af;">Chưa có lượt click nào</div>';
+        }
         return;
     }
 
@@ -314,6 +428,76 @@ function renderClicks(clicks) {
             </tr>
         `;
     }).join('');
+
+    // Render mobile cards
+    if (clicksCards) {
+        clicksCards.innerHTML = clicks.map(click => {
+            // Click type badge
+            const clickTypeBadge = click.clickType === 'button'
+                ? '<span class="click-type-badge click-type-button">Tự do</span>'
+                : '<span class="click-type-badge click-type-link">Link SP</span>';
+
+            // Has conversion badge
+            const hasConversionBadge = click.hasConversion
+                ? '<span class="conversion-badge conversion-yes">✓ Có</span>'
+                : '<span class="conversion-badge conversion-no">Không</span>';
+
+            // Status badge
+            let statusBadge = '<span class="status-badge status-gray">-</span>';
+            if (click.hasConversion) {
+                const statusClass = click.conversionStatus === 'approved' ? 'status-approved' :
+                                   click.conversionStatus === 'pending' ? 'status-pending' :
+                                   'status-rejected';
+                const statusText = click.conversionStatus === 'approved' ? 'Đã duyệt' :
+                                  click.conversionStatus === 'pending' ? 'Đang xử lý' : 'Hủy';
+                statusBadge = `<span class="status-badge ${statusClass}">${statusText}</span>`;
+            }
+
+            // Cashback with highlight
+            const cashbackValue = click.cashback > 0
+                ? `<span class="highlight">${formatCurrency(click.cashback)}</span>`
+                : '<span style="color: #9ca3af;">-</span>';
+
+            // Link button
+            const linkButton = click.affiliateUrl
+                ? `<a href="${click.affiliateUrl}" target="_blank" rel="noopener noreferrer" class="link-btn-inline" title="Mở link mua hàng">Mở link</a>`
+                : '';
+
+            // Card style - highlight if has conversion
+            const cardClass = click.hasConversion ? 'click-card has-conversion' : 'click-card';
+
+            return `
+                <div class="${cardClass}">
+                    <div class="click-card-header">
+                        ${click.merchantLogo ? `<img src="${click.merchantLogo}" alt="${click.merchantName}">` : ''}
+                        <div class="click-card-merchant">
+                            <div class="click-card-merchant-name">${click.merchantName}</div>
+                            <div class="click-card-click-type">${clickTypeBadge}</div>
+                        </div>
+                        ${linkButton}
+                    </div>
+                    <div class="click-card-body">
+                        <div class="click-card-item">
+                            <div class="click-card-label">Thời gian click</div>
+                            <div class="click-card-value">${formatDate(click.clickedAt)}</div>
+                        </div>
+                        <div class="click-card-item">
+                            <div class="click-card-label">Có mua hàng?</div>
+                            <div class="click-card-value">${hasConversionBadge}</div>
+                        </div>
+                        <div class="click-card-item">
+                            <div class="click-card-label">Trạng thái</div>
+                            <div class="click-card-value">${statusBadge}</div>
+                        </div>
+                        <div class="click-card-item">
+                            <div class="click-card-label">Cashback</div>
+                            <div class="click-card-value">${cashbackValue}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
 }
 
 /**
@@ -325,8 +509,4 @@ function updateClicksPagination(itemCount) {
     nextClicks.disabled = itemCount < clicksItemsPerPage;
 }
 
-// Logout handler
-logoutBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    logout();
-});
+// Logout handler is now in user-sidebar.js

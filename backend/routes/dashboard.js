@@ -649,15 +649,35 @@ router.get('/conversions', authenticateToken, async (req, res) => {
       });
     }
 
-    const conversions = await SystemConversion.getUserConversions(req.userId, {
-      status,
-      limit,
-      offset
-    });
+    // Get conversions with reconciliation status from internal reconciliation system
+    const conversionsQuery = `
+      SELECT
+        c.*,
+        m.logo_url as merchant_logo,
+        ri.id as reconciliation_item_id,
+        ri.reconciliation_id,
+        r.status as reconciliation_status,
+        r.period_label as reconciliation_period,
+        r.confirmed_at as reconciliation_confirmed_at
+      FROM conversions c
+      LEFT JOIN merchants m ON m.id = c.merchant_id
+      LEFT JOIN reconciliation_items ri ON ri.conversion_id = c.id
+      LEFT JOIN reconciliations r ON r.id = ri.reconciliation_id
+      WHERE c.user_id = $1
+      ${status ? 'AND c.status = $2' : ''}
+      ORDER BY c.created_at DESC
+      LIMIT $${status ? '3' : '2'} OFFSET $${status ? '4' : '3'}
+    `;
+
+    const params = status
+      ? [req.userId, status, limit, offset]
+      : [req.userId, limit, offset];
+
+    const result = await pool.query(conversionsQuery, params);
 
     res.json({
       success: true,
-      conversions: conversions.map(sc => ({
+      conversions: result.rows.map(sc => ({
         id: sc.id,
         merchantName: sc.merchant_name,
         merchantLogo: sc.merchant_logo,
@@ -669,7 +689,12 @@ router.get('/conversions', authenticateToken, async (req, res) => {
         orderTime: sc.order_time,
         approvalTime: sc.approval_time,
         matchedAt: sc.matched_at,
-        createdAt: sc.created_at
+        createdAt: sc.created_at,
+        // Đã đối soát = có trong reconciliation_items VÀ reconciliation status = 'completed'
+        isReconciled: !!sc.reconciliation_item_id && sc.reconciliation_status === 'completed',
+        reconciliationStatus: sc.reconciliation_status || null,
+        reconciliationPeriod: sc.reconciliation_period || null,
+        reconciliationConfirmedAt: sc.reconciliation_confirmed_at || null
       }))
     });
   } catch (error) {

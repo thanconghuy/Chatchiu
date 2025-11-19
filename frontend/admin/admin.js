@@ -50,6 +50,9 @@ async function init() {
         // Load dashboard data
         await loadDashboardData();
 
+        // Setup period buttons for merchant chart
+        setupPeriodButtons();
+
         // Setup logout
         document.getElementById('logoutBtn')?.addEventListener('click', (e) => {
             e.preventDefault();
@@ -58,6 +61,72 @@ async function init() {
     } catch (error) {
         console.error('Dashboard initialization error:', error);
         showToast('Không thể tải dữ liệu dashboard', 'error');
+    }
+}
+
+/**
+ * Setup period selector buttons (7D, 30D, 90D)
+ */
+function setupPeriodButtons() {
+    const periodButtons = document.querySelectorAll('.period-btn');
+
+    periodButtons.forEach(btn => {
+        btn.addEventListener('click', async function() {
+            // Remove active class from all buttons
+            periodButtons.forEach(b => b.classList.remove('active'));
+            // Add active class to clicked button
+            this.classList.add('active');
+
+            // Get period from button text
+            const period = this.textContent.trim(); // "7D", "30D", or "90D"
+
+            // Reload merchant chart data with new period
+            await loadMerchantChartData(period);
+        });
+    });
+}
+
+/**
+ * Load merchant chart data for specific period
+ */
+async function loadMerchantChartData(period) {
+    try {
+        console.log(`[Dashboard] Loading merchant data for period: ${period}`);
+
+        // Convert period to days
+        const days = parseInt(period.replace('D', ''));
+
+        // Call API with period parameter
+        const response = await apiRequest(`/admin/dashboard/merchant-stats?days=${days}`);
+
+        if (response.success && response.data) {
+            // Update chart with new data
+            initMerchantConversionChart(response.data);
+
+            // Update merchant metrics
+            if (response.data.topMerchants && response.data.topMerchants.length > 0) {
+                const topMerchant = response.data.topMerchants[0];
+                document.getElementById('topMerchant').textContent = topMerchant.name;
+                document.getElementById('topMerchantRate').textContent = `${topMerchant.conversionRate}% conv rate`;
+            }
+
+            if (response.data.avgConversionRate) {
+                document.getElementById('avgConvRate').textContent = response.data.avgConversionRate + '%';
+            }
+
+            if (response.data.totalActiveMerchants !== undefined) {
+                document.getElementById('totalActiveMerchants').textContent = response.data.totalActiveMerchants;
+            }
+
+            // Update subtitle text
+            const subtitle = document.querySelector('.chart-subtitle');
+            if (subtitle) {
+                subtitle.textContent = `Hiệu suất chuyển đổi theo merchant trong ${days} ngày`;
+            }
+        }
+    } catch (error) {
+        console.error('[Dashboard] Error loading merchant chart data:', error);
+        showToast('Lỗi khi tải dữ liệu biểu đồ', 'error');
     }
 }
 

@@ -233,6 +233,64 @@ router.get('/dashboard/stats', authenticateAdmin, async (req, res) => {
 });
 
 /**
+ * GET /api/admin/dashboard/merchant-stats
+ * Get merchant statistics for specific time period
+ */
+router.get('/dashboard/merchant-stats', authenticateAdmin, async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 30; // Default to 30 days
+
+    // Merchant conversion metrics for specified period
+    const merchantStats = await pool.query(`
+      SELECT
+        m.name,
+        m.id,
+        COUNT(DISTINCT c.id) as conversions,
+        COUNT(DISTINCT cl.id) as clicks,
+        CASE
+          WHEN COUNT(DISTINCT cl.id) > 0
+          THEN (COUNT(DISTINCT c.id)::float / COUNT(DISTINCT cl.id)::float * 100)
+          ELSE 0
+        END as conversion_rate
+      FROM merchants m
+      LEFT JOIN clicks cl ON cl.merchant_id = m.id AND cl.clicked_at >= NOW() - INTERVAL '${days} days'
+      LEFT JOIN conversions c ON c.merchant_id = m.id AND c.created_at >= NOW() - INTERVAL '${days} days'
+      GROUP BY m.id, m.name
+      HAVING COUNT(DISTINCT cl.id) > 0
+      ORDER BY conversions DESC
+      LIMIT 10
+    `);
+
+    const avgConversionRate = merchantStats.rows.length > 0
+      ? merchantStats.rows.reduce((sum, m) => sum + parseFloat(m.conversion_rate), 0) / merchantStats.rows.length
+      : 0;
+
+    const topMerchants = merchantStats.rows.map(m => ({
+      id: m.id,
+      name: m.name,
+      conversions: parseInt(m.conversions),
+      clicks: parseInt(m.clicks),
+      conversionRate: parseFloat(m.conversion_rate).toFixed(2)
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        topMerchants,
+        avgConversionRate: avgConversionRate.toFixed(2),
+        totalActiveMerchants: merchantStats.rows.length
+      }
+    });
+  } catch (error) {
+    console.error('Merchant stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to load merchant statistics'
+    });
+  }
+});
+
+/**
  * GET /api/admin/stats
  * Get admin dashboard statistics
  */
@@ -3697,8 +3755,8 @@ router.get('/check-single-order', authenticateAdmin, async (req, res) => {
  */
 router.get('/settings', authenticateAdmin, async (req, res) => {
   try {
-    // Read from database for persistence
-    const autoCronEnabled = await SystemSettings.get('auto_cron_enabled', false);
+    // Read from database for persistence (default: true for auto_cron_enabled)
+    const autoCronEnabled = await SystemSettings.get('auto_cron_enabled', true);
     const apiModeEnabled = await SystemSettings.get('api_mode_enabled', false);
 
     const settings = {
