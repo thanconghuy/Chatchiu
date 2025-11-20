@@ -76,9 +76,9 @@
 
         .filter-row {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-            margin-bottom: 16px;
+            grid-template-columns: 180px 180px 180px 1fr auto auto;
+            gap: 12px;
+            align-items: end;
         }
 
         .filter-group {
@@ -109,8 +109,38 @@
         }
 
         .action-buttons {
-            display: flex;
-            gap: 10px;
+            display: contents;
+        }
+
+        .action-buttons .btn-primary,
+        .action-buttons .btn-secondary {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            white-space: nowrap;
+        }
+
+        .action-buttons .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .action-buttons .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .action-buttons .btn-secondary {
+            background: white;
+            color: #666;
+            border: 1px solid #ddd;
+        }
+
+        .action-buttons .btn-secondary:hover {
+            background: #f5f5f5;
         }
 
         .modal {
@@ -345,6 +375,20 @@
             color: #666;
         }
 
+        @media (max-width: 1200px) {
+            .filter-row {
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+            }
+
+            .action-buttons {
+                grid-column: 1 / -1;
+                display: flex;
+                gap: 10px;
+                margin-top: 4px;
+            }
+        }
+
         @media (max-width: 768px) {
             .stats-grid {
                 grid-template-columns: 1fr;
@@ -352,6 +396,16 @@
 
             .filter-row {
                 grid-template-columns: 1fr;
+            }
+
+            .action-buttons {
+                display: flex;
+                flex-direction: column;
+            }
+
+            .action-buttons .btn-primary,
+            .action-buttons .btn-secondary {
+                width: 100%;
             }
 
             .modal-content {
@@ -371,9 +425,6 @@
                 <div>
                     <h1>Payment Requests Management</h1>
                     <p class="header-subtitle">Quản lý yêu cầu thanh toán từ user</p>
-                </div>
-                <div class="admin-user">
-                    <span id="adminName">Admin</span>
                 </div>
             </div>
 
@@ -424,17 +475,17 @@
                         <input type="date" id="toDate">
                     </div>
                     <div class="filter-group">
-                        <label>User ID (optional)</label>
-                        <input type="text" id="userIdFilter" placeholder="UUID của user">
+                        <label>Email/Username</label>
+                        <input type="text" id="userFilter" placeholder="Email hoặc username">
                     </div>
-                </div>
-                <div class="action-buttons">
-                    <button class="btn-primary" onclick="loadPaymentRequests()">
-                        🔍 Tìm kiếm
-                    </button>
-                    <button class="btn-secondary" onclick="resetFilters()">
-                        🔄 Reset
-                    </button>
+                    <div class="action-buttons">
+                        <button class="btn-primary" onclick="loadPaymentRequests()">
+                            🔍 Tìm kiếm
+                        </button>
+                        <button class="btn-secondary" onclick="resetFilters()">
+                            🔄 Reset
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -567,6 +618,7 @@
         </div>
     </div>
 
+    <script src="/js/config.js"></script>
     <script src="/admin/sidebar.js"></script>
     <script>initSidebar();</script>
     <script src="/admin/js/payment-requests.js"></script>

@@ -20,7 +20,7 @@ let totalRecords = 0;
 let merchantsList = [];
 
 // DOM Elements
-const userName = document.getElementById('userName');
+// const userName = document.getElementById('userName');
 const searchKeyword = document.getElementById('searchKeyword');
 const filterDateFrom = document.getElementById('filterDateFrom');
 const filterDateTo = document.getElementById('filterDateTo');
@@ -106,9 +106,9 @@ async function checkAdminAccess() {
  */
 async function init() {
     const user = getUser();
-    if (user) {
-        displayUserName('userName');
-    }
+    // if (user) {
+    //     displayUserName('userName');
+    // }
 
     // Set default date range (last 30 days)
     const today = new Date();

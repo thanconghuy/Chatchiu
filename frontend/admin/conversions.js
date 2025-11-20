@@ -17,7 +17,7 @@ let currentStatus = '';
 let itemsPerPage = 20; // Default items per page
 
 // DOM Elements
-const userName = document.getElementById('userName');
+// const userName = document.getElementById('userName');
 const statusFilter = document.getElementById('statusFilter');
 const conversionsTable = document.getElementById('conversionsTable');
 const prevBtn = document.getElementById('prevBtn');
@@ -61,9 +61,9 @@ async function checkAdminAccess() {
  */
 async function init() {
     const user = getUser();
-    if (user) {
-        userName.textContent = user.fullName || user.username || user.email;
-    }
+    // if (user) {
+    //     userName.textContent = user.fullName || user.username || user.email;
+    // }
 
     await loadConversions();
     setupEventListeners();

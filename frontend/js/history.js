@@ -510,3 +510,17 @@ function updateClicksPagination(itemCount) {
 }
 
 // Logout handler is now in user-sidebar.js
+
+/**
+ * Auto-refresh data when user returns to the page
+ */
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+        // Page became visible - refresh current tab data
+        if (currentTab === 'conversions') {
+            loadConversions();
+        } else {
+            loadClicks();
+        }
+    }
+});

@@ -19,7 +19,7 @@ let allClicksData = []; // Store all clicks data for pagination
 let clicksPaginator = null; // Pagination instance for clicks modal
 
 // DOM Elements
-const userName = document.getElementById('userName');
+// const userName = document.getElementById('userName');
 const searchInput = document.getElementById('searchInput');
 const searchBtn = document.getElementById('searchBtn');
 const usersTable = document.getElementById('usersTable');
@@ -68,9 +68,9 @@ async function checkAdminAccess() {
  */
 async function init() {
     const user = getUser();
-    if (user) {
-        displayUserName('userName');
-    }
+    // if (user) {
+    //     displayUserName('userName');
+    // }
 
     await loadUsers();
     setupEventListeners();

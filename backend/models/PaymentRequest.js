@@ -236,6 +236,7 @@ class PaymentRequest {
     const {
       status = null,
       userId = null,
+      userFilter = null,
       fromDate = null,
       toDate = null,
       limit = 50,
@@ -248,6 +249,7 @@ class PaymentRequest {
         u.full_name as user_name,
         u.email as user_email,
         u.phone as user_phone,
+        u.username as user_username,
         admin.full_name as admin_name,
         (SELECT COUNT(*) FROM payment_reconciliation_mapping
          WHERE payment_request_id = pr.id) as items_count,
@@ -270,11 +272,18 @@ class PaymentRequest {
       values.push(status);
     }
 
-    // Filter by user
+    // Filter by user ID (exact match)
     if (userId) {
       paramCount++;
       query += ` AND pr.user_id = $${paramCount}`;
       values.push(userId);
+    }
+
+    // Filter by email or username (partial match)
+    if (userFilter) {
+      paramCount++;
+      query += ` AND (LOWER(u.email) LIKE LOWER($${paramCount}) OR LOWER(u.username) LIKE LOWER($${paramCount}))`;
+      values.push(`%${userFilter}%`);
     }
 
     // Filter by date range

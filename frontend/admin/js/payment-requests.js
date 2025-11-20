@@ -3,27 +3,31 @@ const API_BASE_URL = window.location.hostname === 'localhost'
     ? 'http://localhost:3007/api'
     : '/api';
 
+// Use CONFIG from config.js for consistent storage keys
+const STORAGE_KEYS = window.CONFIG?.STORAGE_KEYS || {
+    TOKEN: 'cashback_token',
+    USER: 'cashback_user'
+};
+
 let currentPage = 1;
 let limit = 20;
 let currentFilters = {};
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
     if (!token) {
         window.location.href = '/admin';
         return;
     }
 
     // Check admin role
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    if (user.role !== 'admin') {
-        alert('Access denied');
-        window.location.href = '/dashboard';
+    const user = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER) || '{}');
+    if (!user.is_admin) {
+        alert('Access denied - Admin only');
+        window.location.href = '/';
         return;
     }
-
-    document.getElementById('adminName').textContent = user.full_name || user.email || 'Admin';
 
     // Setup event listeners
     setupEventListeners();
@@ -56,7 +60,7 @@ function setupEventListeners() {
 // Load statistics
 async function loadStats() {
     try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
         const response = await fetch(`${API_BASE_URL}/payment-requests/admin/stats`, {
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -91,7 +95,7 @@ function displayStats(stats) {
 async function loadPaymentRequests() {
     try {
         showLoading(true);
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
         const offset = (currentPage - 1) * limit;
 
         // Build query parameters
@@ -110,8 +114,8 @@ async function loadPaymentRequests() {
         const toDate = document.getElementById('toDate').value;
         if (toDate) params.append('toDate', toDate);
 
-        const userId = document.getElementById('userIdFilter').value;
-        if (userId) params.append('userId', userId);
+        const userFilter = document.getElementById('userFilter').value;
+        if (userFilter) params.append('userFilter', userFilter);
 
         const response = await fetch(`${API_BASE_URL}/payment-requests/admin/list?${params}`, {
             headers: {
@@ -222,7 +226,7 @@ function resetFilters() {
     document.getElementById('statusFilter').value = '';
     document.getElementById('fromDate').value = '';
     document.getElementById('toDate').value = '';
-    document.getElementById('userIdFilter').value = '';
+    document.getElementById('userFilter').value = '';
     currentPage = 1;
     loadPaymentRequests();
 }
@@ -230,7 +234,7 @@ function resetFilters() {
 // View request detail
 async function viewRequest(id) {
     try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
         const response = await fetch(`${API_BASE_URL}/payment-requests/admin/${id}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -384,7 +388,7 @@ async function handleConfirm(e) {
     const notes = document.getElementById('confirmNotes').value;
 
     try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
         const response = await fetch(`${API_BASE_URL}/payment-requests/admin/${id}/confirm`, {
             method: 'PATCH',
             headers: {
@@ -429,7 +433,7 @@ async function handleReject(e) {
     }
 
     try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
         const response = await fetch(`${API_BASE_URL}/payment-requests/admin/${id}/reject`, {
             method: 'PATCH',
             headers: {
@@ -476,7 +480,7 @@ async function handlePaid(e) {
     }
 
     try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
         const response = await fetch(`${API_BASE_URL}/payment-requests/admin/${id}/paid`, {
             method: 'PATCH',
             headers: {

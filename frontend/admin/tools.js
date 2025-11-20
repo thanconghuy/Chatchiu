@@ -15,7 +15,7 @@ requireAuth();
 let fetchedConversions = null;
 
 // DOM Elements
-const userName = document.getElementById('userName');
+// const userName = document.getElementById('userName');
 const logoutBtn = document.getElementById('logoutBtn');
 
 // Conversions
@@ -75,9 +75,9 @@ async function checkAdminAccess() {
  */
 function init() {
     const user = getUser();
-    if (user) {
-        displayUserName('userName');
-    }
+    // if (user) {
+    //     displayUserName('userName');
+    // }
 
     // Set default dates (last 7 days)
     const today = new Date();

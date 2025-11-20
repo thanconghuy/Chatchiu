@@ -40,11 +40,12 @@ router.get('/admin/stats', authenticateAdmin, async (req, res) => {
  */
 router.get('/admin/list', authenticateAdmin, async (req, res) => {
   try {
-    const { status, userId, fromDate, toDate, limit, offset } = req.query;
+    const { status, userId, userFilter, fromDate, toDate, limit, offset } = req.query;
 
     const filters = {
       status: status || null,
       userId: userId || null,
+      userFilter: userFilter || null,
       fromDate: fromDate ? new Date(fromDate) : null,
       toDate: toDate ? new Date(toDate) : null,
       limit: parseInt(limit) || 50,
