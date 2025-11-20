@@ -24,6 +24,15 @@ const SIDEBAR_MENU_ITEMS = [
  * @returns {string} Sidebar HTML
  */
 function renderSidebar(activePageId) {
+    // Get user info from localStorage
+    const STORAGE_KEYS = window.CONFIG?.STORAGE_KEYS || {
+        TOKEN: 'cashback_token',
+        USER: 'cashback_user'
+    };
+    const user = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER) || '{}');
+    // Support both naming conventions: fullName (camelCase from API) and full_name (snake_case)
+    const userName = user.fullName || user.full_name || user.email || 'Admin';
+
     const menuItems = SIDEBAR_MENU_ITEMS.map(item => {
         const isActive = item.id === activePageId;
         const activeClass = isActive ? 'active' : '';
@@ -40,7 +49,12 @@ function renderSidebar(activePageId) {
         <aside class="sidebar" id="sidebar">
             <div class="logo">
                 <span class="logo-icon">⚡</span>
-                <span class="logo-text">Admin</span>
+                <span class="logo-text">Admin Panel</span>
+            </div>
+
+            <div class="admin-user-info">
+                <div class="admin-greeting">Xin chào</div>
+                <div class="admin-name">${userName}</div>
             </div>
 
             <nav class="nav">

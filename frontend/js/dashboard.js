@@ -248,10 +248,17 @@ function renderMobileHistoryCards(orders) {
                  🔗 Không có link
                </button>`;
 
+        // Merchant logo or fallback icon
+        const merchantIcon = order.merchantLogo
+            ? `<img src="${escapeHtml(order.merchantLogo)}" alt="${escapeHtml(order.merchantName)}" class="merchant-mini-logo">`
+            : '🛒';
+
         return `
             <div class="history-card">
                 <div class="history-card-header">
-                    <span class="history-merchant">🛒 ${escapeHtml(order.merchantName)}</span>
+                    <span class="history-merchant">
+                        ${merchantIcon} ${escapeHtml(order.merchantName)}
+                    </span>
                     ${linkButton}
                 </div>
                 <div class="history-card-body">
@@ -385,25 +392,30 @@ function openMerchantModal(merchantId) {
 
     currentMerchant = merchant;
 
-    // Get modal elements with defensive checks
+    // IMPORTANT: Query modal elements FRESH each time (not cached)
+    // This prevents issues with dynamic DOM updates
+    const modal = document.getElementById('merchantModal');
     const modalLogo = document.getElementById('modalMerchantLogo');
     const modalName = document.getElementById('modalMerchantName');
     const nameOption1 = document.getElementById('merchantNameOption1');
     const nameBtn1 = document.getElementById('merchantNameBtn1');
     const nameOption2 = document.getElementById('merchantNameOption2');
-    const modal = document.getElementById('merchantModal');
     const productInput = document.getElementById('productUrlInput');
 
     // Validate all required elements exist
-    if (!modalLogo || !modalName || !nameOption1 || !nameBtn1 || !nameOption2 || !modal || !productInput) {
+    if (!modal || !modalLogo || !modalName || !nameOption1 || !nameBtn1 || !nameOption2 || !productInput) {
         console.error('Modal elements not found. Missing:', {
-            modalLogo: !modalLogo,
-            modalName: !modalName,
-            nameOption1: !nameOption1,
-            nameBtn1: !nameBtn1,
-            nameOption2: !nameOption2,
-            modal: !modal,
-            productInput: !productInput
+            modal: !!modal,
+            modalLogo: !!modalLogo,
+            modalName: !!modalName,
+            nameOption1: !!nameOption1,
+            nameBtn1: !!nameBtn1,
+            nameOption2: !!nameOption2,
+            productInput: !!productInput
+        });
+        console.error('DOM state:', {
+            modalInDOM: !!document.querySelector('#merchantModal'),
+            allModals: document.querySelectorAll('.modal').length
         });
         return;
     }
@@ -478,11 +490,16 @@ function closeMerchantModal() {
     // Reset buttons
     if (freeBtn) {
         freeBtn.disabled = false;
-        freeBtn.innerHTML = 'Đi đến ' + (currentMerchant?.name || 'Merchant');
+        // Don't use innerHTML - it destroys the <span id="merchantNameBtn1"> inside
+        // Instead, update the span's textContent
+        const nameBtn1 = document.getElementById('merchantNameBtn1');
+        if (nameBtn1) {
+            nameBtn1.textContent = 'Merchant';
+        }
     }
     if (generateBtn) {
         generateBtn.disabled = false;
-        generateBtn.innerHTML = 'Tạo link mua hàng';
+        generateBtn.textContent = 'Tạo link mua hàng';
     }
 }
 
@@ -493,12 +510,15 @@ async function handleFreeShoppingClick() {
     if (!currentMerchant) return;
 
     const freeBtn = document.getElementById('freeShoppingBtn');
-    if (!freeBtn) return;
+    const nameBtn1 = document.getElementById('merchantNameBtn1');
+    if (!freeBtn || !nameBtn1) return;
 
     // Disable button and show loading
     freeBtn.disabled = true;
-    const originalText = freeBtn.innerHTML;
-    freeBtn.innerHTML = '<span class="spinner"></span> Đang tạo link...';
+    const originalMerchantName = nameBtn1.textContent;
+
+    // Update button to show loading (preserve structure, don't use innerHTML)
+    nameBtn1.innerHTML = '<span class="spinner"></span> Đang tạo link...';
 
     try {
         // Show loading toast
@@ -528,9 +548,9 @@ async function handleFreeShoppingClick() {
         showToast(error.message || 'Không thể tạo link', 'error');
 
         // Restore button
-        if (freeBtn) {
+        if (freeBtn && nameBtn1) {
             freeBtn.disabled = false;
-            freeBtn.innerHTML = originalText;
+            nameBtn1.textContent = originalMerchantName;
         }
     }
 }
@@ -812,3 +832,14 @@ if (desktopUserName) {
         console.log('Desktop user name updated:', displayName);
     }
 }
+
+/**
+ * Auto-refresh data when user returns to the page
+ */
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+        // Page became visible - refresh stats and recent orders
+        loadStats();
+        loadRecentOrders();
+    }
+});

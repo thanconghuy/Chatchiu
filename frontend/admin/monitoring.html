@@ -393,9 +393,6 @@
             <div class="content-wrapper">
                 <div class="content-header">
                     <h1>Monitoring Dashboard</h1>
-                    <div class="user-info">
-                        <span id="userName">Admin</span>
-                    </div>
                 </div>
 
                 <div class="monitoring-container">
@@ -590,11 +587,11 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
-            // Display user name
-            const user = getUser();
-            if (user && user.fullName) {
-                document.getElementById('userName').textContent = user.fullName;
-            }
+            // Display user name - commented out as userName element was removed
+            // const user = getUser();
+            // if (user && user.fullName) {
+            //     document.getElementById('userName').textContent = user.fullName;
+            // }
 
             loadMonitoringData();
             setupEventListeners();

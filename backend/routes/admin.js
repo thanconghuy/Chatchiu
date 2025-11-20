@@ -4380,12 +4380,13 @@ router.get('/activity-logs', authenticateAdmin, async (req, res) => {
     }
 
     if (dateFrom) {
-      whereConditions.push(`created_at >= $${paramIndex++}`);
+      whereConditions.push(`ual.created_at >= $${paramIndex++}`);
       queryParams.push(dateFrom);
     }
 
     if (dateTo) {
-      whereConditions.push(`created_at <= $${paramIndex++}`);
+      // Add 23:59:59 to include the entire day
+      whereConditions.push(`ual.created_at <= $${paramIndex++}::date + interval '1 day' - interval '1 second'`);
       queryParams.push(dateTo);
     }
 
@@ -4396,7 +4397,7 @@ router.get('/activity-logs', authenticateAdmin, async (req, res) => {
     // Get total count
     const countQuery = `
       SELECT COUNT(*) as total
-      FROM user_activity_logs
+      FROM user_activity_logs ual
       ${whereClause}
     `;
     const countResult = await pool.query(countQuery, queryParams);
@@ -4454,12 +4455,13 @@ router.get('/activity-logs/stats', authenticateAdmin, async (req, res) => {
     let paramIndex = 1;
 
     if (dateFrom) {
-      whereConditions.push(`created_at >= $${paramIndex++}`);
+      whereConditions.push(`ual.created_at >= $${paramIndex++}`);
       queryParams.push(dateFrom);
     }
 
     if (dateTo) {
-      whereConditions.push(`created_at <= $${paramIndex++}`);
+      // Add 23:59:59 to include the entire day
+      whereConditions.push(`ual.created_at <= $${paramIndex++}::date + interval '1 day' - interval '1 second'`);
       queryParams.push(dateTo);
     }
 
@@ -4476,7 +4478,7 @@ router.get('/activity-logs/stats', authenticateAdmin, async (req, res) => {
         COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_count,
         AVG(CASE WHEN response_time_ms IS NOT NULL THEN response_time_ms END)::INTEGER as avg_response_time,
         COUNT(CASE WHEN activity_type = 'link_generate_success' THEN 1 END) as total_links_generated
-      FROM user_activity_logs
+      FROM user_activity_logs ual
       ${whereClause}
     `;
     const statsResult = await pool.query(statsQuery, queryParams);
@@ -4488,7 +4490,7 @@ router.get('/activity-logs/stats', authenticateAdmin, async (req, res) => {
         COUNT(*) as count,
         COUNT(CASE WHEN status = 'success' THEN 1 END) as success_count,
         COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_count
-      FROM user_activity_logs
+      FROM user_activity_logs ual
       ${whereClause}
       GROUP BY activity_type
       ORDER BY count DESC

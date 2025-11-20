@@ -19,10 +19,10 @@ async function checkAdminAccess() {
                 return false;
             }
             // Update user name display - use full_name if available, fallback to username
-            const userName = document.getElementById('userName');
-            if (userName) {
-                userName.textContent = response.user.full_name || response.user.username || response.user.email;
-            }
+            // const userName = document.getElementById('userName');
+            // if (userName) {
+            //     userName.textContent = response.user.full_name || response.user.username || response.user.email;
+            // }
             return true;
         }
         throw new Error('Failed to verify admin access');
