@@ -5,13 +5,78 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lịch sử - Cashback System</title>
     <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* Ensure desktop/mobile views work correctly */
+        @media (max-width: 768px) {
+            .desktop-only {
+                display: none !important;
+            }
+            .mobile-only {
+                display: block !important;
+            }
+        }
+
+        @media (min-width: 769px) {
+            .mobile-only {
+                display: none !important;
+            }
+            .desktop-only {
+                display: block !important;
+            }
+
+            /* Desktop table styling */
+            .table-container {
+                overflow-x: auto;
+                margin-bottom: 20px;
+            }
+
+            .data-table {
+                width: 100%;
+                min-width: 900px;
+            }
+
+            .data-table th,
+            .data-table td {
+                padding: 12px;
+                text-align: left;
+                white-space: nowrap;
+            }
+
+            /* Merchant column with logo */
+            .merchant-cell {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                min-width: 150px;
+            }
+
+            .merchant-mini-logo {
+                width: 24px;
+                height: 24px;
+                object-fit: contain;
+                border-radius: 4px;
+            }
+
+            /* Highlight important columns */
+            .data-table td.highlight {
+                font-weight: 600;
+                color: #10b981;
+            }
+
+            /* Status badges */
+            .status-badge {
+                padding: 4px 12px;
+                border-radius: 12px;
+                font-size: 0.85rem;
+                font-weight: 500;
+                white-space: nowrap;
+            }
+        }
+    </style>
 </head>
 <body>
     <!-- Mobile Menu Toggle -->
     <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
-
-    <!-- Sidebar Overlay Backdrop (for mobile menu) -->
-    <div class="sidebar-overlay"></div>
 
     <div class="app-container">
         <!-- Sidebar will be loaded by user-sidebar.js -->

@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yêu cầu thanh toán - Cashback System</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* Payment Requests Specific Styles */
+        .balance-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .balance-card h2 {
+            margin: 0 0 1rem 0;
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .balance-amount {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin: 0.5rem 0;
+        }
+
+        .balance-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .balance-detail-item {
+            text-align: left;
+        }
+
+        .balance-detail-label {
+            font-size: 0.85rem;
+            opacity: 0.8;
+            margin-bottom: 0.25rem;
+        }
+
+        .balance-detail-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .create-request-btn {
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: transform 0.2s;
+        }
+
+        .create-request-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .create-request-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .ineligible-reasons {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        .ineligible-reasons ul {
+            margin: 0.5rem 0 0 1.5rem;
+            padding: 0;
+        }
+
+        .ineligible-reasons li {
+            margin: 0.25rem 0;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: #fff;
+            padding: 2rem;
+            border-radius: 12px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+        }
+
+        .close-modal {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #999;
+            cursor: pointer;
+            border: none;
+            background: none;
+        }
+
+        .close-modal:hover {
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group label .required {
+            color: #e74c3c;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-group small {
+            display: block;
+            margin-top: 0.25rem;
+            color: #666;
+            font-size: 0.85rem;
+        }
+
+        .status-badge {
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-confirmed {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .status-paid {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-rejected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        /* Mobile Card Styles */
+        .payment-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .payment-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .payment-card-amount {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .payment-card-body {
+            display: grid;
+            gap: 0.5rem;
+        }
+
+        .payment-card-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+        }
+
+        .payment-card-label {
+            color: #666;
+        }
+
+        .payment-card-value {
+            font-weight: 600;
+            text-align: right;
+        }
+
+        .payment-card-actions {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #f0f0f0;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-view {
+            flex: 1;
+            padding: 0.5rem 1rem;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .btn-cancel {
+            padding: 0.5rem 1rem;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            .balance-card {
+                padding: 1.5rem;
+            }
+
+            .balance-amount {
+                font-size: 2rem;
+            }
+
+            .balance-details {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .modal-content {
+                padding: 1.5rem;
+                width: 95%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
+
+    <div class="app-container">
+        <!-- Sidebar will be loaded by user-sidebar.js -->
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-wrapper">
+                <div class="content-header">
+                    <h1>Yêu cầu thanh toán</h1>
+                    <div class="user-info">
+                        <span id="userName">User</span>
+                    </div>
+                </div>
+
+                <!-- Available Balance Card -->
+                <div class="balance-card" id="balanceCard">
+                    <h2>Số dư khả dụng</h2>
+                    <div class="balance-amount" id="availableBalance">0 ₫</div>
+
+                    <div class="balance-details">
+                        <div class="balance-detail-item">
+                            <div class="balance-detail-label">Tổng cashback</div>
+                            <div class="balance-detail-value" id="totalCashback">0 ₫</div>
+                        </div>
+                        <div class="balance-detail-item">
+                            <div class="balance-detail-label">Đã yêu cầu</div>
+                            <div class="balance-detail-value" id="totalRequested">0 ₫</div>
+                        </div>
+                    </div>
+
+                    <button class="create-request-btn" id="createRequestBtn" onclick="showCreateModal()">
+                        Tạo yêu cầu thanh toán
+                    </button>
+
+                    <div class="ineligible-reasons" id="ineligibleReasons" style="display: none;">
+                        <strong>Không đủ điều kiện:</strong>
+                        <ul id="ineligibleReasonsList"></ul>
+                    </div>
+                </div>
+
+                <!-- Tabs for Status Filter -->
+                <div class="tabs">
+                    <button class="tab-btn active" data-status="">Tất cả</button>
+                    <button class="tab-btn" data-status="pending">Chờ duyệt</button>
+                    <button class="tab-btn" data-status="confirmed">Đã xác nhận</button>
+                    <button class="tab-btn" data-status="paid">Đã thanh toán</button>
+                    <button class="tab-btn" data-status="rejected">Từ chối</button>
+                </div>
+
+                <!-- Desktop Table View -->
+                <div class="table-container desktop-only">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Mã YC</th>
+                                <th>Số tiền</th>
+                                <th>Trạng thái</th>
+                                <th>Ngân hàng</th>
+                                <th>STK</th>
+                                <th>Ngày tạo</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="paymentRequestsTable">
+                            <tr class="loading-state">
+                                <td colspan="7">
+                                    <div class="loading">Đang tải...</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Mobile Card View -->
+                <div class="mobile-only">
+                    <div id="paymentRequestsCards" class="cards-container">
+                        <div class="loading">Đang tải...</div>
+                    </div>
+                </div>
+
+                <!-- Pagination -->
+                <div class="pagination" id="pagination">
+                    <div class="rows-per-page">
+                        <label for="rowsPerPage">Hiển thị:</label>
+                        <select id="rowsPerPage">
+                            <option value="10">10</option>
+                            <option value="20" selected>20</option>
+                            <option value="50">50</option>
+                        </select>
+                    </div>
+                    <button class="btn-secondary" id="prevPage" disabled>« Trước</button>
+                    <span id="pageInfo">Trang 1</span>
+                    <button class="btn-secondary" id="nextPage">Sau »</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Create Payment Request Modal -->
+    <div id="createRequestModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Tạo yêu cầu thanh toán</h2>
+                <button class="close-modal" onclick="closeCreateModal()">&times;</button>
+            </div>
+            <form id="createRequestForm">
+                <div class="form-group">
+                    <label for="requestedAmount">
+                        Số tiền yêu cầu <span class="required">*</span>
+                    </label>
+                    <input
+                        type="number"
+                        id="requestedAmount"
+                        name="requestedAmount"
+                        min="100000"
+                        step="1000"
+                        required
+                    >
+                    <small>Tối thiểu: 100,000 VNĐ | Tối đa: <span id="maxAmount">0</span> VNĐ</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="bankName">
+                        Tên ngân hàng <span class="required">*</span>
+                    </label>
+                    <input
+                        type="text"
+                        id="bankName"
+                        name="bankName"
+                        required
+                        placeholder="Ví dụ: Vietcombank, BIDV, Techcombank..."
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="bankAccountNumber">
+                        Số tài khoản <span class="required">*</span>
+                    </label>
+                    <input
+                        type="text"
+                        id="bankAccountNumber"
+                        name="bankAccountNumber"
+                        required
+                        minlength="6"
+                        placeholder="Số tài khoản ngân hàng"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="bankAccountName">
+                        Tên chủ tài khoản <span class="required">*</span>
+                    </label>
+                    <input
+                        type="text"
+                        id="bankAccountName"
+                        name="bankAccountName"
+                        required
+                        placeholder="Họ và tên chủ tài khoản"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="bankBranch">Chi nhánh (tùy chọn)</label>
+                    <input
+                        type="text"
+                        id="bankBranch"
+                        name="bankBranch"
+                        placeholder="Ví dụ: Chi nhánh Hà Nội, Chi nhánh TP.HCM..."
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="notes">Ghi chú (tùy chọn)</label>
+                    <textarea
+                        id="notes"
+                        name="notes"
+                        placeholder="Ghi chú thêm nếu cần..."
+                    ></textarea>
+                </div>
+
+                <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                    <button type="button" class="btn-secondary" onclick="closeCreateModal()" style="flex: 1;">
+                        Hủy
+                    </button>
+                    <button type="submit" class="btn-primary" style="flex: 2;">
+                        Tạo yêu cầu
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- View Payment Request Detail Modal -->
+    <div id="viewRequestModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Chi tiết yêu cầu</h2>
+                <button class="close-modal" onclick="closeViewModal()">&times;</button>
+            </div>
+            <div id="requestDetailContent">
+                <!-- Content will be loaded dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/user-sidebar.js"></script>
+    <script src="js/mobile-menu.js"></script>
+    <script src="js/payment-requests.js"></script>
+</body>
+</html>

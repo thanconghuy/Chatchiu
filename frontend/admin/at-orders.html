@@ -109,12 +109,12 @@
 
         /* Filter Component Styles */
         .table-filters {
-            display: flex;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             align-items: flex-end;
-            justify-content: flex-end;
             gap: 16px;
             margin-bottom: 16px;
-            padding: 16px;
+            padding: 24px;
             background: white;
             border-radius: 12px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
@@ -124,7 +124,7 @@
             display: flex;
             flex-direction: column;
             gap: 6px;
-            min-width: 200px;
+            width: 100%;
         }
 
         .filter-group label {
@@ -623,7 +623,7 @@
 
             <!-- Table Filters (Above Table) -->
             <div class="table-filters">
-                <div class="filter-group" style="width: 220px;">
+                <div class="filter-group">
                     <label>TT Đơn hàng</label>
                     <div class="filter-dropdown">
                         <button class="filter-dropdown-btn" id="statusFilterBtn" type="button">
@@ -639,7 +639,7 @@
                     </div>
                 </div>
 
-                <div class="filter-group" style="width: 220px;">
+                <div class="filter-group">
                     <label>TT Đối soát</label>
                     <div class="filter-dropdown">
                         <button class="filter-dropdown-btn" id="confirmedFilterBtn" type="button">
@@ -654,7 +654,7 @@
                     </div>
                 </div>
 
-                <div class="filter-group" style="width: 240px;">
+                <div class="filter-group">
                     <label>Merchant</label>
                     <div class="filter-dropdown">
                         <button class="filter-dropdown-btn" id="merchantFilterBtn" type="button">
@@ -673,7 +673,7 @@
                     </div>
                 </div>
 
-                <div class="filter-group" style="width: 220px;">
+                <div class="filter-group">
                     <label>UTM Source</label>
                     <div class="filter-dropdown">
                         <button class="filter-dropdown-btn" id="utmSourceFilterBtn" type="button">

@@ -37,6 +37,7 @@ const neonAuthRoutes = require('./backend/routes/neonAuthRoutes');
 const dashboardRoutes = require('./backend/routes/dashboard');
 const adminRoutes = require('./backend/routes/admin');
 const reconciliationRoutes = require('./backend/routes/reconciliation');
+const paymentRequestRoutes = require('./backend/routes/paymentRequest');
 const publicRoutes = require('./backend/routes/public');
 
 // Mount API routes (BEFORE static files)
@@ -45,6 +46,7 @@ app.use('/api/neon-auth', neonAuthRoutes); // New Neon Auth routes
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/reconciliation', reconciliationRoutes); // Reconciliation module (admin only)
+app.use('/api/payment-requests', paymentRequestRoutes); // Payment request module (user + admin)
 app.use('/api/public', publicRoutes); // Public endpoints (no auth required)
 
 // Health check endpoint
@@ -57,7 +59,7 @@ app.get('/health', (req, res) => {
 });
 
 // Routes for HTML pages (without .html extension)
-const pages = ['login', 'login-neon', 'register', 'dashboard', 'history', 'reconciliation-history', 'forgot-password', 'reset-password'];
+const pages = ['login', 'login-neon', 'register', 'dashboard', 'history', 'reconciliation-history', 'payment-requests', 'forgot-password', 'reset-password'];
 pages.forEach(page => {
   app.get(`/${page}`, (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend', `${page}.html`));

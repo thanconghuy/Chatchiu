@@ -58,6 +58,7 @@
         if (path.includes('/dashboard')) return 'dashboard';
         if (path.includes('/history')) return 'history';
         if (path.includes('/reconciliation-history')) return 'reconciliation-history';
+        if (path.includes('/payment-requests')) return 'payment-requests';
         return 'dashboard';
     }
 
