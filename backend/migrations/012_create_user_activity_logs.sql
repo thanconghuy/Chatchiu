@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS user_activity_logs (
   ip_address VARCHAR(45),
   user_agent TEXT,
   event_data JSONB,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create indexes for faster lookups
