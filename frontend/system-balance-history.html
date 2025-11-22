@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lịch sử số dư - Cashback System</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/system-balance.css">
+    <style>
+        /* Page specific styles */
+        .page-header {
+            margin-bottom: 24px;
+        }
+
+        .page-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 8px;
+        }
+
+        .page-subtitle {
+            font-size: 0.95rem;
+            color: #6b7280;
+        }
+
+        /* Balance Summary Cards */
+        .balance-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .summary-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            border-left: 4px solid #667eea;
+        }
+
+        .summary-card.success {
+            border-left-color: #10b981;
+        }
+
+        .summary-card.warning {
+            border-left-color: #f59e0b;
+        }
+
+        .summary-label {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-bottom: 8px;
+        }
+
+        .summary-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            border-bottom: 2px solid #e5e7eb;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .tab {
+            padding: 12px 20px;
+            background: none;
+            border: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #6b7280;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+        }
+
+        .tab:hover {
+            color: #667eea;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        /* History Table */
+        .history-section {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 24px;
+        }
+
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .history-table thead {
+            background: #f9fafb;
+        }
+
+        .history-table th {
+            padding: 12px;
+            text-align: left;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .history-table td {
+            padding: 16px 12px;
+            font-size: 0.9rem;
+            color: #6b7280;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .history-table tr:hover {
+            background: #f9fafb;
+        }
+
+        .transaction-type-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .transaction-type-badge.reconciliation {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .transaction-type-badge.payment {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .transaction-type-badge.reserved {
+            background: #e0e7ff;
+            color: #4338ca;
+        }
+
+        .transaction-type-badge.pending {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .amount-positive {
+            color: #10b981;
+            font-weight: 600;
+        }
+
+        .amount-negative {
+            color: #ef4444;
+            font-weight: 600;
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .pagination button {
+            padding: 8px 16px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #374151;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: #f9fafb;
+            border-color: #667eea;
+            color: #667eea;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination-info {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state-text {
+            font-size: 1rem;
+            color: #6b7280;
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .history-table {
+                font-size: 0.85rem;
+            }
+
+            .history-table th,
+            .history-table td {
+                padding: 10px 8px;
+            }
+
+            /* Hide some columns on mobile */
+            .hide-mobile {
+                display: none;
+            }
+
+            .page-title {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
+
+    <div class="app-container">
+        <!-- Sidebar will be loaded by user-sidebar.js -->
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-wrapper">
+                <!-- Page Header -->
+                <div class="page-header">
+                    <h1 class="page-title">📜 Lịch sử số dư hệ thống</h1>
+                    <p class="page-subtitle">Theo dõi tất cả các giao dịch và thay đổi số dư của bạn</p>
+                </div>
+
+                <!-- Balance Summary -->
+                <div class="balance-summary-grid">
+                    <div class="summary-card">
+                        <div class="summary-label">Số dư khả dụng</div>
+                        <div class="summary-value" id="summaryAvailable">0đ</div>
+                    </div>
+                    <div class="summary-card warning">
+                        <div class="summary-label">Số dư dự trữ</div>
+                        <div class="summary-value" id="summaryReserved">0đ</div>
+                    </div>
+                    <div class="summary-card success">
+                        <div class="summary-label">Tổng đã kiếm</div>
+                        <div class="summary-value" id="summaryEarned">0đ</div>
+                    </div>
+                </div>
+
+                <!-- Tabs -->
+                <div class="tabs">
+                    <button class="tab active" data-tab="transactions">Giao dịch số dư</button>
+                    <button class="tab" data-tab="reconciliations">Lịch sử đối soát</button>
+                </div>
+
+                <!-- Transactions Tab Content -->
+                <div id="transactionsTab" class="tab-content">
+                    <div class="history-section">
+                        <h2 style="font-size: 1.25rem; font-weight: 600; color: #111827; margin-bottom: 16px;">
+                            Giao dịch số dư
+                        </h2>
+                        <div id="transactionsContainer">
+                            <div class="loading">Đang tải...</div>
+                        </div>
+                        <div class="pagination" id="transactionsPagination" style="display: none;">
+                            <button id="prevTransactionsBtn">← Trước</button>
+                            <span class="pagination-info" id="transactionsPaginationInfo">Trang 1 / 1</span>
+                            <button id="nextTransactionsBtn">Sau →</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reconciliations Tab Content -->
+                <div id="reconciliationsTab" class="tab-content" style="display: none;">
+                    <div class="history-section">
+                        <h2 style="font-size: 1.25rem; font-weight: 600; color: #111827; margin-bottom: 16px;">
+                            Lịch sử đối soát
+                        </h2>
+                        <div id="reconciliationsContainer">
+                            <div class="loading">Đang tải...</div>
+                        </div>
+                        <div class="pagination" id="reconciliationsPagination" style="display: none;">
+                            <button id="prevReconciliationsBtn">← Trước</button>
+                            <span class="pagination-info" id="reconciliationsPaginationInfo">Trang 1 / 1</span>
+                            <button id="nextReconciliationsBtn">Sau →</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/user-sidebar.js"></script>
+    <script src="js/mobile-menu.js"></script>
+    <script src="js/system-balance-history.js"></script>
+</body>
+</html>

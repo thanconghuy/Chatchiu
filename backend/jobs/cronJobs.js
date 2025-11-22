@@ -26,19 +26,37 @@ class CronJobsService {
   /**
    * Initialize all cron jobs
    * Called on server startup if AUTO_CRON_ENABLED=true
+   * @param {boolean} forceReload - Force reload even if already initialized
    */
-  initialize() {
-    const autoCronEnabled = process.env.AUTO_CRON_ENABLED === 'true';
+  async initialize(forceReload = false) {
+    // Check database setting first (overrides env variable)
+    let autoCronEnabled = process.env.AUTO_CRON_ENABLED === 'true';
 
-    // If already initialized and jobs are running, don't reinitialize
-    if (this.isInitialized && this.jobs.length > 0) {
+    try {
+      const SystemSettings = require('../services/systemSettings');
+      const dbSetting = await SystemSettings.get('auto_cron_enabled', true);
+      autoCronEnabled = dbSetting === true || dbSetting === 'true';
+
+      // Update env variable to match database
+      process.env.AUTO_CRON_ENABLED = autoCronEnabled ? 'true' : 'false';
+
+      logger.info(`Cron setting from database: ${autoCronEnabled}`);
+    } catch (error) {
+      logger.warn('Failed to load cron setting from database, using env variable', {
+        error: error.message
+      });
+    }
+
+    // If already initialized and jobs are running, don't reinitialize unless forced
+    if (this.isInitialized && this.jobs.length > 0 && !forceReload) {
       logger.warn('Cron jobs already initialized and running');
       return;
     }
 
-    // If not enabled, just mark as initialized
+    // If not enabled, stop all jobs and mark as disabled
     if (!autoCronEnabled) {
-      logger.info('Auto cron jobs DISABLED (set AUTO_CRON_ENABLED=true to enable)');
+      logger.info('Auto cron jobs DISABLED (set auto_cron_enabled=true in database to enable)');
+      this.stopAll();
       this.isInitialized = true;
       return;
     }
@@ -62,6 +80,16 @@ class CronJobsService {
 
     this.isInitialized = true;
     logger.success(`Initialized ${this.jobs.length} cron jobs`);
+  }
+
+  /**
+   * Reload cron jobs from database setting
+   * Useful when user changes setting without restarting server
+   */
+  async reload() {
+    logger.info('Reloading cron jobs from database...');
+    await this.initialize(true);
+    return this.getStatus();
   }
 
   /**

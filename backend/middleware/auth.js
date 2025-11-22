@@ -108,8 +108,31 @@ async function optionalAuth(req, res, next) {
   }
 }
 
+/**
+ * Middleware to require admin role
+ */
+function requireAdmin(req, res, next) {
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      message: 'Authentication required'
+    });
+  }
+
+  // Check is_admin field (boolean)
+  if (!req.user.is_admin) {
+    return res.status(403).json({
+      success: false,
+      message: 'Admin access required'
+    });
+  }
+
+  next();
+}
+
 module.exports = {
   authenticateToken,
   generateToken,
-  optionalAuth
+  optionalAuth,
+  requireAdmin
 };

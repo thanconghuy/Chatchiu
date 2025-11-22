@@ -39,6 +39,8 @@ const adminRoutes = require('./backend/routes/admin');
 const reconciliationRoutes = require('./backend/routes/reconciliation');
 const paymentRequestRoutes = require('./backend/routes/paymentRequest');
 const publicRoutes = require('./backend/routes/public');
+const systemReconciliationAdminRoutes = require('./backend/routes/systemReconciliationAdmin');
+const systemReconciliationUserRoutes = require('./backend/routes/systemReconciliationUser');
 
 // Mount API routes (BEFORE static files)
 app.use('/api/auth', authRoutes); // Keep old auth for backward compatibility
@@ -48,6 +50,8 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/reconciliation', reconciliationRoutes); // Reconciliation module (admin only)
 app.use('/api/payment-requests', paymentRequestRoutes); // Payment request module (user + admin)
 app.use('/api/public', publicRoutes); // Public endpoints (no auth required)
+app.use('/api/admin/system-reconciliation', systemReconciliationAdminRoutes); // System Reconciliation module (admin only)
+app.use('/api/user/system-reconciliation', systemReconciliationUserRoutes); // System Reconciliation module (user)
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -189,6 +193,14 @@ if (process.env.VERCEL !== '1') {
       }
     } catch (error) {
       logger.error('Failed to initialize cron jobs', { error: error.message });
+    }
+
+    // Initialize System Reconciliation jobs
+    try {
+      const startSystemReconciliationJobs = require('./backend/startSystemReconciliationJobs');
+      startSystemReconciliationJobs();
+    } catch (error) {
+      logger.error('Failed to initialize System Reconciliation jobs', { error: error.message });
     }
 
     // Initial sync DISABLED - Use manual sync from admin panel
