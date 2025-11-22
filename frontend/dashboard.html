@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Cashback System</title>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/system-balance.css">
 </head>
 <body>
     <!-- Mobile Menu Toggle -->
@@ -38,11 +39,56 @@
                     <p class="mobile-subtitle">Chào bạn đã quay trở lại với CHẮT CHIU. ONLINE!</p>
                 </header>
 
-                <!-- Hero Balance Card (Mobile-First Design) -->
+                <!-- System Balance Card (NEW) -->
+                <section class="system-balance-section">
+                    <div class="system-balance-card">
+                        <div class="balance-card-header">
+                            <div class="balance-title">
+                                <span class="balance-icon">💳</span>
+                                <span class="balance-label">Số dư hệ thống</span>
+                            </div>
+                            <button class="balance-info-btn" id="systemBalanceInfoBtn" title="Thông tin về số dư hệ thống">
+                                <span>ℹ️</span>
+                            </button>
+                        </div>
+
+                        <div class="balance-main">
+                            <div class="balance-item balance-available">
+                                <span class="balance-type-label">Khả dụng</span>
+                                <h3 class="balance-value" id="systemAvailableBalance">0đ</h3>
+                                <span class="balance-subtitle">Có thể rút ngay</span>
+                            </div>
+
+                            <div class="balance-divider"></div>
+
+                            <div class="balance-secondary">
+                                <div class="balance-item balance-reserved">
+                                    <span class="balance-type-label">Dự trữ</span>
+                                    <span class="balance-value-small" id="systemReservedBalance">0đ</span>
+                                </div>
+                                <div class="balance-item balance-pending">
+                                    <span class="balance-type-label">Chờ xử lý</span>
+                                    <span class="balance-value-small" id="systemPendingBalance">0đ</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="balance-actions">
+                            <button class="btn-withdraw" id="btnWithdraw">
+                                <span>💰</span> Rút tiền
+                            </button>
+                            <button class="btn-history" id="btnBalanceHistory">
+                                <span>📜</span> Lịch sử
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Hero Balance Card (Mobile-First Design) - Conversion Balance -->
                 <section class="hero-balance-section">
                     <div class="hero-balance-card">
                         <div class="balance-header">
-                            <span class="balance-label">Số dư khả dụng</span>
+                            <span class="balance-label">Số dư từ đơn hàng</span>
                         </div>
                         <div class="balance-amount-wrapper">
                             <h2 class="balance-amount" id="heroBalance">0đ</h2>
@@ -251,6 +297,7 @@
     <script src="js/auth.js"></script>
     <script src="js/user-sidebar.js"></script>
     <script src="js/mobile-menu.js"></script>
+    <script src="js/system-balance-widget.js"></script>
     <script src="js/dashboard.js"></script>
     <script src="js/analytics.js"></script>
 </body>

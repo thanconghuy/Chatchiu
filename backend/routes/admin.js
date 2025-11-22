@@ -3792,33 +3792,53 @@ router.post('/settings/auto-cron', authenticateAdmin, async (req, res) => {
     // Save to database for persistence across restarts
     await SystemSettings.set('auto_cron_enabled', enabled, req.userId);
 
-    // Also update runtime value
-    process.env.AUTO_CRON_ENABLED = enabled ? 'true' : 'false';
+    // Reload cron jobs to apply new setting immediately
+    const status = await cronJobsService.reload();
 
-    // Start or stop cron jobs based on the setting
-    if (enabled) {
-      cronJobsService.initialize();
-      const status = cronJobsService.getStatus();
-      logger.info('Auto cron jobs enabled and started', {
-        adminId: req.userId,
-        jobsCount: status.jobsCount
-      });
-    } else {
-      cronJobsService.stopAll();
-      logger.info('Auto cron jobs disabled and stopped', {
-        adminId: req.userId
-      });
-    }
+    logger.info(`Auto cron jobs ${enabled ? 'enabled' : 'disabled'}`, {
+      adminId: req.userId,
+      enabled,
+      jobsCount: status.jobsCount,
+      isInitialized: status.isInitialized
+    });
 
     res.json({
       success: true,
-      message: enabled ? 'Đã bật Auto Cron Jobs' : 'Đã tắt Auto Cron Jobs'
+      message: enabled ? 'Đã bật Auto Cron Jobs' : 'Đã tắt Auto Cron Jobs',
+      data: {
+        enabled,
+        status
+      }
     });
   } catch (error) {
     logger.error('Update auto cron setting error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to update setting'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/settings/cron-reload
+ * Force reload cron jobs from database
+ */
+router.post('/settings/cron-reload', authenticateAdmin, async (req, res) => {
+  try {
+    logger.info('Force reloading cron jobs', { adminId: req.userId });
+
+    const status = await cronJobsService.reload();
+
+    res.json({
+      success: true,
+      message: 'Cron jobs đã được reload thành công',
+      data: status
+    });
+  } catch (error) {
+    logger.error('Reload cron jobs error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to reload cron jobs'
     });
   }
 });
