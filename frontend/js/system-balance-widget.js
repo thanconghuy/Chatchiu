@@ -47,8 +47,8 @@
           console.log('System balance not yet initialized');
           updateBalanceUI({
             available_balance: 0,
-            reserved_balance: 0,
             pending_balance: 0,
+            debt_balance: 0,
             total_earned: 0,
             total_withdrawn: 0
           });
@@ -66,8 +66,8 @@
       // Show zeros on error
       updateBalanceUI({
         available_balance: 0,
-        reserved_balance: 0,
         pending_balance: 0,
+        debt_balance: 0,
         total_earned: 0,
         total_withdrawn: 0
       });
@@ -79,15 +79,10 @@
    */
   function updateBalanceUI(balance) {
     const availableEl = document.getElementById('systemAvailableBalance');
-    const reservedEl = document.getElementById('systemReservedBalance');
     const pendingEl = document.getElementById('systemPendingBalance');
 
     if (availableEl) {
       availableEl.textContent = formatMoney(balance.available_balance || 0);
-    }
-
-    if (reservedEl) {
-      reservedEl.textContent = formatMoney(balance.reserved_balance || 0);
     }
 
     if (pendingEl) {
@@ -128,33 +123,26 @@
 
         <div class="balance-info-section">
           <h3>💰 Số dư khả dụng</h3>
-          <p>Đây là số tiền bạn có thể rút ngay lập tức. Số tiền này đã được hệ thống xác nhận và sẵn sàng để thanh toán.</p>
-        </div>
-
-        <div class="balance-info-section">
-          <h3>🔒 Số dư dự trữ</h3>
-          <p>Đây là phần cashback từ các đơn hàng có rủi ro cao, tạm thời được giữ lại để chờ xác nhận cuối cùng từ đối tác AccessTrade (thường 65-105 ngày).</p>
-          <p><strong>Lý do dự trữ:</strong></p>
+          <p>Đây là số tiền bạn có thể rút ngay lập tức. Số tiền này đã được hệ thống xác nhận qua đối soát nội bộ và sẵn sàng để thanh toán.</p>
+          <p><strong>Nguồn số dư:</strong></p>
           <ul>
-            <li>Đơn hàng từ tài khoản mới (< 30 ngày)</li>
-            <li>Đơn hàng giá trị cao (> 5 triệu)</li>
-            <li>Lịch sử từ chối cao</li>
+            <li>Cashback từ đối soát nội bộ (Tháng + 15 ngày)</li>
+            <li>Cashback từ đối soát API (65-105 ngày)</li>
           </ul>
-          <p>Khi đối tác xác nhận đơn hàng được duyệt, số tiền này sẽ chuyển sang <strong>khả dụng</strong>. Nếu bị từ chối, số tiền sẽ bị trừ.</p>
         </div>
 
         <div class="balance-info-section">
           <h3>⏳ Số dư chờ xử lý</h3>
           <p>Đây là cashback từ các đơn hàng đã được duyệt nhưng chưa đến kỳ đối soát hệ thống (tháng phát sinh + 15 ngày).</p>
-          <p>Số tiền này sẽ được chuyển sang <strong>khả dụng</strong> hoặc <strong>dự trữ</strong> sau khi hệ thống đối soát.</p>
+          <p>Số tiền này sẽ được chuyển sang <strong>khả dụng</strong> sau khi admin hoàn tất kỳ đối soát.</p>
         </div>
 
         <div class="balance-info-section">
           <h3>⚡ Lợi ích của hệ thống đối soát</h3>
           <ul>
-            <li><strong>Rút tiền nhanh hơn:</strong> Thay vì chờ 65-105 ngày, bạn có thể rút tiền sau tháng + 15 ngày</li>
-            <li><strong>Minh bạch:</strong> Theo dõi rõ ràng số dư khả dụng, dự trữ và chờ xử lý</li>
-            <li><strong>An toàn:</strong> Hệ thống quản lý rủi ro tự động</li>
+            <li><strong>Rút tiền nhanh hơn:</strong> Thay vì chờ 65-105 ngày, bạn nhận 100% cashback ngay sau tháng + 15 ngày</li>
+            <li><strong>Minh bạch:</strong> Theo dõi rõ ràng số dư khả dụng và chờ xử lý</li>
+            <li><strong>Đơn giản:</strong> Không cần lo lắng về rủi ro, hệ thống trả 100% cashback ngay</li>
           </ul>
         </div>
       </div>

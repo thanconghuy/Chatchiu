@@ -7,7 +7,7 @@
  * This is a NEW module that works alongside existing API reconciliation
  */
 
-const pool = require('../../config/database');
+const { pool } = require('../../config/database');
 const RiskAssessmentService = require('./RiskAssessmentService');
 
 class SystemReconciliationService {
@@ -15,24 +15,22 @@ class SystemReconciliationService {
    * Create a new system reconciliation period
    *
    * @param {Object} params
-   * @param {number} params.month - Month (1-12)
-   * @param {number} params.year - Year
+   * @param {Date} params.periodStart - Start date of the period
+   * @param {Date} params.periodEnd - End date of the period
+   * @param {string} params.periodLabel - Label for the reconciliation period
+   * @param {Array<string>} params.selectedOrderIds - Array of selected conversion IDs
    * @param {string} params.createdBy - Admin user ID
    * @returns {Object} Created reconciliation
    */
-  static async createReconciliation({ month, year, createdBy }) {
+  static async createReconciliation({ periodStart, periodEnd, periodLabel, selectedOrderIds, createdBy }) {
     const client = await pool.connect();
 
     try {
       await client.query('BEGIN');
 
-      // Calculate period dates
-      const periodStart = new Date(year, month - 1, 1); // First day of month
-      const periodEnd = new Date(year, month, 0);       // Last day of month
+      // Calculate reconciliation date (period end + 15 days)
       const reconciliationDate = new Date(periodEnd);
-      reconciliationDate.setDate(periodEnd.getDate() + 15); // +15 days
-
-      const periodLabel = `Tháng ${month}/${year}`;
+      reconciliationDate.setDate(periodEnd.getDate() + 15);
 
       // Check if reconciliation already exists
       const checkQuery = `
@@ -45,26 +43,25 @@ class SystemReconciliationService {
         throw new Error(`Kỳ đối soát ${periodLabel} đã tồn tại`);
       }
 
-      // Collect approved orders from system_conversions
+      // Collect selected orders from conversions
+      // Filter by selectedOrderIds array
       const ordersQuery = `
         SELECT
           c.id as conversion_id,
           c.user_id,
           c.merchant_id,
-          m.name as merchant_name,
+          COALESCE(c.merchant_name, 'Unknown') as merchant_name,
           c.order_time,
-          c.approval_time,
-          c.order_value,
-          c.commission,
-          c.cashback_amount,
+          c.confirmed_time,
+          COALESCE(c.order_amount, 0) as order_value,
+          COALESCE(c.commission, 0) as commission,
+          COALESCE(c.cashback_amount, 0) as cashback_amount,
           c.status,
           u.created_at as user_created_at
         FROM conversions c
-        LEFT JOIN merchants m ON c.merchant_id = m.id
         LEFT JOIN users u ON c.user_id = u.id
-        WHERE c.status = 'approved'
-          AND c.order_time >= $1
-          AND c.order_time < $2
+        WHERE c.id = ANY($1)
+          AND c.status = 'approved'
           AND NOT EXISTS (
             -- Exclude already reconciled orders
             SELECT 1 FROM system_reconciliation_items sri
@@ -73,7 +70,7 @@ class SystemReconciliationService {
         ORDER BY c.order_time ASC
       `;
 
-      const ordersResult = await client.query(ordersQuery, [periodStart, new Date(year, month, 1)]);
+      const ordersResult = await client.query(ordersQuery, [selectedOrderIds]);
       const orders = ordersResult.rows;
 
       if (orders.length === 0) {
@@ -161,11 +158,11 @@ class SystemReconciliationService {
           order.merchant_id,
           order.merchant_name,
           order.order_time,
-          order.approval_time,
+          order.confirmed_time,  // Use confirmed_time from query
           order.order_value,
           order.commission,
           order.cashback_amount,
-          'approved', // From system_conversions
+          'Đã duyệt', // Use conversion_status value
           isHighRisk,
           riskScore
         ]);
@@ -235,9 +232,8 @@ class SystemReconciliationService {
         SELECT
           user_id,
           SUM(cashback_amount) as total_cashback,
-          SUM(CASE WHEN is_high_risk THEN cashback_amount ELSE 0 END) as high_risk_cashback,
           COUNT(*) as order_count,
-          COUNT(CASE WHEN is_high_risk THEN 1 END) as high_risk_count
+          ARRAY_AGG(conversion_id) as conversion_ids
         FROM system_reconciliation_items
         WHERE system_reconciliation_id = $1
         GROUP BY user_id
@@ -246,37 +242,64 @@ class SystemReconciliationService {
       const itemsResult = await client.query(itemsQuery, [reconciliationId]);
       const userBalances = itemsResult.rows;
 
-      // Calculate available vs reserved for each user
-      const rejectionRate = 1 - (recon.estimated_approval_rate / 100);
-
+      // Pay 100% cashback immediately (no reserved balance)
       for (const userBalance of userBalances) {
         const totalCashback = parseFloat(userBalance.total_cashback);
-        const highRiskCashback = parseFloat(userBalance.high_risk_cashback);
 
-        // Reserve a portion of high-risk cashback
-        const reservedForUser = highRiskCashback * rejectionRate;
-        const availableForUser = totalCashback - reservedForUser;
-
-        // Update or insert user_system_balance
+        // Update or insert user_system_balance - Pay 100% to available
         await client.query(`
           INSERT INTO user_system_balance (
-            user_id, available_balance, reserved_balance,
-            total_earned, last_reconciliation_date, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+            user_id, available_balance, total_earned,
+            last_reconciliation_date, updated_at
+          ) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
           ON CONFLICT (user_id) DO UPDATE SET
             available_balance = user_system_balance.available_balance + EXCLUDED.available_balance,
-            reserved_balance = user_system_balance.reserved_balance + EXCLUDED.reserved_balance,
             total_earned = user_system_balance.total_earned + EXCLUDED.total_earned,
             last_reconciliation_date = EXCLUDED.last_reconciliation_date,
             updated_at = CURRENT_TIMESTAMP
         `, [
           userBalance.user_id,
-          availableForUser,
-          reservedForUser,
+          totalCashback,  // 100% goes to available
           totalCashback,
           recon.period_end
         ]);
+
+        // Log transaction for each user
+        await client.query(`
+          INSERT INTO user_balance_transactions (
+            user_id, transaction_type, amount,
+            balance_before, balance_after,
+            description, created_at
+          )
+          SELECT
+            $1,
+            'reconciliation_credit',
+            $2,
+            COALESCE(usb.available_balance, 0) - $2,
+            COALESCE(usb.available_balance, 0),
+            'Đối soát nội bộ: ' || $3,
+            CURRENT_TIMESTAMP
+          FROM user_system_balance usb
+          WHERE usb.user_id = $1
+        `, [
+          userBalance.user_id,
+          totalCashback,
+          recon.period_label
+        ]);
       }
+
+      // Update conversions status to 'reconciled'
+      await client.query(`
+        UPDATE conversions c
+        SET
+          system_reconciliation_status = 'reconciled',
+          system_reconciliation_id = $1,
+          system_reconciled_at = CURRENT_TIMESTAMP
+        FROM system_reconciliation_items sri
+        WHERE c.id = sri.conversion_id
+          AND sri.system_reconciliation_id = $1
+          AND c.system_reconciliation_status IS NULL
+      `, [reconciliationId]);
 
       // Update reconciliation status
       await client.query(`

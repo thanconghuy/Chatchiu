@@ -8,7 +8,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
 const BalanceManagementService = require('../services/systemReconciliation/BalanceManagementService');
-const pool = require('../config/database');
+const { pool } = require('../config/database');
 
 /**
  * GET /api/user/system-reconciliation/balance
@@ -16,7 +16,7 @@ const pool = require('../config/database');
  */
 router.get('/balance', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.userId;
     const balance = await BalanceManagementService.getUserBalance(userId);
 
     res.json({
@@ -34,12 +34,161 @@ router.get('/balance', authenticateToken, async (req, res) => {
 });
 
 /**
+ * GET /api/user/system-reconciliation/reconciliations
+ * Get user's reconciliation periods (grouped by period)
+ */
+router.get('/reconciliations', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { page = 1, limit = 20 } = req.query;
+    const offset = (page - 1) * limit;
+
+    console.log('[User Reconciliations] Request:', { userId, page, limit, offset });
+
+    // Get reconciliation periods for this user
+    const reconciliationsQuery = `
+      SELECT
+        sr.id,
+        sr.period_label,
+        sr.period_start,
+        sr.period_end,
+        sr.reconciliation_date,
+        sr.status,
+        sr.created_at,
+        sr.finalized_at,
+        COUNT(sri.id) as item_count,
+        SUM(sri.cashback_amount) as total_cashback
+      FROM system_reconciliations sr
+      JOIN system_reconciliation_items sri ON sri.system_reconciliation_id = sr.id
+      WHERE sri.user_id = $1
+      GROUP BY sr.id, sr.period_label, sr.period_start, sr.period_end, sr.reconciliation_date, sr.status, sr.created_at, sr.finalized_at
+      ORDER BY sr.created_at DESC
+      LIMIT $2 OFFSET $3
+    `;
+
+    const countQuery = `
+      SELECT COUNT(DISTINCT sr.id) as total
+      FROM system_reconciliations sr
+      JOIN system_reconciliation_items sri ON sri.system_reconciliation_id = sr.id
+      WHERE sri.user_id = $1
+    `;
+
+    const [reconciliationsResult, countResult] = await Promise.all([
+      pool.query(reconciliationsQuery, [userId, limit, offset]),
+      pool.query(countQuery, [userId])
+    ]);
+
+    const reconciliations = reconciliationsResult.rows;
+    const total = parseInt(countResult.rows[0].total);
+    const totalPages = Math.ceil(total / limit);
+
+    console.log('[User Reconciliations] Results:', { count: reconciliations.length, total, totalPages });
+
+    res.json({
+      success: true,
+      data: {
+        reconciliations,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          totalPages
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Get reconciliations error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Không thể lấy danh sách kỳ đối soát',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/user/system-reconciliation/reconciliations/:id
+ * Get details of a specific reconciliation period
+ */
+router.get('/reconciliations/:id', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const reconciliationId = req.params.id;
+
+    // Get reconciliation details
+    const reconQuery = `
+      SELECT
+        sr.id,
+        sr.period_label,
+        sr.period_start,
+        sr.period_end,
+        sr.reconciliation_date,
+        sr.status,
+        sr.created_at,
+        sr.finalized_at
+      FROM system_reconciliations sr
+      WHERE sr.id = $1
+    `;
+
+    const reconResult = await pool.query(reconQuery, [reconciliationId]);
+
+    if (reconResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Kỳ đối soát không tồn tại'
+      });
+    }
+
+    const reconciliation = reconResult.rows[0];
+
+    // Get items for this user in this reconciliation
+    const itemsQuery = `
+      SELECT
+        sri.id,
+        sri.conversion_id,
+        sri.order_time,
+        sri.cashback_amount,
+        sri.merchant_name,
+        sri.order_value,
+        sri.commission_amount,
+        sri.conversion_status,
+        sri.is_high_risk,
+        sri.risk_score,
+        c.order_code
+      FROM system_reconciliation_items sri
+      LEFT JOIN conversions c ON sri.conversion_id = c.id
+      WHERE sri.system_reconciliation_id = $1 AND sri.user_id = $2
+      ORDER BY sri.order_time DESC
+    `;
+
+    const itemsResult = await pool.query(itemsQuery, [reconciliationId, userId]);
+
+    res.json({
+      success: true,
+      data: {
+        ...reconciliation,
+        itemCount: itemsResult.rows.length,
+        totalCashback: itemsResult.rows.reduce((sum, item) => sum + parseFloat(item.cashback_amount || 0), 0),
+        items: itemsResult.rows
+      }
+    });
+  } catch (error) {
+    console.error('Get reconciliation details error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Không thể lấy chi tiết kỳ đối soát',
+      error: error.message
+    });
+  }
+});
+
+/**
  * GET /api/user/system-reconciliation/history
  * Get user's reconciliation history (items that affected their balance)
  */
 router.get('/history', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.userId;
     const { page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
 
@@ -115,7 +264,7 @@ router.get('/history', authenticateToken, async (req, res) => {
  */
 router.get('/transactions', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.userId;
     const { page = 1, limit = 20, type } = req.query;
     const offset = (page - 1) * limit;
 
@@ -194,7 +343,7 @@ router.get('/transactions', authenticateToken, async (req, res) => {
  */
 router.get('/summary', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.userId;
 
     const summaryQuery = `
       SELECT

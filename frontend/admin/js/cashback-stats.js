@@ -205,12 +205,12 @@ async function loadCashbackStats() {
 
         if (data.success) {
             renderStats(data.stats);
-            renderSummaryCards(data.stats, data.pagination);
+            await loadSummaryStats(); // Load summary separately
             updatePagination(data.pagination);
         } else {
             showToast(data.message || 'Không thể tải dữ liệu', 'error');
             renderStats([]);
-            renderSummaryCards([]);
+            renderSummaryCards({ totalUsers: 0, totalOrders: 0, totalOrderValue: 0, totalCashback: 0 });
             // Still show pagination structure
             updatePagination({ currentPage: 0, totalPages: 1, totalUsers: 0, limit: currentLimit });
         }
@@ -219,7 +219,7 @@ async function loadCashbackStats() {
         console.error('Load cashback stats error:', error);
         showToast('Lỗi tải dữ liệu thống kê: ' + error.message, 'error');
         renderStats([]);
-        renderSummaryCards([]);
+        renderSummaryCards({ totalUsers: 0, totalOrders: 0, totalOrderValue: 0, totalCashback: 0 });
         updatePagination({ currentPage: 0, totalPages: 1, totalUsers: 0, limit: currentLimit });
     } finally {
         showLoading(false);
@@ -227,23 +227,49 @@ async function loadCashbackStats() {
 }
 
 // ========================================
+// Load Summary Stats (not paginated)
+// ========================================
+async function loadSummaryStats() {
+    try {
+        const params = new URLSearchParams({
+            from_date: currentFromDate,
+            to_date: currentToDate
+        });
+
+        const API_URL = CONFIG.API_BASE_URL;
+        const token = getAuthToken();
+
+        const response = await fetch(`${API_URL}/admin/users/cashback-stats/summary?${params}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            console.error('Failed to fetch summary stats:', response.status);
+            return;
+        }
+
+        const data = await response.json();
+
+        if (data.success && data.summary) {
+            renderSummaryCards(data.summary);
+        }
+
+    } catch (error) {
+        console.error('Load summary stats error:', error);
+    }
+}
+
+// ========================================
 // Render Summary Cards
 // ========================================
-function renderSummaryCards(stats, pagination) {
-    let totalUsers = 0;
-    let totalOrders = 0;
-    let totalOrderValue = 0;
-    let totalCashback = 0;
-
-    if (stats && stats.length > 0) {
-        totalUsers = pagination ? pagination.totalUsers : stats.length;
-
-        stats.forEach(stat => {
-            totalOrders += stat.periodStats.totalOrders || 0;
-            totalOrderValue += stat.periodStats.totalOrderValue || 0;
-            totalCashback += stat.periodStats.totalCashbackEarned || 0;
-        });
-    }
+function renderSummaryCards(summary) {
+    // summary is an object with: totalUsers, totalOrders, totalOrderValue, totalCashback
+    const totalUsers = summary.totalUsers || 0;
+    const totalOrders = summary.totalOrders || 0;
+    const totalOrderValue = summary.totalOrderValue || 0;
+    const totalCashback = summary.totalCashback || 0;
 
     document.getElementById('totalUsersCount').textContent = totalUsers.toLocaleString('vi-VN');
     document.getElementById('totalOrdersCount').textContent = totalOrders.toLocaleString('vi-VN');

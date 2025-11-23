@@ -48,11 +48,11 @@
    */
   function getTransactionTypeBadge(type) {
     const typeMap = {
-      'reconciliation_finalized': { label: 'Đối soát', class: 'reconciliation' },
+      'reconciliation_credit': { label: 'Đối soát', class: 'reconciliation' },
       'payment_deducted': { label: 'Thanh toán', class: 'payment' },
       'payment_refunded': { label: 'Hoàn tiền', class: 'reconciliation' },
-      'reserved_released': { label: 'Giải phóng dự trữ', class: 'reserved' },
-      'reserved_deducted': { label: 'Trừ dự trữ', class: 'reserved' },
+      'chargeback': { label: 'Hoàn trả', class: 'payment' },
+      'debt_offset': { label: 'Trừ nợ', class: 'reconciliation' },
       'pending_added': { label: 'Thêm chờ xử lý', class: 'pending' },
       'balance_increased': { label: 'Tăng số dư', class: 'reconciliation' }
     };
@@ -81,7 +81,7 @@
           // Balance not initialized yet
           updateSummaryUI({
             available_balance: 0,
-            reserved_balance: 0,
+            debt_balance: 0,
             total_earned: 0
           });
           return;
@@ -103,8 +103,19 @@
    */
   function updateSummaryUI(balance) {
     document.getElementById('summaryAvailable').textContent = formatMoney(balance.available_balance || 0);
-    document.getElementById('summaryReserved').textContent = formatMoney(balance.reserved_balance || 0);
     document.getElementById('summaryEarned').textContent = formatMoney(balance.total_earned || 0);
+
+    // Show debt card if user has debt
+    const debtBalance = parseFloat(balance.debt_balance || 0);
+    const debtCard = document.getElementById('debtCard');
+    const debtValue = document.getElementById('summaryDebt');
+
+    if (debtBalance > 0) {
+      debtCard.style.display = 'block';
+      debtValue.textContent = formatMoney(debtBalance);
+    } else {
+      debtCard.style.display = 'none';
+    }
   }
 
   /**

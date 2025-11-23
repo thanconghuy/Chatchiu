@@ -269,17 +269,17 @@
 
                 <!-- Balance Summary -->
                 <div class="balance-summary-grid">
-                    <div class="summary-card">
+                    <div class="summary-card success">
                         <div class="summary-label">Số dư khả dụng</div>
                         <div class="summary-value" id="summaryAvailable">0đ</div>
                     </div>
-                    <div class="summary-card warning">
-                        <div class="summary-label">Số dư dự trữ</div>
-                        <div class="summary-value" id="summaryReserved">0đ</div>
-                    </div>
-                    <div class="summary-card success">
+                    <div class="summary-card">
                         <div class="summary-label">Tổng đã kiếm</div>
                         <div class="summary-value" id="summaryEarned">0đ</div>
+                    </div>
+                    <div class="summary-card warning" id="debtCard" style="display: none;">
+                        <div class="summary-label">⚠️ Khoản nợ cần thanh toán</div>
+                        <div class="summary-value" style="color: #dc2626;" id="summaryDebt">0đ</div>
                     </div>
                 </div>
 

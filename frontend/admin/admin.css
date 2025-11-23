@@ -1170,7 +1170,7 @@ a.nav-subitem.active i {
 .btn-secondary:hover,
 .btn-filter:hover,
 .btn-export:hover {
-    background: #F7FAFC;
+    background: #5568D3;
     border-color: var(--text-gray);
 }
 

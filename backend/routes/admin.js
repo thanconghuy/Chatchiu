@@ -563,6 +563,73 @@ router.get('/users/cashback-stats', authenticateAdmin, async (req, res) => {
 });
 
 /**
+ * GET /api/admin/users/cashback-stats/summary
+ * Get total summary of cashback stats (not paginated)
+ * IMPORTANT: Must be BEFORE /users/:userId to avoid route conflict
+ */
+router.get('/users/cashback-stats/summary', authenticateAdmin, async (req, res) => {
+  try {
+    const { from_date, to_date } = req.query;
+
+    // Default date range: last 30 days
+    const defaultToDate = new Date();
+    const defaultFromDate = new Date();
+    defaultFromDate.setDate(defaultFromDate.getDate() - 30);
+
+    const fromDate = from_date ? new Date(from_date) : defaultFromDate;
+    const toDate = to_date ? new Date(to_date) : defaultToDate;
+
+    // Validate date range
+    if (fromDate > toDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'from_date must be before to_date'
+      });
+    }
+
+    // Query total summary (no pagination)
+    const summaryQuery = `
+      SELECT
+        COUNT(DISTINCT u.id) AS total_users,
+        COUNT(DISTINCT sc.id) AS total_orders,
+        COALESCE(SUM(sc.order_amount), 0) AS total_order_value,
+        COALESCE(SUM(sc.cashback_amount), 0) AS total_cashback
+      FROM users u
+      LEFT JOIN system_conversions sc
+        ON sc.user_id = u.id
+        AND sc.order_time >= $1
+        AND sc.order_time <= $2
+      WHERE u.is_admin = false
+    `;
+
+    const summaryResult = await pool.query(summaryQuery, [fromDate, toDate]);
+    const summary = summaryResult.rows[0];
+
+    res.json({
+      success: true,
+      summary: {
+        totalUsers: parseInt(summary.total_users) || 0,
+        totalOrders: parseInt(summary.total_orders) || 0,
+        totalOrderValue: parseFloat(summary.total_order_value) || 0,
+        totalCashback: parseFloat(summary.total_cashback) || 0
+      },
+      dateRange: {
+        fromDate: fromDate.toISOString().split('T')[0],
+        toDate: toDate.toISOString().split('T')[0]
+      }
+    });
+
+  } catch (error) {
+    console.error('Get cashback stats summary error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get cashback summary',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+/**
  * GET /api/admin/users/:userId
  * Get detailed information for a specific user
  */
@@ -704,17 +771,24 @@ router.get('/conversions', authenticateAdmin, async (req, res) => {
     const limit = parseInt(req.query.limit) || 50;
     const offset = parseInt(req.query.offset) || 0;
     const status = req.query.status || null;
+    const userSearch = req.query.userSearch || null;
+    const dateFrom = req.query.dateFrom || null;
+    const dateTo = req.query.dateTo || null;
 
+    // Query from system_conversions (cashback system only)
     let query = `
       SELECT
         sc.*,
         u.username,
         u.email,
         u.full_name,
-        m.logo_url as merchant_logo
+        m.name as merchant_name,
+        m.logo_url as merchant_logo,
+        c.order_code as at_order_code
       FROM system_conversions sc
-      JOIN users u ON sc.user_id = u.id
+      LEFT JOIN users u ON sc.user_id = u.id
       LEFT JOIN merchants m ON sc.merchant_id = m.id
+      LEFT JOIN conversions c ON sc.at_conversion_id = c.id
       WHERE 1=1
     `;
 
@@ -726,46 +800,100 @@ router.get('/conversions', authenticateAdmin, async (req, res) => {
       query += ` AND sc.status = $${values.length}`;
     }
 
+    // User search filter (search in username, email, full_name)
+    if (userSearch) {
+      values.push(`%${userSearch}%`);
+      query += ` AND (
+        u.username ILIKE $${values.length} OR
+        u.email ILIKE $${values.length} OR
+        u.full_name ILIKE $${values.length}
+      )`;
+    }
+
+    // Date range filters
+    if (dateFrom) {
+      values.push(dateFrom);
+      query += ` AND sc.order_time >= $${values.length}`;
+    }
+
+    if (dateTo) {
+      // Add 1 day to include the entire end date
+      const endDate = new Date(dateTo);
+      endDate.setDate(endDate.getDate() + 1);
+      values.push(endDate.toISOString().split('T')[0]);
+      query += ` AND sc.order_time < $${values.length}`;
+    }
+
     query += ` ORDER BY sc.order_time DESC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`;
     values.push(limit, offset);
 
     const result = await pool.query(query, values);
 
-    // Get statistics
+    // Get statistics from system_conversions
     let statsQuery = `
       SELECT
+        -- Total counts
+        COUNT(*) as total_count,
         -- Counts by status
-        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
-        COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected_count,
-        COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved_count,
-        -- Counts by confirmation status
-        COUNT(CASE WHEN is_confirmed = true THEN 1 END) as confirmed_count,
-        COUNT(CASE WHEN is_confirmed = false OR is_confirmed IS NULL THEN 1 END) as unconfirmed_count,
+        COUNT(CASE WHEN sc.status = 'pending' THEN 1 END) as pending_count,
+        COUNT(CASE WHEN sc.status = 'rejected' THEN 1 END) as rejected_count,
+        COUNT(CASE WHEN sc.status = 'approved' THEN 1 END) as approved_count,
+        -- Reconciliation status
+        COUNT(CASE WHEN EXISTS (
+          SELECT 1 FROM system_reconciliation_items sri
+          WHERE sri.conversion_id = sc.at_conversion_id
+        ) THEN 1 END) as reconciled_count,
+        COUNT(CASE WHEN NOT EXISTS (
+          SELECT 1 FROM system_reconciliation_items sri
+          WHERE sri.conversion_id = sc.at_conversion_id
+        ) THEN 1 END) as not_reconciled_count,
         -- Amounts by status
-        COALESCE(SUM(CASE WHEN status = 'pending' THEN order_amount ELSE 0 END), 0) as pending_amount,
-        COALESCE(SUM(CASE WHEN status = 'rejected' THEN order_amount ELSE 0 END), 0) as rejected_amount,
-        COALESCE(SUM(CASE WHEN status = 'approved' THEN order_amount ELSE 0 END), 0) as approved_amount,
+        COALESCE(SUM(CASE WHEN sc.status = 'pending' THEN sc.order_amount ELSE 0 END), 0) as pending_amount,
+        COALESCE(SUM(CASE WHEN sc.status = 'rejected' THEN sc.order_amount ELSE 0 END), 0) as rejected_amount,
+        COALESCE(SUM(CASE WHEN sc.status = 'approved' THEN sc.order_amount ELSE 0 END), 0) as approved_amount,
         -- Commission by status
-        COALESCE(SUM(CASE WHEN status = 'pending' THEN commission ELSE 0 END), 0) as pending_commission,
-        COALESCE(SUM(CASE WHEN status = 'rejected' THEN commission ELSE 0 END), 0) as rejected_commission,
-        COALESCE(SUM(CASE WHEN status = 'approved' THEN commission ELSE 0 END), 0) as approved_commission,
+        COALESCE(SUM(CASE WHEN sc.status = 'pending' THEN sc.commission ELSE 0 END), 0) as pending_commission,
+        COALESCE(SUM(CASE WHEN sc.status = 'rejected' THEN sc.commission ELSE 0 END), 0) as rejected_commission,
+        COALESCE(SUM(CASE WHEN sc.status = 'approved' THEN sc.commission ELSE 0 END), 0) as approved_commission,
         -- Cashback by status
-        COALESCE(SUM(CASE WHEN status = 'pending' THEN cashback_amount ELSE 0 END), 0) as pending_cashback,
-        COALESCE(SUM(CASE WHEN status = 'rejected' THEN cashback_amount ELSE 0 END), 0) as rejected_cashback,
-        COALESCE(SUM(CASE WHEN status = 'approved' THEN cashback_amount ELSE 0 END), 0) as approved_cashback,
-        -- Amounts by confirmation status
-        COALESCE(SUM(CASE WHEN is_confirmed = true THEN order_amount ELSE 0 END), 0) as confirmed_amount,
-        COALESCE(SUM(CASE WHEN is_confirmed = false OR is_confirmed IS NULL THEN order_amount ELSE 0 END), 0) as unconfirmed_amount
-      FROM system_conversions
+        COALESCE(SUM(CASE WHEN sc.status = 'pending' THEN sc.cashback_amount ELSE 0 END), 0) as pending_cashback,
+        COALESCE(SUM(CASE WHEN sc.status = 'rejected' THEN sc.cashback_amount ELSE 0 END), 0) as rejected_cashback,
+        COALESCE(SUM(CASE WHEN sc.status = 'approved' THEN sc.cashback_amount ELSE 0 END), 0) as approved_cashback,
+        -- Total commission and cashback
+        COALESCE(SUM(sc.commission), 0) as total_commission,
+        COALESCE(SUM(sc.cashback_amount), 0) as total_cashback
+      FROM system_conversions sc
+      LEFT JOIN users u ON sc.user_id = u.id
       WHERE 1=1
     `;
 
     const statsValues = [];
 
-    // Apply same status filter to stats
+    // Apply same filters to stats
     if (status) {
       statsValues.push(status);
-      statsQuery += ` AND status = $${statsValues.length}`;
+      statsQuery += ` AND sc.status = $${statsValues.length}`;
+    }
+
+    if (userSearch) {
+      statsValues.push(`%${userSearch}%`);
+      statsQuery += ` AND (
+        u.username ILIKE $${statsValues.length} OR
+        u.email ILIKE $${statsValues.length} OR
+        u.full_name ILIKE $${statsValues.length}
+      )`;
+    }
+
+    if (dateFrom) {
+      statsValues.push(dateFrom);
+      statsQuery += ` AND sc.order_time >= $${statsValues.length}`;
+    }
+
+    if (dateTo) {
+      const endDate = new Date(dateTo);
+      endDate.setDate(endDate.getDate() + 1);
+      statsValues.push(endDate.toISOString().split('T')[0]);
+      statsQuery += ` AND sc.order_time < $${statsValues.length}`;
     }
 
     let stats = {};
@@ -780,28 +908,30 @@ router.get('/conversions', authenticateAdmin, async (req, res) => {
 
     res.json({
       success: true,
-      conversions: result.rows.map(sc => ({
-        id: sc.id,
-        userId: sc.user_id,
-        username: sc.username,
-        email: sc.email,
-        fullName: sc.full_name,
-        merchantId: sc.merchant_id,
-        merchantName: sc.merchant_name,
-        merchantLogo: sc.merchant_logo,
-        orderCode: sc.order_code,
-        orderAmount: parseFloat(sc.order_amount || 0),
-        commission: parseFloat(sc.commission || 0),
-        cashbackAmount: parseFloat(sc.cashback_amount || 0),
-        status: sc.status,
-        isConfirmed: sc.is_confirmed || false,
-        orderTime: sc.order_time,
-        approvalTime: sc.approval_time,
-        matchedAt: sc.matched_at,
-        atConversionId: sc.at_conversion_id,
-        createdAt: sc.created_at
+      conversions: result.rows.map(c => ({
+        id: c.id,
+        userId: c.user_id,
+        username: c.username,
+        email: c.email,
+        fullName: c.full_name,
+        merchantId: c.merchant_id,
+        merchantName: c.merchant_name,
+        merchantLogo: c.merchant_logo,
+        orderCode: c.order_code,
+        orderAmount: parseFloat(c.order_amount || 0),
+        commission: parseFloat(c.commission || 0),
+        cashbackAmount: parseFloat(c.cashback_amount || 0),
+        status: c.status,
+        orderTime: c.order_time,
+        createdAt: c.created_at,
+        affSid: c.aff_sid
       })),
       stats: {
+        total_count: parseInt(stats.total_count || 0),
+        total_commission: parseFloat(stats.total_commission || 0),
+        total_cashback: parseFloat(stats.total_cashback || 0),
+        reconciled_count: parseInt(stats.reconciled_count || 0),
+        not_reconciled_count: parseInt(stats.not_reconciled_count || 0),
         pending: {
           count: parseInt(stats.pending_count || 0),
           amount: parseFloat(stats.pending_amount || 0),
@@ -819,14 +949,6 @@ router.get('/conversions', authenticateAdmin, async (req, res) => {
           amount: parseFloat(stats.approved_amount || 0),
           commission: parseFloat(stats.approved_commission || 0),
           cashback: parseFloat(stats.approved_cashback || 0)
-        },
-        confirmed: {
-          count: parseInt(stats.confirmed_count || 0),
-          amount: parseFloat(stats.confirmed_amount || 0)
-        },
-        unconfirmed: {
-          count: parseInt(stats.unconfirmed_count || 0),
-          amount: parseFloat(stats.unconfirmed_amount || 0)
         }
       }
     });
@@ -4663,6 +4785,156 @@ router.post('/activity-logs/cleanup', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to cleanup activity logs'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/conversions/sync-to-system
+ * Sync missing cashback conversions from conversions to system_conversions
+ */
+router.post('/conversions/sync-to-system', authenticateAdmin, async (req, res) => {
+  try {
+    const startTime = Date.now();
+
+    // Find conversions that have click_id (cashback orders) but not in system_conversions
+    const query = `
+      SELECT
+        c.id as conversion_id,
+        c.click_id,
+        cl.user_id,
+        c.merchant_id,
+        c.merchant_name,
+        c.order_code,
+        c.order_amount,
+        c.commission,
+        c.cashback_amount,
+        c.status,
+        c.order_time,
+        c.created_at
+      FROM conversions c
+      INNER JOIN clicks cl ON c.click_id = cl.id
+      LEFT JOIN system_conversions sc ON sc.at_conversion_id = c.id
+      WHERE sc.id IS NULL
+        AND cl.user_id IS NOT NULL
+      ORDER BY c.order_time DESC
+    `;
+
+    const result = await pool.query(query);
+    const missingConversions = result.rows;
+
+    if (missingConversions.length === 0) {
+      return res.json({
+        success: true,
+        message: 'Không có đơn hàng nào cần đồng bộ',
+        synced: 0,
+        duration: Date.now() - startTime
+      });
+    }
+
+    // Insert missing conversions into system_conversions
+    let syncedCount = 0;
+    const errors = [];
+
+    for (const conv of missingConversions) {
+      try {
+        await pool.query(`
+          INSERT INTO system_conversions (
+            at_conversion_id,
+            user_id,
+            click_id,
+            merchant_id,
+            merchant_name,
+            order_code,
+            order_amount,
+            commission,
+            cashback_amount,
+            status,
+            order_time,
+            created_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          ON CONFLICT (at_conversion_id) DO NOTHING
+        `, [
+          conv.conversion_id,
+          conv.user_id,
+          conv.click_id,
+          conv.merchant_id,
+          conv.merchant_name,
+          conv.order_code,
+          conv.order_amount,
+          conv.commission,
+          conv.cashback_amount,
+          conv.status,
+          conv.order_time,
+          conv.created_at
+        ]);
+
+        syncedCount++;
+      } catch (err) {
+        errors.push({
+          conversion_id: conv.conversion_id,
+          error: err.message
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Đã đồng bộ ${syncedCount}/${missingConversions.length} đơn hàng`,
+      synced: syncedCount,
+      total: missingConversions.length,
+      errors: errors.length > 0 ? errors : undefined,
+      duration: Date.now() - startTime
+    });
+
+  } catch (error) {
+    console.error('Sync to system conversions error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/admin/conversions/sync-status
+ * Sync status from conversions to system_conversions
+ */
+router.post('/conversions/sync-status', authenticateAdmin, async (req, res) => {
+  try {
+    const startTime = Date.now();
+
+    // Update system_conversions status based on conversions table
+    const query = `
+      UPDATE system_conversions sc
+      SET
+        status = c.status,
+        order_amount = c.order_amount,
+        commission = c.commission,
+        cashback_amount = c.cashback_amount,
+        updated_at = NOW()
+      FROM conversions c
+      WHERE sc.at_conversion_id = c.id
+        AND sc.status != c.status
+      RETURNING sc.id, sc.order_code, sc.status as new_status, c.status as old_status
+    `;
+
+    const result = await pool.query(query);
+    const updatedCount = result.rows.length;
+
+    res.json({
+      success: true,
+      message: `Đã cập nhật ${updatedCount} đơn hàng`,
+      updated: updatedCount,
+      changes: result.rows.slice(0, 10), // Return first 10 changes
+      duration: Date.now() - startTime
+    });
+
+  } catch (error) {
+    console.error('Sync status error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
     });
   }
 });

@@ -13,7 +13,7 @@
  *    - Pending → Keep reserved
  */
 
-const pool = require('../../config/database');
+const { pool } = require('../../config/database');
 const BalanceManagementService = require('../../services/systemReconciliation/BalanceManagementService');
 
 class APISyncJob {

@@ -15,17 +15,25 @@ requireAuth();
 let currentPage = 0;
 let currentStatus = '';
 let itemsPerPage = 20; // Default items per page
+let currentUserSearch = '';
+let currentDateFrom = '';
+let currentDateTo = '';
 
 // DOM Elements
 // const userName = document.getElementById('userName');
 const statusFilter = document.getElementById('statusFilter');
+const userSearch = document.getElementById('userSearch');
+const dateFrom = document.getElementById('dateFrom');
+const dateTo = document.getElementById('dateTo');
 const conversionsTable = document.getElementById('conversionsTable');
 const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
 const pageInfo = document.getElementById('pageInfo');
 const rowsPerPageSelect = document.getElementById('rowsPerPage');
 const logoutBtn = document.getElementById('logoutBtn');
-const syncBtn = document.getElementById('syncBtn');
+const syncToSystemBtn = document.getElementById('syncToSystemBtn');
+const syncStatusBtn = document.getElementById('syncStatusBtn');
+const syncStatus = document.getElementById('syncStatus');
 
 /**
  * Check if user is admin
@@ -65,6 +73,21 @@ async function init() {
     //     userName.textContent = user.fullName || user.username || user.email;
     // }
 
+    // Set default date range (last 30 days)
+    const today = new Date();
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setDate(today.getDate() - 30);
+
+    if (dateFrom) {
+        dateFrom.value = oneMonthAgo.toISOString().split('T')[0];
+        currentDateFrom = dateFrom.value;
+    }
+
+    if (dateTo) {
+        dateTo.value = today.toISOString().split('T')[0];
+        currentDateTo = dateTo.value;
+    }
+
     await loadConversions();
     setupEventListeners();
 }
@@ -82,6 +105,39 @@ function setupEventListeners() {
             loadConversions();
         });
         console.log('✓ Status filter listener attached');
+    }
+
+    // User search filter with debounce
+    if (userSearch) {
+        let searchTimeout;
+        userSearch.addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                currentUserSearch = userSearch.value.trim();
+                currentPage = 0;
+                loadConversions();
+            }, 500); // 500ms debounce
+        });
+        console.log('✓ User search listener attached');
+    }
+
+    // Date filters
+    if (dateFrom) {
+        dateFrom.addEventListener('change', () => {
+            currentDateFrom = dateFrom.value;
+            currentPage = 0;
+            loadConversions();
+        });
+        console.log('✓ Date from filter listener attached');
+    }
+
+    if (dateTo) {
+        dateTo.addEventListener('change', () => {
+            currentDateTo = dateTo.value;
+            currentPage = 0;
+            loadConversions();
+        });
+        console.log('✓ Date to filter listener attached');
     }
 
     if (prevBtn) {
@@ -119,19 +175,24 @@ function setupEventListeners() {
         console.log('✓ Logout button listener attached');
     }
 
-    if (syncBtn) {
-        console.log('✓ Sync button found:', syncBtn);
-        syncBtn.addEventListener('click', async (e) => {
+    if (syncToSystemBtn) {
+        syncToSystemBtn.addEventListener('click', async (e) => {
             e.preventDefault();
-            e.stopPropagation();
-            console.log('🔍 Check button clicked!');
-            if (confirm('Kiểm tra và match conversions với clicks trong database?')) {
-                await triggerSync();
+            if (confirm('Đồng bộ các đơn hàng cashback từ conversions sang system_conversions?\n\nChỉ các đơn hàng chưa tồn tại sẽ được thêm vào.')) {
+                await syncConversionsToSystem();
             }
         });
-        console.log('✓ Sync button listener attached');
-    } else {
-        console.error('❌ Sync button NOT FOUND!');
+        console.log('✓ Sync to system button listener attached');
+    }
+
+    if (syncStatusBtn) {
+        syncStatusBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            if (confirm('Cập nhật trạng thái đơn hàng từ conversions sang system_conversions?')) {
+                await syncConversionsStatus();
+            }
+        });
+        console.log('✓ Sync status button listener attached');
     }
 }
 
@@ -164,12 +225,24 @@ async function loadConversions() {
             url += `&status=${currentStatus}`;
         }
 
+        if (currentUserSearch) {
+            url += `&userSearch=${encodeURIComponent(currentUserSearch)}`;
+        }
+
+        if (currentDateFrom) {
+            url += `&dateFrom=${currentDateFrom}`;
+        }
+
+        if (currentDateTo) {
+            url += `&dateTo=${currentDateTo}`;
+        }
+
         const response = await apiRequest(url);
 
         if (response.success) {
             renderConversions(response.conversions);
             updatePagination(response.conversions.length);
-            // Stats removed to simplify
+            updateStats(response.stats);
         }
     } catch (error) {
         console.error('Error loading conversions:', error);
@@ -181,6 +254,41 @@ async function loadConversions() {
             </tr>
         `;
     }
+}
+
+/**
+ * Update statistics cards
+ */
+function updateStats(stats) {
+    if (!stats) return;
+
+    // Total orders
+    document.getElementById('statTotalOrders').textContent = stats.total_count?.toLocaleString('vi-VN') || '0';
+
+    // Status counts
+    document.getElementById('statApproved').textContent = stats.approved?.count?.toLocaleString('vi-VN') || '0';
+    document.getElementById('statPending').textContent = stats.pending?.count?.toLocaleString('vi-VN') || '0';
+    document.getElementById('statRejected').textContent = stats.rejected?.count?.toLocaleString('vi-VN') || '0';
+
+    // Financial stats
+    const totalCommission = stats.total_commission || 0;
+    const totalCashback = stats.total_cashback || 0;
+    document.getElementById('statTotalCommission').textContent = formatMoney(totalCommission);
+    document.getElementById('statTotalCashback').textContent = formatMoney(totalCashback);
+
+    // Reconciliation stats
+    document.getElementById('statReconciled').textContent = stats.reconciled_count?.toLocaleString('vi-VN') || '0';
+    document.getElementById('statNotReconciled').textContent = stats.not_reconciled_count?.toLocaleString('vi-VN') || '0';
+}
+
+/**
+ * Format money
+ */
+function formatMoney(amount) {
+    return new Intl.NumberFormat('vi-VN', {
+        style: 'currency',
+        currency: 'VND'
+    }).format(amount || 0);
 }
 
 /**
@@ -300,42 +408,23 @@ function updatePagination(itemCount) {
 function updateStats(stats) {
     if (!stats) return;
 
-    // Pending orders
-    document.getElementById('statPending').textContent = stats.pending.count.toLocaleString();
-    document.getElementById('statPendingAmount').textContent = formatCurrency(stats.pending.amount);
+    // Total orders
+    document.getElementById('statTotalOrders').textContent = stats.total_count?.toLocaleString('vi-VN') || '0';
 
-    // Rejected orders
-    document.getElementById('statRejected').textContent = stats.rejected.count.toLocaleString();
-    document.getElementById('statRejectedAmount').textContent = formatCurrency(stats.rejected.amount);
+    // Status counts
+    document.getElementById('statApproved').textContent = stats.approved?.count?.toLocaleString('vi-VN') || '0';
+    document.getElementById('statPending').textContent = stats.pending?.count?.toLocaleString('vi-VN') || '0';
+    document.getElementById('statRejected').textContent = stats.rejected?.count?.toLocaleString('vi-VN') || '0';
 
-    // Approved orders
-    document.getElementById('statApproved').textContent = stats.approved.count.toLocaleString();
-    document.getElementById('statApprovedAmount').textContent = formatCurrency(stats.approved.amount);
-
-    // Confirmed orders
-    document.getElementById('statConfirmed').textContent = stats.confirmed.count.toLocaleString();
-    document.getElementById('statConfirmedAmount').textContent = formatCurrency(stats.confirmed.amount);
-
-    // Unconfirmed orders
-    document.getElementById('statUnconfirmed').textContent = stats.unconfirmed.count.toLocaleString();
-    document.getElementById('statUnconfirmedAmount').textContent = formatCurrency(stats.unconfirmed.amount);
-
-    // Financial summary (3 cards)
-    // Total commission (need to calculate from approved/pending/rejected)
-    const totalCommission = (stats.approved?.commission || 0) + (stats.pending?.commission || 0) + (stats.rejected?.commission || 0);
+    // Financial stats
+    const totalCommission = stats.total_commission || 0;
+    const totalCashback = stats.total_cashback || 0;
     document.getElementById('statTotalCommission').textContent = formatCurrency(totalCommission);
-    document.getElementById('statApprovedCommission').textContent = `Đã duyệt: ${formatCurrency(stats.approved?.commission || 0)}`;
-
-    // Total cashback (need to calculate from approved/pending/rejected)
-    const totalCashback = (stats.approved?.cashback || 0) + (stats.pending?.cashback || 0) + (stats.rejected?.cashback || 0);
     document.getElementById('statTotalCashback').textContent = formatCurrency(totalCashback);
-    document.getElementById('statCashbackPaid').textContent = `Đã trả: ${formatCurrency(stats.approved?.cashback || 0)}`;
 
-    // Reconciliation rate
-    const totalOrders = stats.confirmed.count + stats.unconfirmed.count;
-    const reconciliationRate = totalOrders > 0 ? ((stats.confirmed.count / totalOrders) * 100).toFixed(1) : 0;
-    document.getElementById('statReconciliationRate').textContent = `${reconciliationRate}%`;
-    document.getElementById('statReconciledCount').textContent = `${stats.confirmed.count}/${totalOrders} đơn`;
+    // Reconciliation stats
+    document.getElementById('statReconciled').textContent = stats.reconciled_count?.toLocaleString('vi-VN') || '0';
+    document.getElementById('statNotReconciled').textContent = stats.not_reconciled_count?.toLocaleString('vi-VN') || '0';
 }
 
 /**
@@ -825,6 +914,90 @@ async function triggerSync() {
         syncBtn.disabled = false;
         syncBtn.textContent = '🔍 Kiểm tra chuyển đổi';
     }
+}
+
+/**
+ * Sync missing cashback conversions to system_conversions
+ */
+async function syncConversionsToSystem() {
+    try {
+        syncToSystemBtn.disabled = true;
+        syncToSystemBtn.innerHTML = '⏳ Đang đồng bộ...';
+        showSyncStatus('loading', 'Đang kiểm tra và đồng bộ đơn hàng...');
+
+        const response = await apiRequest('/admin/conversions/sync-to-system', {
+            method: 'POST'
+        });
+
+        if (response.success) {
+            showSyncStatus('success', `✅ ${response.message}<br>Thời gian: ${response.duration}ms`);
+            await loadConversions(); // Reload the list
+        } else {
+            showSyncStatus('error', `❌ Lỗi: ${response.message}`);
+        }
+    } catch (error) {
+        showSyncStatus('error', `❌ Có lỗi xảy ra: ${error.message}`);
+    } finally {
+        syncToSystemBtn.disabled = false;
+        syncToSystemBtn.innerHTML = '📥 Đồng bộ đơn hàng';
+        setTimeout(() => hideSyncStatus(), 10000);
+    }
+}
+
+/**
+ * Sync status from conversions to system_conversions
+ */
+async function syncConversionsStatus() {
+    try {
+        syncStatusBtn.disabled = true;
+        syncStatusBtn.innerHTML = '⏳ Đang cập nhật...';
+        showSyncStatus('loading', 'Đang cập nhật trạng thái đơn hàng...');
+
+        const response = await apiRequest('/admin/conversions/sync-status', {
+            method: 'POST'
+        });
+
+        if (response.success) {
+            let message = `✅ ${response.message}<br>Thời gian: ${response.duration}ms`;
+            if (response.changes && response.changes.length > 0) {
+                message += '<br><br>Một số thay đổi:<br>';
+                response.changes.slice(0, 10).forEach(change => {
+                    message += `- ${change.order_code}: ${change.old_status} → ${change.new_status}<br>`;
+                });
+                if (response.changes.length > 10) {
+                    message += `<br>...và ${response.changes.length - 10} thay đổi khác`;
+                }
+            }
+            showSyncStatus('success', message);
+            await loadConversions(); // Reload the list
+        } else {
+            showSyncStatus('error', `❌ Lỗi: ${response.message}`);
+        }
+    } catch (error) {
+        showSyncStatus('error', `❌ Có lỗi xảy ra: ${error.message}`);
+    } finally {
+        syncStatusBtn.disabled = false;
+        syncStatusBtn.innerHTML = '🔄 Cập nhật trạng thái';
+        setTimeout(() => hideSyncStatus(), 10000);
+    }
+}
+
+/**
+ * Show sync status message
+ */
+function showSyncStatus(type, message) {
+    const statusDiv = document.getElementById('syncStatus');
+    statusDiv.className = `status-message status-${type}`;
+    statusDiv.innerHTML = message;
+    statusDiv.style.display = 'block';
+}
+
+/**
+ * Hide sync status message
+ */
+function hideSyncStatus() {
+    const statusDiv = document.getElementById('syncStatus');
+    statusDiv.style.display = 'none';
 }
 
 // Make functions globally accessible for onclick handlers

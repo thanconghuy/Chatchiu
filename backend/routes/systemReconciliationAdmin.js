@@ -10,7 +10,7 @@ const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const SystemReconciliationService = require('../services/systemReconciliation/SystemReconciliationService');
 const BalanceManagementService = require('../services/systemReconciliation/BalanceManagementService');
 const { DailyCollectionJob, MonthlyReconciliationJob, APISyncJob } = require('../jobs/systemReconciliation');
-const pool = require('../config/database');
+const { pool } = require('../config/database');
 
 // All routes require admin authentication
 router.use(authenticateToken);
@@ -86,36 +86,152 @@ router.get('/stats', async (req, res) => {
 });
 
 /**
+ * GET /api/admin/system-reconciliation/preview
+ * Preview eligible orders for a specific period before creating reconciliation
+ */
+router.get('/preview', async (req, res) => {
+  try {
+    const { periodStart: startStr, periodEnd: endStr, affSid } = req.query;
+
+    if (!startStr || !endStr) {
+      return res.status(400).json({
+        success: false,
+        message: 'periodStart and periodEnd are required'
+      });
+    }
+
+    // Parse dates
+    const periodStart = new Date(startStr);
+    const periodEnd = new Date(endStr);
+    periodEnd.setHours(23, 59, 59, 999);
+
+    if (periodStart > periodEnd) {
+      return res.status(400).json({
+        success: false,
+        message: 'periodStart must be before periodEnd'
+      });
+    }
+
+    // Build aff_sid filter
+    let affSidCondition = '';
+    if (affSid && affSid !== 'all') {
+      affSidCondition = ` AND c.aff_sid = '${affSid}'`;
+    }
+
+    // Query to get eligible orders for System Reconciliation
+    // Criteria:
+    // 1. status = 'approved' (approved by admin in system)
+    // 2. order_time is within the period (Tháng + 15 ngày)
+    // NOTE: We don't check is_confirmed here because this is System Reconciliation,
+    //       not API Reconciliation. is_confirmed is only used for API reconciliation.
+    const query = `
+      SELECT
+        c.id,
+        c.user_id,
+        COALESCE(u.full_name, u.username, 'N/A') as user_name,
+        COALESCE(u.email, 'N/A') as user_email,
+        c.merchant_id,
+        COALESCE(c.merchant_name, 'Unknown') as merchant_name,
+        COALESCE(c.order_code, 'N/A') as order_code,
+        COALESCE(c.order_amount, 0) as order_amount,
+        COALESCE(c.commission, 0) as commission,
+        COALESCE(c.cashback_amount, 0) as cashback,
+        c.status as conversion_status,
+        c.order_time,
+        c.created_at,
+        CASE
+          WHEN EXISTS (
+            SELECT 1 FROM system_reconciliation_items sri
+            WHERE sri.conversion_id = c.id
+          ) THEN true
+          ELSE false
+        END as is_reconciled
+      FROM conversions c
+      LEFT JOIN users u ON c.user_id = u.id
+      WHERE c.status = 'approved'
+        AND c.order_time >= $1
+        AND c.order_time <= $2
+        ${affSidCondition}
+      ORDER BY c.order_time DESC
+      LIMIT 1000
+    `;
+
+    const result = await pool.query(query, [periodStart, periodEnd]);
+    const orders = result.rows;
+
+    // Calculate summary
+    const summary = {
+      total_orders: orders.length,
+      total_users: new Set(orders.filter(o => o.user_id).map(o => o.user_id)).size,
+      total_cashback: orders.reduce((sum, o) => sum + parseFloat(o.cashback || 0), 0),
+      total_commission: orders.reduce((sum, o) => sum + parseFloat(o.commission || 0), 0),
+      total_order_amount: orders.reduce((sum, o) => sum + parseFloat(o.order_amount || 0), 0)
+    };
+
+    res.json({
+      success: true,
+      data: {
+        orders,
+        summary,
+        period: {
+          start: periodStart,
+          end: periodEnd
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error previewing orders:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
  * POST /api/admin/system-reconciliation/create
  * Create a new reconciliation period
  */
 router.post('/create', async (req, res) => {
   try {
-    const { month, year } = req.body;
+    const { periodStart, periodEnd, periodLabel, selectedOrderIds } = req.body;
 
-    if (!month || !year) {
+    if (!periodStart || !periodEnd || !periodLabel) {
       return res.status(400).json({
         success: false,
-        message: 'Month and year are required'
+        message: 'periodStart, periodEnd, and periodLabel are required'
       });
     }
 
-    if (month < 1 || month > 12) {
+    if (!selectedOrderIds || !Array.isArray(selectedOrderIds) || selectedOrderIds.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid month (1-12)'
+        message: 'selectedOrderIds is required and must contain at least one order'
+      });
+    }
+
+    const startDate = new Date(periodStart);
+    const endDate = new Date(periodEnd);
+
+    if (startDate > endDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'periodStart must be before periodEnd'
       });
     }
 
     const reconciliation = await SystemReconciliationService.createReconciliation({
-      month: parseInt(month),
-      year: parseInt(year),
+      periodStart: startDate,
+      periodEnd: endDate,
+      periodLabel,
+      selectedOrderIds,
       createdBy: req.userId
     });
 
     res.json({
       success: true,
-      message: `Kỳ đối soát tháng ${month}/${year} đã được tạo`,
+      message: `Kỳ đối soát "${periodLabel}" đã được tạo với ${selectedOrderIds.length} đơn hàng`,
       data: reconciliation
     });
 
@@ -171,15 +287,15 @@ router.get('/:id/items', async (req, res) => {
     const offset = (page - 1) * limit;
     const params = [id];
     let paramIndex = 2;
-    let whereConditions = ['system_reconciliation_id = $1'];
+    let whereConditions = ['sri.system_reconciliation_id = $1'];
 
     if (userId) {
-      whereConditions.push(`user_id = $${paramIndex++}`);
+      whereConditions.push(`sri.user_id = $${paramIndex++}`);
       params.push(userId);
     }
 
     if (isHighRisk !== undefined) {
-      whereConditions.push(`is_high_risk = $${paramIndex++}`);
+      whereConditions.push(`sri.is_high_risk = $${paramIndex++}`);
       params.push(isHighRisk === 'true');
     }
 
@@ -188,7 +304,7 @@ router.get('/:id/items', async (req, res) => {
     // Get total count
     const countQuery = `
       SELECT COUNT(*) as total
-      FROM system_reconciliation_items
+      FROM system_reconciliation_items sri
       WHERE ${whereClause}
     `;
     const countResult = await pool.query(countQuery, params);
@@ -200,9 +316,11 @@ router.get('/:id/items', async (req, res) => {
       SELECT
         sri.*,
         u.full_name as user_name,
-        u.email as user_email
+        u.email as user_email,
+        c.order_code
       FROM system_reconciliation_items sri
       LEFT JOIN users u ON sri.user_id = u.id
+      LEFT JOIN conversions c ON sri.conversion_id = c.id
       WHERE ${whereClause}
       ORDER BY sri.order_time DESC
       LIMIT $${paramIndex++} OFFSET $${paramIndex++}
@@ -429,12 +547,12 @@ router.post('/:id/sync', async (req, res) => {
         system_reconciliation_id,
         action,
         performed_by,
-        details
+        metadata
       ) VALUES ($1, $2, $3, $4)
     `, [
       id,
       'api_sync',
-      req.user?.userId || 'system',
+      req.userId || 'system',
       JSON.stringify({
         synced: result.synced,
         released: result.released,
@@ -460,3 +578,4 @@ router.post('/:id/sync', async (req, res) => {
 });
 
 module.exports = router;
+ 

@@ -316,6 +316,51 @@
             background: #d1fae5;
             color: #065f46;
         }
+
+        /* Status Messages */
+        .status-message {
+            margin-top: 16px;
+            padding: 16px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .status-message.status-loading {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            color: #1e40af;
+        }
+
+        .status-message.status-success {
+            background: #d1fae5;
+            border-left: 4px solid #10b981;
+            color: #065f46;
+        }
+
+        .status-message.status-error {
+            background: #fee2e2;
+            border-left: 4px solid #ef4444;
+            color: #991b1b;
+        }
+
+        .status-message.status-warning {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            color: #92400e;
+        }
     </style>
 </head>
 <body>
@@ -340,35 +385,54 @@
             <!-- Create New Reconciliation Form -->
             <div class="create-recon-form">
                 <h3 style="margin-bottom: 20px;">Tạo Kỳ Đối Soát Mới</h3>
+                <p style="margin: 0 0 16px 0; color: #6c757d; font-size: 0.9rem;">
+                    💡 <strong>Lưu ý:</strong> Đối soát hệ thống dựa trên đơn hàng có trạng thái "approved" (đã duyệt)
+                </p>
                 <form id="createReconForm">
-                    <div style="display: flex; gap: 15px; align-items: flex-end;">
-                        <div style="flex: 0 0 200px;">
-                            <label for="month" style="display: block; margin-bottom: 8px; font-weight: 500;">Tháng</label>
-                            <select id="month" name="month" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
-                                <option value="">-- Chọn tháng --</option>
-                                <option value="1">Tháng 1</option>
-                                <option value="2">Tháng 2</option>
-                                <option value="3">Tháng 3</option>
-                                <option value="4">Tháng 4</option>
-                                <option value="5">Tháng 5</option>
-                                <option value="6">Tháng 6</option>
-                                <option value="7">Tháng 7</option>
-                                <option value="8">Tháng 8</option>
-                                <option value="9">Tháng 9</option>
-                                <option value="10">Tháng 10</option>
-                                <option value="11">Tháng 11</option>
-                                <option value="12">Tháng 12</option>
+                    <div style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 180px;">
+                            <label for="periodStart" style="display: block; margin-bottom: 8px; font-weight: 500;">Từ ngày</label>
+                            <input type="date" id="periodStart" name="periodStart" required
+                                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem;">
+                        </div>
+                        <div style="flex: 1; min-width: 180px;">
+                            <label for="periodEnd" style="display: block; margin-bottom: 8px; font-weight: 500;">Đến ngày</label>
+                            <input type="date" id="periodEnd" name="periodEnd" required
+                                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem;">
+                        </div>
+                        <div style="flex: 1; min-width: 180px;">
+                            <label for="affSidFilter" style="display: block; margin-bottom: 8px; font-weight: 500;">Nguồn đơn hàng</label>
+                            <select id="affSidFilter" name="affSidFilter"
+                                    style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem;">
+                                <option value="cashback">Cashback System</option>
+                                <option value="all">Tất cả</option>
                             </select>
                         </div>
-                        <div style="flex: 0 0 150px;">
-                            <label for="year" style="display: block; margin-bottom: 8px; font-weight: 500;">Năm</label>
-                            <select id="year" name="year" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
-                                <option value="">-- Chọn năm --</option>
-                            </select>
+                        <div style="flex: 1; min-width: 200px;">
+                            <label for="periodLabel" style="display: block; margin-bottom: 8px; font-weight: 500;">Nhãn kỳ đối soát</label>
+                            <input type="text" id="periodLabel" name="periodLabel" placeholder="Tháng 11/2025" required
+                                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem;">
                         </div>
-                        <button type="submit" class="btn-create" style="padding: 10px 24px; height: 42px;">Tạo Kỳ Đối Soát</button>
+                        <div style="display: flex; gap: 10px;">
+                            <button type="button" class="btn-secondary" onclick="loadEligibleOrders()"
+                                    style="padding: 10px 24px; height: 42px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; white-space: nowrap;">
+                                🔍 Lọc đơn hàng
+                            </button>
+                            <button type="submit" class="btn-create"
+                                    style="padding: 10px 24px; height: 42px; white-space: nowrap;">
+                                ✅ Tạo Kỳ Đối Soát
+                            </button>
+                        </div>
                     </div>
                 </form>
+            </div>
+
+            <!-- Eligible Orders Preview Section -->
+            <div id="eligibleOrdersSection" style="display: none; margin-bottom: 30px;">
+                <h3 style="margin-bottom: 20px; color: #1e293b;">📋 Đơn Hàng Đủ Điều Kiện</h3>
+                <div id="eligibleOrdersContent">
+                    <div class="loading">Đang tải...</div>
+                </div>
             </div>
 
             <!-- Reconciliations List -->
@@ -406,6 +470,7 @@
         </div>
     </div>
 
+
     <script src="../js/config.js"></script>
     <script>
         let currentPage = 1;
@@ -420,31 +485,41 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
-            populateYearSelect();
+            setDefaultDateRange();
             loadStats();
             loadReconciliations();
             setupEventListeners();
         });
+
+        // Set default date range to current month
+        function setDefaultDateRange() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth(); // 0-indexed
+
+            // First day of current month
+            const firstDay = new Date(year, month, 1);
+            const firstDayStr = firstDay.toISOString().split('T')[0];
+
+            // Last day of current month
+            const lastDay = new Date(year, month + 1, 0);
+            const lastDayStr = lastDay.toISOString().split('T')[0];
+
+            // Set values
+            document.getElementById('periodStart').value = firstDayStr;
+            document.getElementById('periodEnd').value = lastDayStr;
+
+            // Set label
+            const monthNames = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
+                               'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
+            document.getElementById('periodLabel').value = `${monthNames[month]}/${year}`;
+        }
 
         // Global logout function for sidebar.js
         function logout() {
             localStorage.removeItem(CONFIG.STORAGE_KEYS.TOKEN);
             localStorage.removeItem(CONFIG.STORAGE_KEYS.USER);
             window.location.href = '/login';
-        }
-
-        function populateYearSelect() {
-            const yearSelect = document.getElementById('year');
-            const currentYear = new Date().getFullYear();
-
-            for (let year = currentYear; year >= currentYear - 3; year--) {
-                const option = document.createElement('option');
-                option.value = year;
-                option.textContent = year;
-                yearSelect.appendChild(option);
-            }
-
-            yearSelect.value = currentYear;
         }
 
         function setupEventListeners() {
@@ -545,15 +620,15 @@
                         <div class="stat-value money">${formatMoney(stats.total_cashback_all_time || 0)}</div>
                     </div>
                 </div>
-                <!-- Second row: 2 cards -->
+                <!-- Second row: Balance cards -->
                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
                     <div class="stat-card">
                         <div class="stat-label">Số Dư Khả Dụng</div>
                         <div class="stat-value money">${formatMoney(balance.total_available || 0)}</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-label">Số Dư Dự Trữ</div>
-                        <div class="stat-value risk">${formatMoney(balance.total_reserved || 0)}</div>
+                        <div class="stat-label">Khoản Nợ</div>
+                        <div class="stat-value risk">${formatMoney(balance.total_debt || 0)}</div>
                     </div>
                 </div>
             `;
@@ -614,10 +689,6 @@
                             <div class="stat-label">Tổng Cashback</div>
                             <div class="stat-value money">${formatMoney(recon.total_cashback)}</div>
                         </div>
-                        <div class="stat-item">
-                            <div class="stat-label">Dự Trữ</div>
-                            <div class="stat-value risk">${formatMoney(recon.reserved_amount)}</div>
-                        </div>
                     </div>
 
                     <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #f0f0f0;">
@@ -640,10 +711,11 @@
                         ` : ''}
                         ${recon.status === 'draft' ? `
                             <button class="btn-finalize" onclick="finalizeReconciliation('${recon.id}')">
-                                Finalize
+                                Hoàn tất
                             </button>
                         ` : ''}
                     </div>
+                    <div id="status-${recon.id}" class="status-message" style="display: none;"></div>
                 </div>
             `).join('');
         }
@@ -665,11 +737,31 @@
             const form = document.getElementById('createReconForm');
             const formData = new FormData(form);
 
-            const month = formData.get('month');
-            const year = formData.get('year');
+            const periodStart = formData.get('periodStart');
+            const periodEnd = formData.get('periodEnd');
+            const periodLabel = formData.get('periodLabel');
 
-            if (!month || !year) {
-                alert('Vui lòng chọn tháng và năm');
+            if (!periodStart || !periodEnd || !periodLabel) {
+                alert('Vui lòng điền đầy đủ thông tin (từ ngày, đến ngày, nhãn kỳ)');
+                return;
+            }
+
+            // Validate dates
+            if (new Date(periodStart) > new Date(periodEnd)) {
+                alert('Từ ngày phải nhỏ hơn đến ngày');
+                return;
+            }
+
+            // Get selected order IDs
+            const selectedCheckboxes = document.querySelectorAll('.order-checkbox:checked');
+            const selectedOrderIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+
+            if (selectedOrderIds.length === 0) {
+                alert('Vui lòng chọn ít nhất một đơn hàng để tạo kỳ đối soát');
+                return;
+            }
+
+            if (!confirm(`Bạn chắc chắn muốn tạo kỳ đối soát "${periodLabel}" với ${selectedOrderIds.length} đơn hàng đã chọn?`)) {
                 return;
             }
 
@@ -680,7 +772,12 @@
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ month: parseInt(month), year: parseInt(year) })
+                    body: JSON.stringify({
+                        periodStart,
+                        periodEnd,
+                        periodLabel,
+                        selectedOrderIds
+                    })
                 });
 
                 const result = await response.json();
@@ -700,7 +797,7 @@
         }
 
         async function finalizeReconciliation(reconId) {
-            if (!confirm('Bạn có chắc chắn muốn finalize kỳ đối soát này?\n\nSau khi finalize, user balance sẽ được cập nhật và không thể hoàn tác.')) {
+            if (!confirm('Bạn có chắc chắn muốn hoàn tất kỳ đối soát này?\n\nSau khi hoàn tất, số dư người dùng sẽ được cập nhật và không thể hoàn tác.')) {
                 return;
             }
 
@@ -728,9 +825,10 @@
         }
 
         async function syncReconciliation(reconId, periodLabel) {
-            if (!confirm(`Bạn có chắc muốn đồng bộ dữ liệu API cho kỳ "${periodLabel}"?\n\nThao tác này sẽ:\n- Cập nhật trạng thái conversion từ API\n- Giải phóng số dư dự trữ cho đơn đã duyệt\n- Trừ số dư dự trữ cho đơn bị từ chối`)) {
-                return;
-            }
+            const statusEl = document.getElementById(`status-${reconId}`);
+
+            // Show loading status
+            showStatus(statusEl, 'loading', `⏳ Đang đồng bộ dữ liệu API cho kỳ "${periodLabel}"...`);
 
             try {
                 const response = await fetch(`${CONFIG.API_BASE_URL}/admin/system-reconciliation/${reconId}/sync`, {
@@ -745,25 +843,43 @@
 
                 if (result.success) {
                     const data = result.data;
-                    let message = `✅ Đồng bộ thành công!\n\n`;
-                    message += `📊 Tổng số items: ${data.synced}\n`;
+                    let message = `✅ Đồng bộ thành công!<br>`;
+                    message += `📊 Tổng số items: ${data.synced || 0}`;
                     if (data.released > 0) {
-                        message += `✓ Đã giải phóng: ${data.released} items (${formatMoney(data.released_amount)})\n`;
+                        message += `<br>✓ Đã cập nhật: ${data.released} items (${formatMoney(data.released_amount)})`;
                     }
                     if (data.deducted > 0) {
-                        message += `✗ Đã trừ: ${data.deducted} items (${formatMoney(data.deducted_amount)})\n`;
+                        message += `<br>✗ Đã trừ nợ: ${data.deducted} items (${formatMoney(data.deducted_amount)})`;
                     }
-                    message += `\n⏱️ Thời gian: ${data.duration}ms`;
+                    if (data.duration) {
+                        message += `<br>⏱️ Thời gian: ${data.duration}ms`;
+                    }
 
-                    alert(message);
+                    showStatus(statusEl, 'success', message);
+
+                    // Auto hide after 10 seconds
+                    setTimeout(() => {
+                        hideStatus(statusEl);
+                    }, 10000);
+
                     loadReconciliations(); // Reload list
                 } else {
-                    alert('Lỗi: ' + result.message);
+                    showStatus(statusEl, 'error', `❌ Lỗi: ${result.message}`);
                 }
             } catch (error) {
                 console.error('Error syncing reconciliation:', error);
-                alert('Có lỗi xảy ra khi đồng bộ');
+                showStatus(statusEl, 'error', `❌ Có lỗi xảy ra khi đồng bộ: ${error.message}`);
             }
+        }
+
+        function showStatus(element, type, message) {
+            element.className = `status-message status-${type}`;
+            element.innerHTML = message;
+            element.style.display = 'block';
+        }
+
+        function hideStatus(element) {
+            element.style.display = 'none';
         }
 
         async function viewItems(reconId, periodLabel) {
@@ -803,9 +919,9 @@
                             <th>Thời gian</th>
                             <th>User</th>
                             <th>Merchant</th>
+                            <th>Mã đơn</th>
                             <th>Cashback</th>
-                            <th>Risk Score</th>
-                            <th>Trạng thái</th>
+                            <th>Trạng thái API</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -813,16 +929,12 @@
                             <tr>
                                 <td>${formatDateTime(item.order_time)}</td>
                                 <td>
-                                    <strong>${escapeHtml(item.user_name || item.user_email)}</strong><br>
-                                    <small style="color: #6c757d;">${item.user_id.substring(0, 8)}...</small>
+                                    <strong>${escapeHtml(item.user_name || 'N/A')}</strong><br>
+                                    <small style="color: #6c757d;">${escapeHtml(item.user_email || 'N/A')}</small>
                                 </td>
                                 <td>${escapeHtml(item.merchant_name)}</td>
+                                <td><code style="font-size: 0.85rem;">${escapeHtml(item.order_code || item.conversion_id || 'N/A')}</code></td>
                                 <td style="font-weight: 600; color: #10b981;">${formatMoney(item.cashback_amount)}</td>
-                                <td>
-                                    <span class="risk-badge ${getRiskClass(item.risk_score)}">
-                                        ${item.risk_score ? item.risk_score.toFixed(0) : '0'}
-                                    </span>
-                                </td>
                                 <td>
                                     ${item.api_reconciled ? '✅ Đã xác nhận' : '⏳ Chưa xác nhận'}
                                 </td>
@@ -839,10 +951,230 @@
             document.getElementById('itemsModal').classList.remove('show');
         }
 
+        async function loadEligibleOrders() {
+            const periodStart = document.getElementById('periodStart').value;
+            const periodEnd = document.getElementById('periodEnd').value;
+            const affSid = document.getElementById('affSidFilter').value;
+
+            if (!periodStart || !periodEnd) {
+                alert('Vui lòng chọn từ ngày và đến ngày');
+                return;
+            }
+
+            // Validate dates
+            if (new Date(periodStart) > new Date(periodEnd)) {
+                alert('Từ ngày phải nhỏ hơn đến ngày');
+                return;
+            }
+
+            // Show section and loading
+            const section = document.getElementById('eligibleOrdersSection');
+            const content = document.getElementById('eligibleOrdersContent');
+            section.style.display = 'block';
+            content.innerHTML = '<div class="loading">Đang tải dữ liệu...</div>';
+
+            try {
+                const url = `${CONFIG.API_BASE_URL}/admin/system-reconciliation/preview?periodStart=${periodStart}&periodEnd=${periodEnd}&affSid=${affSid}`;
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    displayEligibleOrders(result.data);
+                } else {
+                    content.innerHTML = `<div class="error">Lỗi: ${result.message}</div>`;
+                }
+            } catch (error) {
+                console.error('Error loading eligible orders:', error);
+                content.innerHTML = '<div class="error">Lỗi kết nối server</div>';
+            }
+        }
+
+        function displayEligibleOrders(data) {
+            const { orders, summary, period } = data;
+            const content = document.getElementById('eligibleOrdersContent');
+
+            if (orders.length === 0) {
+                content.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <h3>Không có đơn hàng nào</h3>
+                        <p>Không tìm thấy đơn hàng đã duyệt trong khoảng thời gian đã chọn</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Format date range
+            const startDate = new Date(period.start);
+            const endDate = new Date(period.end);
+            const dateRange = `${startDate.toLocaleDateString('vi-VN')} - ${endDate.toLocaleDateString('vi-VN')}`;
+
+            const html = `
+                <div style="margin-bottom: 24px; padding: 20px; background: #f0f9ff; border-radius: 12px; border-left: 4px solid #3b82f6;">
+                    <h3 style="margin: 0 0 16px 0; color: #1e40af; font-size: 1.1rem;">📊 Tổng Quan</h3>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+                        <div>
+                            <div style="font-size: 0.875rem; color: #64748b; margin-bottom: 4px;">Khoảng thời gian</div>
+                            <div style="font-size: 1rem; font-weight: 700; color: #1e293b;">${dateRange}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.875rem; color: #64748b; margin-bottom: 4px;">Tổng đơn hàng</div>
+                            <div style="font-size: 1.25rem; font-weight: 700; color: #1e293b;">${summary.total_orders}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.875rem; color: #64748b; margin-bottom: 4px;">Số người dùng</div>
+                            <div style="font-size: 1.25rem; font-weight: 700; color: #1e293b;">${summary.total_users}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.875rem; color: #64748b; margin-bottom: 4px;">Tổng hoàn tiền</div>
+                            <div style="font-size: 1.25rem; font-weight: 700; color: #10b981;">${formatMoney(summary.total_cashback)}</div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #bfdbfe;">
+                        <p style="margin: 0; font-size: 0.875rem; color: #475569;">
+                            💡 <strong>Lưu ý:</strong> Chỉ bao gồm đơn hàng có status = "approved" (đã được duyệt)
+                        </p>
+                    </div>
+                </div>
+
+                <div style="margin: 16px 0; padding: 12px; background: #f8fafc; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong>Đã chọn:</strong> <span id="selectedCount" style="color: #3b82f6; font-weight: 700;">0</span> đơn hàng
+                        | <strong>Tổng cashback:</strong> <span id="selectedCashback" style="color: #10b981; font-weight: 700;">0 đ</span>
+                    </div>
+                    <button type="button" onclick="clearSelection()" style="padding: 6px 12px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.875rem;">
+                        Bỏ chọn tất cả
+                    </button>
+                </div>
+
+                <h4 style="margin: 24px 0 16px 0; color: #1e293b;">Chi Tiết Đơn Hàng Đủ Điều Kiện</h4>
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;">
+                                <input type="checkbox" id="selectAllOrders" onchange="toggleSelectAll(this)"
+                                       style="width: 18px; height: 18px; cursor: pointer;">
+                            </th>
+                            <th>Người dùng</th>
+                            <th>Nhà bán hàng</th>
+                            <th>Mã đơn</th>
+                            <th>Giá trị đơn</th>
+                            <th>Hoa hồng</th>
+                            <th>Cashback</th>
+                            <th>TT đơn hàng</th>
+                            <th>TT đối soát</th>
+                            <th>Thời gian</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${orders.map(order => `
+                            <tr>
+                                <td style="text-align: center;">
+                                    <input type="checkbox" class="order-checkbox"
+                                           value="${order.id}"
+                                           data-cashback="${order.cashback}"
+                                           onchange="updateSelection()"
+                                           ${order.is_reconciled ? 'disabled title="Đã đối soát"' : ''}
+                                           style="width: 18px; height: 18px; cursor: ${order.is_reconciled ? 'not-allowed' : 'pointer'};">
+                                </td>
+                                <td>
+                                    <strong>${escapeHtml(order.user_name || order.user_email)}</strong><br>
+                                    <small style="color: #64748b;">${escapeHtml(order.user_email)}</small>
+                                </td>
+                                <td>${escapeHtml(order.merchant_name)}</td>
+                                <td>
+                                    <code style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 0.875rem;">
+                                        ${escapeHtml(order.order_code)}
+                                    </code>
+                                </td>
+                                <td>${formatMoney(order.order_amount)}</td>
+                                <td style="color: #3b82f6; font-weight: 600;">${formatMoney(order.commission)}</td>
+                                <td style="color: #10b981; font-weight: 700;">${formatMoney(order.cashback)}</td>
+                                <td>
+                                    <span class="badge badge-${getOrderStatusClass(order.conversion_status)}">
+                                        ${escapeHtml(order.conversion_status)}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge ${order.is_reconciled ? 'badge-success' : 'badge-secondary'}">
+                                        ${order.is_reconciled ? 'Đã đối soát' : 'Chưa đối soát'}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div style="font-size: 0.875rem;">${formatDateTime(order.confirmed_time)}</div>
+                                    <small style="color: #64748b; font-size: 0.75rem;">Xác nhận</small>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            content.innerHTML = html;
+            updateSelection(); // Initialize selection count
+        }
+
+        // Selection management functions
+        function toggleSelectAll(checkbox) {
+            const checkboxes = document.querySelectorAll('.order-checkbox:not([disabled])');
+            checkboxes.forEach(cb => {
+                cb.checked = checkbox.checked;
+            });
+            updateSelection();
+        }
+
+        function updateSelection() {
+            const checkboxes = document.querySelectorAll('.order-checkbox:checked');
+            const count = checkboxes.length;
+            let totalCashback = 0;
+
+            checkboxes.forEach(cb => {
+                totalCashback += parseFloat(cb.getAttribute('data-cashback') || 0);
+            });
+
+            document.getElementById('selectedCount').textContent = count;
+            document.getElementById('selectedCashback').textContent = formatMoney(totalCashback);
+
+            // Update "select all" checkbox state
+            const selectAllCheckbox = document.getElementById('selectAllOrders');
+            const allCheckboxes = document.querySelectorAll('.order-checkbox:not([disabled])');
+            if (selectAllCheckbox && allCheckboxes.length > 0) {
+                selectAllCheckbox.checked = count === allCheckboxes.length;
+                selectAllCheckbox.indeterminate = count > 0 && count < allCheckboxes.length;
+            }
+        }
+
+        function clearSelection() {
+            const checkboxes = document.querySelectorAll('.order-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = false;
+            });
+            const selectAllCheckbox = document.getElementById('selectAllOrders');
+            if (selectAllCheckbox) {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = false;
+            }
+            updateSelection();
+        }
+
+        function getOrderStatusClass(status) {
+            const statusMap = {
+                'Đã duyệt': 'success',
+                'Đang xử lý': 'pending',
+                'Chưa đối soát': 'warning'
+            };
+            return statusMap[status] || 'secondary';
+        }
+
         function getStatusLabel(status) {
             const labels = {
                 'draft': 'Nháp',
-                'finalized': 'Đã Finalize',
+                'finalized': 'Đã Hoàn Tất',
                 'paid': 'Đã Thanh Toán',
                 'cancelled': 'Đã Hủy'
             };
@@ -850,8 +1182,11 @@
         }
 
         function getRiskClass(score) {
-            if (score >= 70) return 'risk-high';
-            if (score >= 50) return 'risk-medium';
+            if (!score && score !== 0) return 'risk-low';
+            const numScore = parseFloat(score);
+            if (isNaN(numScore)) return 'risk-low';
+            if (numScore >= 70) return 'risk-high';
+            if (numScore >= 50) return 'risk-medium';
             return 'risk-low';
         }
 

@@ -5,7 +5,8 @@
  * Separate from API reconciliation balance
  */
 
-const pool = require('../../config/database');
+const { pool } = require('../../config/database');
+const DebtManagementService = require('./DebtManagementService');
 
 class BalanceManagementService {
   /**
@@ -21,6 +22,7 @@ class BalanceManagementService {
         available_balance,
         pending_balance,
         reserved_balance,
+        debt_balance,
         total_earned,
         total_withdrawn,
         last_reconciliation_date,
@@ -38,6 +40,7 @@ class BalanceManagementService {
         available_balance: 0,
         pending_balance: 0,
         reserved_balance: 0,
+        debt_balance: 0,
         total_earned: 0,
         total_withdrawn: 0,
         last_reconciliation_date: null,
@@ -60,6 +63,18 @@ class BalanceManagementService {
     const minAmount = 100000; // 100k VND minimum
 
     const available = parseFloat(balance.available_balance);
+    const debt = parseFloat(balance.debt_balance || 0);
+
+    // Block withdrawal if user has debt
+    if (debt > 0) {
+      return {
+        eligible: false,
+        reason: `Bạn có khoản nợ ${this.formatMoney(debt)} chưa thanh toán. Vui lòng thanh toán nợ trước khi rút tiền.`,
+        available,
+        debt,
+        requested: amount
+      };
+    }
 
     if (amount < minAmount) {
       return {
@@ -256,6 +271,7 @@ class BalanceManagementService {
         SUM(available_balance) as total_available,
         SUM(reserved_balance) as total_reserved,
         SUM(pending_balance) as total_pending,
+        SUM(debt_balance) as total_debt,
         SUM(total_earned) as total_earned,
         SUM(total_withdrawn) as total_withdrawn
       FROM user_system_balance
