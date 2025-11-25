@@ -924,7 +924,15 @@ router.get('/conversions', authenticateAdmin, async (req, res) => {
         status: c.status,
         orderTime: c.order_time,
         createdAt: c.created_at,
-        affSid: c.aff_sid
+        affSid: c.aff_sid,
+        // System reconciliation status fields
+        system_reconciliation_status: c.system_reconciliation_status,
+        system_reconciliation_id: c.system_reconciliation_id,
+        system_reconciled_at: c.system_reconciled_at,
+        // Payment status fields
+        payment_status: c.payment_status,
+        payment_request_id: c.payment_request_id,
+        payment_linked_at: c.payment_linked_at
       })),
       stats: {
         total_count: parseInt(stats.total_count || 0),
@@ -2965,7 +2973,7 @@ router.get('/auto-sync/config', authenticateAdmin, async (req, res) => {
 
     res.json({
       success: true,
-      config,
+      data: config,  // Frontend expects 'data' field
       status
     });
   } catch (error) {
@@ -3039,13 +3047,127 @@ router.put('/auto-sync/config', authenticateAdmin, async (req, res) => {
     res.json({
       success: true,
       message: 'Auto-sync configuration updated successfully',
-      config: updated
+      data: updated
     });
   } catch (error) {
     logger.error('Update auto-sync config error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to update auto-sync config'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/auto-sync/config
+ * Update auto-sync configuration (alias for PUT, frontend uses POST)
+ */
+router.post('/auto-sync/config', authenticateAdmin, async (req, res) => {
+  try {
+    const { enabled, cron_schedule, sync_days } = req.body;
+
+    // Validate inputs
+    if (enabled !== undefined && typeof enabled !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid enabled value'
+      });
+    }
+
+    if (sync_days !== undefined && (sync_days < 1 || sync_days > 30)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Sync days must be between 1 and 30'
+      });
+    }
+
+    const updated = await autoSyncService.updateConfig({
+      enabled,
+      cron_schedule,
+      sync_days
+    });
+
+    logger.info('Auto-sync config updated via POST', {
+      enabled: updated.enabled,
+      schedule: updated.cron_schedule,
+      syncDays: updated.sync_days,
+      adminId: req.userId
+    });
+
+    res.json({
+      success: true,
+      message: 'Auto-sync configuration updated successfully',
+      data: updated
+    });
+  } catch (error) {
+    logger.error('Update auto-sync config error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to update auto-sync config'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/auto-sync/run
+ * Manually trigger auto-sync (run sync now)
+ */
+router.post('/auto-sync/run', authenticateAdmin, async (req, res) => {
+  try {
+    const { sync_days } = req.body;
+
+    // Get config to use default sync_days if not provided
+    const config = await AutoSyncConfig.getConfig();
+    const days = sync_days || config.sync_days || 3;
+
+    if (days < 1 || days > 30) {
+      return res.status(400).json({
+        success: false,
+        message: 'Sync days must be between 1 and 30'
+      });
+    }
+
+    logger.info('Manual auto-sync triggered', {
+      syncDays: days,
+      adminId: req.userId
+    });
+
+    // Import conversions directly
+    const { syncConversions } = require('../jobs/syncConversions');
+    const result = await syncConversions(days);
+
+    logger.success('Manual auto-sync completed', {
+      imported: result.imported,
+      duplicates: result.duplicates,
+      adminId: req.userId
+    });
+
+    // Update last run status in database
+    const message = `Đã import ${result.imported} conversions, ${result.duplicates} trùng lặp`;
+    await AutoSyncConfig.updateLastRun('success', message);
+
+    res.json({
+      success: true,
+      message: `Đồng bộ thành công`,
+      data: {
+        imported: result.imported,
+        duplicates: result.duplicates,
+        skipped: result.skipped || 0,
+        errors: result.errors || 0
+      }
+    });
+  } catch (error) {
+    logger.error('Manual auto-sync failed', {
+      error: error.message,
+      stack: error.stack
+    });
+
+    // Update last run status to error
+    await AutoSyncConfig.updateLastRun('error', `Lỗi: ${error.message}`);
+
+    res.status(500).json({
+      success: false,
+      message: `Lỗi đồng bộ: ${error.message}`
     });
   }
 });

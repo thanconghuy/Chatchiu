@@ -649,20 +649,20 @@ router.get('/conversions', authenticateToken, async (req, res) => {
       });
     }
 
-    // Get conversions with reconciliation status from internal reconciliation system
+    // Get conversions with System Reconciliation status
     const conversionsQuery = `
       SELECT
         c.*,
         m.logo_url as merchant_logo,
-        ri.id as reconciliation_item_id,
-        ri.reconciliation_id,
-        r.status as reconciliation_status,
-        r.period_label as reconciliation_period,
-        r.confirmed_at as reconciliation_confirmed_at
+        sri.id as system_reconciliation_item_id,
+        sri.system_reconciliation_id,
+        sr.status as system_reconciliation_status_detail,
+        sr.period_label as system_reconciliation_period,
+        sr.finalized_at as system_reconciliation_finalized_at
       FROM conversions c
       LEFT JOIN merchants m ON m.id = c.merchant_id
-      LEFT JOIN reconciliation_items ri ON ri.conversion_id = c.id
-      LEFT JOIN reconciliations r ON r.id = ri.reconciliation_id
+      LEFT JOIN system_reconciliation_items sri ON sri.conversion_id = c.id
+      LEFT JOIN system_reconciliations sr ON sr.id = sri.system_reconciliation_id
       WHERE c.user_id = $1
       ${status ? 'AND c.status = $2' : ''}
       ORDER BY c.created_at DESC
@@ -690,11 +690,14 @@ router.get('/conversions', authenticateToken, async (req, res) => {
         approvalTime: sc.approval_time,
         matchedAt: sc.matched_at,
         createdAt: sc.created_at,
-        // Đã đối soát = có trong reconciliation_items VÀ reconciliation status = 'completed'
-        isReconciled: !!sc.reconciliation_item_id && sc.reconciliation_status === 'completed',
-        reconciliationStatus: sc.reconciliation_status || null,
-        reconciliationPeriod: sc.reconciliation_period || null,
-        reconciliationConfirmedAt: sc.reconciliation_confirmed_at || null
+        // System Reconciliation Status (from conversions.system_reconciliation_status column)
+        systemReconciliationStatus: sc.system_reconciliation_status || null,
+        systemReconciliationId: sc.system_reconciliation_id || null,
+        systemReconciledAt: sc.system_reconciled_at || null,
+        // System Reconciliation Details (from JOIN)
+        systemReconciliationPeriod: sc.system_reconciliation_period || null,
+        systemReconciliationStatusDetail: sc.system_reconciliation_status_detail || null,
+        systemReconciliationFinalizedAt: sc.system_reconciliation_finalized_at || null
       }))
     });
   } catch (error) {

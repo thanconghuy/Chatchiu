@@ -41,6 +41,7 @@ const paymentRequestRoutes = require('./backend/routes/paymentRequest');
 const publicRoutes = require('./backend/routes/public');
 const systemReconciliationAdminRoutes = require('./backend/routes/systemReconciliationAdmin');
 const systemReconciliationUserRoutes = require('./backend/routes/systemReconciliationUser');
+const systemSettingsRoutes = require('./backend/routes/systemSettings');
 
 // Mount API routes (BEFORE static files)
 app.use('/api/auth', authRoutes); // Keep old auth for backward compatibility
@@ -52,6 +53,7 @@ app.use('/api/payment-requests', paymentRequestRoutes); // Payment request modul
 app.use('/api/public', publicRoutes); // Public endpoints (no auth required)
 app.use('/api/admin/system-reconciliation', systemReconciliationAdminRoutes); // System Reconciliation module (admin only)
 app.use('/api/user/system-reconciliation', systemReconciliationUserRoutes); // System Reconciliation module (user)
+app.use('/api/system-settings', systemSettingsRoutes); // System settings (admin only)
 
 // Health check endpoint
 app.get('/health', (req, res) => {

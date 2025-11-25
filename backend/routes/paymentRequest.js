@@ -109,6 +109,7 @@ router.get('/eligibility', authenticateToken, async (req, res) => {
 /**
  * POST /api/payment-requests
  * Create a new payment request
+ * Enhanced with validation balance checking and audit logging
  * Body: { requestedAmount, bankName, bankAccountNumber, bankAccountName, bankBranch, notes }
  */
 router.post('/', authenticateToken, async (req, res) => {
@@ -131,6 +132,12 @@ router.post('/', authenticateToken, async (req, res) => {
       });
     }
 
+    // Collect context for audit logging
+    const context = {
+      ipAddress: req.ip || req.connection.remoteAddress,
+      userAgent: req.get('user-agent')
+    };
+
     const paymentRequest = await paymentRequestService.createPaymentRequest({
       userId,
       requestedAmount: parseFloat(requestedAmount),
@@ -138,7 +145,8 @@ router.post('/', authenticateToken, async (req, res) => {
       bankAccountNumber,
       bankAccountName,
       bankBranch: bankBranch || null,
-      notes: notes || null
+      notes: notes || null,
+      context
     });
 
     res.status(201).json({
@@ -253,6 +261,11 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const userId = req.user.id;
 
+    // Unlink items first
+    const PaymentSystemReconciliationService = require('../services/paymentSystemReconciliationService');
+    await PaymentSystemReconciliationService.unlinkPaymentItems(id);
+
+    // Then cancel the payment request
     const deleted = await PaymentRequest.cancel(id, userId);
 
     if (!deleted) {
@@ -281,6 +294,39 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 });
 
 /**
+ * GET /api/payment-requests/:id/items
+ * Get linked system reconciliation items for payment request
+ */
+router.get('/:id/items', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const PaymentSystemReconciliationService = require('../services/paymentSystemReconciliationService');
+    const linkedItems = await PaymentSystemReconciliationService.getLinkedItemsForPayment(id);
+
+    res.json({
+      success: true,
+      data: {
+        paymentRequestId: id,
+        items: linkedItems,
+        itemsCount: linkedItems.length,
+        totalAmount: linkedItems.reduce((sum, item) => sum + parseFloat(item.cashback_amount), 0)
+      }
+    });
+  } catch (error) {
+    logger.error('Get linked items failed', {
+      error: error.message,
+      id: req.params.id
+    });
+
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
  * GET /api/payment-requests/admin/:id
  * Get payment request detail (admin view)
  */
@@ -296,6 +342,16 @@ router.get('/admin/:id', authenticateAdmin, async (req, res) => {
         message: 'Không tìm thấy yêu cầu thanh toán'
       });
     }
+
+    // Also get linked system reconciliation items
+    const PaymentSystemReconciliationService = require('../services/paymentSystemReconciliationService');
+    const linkedItems = await PaymentSystemReconciliationService.getLinkedItemsForPayment(id);
+
+    paymentRequest.systemReconciliationItems = linkedItems;
+    paymentRequest.systemReconciliationItemsCount = linkedItems.length;
+    paymentRequest.systemReconciliationTotalAmount = linkedItems.reduce(
+      (sum, item) => sum + parseFloat(item.cashback_amount), 0
+    );
 
     // Get logs
     const logs = await PaymentRequest.getLogs(id);

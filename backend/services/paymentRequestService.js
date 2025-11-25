@@ -1,5 +1,7 @@
 const db = require('../config/database');
 const PaymentRequest = require('../models/PaymentRequest');
+const PaymentSystemReconciliationService = require('./paymentSystemReconciliationService');
+const SystemSettingsService = require('./systemSettingsService');
 const logger = require('../utils/logger');
 
 /**
@@ -9,6 +11,7 @@ const logger = require('../utils/logger');
 class PaymentRequestService {
   /**
    * Check user eligibility for creating payment request
+   * Uses System Reconciliation balance
    * @param {string} userId
    * @returns {Promise<Object>}
    */
@@ -16,26 +19,60 @@ class PaymentRequestService {
     try {
       logger.info('Checking payment request eligibility', { userId });
 
-      // Get available balance from view
-      const balance = await PaymentRequest.getAvailableBalance(userId);
+      // Get available balance from system reconciliation
+      const availableBalance = await PaymentSystemReconciliationService.calculateAvailableBalance(userId);
+
+      // Get total confirmed cashback from system_conversions
+      const totalCashbackQuery = `
+        SELECT COALESCE(SUM(cashback_amount), 0) as total
+        FROM system_conversions
+        WHERE user_id = $1
+          AND status = 'approved'
+      `;
+      const totalCashbackResult = await db.query(totalCashbackQuery, [userId]);
+      const totalConfirmedCashback = parseFloat(totalCashbackResult.rows[0].total) || 0;
+
+      // Get total requested amount (all payment requests except rejected)
+      const totalRequestedQuery = `
+        SELECT COALESCE(SUM(requested_amount), 0) as total
+        FROM payment_requests
+        WHERE user_id = $1
+          AND status != 'rejected'
+      `;
+      const totalRequestedResult = await db.query(totalRequestedQuery, [userId]);
+      const totalRequested = parseFloat(totalRequestedResult.rows[0].total) || 0;
+
+      // Check for pending requests
+      const pendingQuery = `
+        SELECT COUNT(*) as count
+        FROM payment_requests
+        WHERE user_id = $1 AND status = 'pending'
+      `;
+      const pendingResult = await db.query(pendingQuery, [userId]);
+      const hasPendingRequest = parseInt(pendingResult.rows[0].count) > 0;
+
+      // Get minimum withdrawal amount from system settings
+      const minAmount = await SystemSettingsService.getSetting('min_withdrawal_amount') || 50000;
+
+      const isEligible = availableBalance >= minAmount && !hasPendingRequest;
 
       const eligibility = {
-        isEligible: balance.is_eligible,
-        availableBalance: parseFloat(balance.available_balance || 0),
-        totalConfirmedCashback: parseFloat(balance.total_confirmed_cashback || 0),
-        totalRequested: parseFloat(balance.total_requested || 0),
-        hasPendingRequest: balance.has_pending_request,
-        minAmount: 100000,
+        isEligible,
+        availableBalance,
+        totalConfirmedCashback,
+        totalRequested,
+        hasPendingRequest,
+        minAmount,
         reasons: []
       };
 
       // Explain why not eligible
-      if (!eligibility.isEligible) {
-        if (eligibility.hasPendingRequest) {
+      if (!isEligible) {
+        if (hasPendingRequest) {
           eligibility.reasons.push('Bạn đang có yêu cầu thanh toán chờ xử lý');
         }
-        if (eligibility.availableBalance < 100000) {
-          eligibility.reasons.push(`Số dư khả dụng phải ≥ 100,000 VNĐ (hiện tại: ${eligibility.availableBalance.toLocaleString('vi-VN')} VNĐ)`);
+        if (availableBalance < minAmount) {
+          eligibility.reasons.push(`Số dư khả dụng phải ≥ ${minAmount.toLocaleString('vi-VN')} VNĐ (hiện tại: ${availableBalance.toLocaleString('vi-VN')} VNĐ)`);
         }
       }
 
@@ -125,6 +162,7 @@ class PaymentRequestService {
 
   /**
    * Create a new payment request
+   * Enhanced with multi-layer validation for balance integrity
    * @param {Object} params
    * @param {string} params.userId
    * @param {number} params.requestedAmount
@@ -133,6 +171,7 @@ class PaymentRequestService {
    * @param {string} params.bankAccountName
    * @param {string} params.bankBranch
    * @param {string} params.notes
+   * @param {Object} params.context - Request context (IP, user agent)
    * @returns {Promise<Object>}
    */
   async createPaymentRequest(params) {
@@ -143,45 +182,61 @@ class PaymentRequestService {
       bankAccountNumber,
       bankAccountName,
       bankBranch = null,
-      notes = null
+      notes = null,
+      context = {}
     } = params;
 
     try {
-      logger.info('Creating payment request', { userId, requestedAmount });
+      logger.info('Creating payment request with enhanced validation', { userId, requestedAmount });
 
-      // Validate input
+      // Basic input validation
       if (requestedAmount < 100000) {
-        throw new Error('Số tiền yêu cầu phải ≥ 100,000 VNĐ');
+        const error = new Error('Số tiền yêu cầu phải ≥ 100,000 VNĐ');
+        error.code = 'BELOW_MIN_AMOUNT';
+        throw error;
       }
 
       if (!bankName || !bankAccountNumber || !bankAccountName) {
-        throw new Error('Thông tin ngân hàng không đầy đủ');
+        const error = new Error('Thông tin ngân hàng không đầy đủ');
+        error.code = 'INVALID_BANK_INFO';
+        throw error;
       }
 
       if (bankAccountNumber.length < 6) {
-        throw new Error('Số tài khoản không hợp lệ (tối thiểu 6 ký tự)');
+        const error = new Error('Số tài khoản không hợp lệ (tối thiểu 6 ký tự)');
+        error.code = 'INVALID_ACCOUNT_NUMBER';
+        throw error;
       }
 
-      // Check eligibility
-      const eligibility = await this.checkEligibility(userId);
-      if (!eligibility.isEligible) {
-        throw new Error(`Không đủ điều kiện tạo yêu cầu: ${eligibility.reasons.join(', ')}`);
+      // VALIDATION LAYER 1: Database-level validation with detailed error codes
+      const validation = await PaymentSystemReconciliationService.validatePaymentRequest(
+        userId,
+        requestedAmount,
+        context
+      );
+
+      if (!validation.isValid) {
+        const error = new Error(validation.errorMessage);
+        error.code = validation.errorCode;
+        error.validationDetails = validation;
+        throw error;
       }
 
-      if (requestedAmount > eligibility.availableBalance) {
-        throw new Error(`Số tiền yêu cầu vượt quá số dư khả dụng (${eligibility.availableBalance.toLocaleString('vi-VN')} VNĐ)`);
+      // VALIDATION LAYER 2: Auto-select items with database locks (prevents race conditions)
+      const autoSelectResult = await PaymentSystemReconciliationService.autoSelectItemsForPayment(
+        userId,
+        requestedAmount,
+        true // Enable database locking
+      );
+
+      if (!autoSelectResult.success) {
+        const error = new Error(autoSelectResult.message);
+        error.code = autoSelectResult.errorCode || 'AUTO_SELECT_FAILED';
+        error.details = autoSelectResult;
+        throw error;
       }
 
-      // Get items to include using FIFO
-      const itemsSummary = await this.getAvailableItems(userId, requestedAmount);
-
-      if (!itemsSummary.isSufficient) {
-        throw new Error(`Không đủ số dư để tạo yêu cầu ${requestedAmount.toLocaleString('vi-VN')} VNĐ`);
-      }
-
-      // Create payment request with mapped items
-      const reconciliationItemIds = itemsSummary.selectedItems.map(item => item.id);
-
+      // Create payment request
       const paymentRequest = await PaymentRequest.create({
         userId,
         requestedAmount,
@@ -189,21 +244,67 @@ class PaymentRequestService {
         bankAccountNumber,
         bankAccountName,
         bankBranch,
-        notes,
-        reconciliationItemIds
+        notes
       });
 
-      logger.success('Payment request created', {
+      // VALIDATION LAYER 3: Link payment with items (includes pre-linking verification)
+      try {
+        await PaymentSystemReconciliationService.linkPaymentWithItems(
+          paymentRequest.id,
+          autoSelectResult.selectedItems,
+          userId
+        );
+      } catch (linkError) {
+        // If linking fails, cancel the payment request
+        await PaymentRequest.cancel(paymentRequest.id, userId);
+
+        logger.error('Linking failed, payment request cancelled', {
+          paymentRequestId: paymentRequest.id,
+          error: linkError.message,
+          code: linkError.code
+        });
+
+        throw linkError;
+      }
+
+      // Log successful validation and creation
+      await PaymentSystemReconciliationService.logValidationAttempt({
+        userId,
+        requestedAmount,
+        validationPassed: true,
+        availableBalance: validation.availableBalance,
+        selectedItemsCount: autoSelectResult.selectedItems.length,
+        selectedItemsTotal: autoSelectResult.totalAmount,
+        paymentRequestId: paymentRequest.id,
+        context
+      });
+
+      logger.success('Payment request created with all validations passed', {
         id: paymentRequest.id,
         requestedAmount,
-        itemsCount: reconciliationItemIds.length
+        itemsCount: autoSelectResult.selectedItems.length,
+        totalAmount: autoSelectResult.totalAmount,
+        validationLayers: 3
       });
 
-      // Return full payment request with items
-      return await PaymentRequest.findByIdWithItems(paymentRequest.id);
+      // Return payment request with linked items
+      const linkedItems = await PaymentSystemReconciliationService.getLinkedItemsForPayment(paymentRequest.id);
+
+      return {
+        ...paymentRequest,
+        linkedItems,
+        linkedItemsCount: linkedItems.length,
+        totalLinkedAmount: linkedItems.reduce((sum, item) => sum + parseFloat(item.cashback_amount), 0)
+      };
 
     } catch (error) {
-      logger.error('Failed to create payment request', { error: error.message, params });
+      logger.error('Failed to create payment request', {
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        validationDetails: error.validationDetails,
+        params
+      });
       throw error;
     }
   }

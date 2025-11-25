@@ -200,23 +200,17 @@ function renderConversions(conversions) {
         const statusText = conv.status === 'approved' ? 'Đã duyệt' :
                           conv.status === 'pending' ? 'Đang xử lý' : 'Hủy';
 
-        // Reconciliation status - Kiểm tra từ bảng reconciliation_items và reconciliations
+        // System Reconciliation Status
         let reconciliationBadge;
-        if (conv.isReconciled) {
-            // Đã đối soát = có trong reconciliation_items VÀ status = 'completed'
-            const periodInfo = conv.reconciliationPeriod ? ` (${conv.reconciliationPeriod})` : '';
-            reconciliationBadge = `<span class="status-badge status-approved" title="Đã hoàn thành đối soát${periodInfo}">Đã đối soát</span>`;
-        } else if (conv.reconciliationStatus && conv.reconciliationStatus !== 'completed') {
-            // Có trong reconciliation nhưng chưa completed
-            const statusMap = {
-                'draft': 'Nháp',
-                'pending': 'Chờ duyệt',
-                'cancelled': 'Đã hủy'
-            };
-            const statusText = statusMap[conv.reconciliationStatus] || conv.reconciliationStatus;
-            reconciliationBadge = `<span class="status-badge status-pending" title="Trạng thái: ${statusText}">Đang xử lý</span>`;
+        if (conv.systemReconciliationStatus === 'reconciled' || conv.systemReconciliationStatus === 'paid') {
+            // Đã đối soát hệ thống
+            const periodInfo = conv.systemReconciliationPeriod ? ` (${conv.systemReconciliationPeriod})` : '';
+            reconciliationBadge = `<span class="status-badge status-approved" title="Đã đối soát hệ thống${periodInfo}">Đã đối soát</span>`;
+        } else if (conv.systemReconciliationStatus === 'processing') {
+            // Đang xử lý đối soát
+            reconciliationBadge = `<span class="status-badge status-pending" title="Đang xử lý đối soát">Đang xử lý</span>`;
         } else {
-            // Chưa có trong hệ thống đối soát
+            // Chưa đối soát
             reconciliationBadge = '<span class="status-badge status-gray">Chưa đối soát</span>';
         }
 
@@ -234,7 +228,7 @@ function renderConversions(conversions) {
                 <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                 <td>${reconciliationBadge}</td>
                 <td>${formatDate(conv.orderTime)}</td>
-                <td>${conv.approvalTime ? formatDate(conv.approvalTime) : '-'}</td>
+                <td>${conv.systemReconciledAt ? formatDate(conv.systemReconciledAt) : '-'}</td>
             </tr>
         `;
     }).join('');
@@ -248,15 +242,13 @@ function renderConversions(conversions) {
             const statusText = conv.status === 'approved' ? 'Đã duyệt' :
                               conv.status === 'pending' ? 'Đang xử lý' : 'Hủy';
 
-            // Reconciliation status
+            // System Reconciliation Status
             let reconciliationBadge;
-            if (conv.isReconciled) {
-                const periodInfo = conv.reconciliationPeriod ? ` (${conv.reconciliationPeriod})` : '';
-                reconciliationBadge = `<span class="status-badge status-approved" title="Đã hoàn thành đối soát${periodInfo}">Đã đối soát</span>`;
-            } else if (conv.reconciliationStatus && conv.reconciliationStatus !== 'completed') {
-                const statusMap = { 'draft': 'Nháp', 'pending': 'Chờ duyệt', 'cancelled': 'Đã hủy' };
-                const reconStatusText = statusMap[conv.reconciliationStatus] || conv.reconciliationStatus;
-                reconciliationBadge = `<span class="status-badge status-pending" title="Trạng thái: ${reconStatusText}">Đang xử lý</span>`;
+            if (conv.systemReconciliationStatus === 'reconciled' || conv.systemReconciliationStatus === 'paid') {
+                const periodInfo = conv.systemReconciliationPeriod ? ` (${conv.systemReconciliationPeriod})` : '';
+                reconciliationBadge = `<span class="status-badge status-approved" title="Đã đối soát hệ thống${periodInfo}">Đã đối soát</span>`;
+            } else if (conv.systemReconciliationStatus === 'processing') {
+                reconciliationBadge = `<span class="status-badge status-pending" title="Đang xử lý đối soát">Đang xử lý</span>`;
             } else {
                 reconciliationBadge = '<span class="status-badge status-gray">Chưa đối soát</span>';
             }
@@ -284,7 +276,7 @@ function renderConversions(conversions) {
                             <div class="conversion-card-value"><span class="status-badge ${statusClass}">${statusText}</span></div>
                         </div>
                         <div class="conversion-card-item">
-                            <div class="conversion-card-label">TT Đối soát</div>
+                            <div class="conversion-card-label">TT Đối soát HT</div>
                             <div class="conversion-card-value">${reconciliationBadge}</div>
                         </div>
                     </div>
@@ -292,9 +284,9 @@ function renderConversions(conversions) {
                         <div class="conversion-card-date">
                             📅 ${formatDate(conv.orderTime)}
                         </div>
-                        ${conv.approvalTime ? `
+                        ${conv.systemReconciledAt ? `
                         <div class="conversion-card-date">
-                            ✅ ${formatDate(conv.approvalTime)}
+                            ✅ ${formatDate(conv.systemReconciledAt)}
                         </div>
                         ` : ''}
                     </div>

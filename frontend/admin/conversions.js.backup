@@ -248,7 +248,7 @@ async function loadConversions() {
         console.error('Error loading conversions:', error);
         conversionsTable.innerHTML = `
             <tr class="error-state">
-                <td colspan="12">
+                <td colspan="10">
                     <div class="error">Failed to load conversions</div>
                 </td>
             </tr>
@@ -324,31 +324,6 @@ function renderConversions(conversions) {
         const reconciliationClass = conv.isConfirmed ? 'status-approved' : 'status-pending';
         const reconciliationText = conv.isConfirmed ? 'Đã đối soát' : 'Chưa đối soát';
 
-        // System Reconciliation Status (TT đối soát HT)
-        let systemReconClass = 'status-pending';
-        let systemReconText = 'Chưa đối soát';
-        if (conv.system_reconciliation_status === 'processing') {
-            systemReconClass = 'status-warning';
-            systemReconText = 'Đang xử lý';
-        } else if (conv.system_reconciliation_status === 'reconciled' || conv.system_reconciliation_status === 'paid') {
-            systemReconClass = 'status-approved';
-            systemReconText = 'Đã đối soát';
-        }
-
-        // Payment Status (TT thanh toán)
-        let paymentClass = 'status-inactive';
-        let paymentText = 'Chưa tạo yêu cầu';
-        if (conv.payment_status === 'pending' || conv.payment_status === 'confirmed') {
-            paymentClass = 'status-warning';
-            paymentText = 'Đang xử lý';
-        } else if (conv.payment_status === 'paid') {
-            paymentClass = 'status-approved';
-            paymentText = 'Đã thanh toán';
-        } else if (conv.payment_status === 'rejected') {
-            paymentClass = 'status-rejected';
-            paymentText = 'Hủy';
-        }
-
         // Actions dropdown - always show for all statuses
         actions = `
             <div class="action-dropdown">
@@ -396,8 +371,6 @@ function renderConversions(conversions) {
                 <td class="highlight">${formatCurrency(conv.cashbackAmount)}</td>
                 <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                 <td><span class="status-badge ${reconciliationClass}">${reconciliationText}</span></td>
-                <td><span class="status-badge ${systemReconClass}">${systemReconText}</span></td>
-                <td><span class="status-badge ${paymentClass}">${paymentText}</span></td>
                 <td>${formatDate(conv.orderTime)}</td>
                 <td style="white-space: nowrap;">${actions}</td>
             </tr>

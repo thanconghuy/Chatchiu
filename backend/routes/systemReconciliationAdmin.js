@@ -22,12 +22,13 @@ router.use(requireAdmin);
  */
 router.get('/', async (req, res) => {
   try {
-    const { page = 1, limit = 20, status } = req.query;
+    const { page = 1, limit = 20, status, search } = req.query;
 
     const result = await SystemReconciliationService.listReconciliations({
       page: parseInt(page),
       limit: parseInt(limit),
-      status
+      status,
+      search
     });
 
     res.json({
@@ -364,7 +365,7 @@ router.post('/:id/finalize', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Kỳ đối soát đã được finalize. User balance đã được cập nhật.',
+      message: 'Hoàn tất thành công! Số dư người dùng đã được cập nhật.',
       data: reconciliation
     });
 

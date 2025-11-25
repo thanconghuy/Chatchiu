@@ -9,6 +9,29 @@
     <!-- Font Awesome 6 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
+        /* Toast Animations */
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+        }
+
         /* Additional styles for System Reconciliation */
         .reconciliation-grid {
             display: grid;
@@ -435,6 +458,42 @@
                 </div>
             </div>
 
+            <!-- Filters and Batch Actions -->
+            <div class="filters-section" style="background: white; padding: 20px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap; flex: 1;">
+                        <!-- Status Filter -->
+                        <div>
+                            <label for="statusFilter" style="display: block; margin-bottom: 6px; font-size: 0.875rem; font-weight: 500;">🔍 Trạng thái:</label>
+                            <select id="statusFilter" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem;">
+                                <option value="">Tất cả</option>
+                                <option value="draft">Nháp</option>
+                                <option value="finalized">Đã hoàn thành</option>
+                                <option value="paid">Đã thanh toán</option>
+                                <option value="cancelled">Đã hủy</option>
+                            </select>
+                        </div>
+
+                        <!-- Search -->
+                        <div style="flex: 1; min-width: 250px;">
+                            <label for="searchInput" style="display: block; margin-bottom: 6px; font-size: 0.875rem; font-weight: 500;">🔎 Tìm kiếm:</label>
+                            <input type="text" id="searchInput" placeholder="Tìm theo nhãn, tháng..." style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem;">
+                        </div>
+                    </div>
+
+                    <!-- Batch Actions -->
+                    <div id="batchActions" style="display: none; align-items: center; gap: 12px;">
+                        <span id="selectedCount" style="font-size: 0.9rem; color: #666; font-weight: 500;">0 đã chọn</span>
+                        <button id="batchFinalizeBtn" class="btn-action" style="padding: 8px 16px; background: #10b981; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                            ✅ Hoàn thành hàng loạt
+                        </button>
+                        <button id="clearSelectionBtn" class="btn-action" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                            ✖ Bỏ chọn
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Reconciliations List -->
             <div id="reconciliationsList" class="reconciliation-grid">
                 <div class="loading">Đang tải danh sách đối soát...</div>
@@ -522,6 +581,9 @@
             window.location.href = '/login';
         }
 
+        // Batch selection state
+        let selectedReconciliations = new Set();
+
         function setupEventListeners() {
             // Create reconciliation form
             document.getElementById('createReconForm').addEventListener('submit', async (e) => {
@@ -548,6 +610,117 @@
                 currentPage++;
                 loadReconciliations();
             });
+
+            // Filters
+            document.getElementById('statusFilter').addEventListener('change', () => {
+                currentPage = 1;
+                loadReconciliations();
+            });
+
+            document.getElementById('searchInput').addEventListener('input', debounce(() => {
+                currentPage = 1;
+                loadReconciliations();
+            }, 500));
+
+            // Batch actions
+            document.getElementById('batchFinalizeBtn').addEventListener('click', batchFinalize);
+            document.getElementById('clearSelectionBtn').addEventListener('click', clearSelection);
+        }
+
+        // Debounce helper
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+
+        // Toggle selection
+        function toggleSelection(reconId) {
+            if (selectedReconciliations.has(reconId)) {
+                selectedReconciliations.delete(reconId);
+            } else {
+                selectedReconciliations.add(reconId);
+            }
+            updateBatchActionsUI();
+        }
+
+        // Update batch actions UI
+        function updateBatchActionsUI() {
+            const count = selectedReconciliations.size;
+            const batchActions = document.getElementById('batchActions');
+            const selectedCount = document.getElementById('selectedCount');
+
+            if (count > 0) {
+                batchActions.style.display = 'flex';
+                selectedCount.textContent = `${count} đã chọn`;
+            } else {
+                batchActions.style.display = 'none';
+            }
+
+            // Update checkboxes
+            selectedReconciliations.forEach(id => {
+                const checkbox = document.getElementById(`checkbox-${id}`);
+                if (checkbox) checkbox.checked = true;
+            });
+        }
+
+        // Clear selection
+        function clearSelection() {
+            selectedReconciliations.clear();
+            document.querySelectorAll('input[type="checkbox"].recon-checkbox').forEach(cb => {
+                cb.checked = false;
+            });
+            updateBatchActionsUI();
+        }
+
+        // Batch finalize
+        async function batchFinalize() {
+            if (selectedReconciliations.size === 0) return;
+
+            const count = selectedReconciliations.size;
+            if (!confirm(`Bạn có chắc muốn hoàn thành ${count} kỳ đối soát đã chọn?`)) return;
+
+            try {
+                showStatus('loading', `Đang hoàn thành ${count} kỳ đối soát...`);
+
+                const promises = Array.from(selectedReconciliations).map(async (reconId) => {
+                    const response = await fetch(`${CONFIG.API_BASE_URL}/admin/system-reconciliation/${reconId}/finalize`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(`${reconId}: ${error.message}`);
+                    }
+
+                    return await response.json();
+                });
+
+                const results = await Promise.allSettled(promises);
+
+                const succeeded = results.filter(r => r.status === 'fulfilled').length;
+                const failed = results.filter(r => r.status === 'rejected').length;
+
+                if (failed > 0) {
+                    showStatus('error', `Hoàn thành: ${succeeded} thành công, ${failed} thất bại`);
+                } else {
+                    showStatus('success', `✅ Đã hoàn thành ${succeeded} kỳ đối soát`);
+                }
+
+                clearSelection();
+                loadReconciliations();
+                loadStats();
+
+            } catch (error) {
+                console.error('Batch finalize error:', error);
+                showStatus('error', `Lỗi: ${error.message}`);
+            }
         }
 
         async function loadStats() {
@@ -638,7 +811,24 @@
 
         async function loadReconciliations() {
             try {
-                const response = await fetch(`${CONFIG.API_BASE_URL}/admin/system-reconciliation?page=${currentPage}&limit=${itemsPerPage}`, {
+                // Build query params
+                const params = new URLSearchParams({
+                    page: currentPage,
+                    limit: itemsPerPage
+                });
+
+                // Add filters
+                const statusFilter = document.getElementById('statusFilter').value;
+                if (statusFilter) {
+                    params.append('status', statusFilter);
+                }
+
+                const searchQuery = document.getElementById('searchInput').value.trim();
+                if (searchQuery) {
+                    params.append('search', searchQuery);
+                }
+
+                const response = await fetch(`${CONFIG.API_BASE_URL}/admin/system-reconciliation?${params}`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
@@ -670,8 +860,15 @@
             }
 
             container.innerHTML = reconciliations.map(recon => `
-                <div class="recon-card">
-                    <div class="recon-card-header">
+                <div class="recon-card" style="position: relative;">
+                    ${recon.status === 'draft' ? `
+                        <div style="position: absolute; top: 16px; left: 16px; z-index: 10;">
+                            <input type="checkbox" id="checkbox-${recon.id}" class="recon-checkbox"
+                                   onchange="toggleSelection('${recon.id}')"
+                                   style="width: 20px; height: 20px; cursor: pointer;">
+                        </div>
+                    ` : ''}
+                    <div class="recon-card-header" style="${recon.status === 'draft' ? 'margin-left: 32px;' : ''}">
                         <div class="recon-card-title">${escapeHtml(recon.period_label)}</div>
                         <span class="recon-status-badge status-${recon.status}">${getStatusLabel(recon.status)}</span>
                     </div>
@@ -812,16 +1009,82 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    alert(result.message);
+                    // Show success message with styled alert
+                    showSuccessAlert(result.message || 'Hoàn tất thành công! Số dư người dùng đã được cập nhật.');
                     loadStats();
                     loadReconciliations();
                 } else {
-                    alert('Lỗi: ' + result.message);
+                    showErrorAlert('Lỗi: ' + result.message);
                 }
             } catch (error) {
                 console.error('Error finalizing reconciliation:', error);
-                alert('Có lỗi xảy ra');
+                showErrorAlert('Có lỗi xảy ra khi hoàn tất kỳ đối soát');
             }
+        }
+
+        // Success alert helper
+        function showSuccessAlert(message) {
+            // Create custom success alert
+            const alertDiv = document.createElement('div');
+            alertDiv.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #10b981;
+                color: white;
+                padding: 16px 24px;
+                border-radius: 8px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                z-index: 10000;
+                font-size: 14px;
+                max-width: 400px;
+                animation: slideIn 0.3s ease-out;
+            `;
+            alertDiv.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 20px;">✅</span>
+                    <span>${message}</span>
+                </div>
+            `;
+
+            document.body.appendChild(alertDiv);
+
+            setTimeout(() => {
+                alertDiv.style.animation = 'slideOut 0.3s ease-in';
+                setTimeout(() => alertDiv.remove(), 300);
+            }, 3000);
+        }
+
+        // Error alert helper
+        function showErrorAlert(message) {
+            const alertDiv = document.createElement('div');
+            alertDiv.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #ef4444;
+                color: white;
+                padding: 16px 24px;
+                border-radius: 8px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                z-index: 10000;
+                font-size: 14px;
+                max-width: 400px;
+                animation: slideIn 0.3s ease-out;
+            `;
+            alertDiv.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 20px;">❌</span>
+                    <span>${message}</span>
+                </div>
+            `;
+
+            document.body.appendChild(alertDiv);
+
+            setTimeout(() => {
+                alertDiv.style.animation = 'slideOut 0.3s ease-in';
+                setTimeout(() => alertDiv.remove(), 300);
+            }, 4000);
         }
 
         async function syncReconciliation(reconId, periodLabel) {

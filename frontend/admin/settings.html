@@ -10,15 +10,73 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
         .settings-container {
-            display: grid;
-            gap: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        /* Tab Navigation */
+        .settings-tabs {
+            display: flex;
+            background: white;
+            border-radius: 12px 12px 0 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+            margin-bottom: -1px;
+        }
+
+        .tab-button {
+            flex: 1;
+            min-width: 150px;
+            padding: 16px 20px;
+            border: none;
+            background: transparent;
+            color: var(--gray-600);
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .tab-button:hover {
+            background: var(--gray-50);
+            color: var(--gray-900);
+        }
+
+        .tab-button.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+            background: white;
+        }
+
+        .tab-button i {
+            font-size: 1.1rem;
+        }
+
+        /* Tab Content */
+        .settings-tab-content {
+            display: none;
+            background: white;
+            border-radius: 0 0 12px 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .settings-tab-content.active {
+            display: block;
         }
 
         .settings-section {
-            background: white;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            background: transparent;
+            border-radius: 0;
+            padding: 0;
+            box-shadow: none;
         }
 
         .settings-section h2 {
@@ -28,6 +86,8 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid var(--gray-200);
         }
 
         .settings-section h3 {
@@ -322,6 +382,25 @@
                 width: 100%;
                 justify-content: flex-end;
             }
+
+            .settings-tabs {
+                overflow-x: scroll;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .tab-button {
+                min-width: 120px;
+                padding: 12px 16px;
+                font-size: 0.85rem;
+            }
+
+            .tab-button span {
+                display: block;
+            }
+
+            .settings-tab-content {
+                padding: 16px;
+            }
         }
     </style>
 </head>
@@ -342,24 +421,63 @@
 
                 <div class="settings-container">
                     <!-- Alert -->
-                    <div class="alert-box warning">
+                    <div class="alert-box warning" style="margin-bottom: 24px;">
                         <div class="alert-title">⚠️ Lưu Ý Quan Trọng</div>
                         <p>Thay đổi cấu hình có thể ảnh hưởng đến hoạt động của hệ thống. Hãy chắc chắn bạn hiểu rõ từng cài đặt trước khi thay đổi.</p>
                     </div>
 
+                    <!-- Tab Navigation -->
+                    <div class="settings-tabs">
+                        <button class="tab-button active" onclick="switchTab('cron')" data-tab="cron">
+                            <i class="fas fa-clock"></i>
+                            <span>Cron Jobs</span>
+                        </button>
+                        <button class="tab-button" onclick="switchTab('api')" data-tab="api">
+                            <i class="fas fa-plug"></i>
+                            <span>API</span>
+                        </button>
+                        <button class="tab-button" onclick="switchTab('system')" data-tab="system">
+                            <i class="fas fa-cog"></i>
+                            <span>Hệ Thống</span>
+                        </button>
+                        <button class="tab-button" onclick="switchTab('payment')" data-tab="payment">
+                            <i class="fas fa-wallet"></i>
+                            <span>Thanh Toán</span>
+                        </button>
+                        <button class="tab-button" onclick="switchTab('autosync')" data-tab="autosync">
+                            <i class="fas fa-sync"></i>
+                            <span>Auto-Sync</span>
+                        </button>
+                        <button class="tab-button" onclick="switchTab('ai')" data-tab="ai">
+                            <i class="fas fa-robot"></i>
+                            <span>AI/ML</span>
+                        </button>
+                    </div>
+
+                    <!-- Cron Jobs Tab Content -->
+                    <div class="settings-tab-content active" id="tab-cron">
                     <!-- Cron Jobs Configuration -->
                     <div class="settings-section">
                         <h2>⏰ Cấu Hình Cron Jobs</h2>
 
+                        <div class="alert-box" style="margin-bottom: 20px; background: #FFF3E0; border-left: 4px solid #FF9800;">
+                            <div class="alert-title" style="color: #E65100;">⚠️ Quan Trọng - Production Setup</div>
+                            <p style="color: #424242;">
+                                Khi deploy lên production server, hãy đảm bảo bật Auto Cron Jobs để hệ thống tự động chạy các tác vụ định kỳ.
+                                Nếu tắt, các chức năng như retry unmatched clicks, cleanup expired clicks sẽ không hoạt động.
+                            </p>
+                        </div>
+
                         <div class="settings-grid">
                             <!-- Auto Cron Enabled -->
-                            <div class="setting-item">
+                            <div class="setting-item" style="border-left-color: #4CAF50;">
                                 <div class="setting-info">
-                                    <div class="setting-label">Kích Hoạt Auto Cron</div>
+                                    <div class="setting-label">🔄 Kích Hoạt Auto Cron Jobs</div>
                                     <div class="setting-description">
-                                        Bật/tắt tự động retry cho unmatched clicks
+                                        Bật/tắt tất cả cron jobs tự động (retry clicks, cleanup, alerts...)
                                     </div>
                                     <div class="setting-value" id="autoCronStatus">Loading...</div>
+                                    <div id="cronJobsInfo" style="font-size: 0.8rem; color: var(--gray-500); margin-top: 4px;"></div>
                                 </div>
                                 <div class="setting-control">
                                     <label class="toggle-switch">
@@ -379,12 +497,31 @@
                                     <div class="setting-value" id="retryScheduleValue">Loading...</div>
                                 </div>
                                 <div class="setting-control">
-                                    <button class="btn-edit" onclick="editRetrySched ule()">Chỉnh sửa</button>
+                                    <button class="btn-edit" onclick="editRetrySchedule()">Chỉnh sửa</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cron Jobs Status -->
+                        <div style="margin-top: 20px; padding: 16px; background: var(--gray-50); border-radius: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <h3 style="margin: 0; font-size: 1rem;">📊 Danh Sách Cron Jobs Đang Chạy</h3>
+                                <button class="btn-secondary" onclick="reloadCronJobs()" id="reloadCronBtn">
+                                    <i class="fas fa-redo"></i> Reload Jobs
+                                </button>
+                            </div>
+                            <div id="cronJobsList">
+                                <div style="text-align: center; color: var(--gray-500); padding: 20px;">
+                                    Đang tải...
                                 </div>
                             </div>
                         </div>
                     </div>
+                    </div>
+                    <!-- End Cron Jobs Tab -->
 
+                    <!-- API Tab Content -->
+                    <div class="settings-tab-content" id="tab-api">
                     <!-- API Configuration -->
                     <div class="settings-section">
                         <h2>🔌 Cấu Hình API</h2>
@@ -438,7 +575,11 @@
                             </div>
                         </div>
                     </div>
+                    </div>
+                    <!-- End API Tab -->
 
+                    <!-- System Tab Content -->
+                    <div class="settings-tab-content" id="tab-system">
                     <!-- System Configuration -->
                     <div class="settings-section">
                         <h2>🔧 Cấu Hình Hệ Thống</h2>
@@ -460,7 +601,160 @@
 
                         </div>
                     </div>
+                    </div>
+                    <!-- End System Tab -->
 
+                    <!-- Payment Tab Content -->
+                    <div class="settings-tab-content" id="tab-payment">
+                    <!-- Payment Settings -->
+                    <div class="settings-section">
+                        <h2>💰 Cấu Hình Thanh Toán</h2>
+
+                        <div class="settings-grid">
+                            <!-- Min Withdrawal Amount -->
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <div class="setting-label">Hạn Mức Rút Tiền Tối Thiểu</div>
+                                    <div class="setting-description">
+                                        Số tiền tối thiểu user cần có để tạo yêu cầu thanh toán (VNĐ)
+                                    </div>
+                                    <div class="setting-value" id="minWithdrawalValue">Loading...</div>
+                                </div>
+                                <div class="setting-control">
+                                    <button class="btn-edit" onclick="editMinWithdrawal()">Chỉnh sửa</button>
+                                </div>
+                            </div>
+
+                            <!-- Max Withdrawal Amount -->
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <div class="setting-label">Hạn Mức Rút Tiền Tối Đa</div>
+                                    <div class="setting-description">
+                                        Số tiền tối đa user có thể rút trong một lần (VNĐ)
+                                    </div>
+                                    <div class="setting-value" id="maxWithdrawalValue">Loading...</div>
+                                </div>
+                                <div class="setting-control">
+                                    <button class="btn-edit" onclick="editMaxWithdrawal()">Chỉnh sửa</button>
+                                </div>
+                            </div>
+
+                            <!-- Processing Days -->
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <div class="setting-label">Thời Gian Xử Lý Thanh Toán</div>
+                                    <div class="setting-description">
+                                        Số ngày dự kiến để xử lý yêu cầu thanh toán
+                                    </div>
+                                    <div class="setting-value" id="processingDaysValue">Loading...</div>
+                                </div>
+                                <div class="setting-control">
+                                    <button class="btn-edit" onclick="editProcessingDays()">Chỉnh sửa</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    </div>
+                    <!-- End Payment Tab -->
+
+                    <!-- Auto-Sync Tab Content -->
+                    <div class="settings-tab-content" id="tab-autosync">
+                    <!-- Auto-Sync Configuration -->
+                    <div class="settings-section">
+                        <h2>🔄 Cấu Hình Auto-Sync Conversions</h2>
+
+                        <div class="alert-box" style="margin-bottom: 20px; background: #E3F2FD; border-left: 4px solid #2196F3;">
+                            <div class="alert-title" style="color: #1976D2;">ℹ️ Thông Tin</div>
+                            <p style="color: #424242;">Auto-Sync tự động lấy dữ liệu đơn hàng từ AccessTrade về hệ thống theo lịch trình. Khi bật, user sẽ thấy hoa hồng nhanh hơn mà không cần admin sync thủ công.</p>
+                        </div>
+
+                        <div class="settings-grid">
+                            <!-- Auto-Sync Enabled -->
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <div class="setting-label">Bật Auto-Sync</div>
+                                    <div class="setting-description">
+                                        Tự động đồng bộ conversions từ AccessTrade theo lịch trình
+                                    </div>
+                                    <div class="setting-value" id="autoSyncEnabledValue">Loading...</div>
+                                    <div id="autoSyncLastRun" style="font-size: 0.8rem; color: var(--gray-500); margin-top: 4px;"></div>
+                                </div>
+                                <div class="setting-control">
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="autoSyncToggle" onchange="toggleAutoSync()">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Sync Schedule -->
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <div class="setting-label">Lịch Trình Sync</div>
+                                    <div class="setting-description">
+                                        Tần suất tự động lấy dữ liệu conversions
+                                    </div>
+                                    <div class="setting-value" id="syncScheduleValue">Loading...</div>
+                                </div>
+                                <div class="setting-control">
+                                    <button class="btn-edit" onclick="editSyncSchedule()">Chỉnh sửa</button>
+                                </div>
+                            </div>
+
+                            <!-- Sync Days -->
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <div class="setting-label">Số Ngày Quét Ngược</div>
+                                    <div class="setting-description">
+                                        Lấy conversions từ X ngày trước đến hiện tại
+                                    </div>
+                                    <div class="setting-value" id="syncDaysValue">Loading...</div>
+                                </div>
+                                <div class="setting-control">
+                                    <button class="btn-edit" onclick="editSyncDays()">Chỉnh sửa</button>
+                                </div>
+                            </div>
+
+                            <!-- Manual Sync Button -->
+                            <div class="setting-item" style="border-left-color: #4CAF50;">
+                                <div class="setting-info">
+                                    <div class="setting-label">Đồng Bộ Thủ Công</div>
+                                    <div class="setting-description">
+                                        Chạy sync ngay lập tức (không cần đợi lịch trình)
+                                    </div>
+                                </div>
+                                <div class="setting-control">
+                                    <button class="btn-primary" onclick="runManualSync()" id="manualSyncBtn">
+                                        <i class="fas fa-sync"></i> Sync Ngay
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sync Statistics -->
+                        <div style="margin-top: 20px; padding: 16px; background: var(--gray-50); border-radius: 8px;">
+                            <h3 style="margin: 0 0 12px 0; font-size: 1rem;">📊 Thống Kê Sync</h3>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                                <div>
+                                    <div style="font-size: 0.85rem; color: var(--gray-600);">Lần Chạy Cuối</div>
+                                    <div style="font-weight: 600; color: var(--gray-900);" id="lastRunTime">-</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 0.85rem; color: var(--gray-600);">Trạng Thái</div>
+                                    <div style="font-weight: 600;" id="lastRunStatus">-</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 0.85rem; color: var(--gray-600);">Kết Quả</div>
+                                    <div style="font-weight: 600; color: var(--gray-900);" id="lastRunMessage">-</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    </div>
+                    <!-- End Auto-Sync Tab -->
+
+                    <!-- AI/ML Tab Content -->
+                    <div class="settings-tab-content" id="tab-ai">
                     <!-- Future AI/ML Configuration -->
                     <div class="settings-section">
                         <h2>🤖 AI/ML Configuration (Coming Soon)</h2>
@@ -476,6 +770,9 @@
                             </ul>
                         </div>
                     </div>
+                    </div>
+                    <!-- End AI/ML Tab -->
+
                 </div>
             </div>
         </main>
@@ -512,6 +809,8 @@
         document.addEventListener('DOMContentLoaded', () => {
             displayUserName('userName');
             loadSettings();
+            loadPaymentSettings();
+            loadCronJobsStatus();
         });
 
         // Load all settings
@@ -554,6 +853,116 @@
             statusEl.innerHTML = `<span class="status-badge ${isEnabled ? 'enabled' : 'disabled'}">${isEnabled ? 'API Mode' : 'DIY Mode'}</span>`;
         }
 
+        // ============ CRON JOBS FUNCTIONS ============
+
+        // Load Cron Jobs Status
+        async function loadCronJobsStatus() {
+            try {
+                const response = await apiRequest('/admin/cron/status');
+
+                if (response.success) {
+                    const status = response.data; // Backend returns data field, not status
+
+                    // Update toggle
+                    document.getElementById('autoCronToggle').checked = status.autoCronEnabled;
+
+                    // Update status badge
+                    updateAutoCronStatus(status.autoCronEnabled ? 'true' : 'false');
+
+                    // Update info text
+                    const infoText = status.isInitialized
+                        ? `Đã khởi tạo • ${status.jobsCount} jobs đang chạy`
+                        : 'Chưa được khởi tạo';
+                    document.getElementById('cronJobsInfo').textContent = infoText;
+
+                    // Update jobs list
+                    const jobsList = document.getElementById('cronJobsList');
+                    if (status.jobsCount > 0) {
+                        jobsList.innerHTML = `
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background: white; border-bottom: 2px solid var(--gray-300);">
+                                        <th style="padding: 8px; text-align: left; font-size: 0.85rem;">Job Name</th>
+                                        <th style="padding: 8px; text-align: left; font-size: 0.85rem;">Lịch Trình</th>
+                                        <th style="padding: 8px; text-align: center; font-size: 0.85rem;">Trạng Thái</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${status.jobs.map(job => `
+                                        <tr style="border-bottom: 1px solid var(--gray-200);">
+                                            <td style="padding: 8px; font-size: 0.9rem;">${formatJobName(job.name)}</td>
+                                            <td style="padding: 8px; font-size: 0.85rem; font-family: monospace;">${job.schedule}</td>
+                                            <td style="padding: 8px; text-align: center;">
+                                                <span style="background: #C6F6D5; color: #22543D; padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
+                                                    Running
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        `;
+                    } else {
+                        jobsList.innerHTML = `
+                            <div style="text-align: center; color: var(--gray-500); padding: 20px;">
+                                ⚠️ Không có cron jobs nào đang chạy. Hãy bật "Auto Cron Jobs" ở trên.
+                            </div>
+                        `;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading cron jobs status:', error);
+                document.getElementById('cronJobsList').innerHTML = `
+                    <div style="text-align: center; color: var(--error); padding: 20px;">
+                        ❌ Không thể tải trạng thái cron jobs
+                    </div>
+                `;
+            }
+        }
+
+        // Format job name to Vietnamese
+        function formatJobName(name) {
+            const names = {
+                'retry-unmatched': '🔄 Retry Unmatched Clicks',
+                'cleanup-expired': '🗑️ Cleanup Expired Clicks',
+                'expiring-alert': '⏰ Alert Expiring Clicks',
+                'cleanup-activity-logs': '🗑️ Cleanup Activity Logs'
+            };
+            return names[name] || name;
+        }
+
+        // Reload Cron Jobs (restart all jobs without restarting server)
+        async function reloadCronJobs() {
+            const btn = document.getElementById('reloadCronBtn');
+            const originalHtml = btn.innerHTML;
+
+            try {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Reloading...';
+
+                const response = await apiRequest('/admin/settings/cron-reload', {
+                    method: 'POST'
+                });
+
+                if (response.success) {
+                    showToast('✅ Cron jobs đã được reload thành công!', 'success');
+
+                    // Reload status after a short delay
+                    setTimeout(() => {
+                        loadCronJobsStatus();
+                    }, 1000);
+                } else {
+                    showToast(response.message || 'Reload thất bại', 'error');
+                }
+            } catch (error) {
+                console.error('Error reloading cron jobs:', error);
+                showToast('❌ Không thể reload cron jobs', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        }
+
         // Toggle auto cron
         document.getElementById('autoCronToggle')?.addEventListener('change', async (e) => {
             const enabled = e.target.checked;
@@ -565,7 +974,12 @@
 
                 if (response.success) {
                     updateAutoCronStatus(enabled.toString());
-                    showToast('Cập nhật thành công. Server cần restart để áp dụng.', 'success');
+                    showToast(enabled ? '✅ Đã BẬT Auto Cron Jobs' : '⚠️ Đã TẮT Auto Cron Jobs', 'success');
+
+                    // Reload cron jobs status after toggle
+                    setTimeout(() => {
+                        loadCronJobsStatus();
+                    }, 1000);
                 } else {
                     e.target.checked = !enabled;
                     showToast(response.message || 'Cập nhật thất bại', 'error');
@@ -811,6 +1225,424 @@
         function closeEditModal() {
             document.getElementById('editModal').classList.remove('show');
         }
+
+        // ============ PAYMENT SETTINGS FUNCTIONS ============
+
+        // Load payment settings from new API
+        async function loadPaymentSettings() {
+            try {
+                const response = await apiRequest('/system-settings/category/payment');
+
+                if (response.success && response.data) {
+                    response.data.forEach(setting => {
+                        switch(setting.key) {
+                            case 'min_withdrawal_amount':
+                                document.getElementById('minWithdrawalValue').textContent =
+                                    parseInt(setting.value).toLocaleString('vi-VN') + ' VNĐ';
+                                break;
+                            case 'max_withdrawal_amount':
+                                document.getElementById('maxWithdrawalValue').textContent =
+                                    parseInt(setting.value).toLocaleString('vi-VN') + ' VNĐ';
+                                break;
+                            case 'withdrawal_processing_days':
+                                document.getElementById('processingDaysValue').textContent =
+                                    setting.value + ' ngày';
+                                break;
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading payment settings:', error);
+                document.getElementById('minWithdrawalValue').textContent = 'Error';
+                document.getElementById('maxWithdrawalValue').textContent = 'Error';
+                document.getElementById('processingDaysValue').textContent = 'Error';
+            }
+        }
+
+        // Edit min withdrawal amount
+        async function editMinWithdrawal() {
+            const currentValue = await getSetting('min_withdrawal_amount');
+            const newValue = prompt('Nhập hạn mức rút tiền tối thiểu (VNĐ):', currentValue);
+
+            if (newValue !== null && !isNaN(newValue) && parseInt(newValue) > 0) {
+                const reason = prompt('Lý do thay đổi (tùy chọn):', 'Điều chỉnh hạn mức theo yêu cầu');
+                await updateSetting('min_withdrawal_amount', parseInt(newValue), reason);
+                await loadPaymentSettings();
+            }
+        }
+
+        // Edit max withdrawal amount
+        async function editMaxWithdrawal() {
+            const currentValue = await getSetting('max_withdrawal_amount');
+            const newValue = prompt('Nhập hạn mức rút tiền tối đa (VNĐ):', currentValue);
+
+            if (newValue !== null && !isNaN(newValue) && parseInt(newValue) > 0) {
+                const reason = prompt('Lý do thay đổi (tùy chọn):', 'Điều chỉnh hạn mức theo yêu cầu');
+                await updateSetting('max_withdrawal_amount', parseInt(newValue), reason);
+                await loadPaymentSettings();
+            }
+        }
+
+        // Edit processing days
+        async function editProcessingDays() {
+            const currentValue = await getSetting('withdrawal_processing_days');
+            const newValue = prompt('Nhập số ngày xử lý thanh toán:', currentValue);
+
+            if (newValue !== null && !isNaN(newValue) && parseInt(newValue) > 0) {
+                const reason = prompt('Lý do thay đổi (tùy chọn):', 'Điều chỉnh thời gian xử lý');
+                await updateSetting('withdrawal_processing_days', parseInt(newValue), reason);
+                await loadPaymentSettings();
+            }
+        }
+
+        // Get setting value
+        async function getSetting(key) {
+            try {
+                const response = await apiRequest(`/system-settings/${key}`);
+                return response.success ? response.data.value : null;
+            } catch (error) {
+                console.error('Error getting setting:', error);
+                return null;
+            }
+        }
+
+        // Update setting
+        async function updateSetting(key, value, reason) {
+            try {
+                const response = await apiRequest(`/system-settings/${key}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ value, reason })
+                });
+
+                if (response.success) {
+                    showToast('Cập nhật thành công!', 'success');
+                } else {
+                    showToast(response.message || 'Cập nhật thất bại', 'error');
+                }
+            } catch (error) {
+                console.error('Error updating setting:', error);
+                showToast('Không thể cập nhật cấu hình', 'error');
+            }
+        }
+
+        // ============ AUTO-SYNC FUNCTIONS ============
+
+        // Load Auto-Sync configuration
+        async function loadAutoSyncConfig() {
+            try {
+                const response = await apiRequest('/admin/auto-sync/config');
+
+                if (response.success && response.data) {
+                    const config = response.data;
+
+                    // Update toggle
+                    document.getElementById('autoSyncToggle').checked = config.enabled;
+                    document.getElementById('autoSyncEnabledValue').textContent =
+                        config.enabled ? 'Đang BẬT ✅' : 'Đang TẮT ❌';
+
+                    // Update schedule
+                    const scheduleText = formatCronSchedule(config.cron_schedule);
+                    document.getElementById('syncScheduleValue').textContent = scheduleText;
+
+                    // Update sync days
+                    document.getElementById('syncDaysValue').textContent = config.sync_days + ' ngày';
+
+                    // Update statistics
+                    if (config.last_run_at) {
+                        document.getElementById('lastRunTime').textContent = formatDateTime(config.last_run_at);
+
+                        // Status badge
+                        let statusHtml = '';
+                        if (config.last_run_status === 'success') {
+                            statusHtml = '<span style="color: #4CAF50;">✅ Thành công</span>';
+                        } else if (config.last_run_status === 'error') {
+                            statusHtml = '<span style="color: #f44336;">❌ Lỗi</span>';
+                        } else if (config.last_run_status === 'running') {
+                            statusHtml = '<span style="color: #FF9800;">⏳ Đang chạy...</span>';
+                        } else {
+                            statusHtml = '-';
+                        }
+                        document.getElementById('lastRunStatus').innerHTML = statusHtml;
+
+                        // Format message to Vietnamese
+                        const message = config.last_run_message || '-';
+                        let formattedMessage = message;
+
+                        // Parse message like "Manual test: Synced 25 conversions successfully"
+                        const syncMatch = message.match(/Synced (\d+) conversions/i);
+                        const duplicatesMatch = message.match(/(\d+) duplicates/i);
+
+                        if (syncMatch) {
+                            const imported = syncMatch[1];
+                            const duplicates = duplicatesMatch ? duplicatesMatch[1] : 0;
+                            formattedMessage = `Đã import ${imported} conversions, ${duplicates} trùng lặp`;
+                        } else if (message.includes('successfully')) {
+                            formattedMessage = 'Đồng bộ thành công';
+                        }
+
+                        document.getElementById('lastRunMessage').textContent = formattedMessage;
+                    } else {
+                        document.getElementById('lastRunTime').textContent = 'Chưa chạy lần nào';
+                        document.getElementById('lastRunStatus').textContent = '-';
+                        document.getElementById('lastRunMessage').textContent = '-';
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading auto-sync config:', error);
+                showToast('Không thể tải cấu hình auto-sync', 'error');
+            }
+        }
+
+        // Format cron schedule to human-readable text
+        function formatCronSchedule(cron) {
+            const schedules = {
+                '0 */6 * * *': 'Mỗi 6 giờ',
+                '0 */4 * * *': 'Mỗi 4 giờ',
+                '0 */3 * * *': 'Mỗi 3 giờ',
+                '0 */2 * * *': 'Mỗi 2 giờ',
+                '*/30 * * * *': 'Mỗi 30 phút',
+                '0 8,14,20 * * *': '3 lần/ngày (8h, 14h, 20h)',
+                '0 0 * * *': 'Mỗi ngày lúc 00:00',
+                '0 8 * * *': 'Mỗi ngày lúc 08:00'
+            };
+
+            return schedules[cron] || cron;
+        }
+
+        // Format datetime
+        function formatDateTime(dateStr) {
+            const date = new Date(dateStr);
+            const now = new Date();
+            const diff = now - date;
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor(diff / (1000 * 60));
+
+            if (minutes < 60) {
+                return `${minutes} phút trước`;
+            } else if (hours < 24) {
+                return `${hours} giờ trước`;
+            } else {
+                return date.toLocaleString('vi-VN');
+            }
+        }
+
+        // Toggle Auto-Sync
+        async function toggleAutoSync() {
+            const enabled = document.getElementById('autoSyncToggle').checked;
+
+            try {
+                const response = await apiRequest('/admin/auto-sync/config', {
+                    method: 'POST',
+                    body: JSON.stringify({ enabled })
+                });
+
+                if (response.success) {
+                    showToast(enabled ? 'Đã BẬT Auto-Sync' : 'Đã TẮT Auto-Sync', 'success');
+                    await loadAutoSyncConfig();
+                } else {
+                    throw new Error(response.message);
+                }
+            } catch (error) {
+                console.error('Error toggling auto-sync:', error);
+                showToast('Lỗi: ' + error.message, 'error');
+                // Revert toggle
+                document.getElementById('autoSyncToggle').checked = !enabled;
+            }
+        }
+
+        // Edit Sync Schedule
+        async function editSyncSchedule() {
+            const scheduleOptions = [
+                { value: '*/30 * * * *', label: 'Mỗi 30 phút' },
+                { value: '0 */2 * * *', label: 'Mỗi 2 giờ' },
+                { value: '0 */3 * * *', label: 'Mỗi 3 giờ' },
+                { value: '0 */4 * * *', label: 'Mỗi 4 giờ' },
+                { value: '0 */6 * * *', label: 'Mỗi 6 giờ (Khuyến nghị)' },
+                { value: '0 8,14,20 * * *', label: '3 lần/ngày (8h, 14h, 20h)' },
+                { value: '0 0 * * *', label: 'Mỗi ngày lúc 00:00' }
+            ];
+
+            let optionsHtml = scheduleOptions.map(opt =>
+                `<option value="${opt.value}">${opt.label}</option>`
+            ).join('');
+
+            const modalBody = `
+                <div class="form-group">
+                    <label>Chọn Lịch Trình:</label>
+                    <select id="scheduleSelect" class="form-control">
+                        ${optionsHtml}
+                    </select>
+                    <small style="color: var(--gray-600); display: block; margin-top: 8px;">
+                        💡 Khuyến nghị: Mỗi 6 giờ để cân bằng giữa tốc độ và tải hệ thống
+                    </small>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-secondary" onclick="closeEditModal()">Hủy</button>
+                    <button class="btn-primary" onclick="saveSyncSchedule()">Lưu</button>
+                </div>
+            `;
+
+            document.getElementById('modalTitle').textContent = 'Chỉnh Sửa Lịch Trình Sync';
+            document.getElementById('modalBody').innerHTML = modalBody;
+            document.getElementById('editModal').style.display = 'flex';
+
+            // Set current value
+            const response = await apiRequest('/admin/auto-sync/config');
+            if (response.success) {
+                document.getElementById('scheduleSelect').value = response.data.cron_schedule;
+            }
+        }
+
+        // Save Sync Schedule
+        async function saveSyncSchedule() {
+            const schedule = document.getElementById('scheduleSelect').value;
+
+            try {
+                const response = await apiRequest('/admin/auto-sync/config', {
+                    method: 'POST',
+                    body: JSON.stringify({ cron_schedule: schedule })
+                });
+
+                if (response.success) {
+                    showToast('Đã cập nhật lịch trình sync', 'success');
+                    closeEditModal();
+                    await loadAutoSyncConfig();
+                } else {
+                    throw new Error(response.message);
+                }
+            } catch (error) {
+                console.error('Error saving schedule:', error);
+                showToast('Lỗi: ' + error.message, 'error');
+            }
+        }
+
+        // Edit Sync Days
+        async function editSyncDays() {
+            const modalBody = `
+                <div class="form-group">
+                    <label>Số Ngày Quét Ngược:</label>
+                    <input type="number" id="syncDaysInput" class="form-control"
+                           min="1" max="7" value="3"
+                           placeholder="Nhập số ngày (1-7)">
+                    <small style="color: var(--gray-600); display: block; margin-top: 8px;">
+                        💡 Khuyến nghị: 2-3 ngày để không miss đơn hàng nhưng không tốn quá nhiều API calls
+                    </small>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-secondary" onclick="closeEditModal()">Hủy</button>
+                    <button class="btn-primary" onclick="saveSyncDays()">Lưu</button>
+                </div>
+            `;
+
+            document.getElementById('modalTitle').textContent = 'Chỉnh Sửa Số Ngày Quét Ngược';
+            document.getElementById('modalBody').innerHTML = modalBody;
+            document.getElementById('editModal').style.display = 'flex';
+
+            // Set current value
+            const response = await apiRequest('/admin/auto-sync/config');
+            if (response.success) {
+                document.getElementById('syncDaysInput').value = response.data.sync_days;
+            }
+        }
+
+        // Save Sync Days
+        async function saveSyncDays() {
+            const days = parseInt(document.getElementById('syncDaysInput').value);
+
+            if (days < 1 || days > 7) {
+                showToast('Số ngày phải từ 1 đến 7', 'error');
+                return;
+            }
+
+            try {
+                const response = await apiRequest('/admin/auto-sync/config', {
+                    method: 'POST',
+                    body: JSON.stringify({ sync_days: days })
+                });
+
+                if (response.success) {
+                    showToast('Đã cập nhật số ngày quét ngược', 'success');
+                    closeEditModal();
+                    await loadAutoSyncConfig();
+                } else {
+                    throw new Error(response.message);
+                }
+            } catch (error) {
+                console.error('Error saving sync days:', error);
+                showToast('Lỗi: ' + error.message, 'error');
+            }
+        }
+
+        // Run Manual Sync
+        async function runManualSync() {
+            const btn = document.getElementById('manualSyncBtn');
+            const originalHtml = btn.innerHTML;
+
+            if (confirm('Bạn có chắc muốn chạy sync ngay bây giờ? Quá trình này có thể mất vài phút.')) {
+                try {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang sync...';
+
+                    const response = await apiRequest('/admin/auto-sync/run', {
+                        method: 'POST'
+                    });
+
+                    if (response.success) {
+                        const result = response.data;
+                        showToast(`✅ Sync thành công! Import: ${result.imported}, Duplicates: ${result.duplicates}`, 'success');
+                        await loadAutoSyncConfig();
+                    } else {
+                        throw new Error(response.message);
+                    }
+                } catch (error) {
+                    console.error('Error running manual sync:', error);
+                    showToast('Lỗi sync: ' + error.message, 'error');
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                }
+            }
+        }
+
+        // Load Auto-Sync config on page load
+        window.addEventListener('load', () => {
+            loadAutoSyncConfig();
+        });
+
+        // ============ TAB SWITCHING FUNCTION ============
+
+        /**
+         * Switch between settings tabs
+         * @param {string} tabName - The tab to switch to (cron, api, system, payment, autosync, ai)
+         */
+        function switchTab(tabName) {
+            // Remove active class from all tabs and content
+            const allTabs = document.querySelectorAll('.tab-button');
+            const allContents = document.querySelectorAll('.settings-tab-content');
+
+            allTabs.forEach(tab => tab.classList.remove('active'));
+            allContents.forEach(content => content.classList.remove('active'));
+
+            // Add active class to selected tab and content
+            const selectedTab = document.querySelector(`[data-tab="${tabName}"]`);
+            const selectedContent = document.getElementById(`tab-${tabName}`);
+
+            if (selectedTab && selectedContent) {
+                selectedTab.classList.add('active');
+                selectedContent.classList.add('active');
+
+                // Save active tab to localStorage for persistence
+                localStorage.setItem('settings_active_tab', tabName);
+            }
+        }
+
+        // Restore last active tab on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            const lastActiveTab = localStorage.getItem('settings_active_tab');
+            if (lastActiveTab) {
+                switchTab(lastActiveTab);
+            }
+        });
 
         // Logout
         document.getElementById('logoutBtn').addEventListener('click', (e) => {

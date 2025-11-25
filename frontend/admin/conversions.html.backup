@@ -645,26 +645,6 @@
                 width: 100%;
             }
         }
-
-        /* Hide columns: Merchant, Order Amount, TT đối soát (old reconciliation status) */
-        .data-table thead th:nth-child(2),
-        .data-table tbody td:nth-child(2),
-        .data-table thead th:nth-child(4),
-        .data-table tbody td:nth-child(4),
-        .data-table thead th:nth-child(8),
-        .data-table tbody td:nth-child(8) {
-            display: none;
-        }
-
-        .status-warning {
-            background: #fef3c7;
-            color: #92400e;
-        }
-
-        .status-inactive {
-            background: #f3f4f6;
-            color: #6b7280;
-        }
     </style>
 </head>
 <body>
@@ -790,8 +770,6 @@
                             <th>Cashback</th>
                             <th>TT đơn hàng</th>
                             <th>TT đối soát</th>
-                            <th>TT đối soát HT</th>
-                            <th>TT thanh toán</th>
                             <th>Order Time</th>
                             <th>Actions</th>
                         </tr>

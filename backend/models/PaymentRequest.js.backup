@@ -399,7 +399,6 @@ class PaymentRequest {
         metadata: { transactionReference }
       });
 
-// Sync payment_status to system_conversions for all linked conversions      await client.query(`        UPDATE system_conversions sc        SET          payment_status = $1,          updated_at = NOW()        FROM payment_system_reconciliation_mapping psrm        WHERE psrm.payment_request_id = $2          AND sc.at_conversion_id = psrm.conversion_id      `, [status, id]);
       await client.query('COMMIT');
       return result.rows[0];
 
