@@ -6,19 +6,21 @@ const logger = require('../utils/logger');
 /**
  * Sync conversions from AccessTrade API
  * Can be run standalone or called from cron job
+ * @param {number} syncDays - Number of days to sync (default: 7)
  */
-async function syncConversions() {
+async function syncConversions(syncDays = 7) {
   logger.info('='.repeat(60));
   logger.info('Starting conversion sync from AccessTrade');
   logger.info('='.repeat(60));
 
   try {
-    // Get conversions from last 7 days
+    // Get conversions from specified days
     const endDate = new Date();
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 7);
+    startDate.setDate(startDate.getDate() - syncDays);
 
     logger.info('Fetching conversions', {
+      syncDays,
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString()
     });
@@ -88,7 +90,12 @@ async function syncConversions() {
     logger.success('Conversion sync completed', results);
     logger.info('='.repeat(60));
 
-    return results;
+    // Return format compatible with autoSyncService
+    return {
+      ...results,
+      imported: results.created + results.updated,
+      duplicates: results.skipped
+    };
   } catch (error) {
     logger.error('Fatal error during conversion sync', {
       error: error.message,

@@ -275,6 +275,16 @@ if (process.env.VERCEL !== '1') {
       logger.error('Failed to initialize System Reconciliation jobs', { error: error.message });
     }
 
+    // Initialize Auto-Sync Service for conversions
+    try {
+      const autoSyncService = require('./backend/services/autoSyncService');
+      await autoSyncService.initialize();
+      const status = autoSyncService.getStatus();
+      console.log(`🔄 Auto-Sync: ${status.hasScheduledJob ? 'Enabled' : 'Disabled'}`);
+    } catch (error) {
+      logger.error('Failed to initialize Auto-Sync service', { error: error.message });
+    }
+
     // Initial sync DISABLED - Use manual sync from admin panel
     // Run initial sync on server start (DISABLED)
     // if (process.env.SYNC_ON_START !== 'false') {
