@@ -278,7 +278,7 @@
 
                 // Redirect after short delay
                 setTimeout(() => {
-                    window.location.href = 'dashboard.html';
+                    window.location.href = '/shopping';
                 }, 1500);
             } catch (e) {
                 errorDiv.textContent = 'Lỗi xử lý đăng nhập Google';
@@ -293,9 +293,9 @@
         if (isLoggedIn()) {
             const user = getUser();
             if (user && user.is_admin) {
-                window.location.href = 'admin/index.html';
+                window.location.href = '/admin';
             } else {
-                window.location.href = 'dashboard.html';
+                window.location.href = '/shopping';
             }
         }
 
@@ -329,9 +329,9 @@
                 // Check if user is admin and redirect accordingly
                 const user = getUser();
                 if (user && user.is_admin) {
-                    window.location.href = 'admin/index.html';
+                    window.location.href = '/admin';
                 } else {
-                    window.location.href = 'dashboard.html';
+                    window.location.href = '/shopping';
                 }
             } catch (error) {
                 errorDiv.textContent = error.message || 'Đăng nhập thất bại';

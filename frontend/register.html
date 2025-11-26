@@ -186,7 +186,7 @@
     <script>
         // Redirect if already logged in
         if (isLoggedIn()) {
-            window.location.href = 'dashboard.html';
+            window.location.href = '/shopping';
         }
 
         const form = document.getElementById('registerForm');
@@ -239,9 +239,9 @@
                 successDiv.textContent = 'Đăng ký thành công! Đang chuyển hướng...';
                 successDiv.classList.add('show');
 
-                // Redirect to dashboard after 1 second
+                // Redirect to shopping after 1 second
                 setTimeout(() => {
-                    window.location.href = 'dashboard.html';
+                    window.location.href = '/shopping';
                 }, 1000);
             } catch (error) {
                 errorDiv.textContent = error.message || 'Đăng ký thất bại';

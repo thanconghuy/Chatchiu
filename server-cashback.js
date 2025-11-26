@@ -152,6 +152,36 @@ app.get('/user/:page', (req, res, next) => {
   res.sendFile(path.join(__dirname, 'frontend', 'user', `${page}.html`));
 });
 
+// Shopping page route
+app.get('/shopping', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend', 'shopping.html'));
+});
+
+// Redirect shopping.html to clean URL
+app.get('/shopping.html', (req, res) => {
+  res.redirect(301, '/shopping');
+});
+
+// Statistics page route
+app.get('/statistics', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend', 'statistics.html'));
+});
+
+// Redirect statistics.html to clean URL
+app.get('/statistics.html', (req, res) => {
+  res.redirect(301, '/statistics');
+});
+
+// Dashboard page route (legacy support)
+app.get('/dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend', 'dashboard.html'));
+});
+
+// Redirect dashboard.html to clean URL
+app.get('/dashboard.html', (req, res) => {
+  res.redirect(301, '/dashboard');
+});
+
 // Default route - serve landing page (index.html)
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend', 'index.html'));

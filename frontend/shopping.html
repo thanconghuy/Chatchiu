@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mua sắm - Cashback System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
+
+    <div class="app-container">
+        <!-- Sidebar will be loaded by user-sidebar.js -->
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-wrapper">
+                <!-- Desktop Header -->
+                <header class="desktop-header">
+                    <div class="welcome">
+                        <h1>🛍️ Mua sắm và nhận hoàn tiền</h1>
+                        <p class="subtitle">Chọn sàn thương mại điện tử yêu thích để bắt đầu mua sắm</p>
+                    </div>
+                </header>
+
+                <!-- Mobile Header -->
+                <header class="mobile-header">
+                    <div class="mobile-header-content">
+                        <div class="user-greeting">
+                            <span class="greeting-text">Mua sắm</span>
+                            <span class="user-name">💰 Nhận cashback</span>
+                        </div>
+                        <div class="user-avatar" id="userAvatar">
+                            <span id="avatarInitial">U</span>
+                        </div>
+                    </div>
+                    <p class="mobile-subtitle">Chọn sàn thương mại điện tử yêu thích để bắt đầu</p>
+                </header>
+
+                <!-- Quick Stats Bar -->
+                <section class="quick-stats-bar">
+                    <div class="quick-stat-item">
+                        <span class="quick-stat-icon">💳</span>
+                        <div class="quick-stat-info">
+                            <span class="quick-stat-label">Khả dụng</span>
+                            <span class="quick-stat-value" id="quickAvailableBalance">0đ</span>
+                        </div>
+                    </div>
+                    <div class="quick-stat-item">
+                        <span class="quick-stat-icon">⏳</span>
+                        <div class="quick-stat-info">
+                            <span class="quick-stat-label">Chờ duyệt</span>
+                            <span class="quick-stat-value" id="quickPendingBalance">0đ</span>
+                        </div>
+                    </div>
+                    <div class="quick-stat-item">
+                        <span class="quick-stat-icon">📦</span>
+                        <div class="quick-stat-info">
+                            <span class="quick-stat-label">Tổng đơn</span>
+                            <span class="quick-stat-value" id="quickTotalOrders">0</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- How to get cashback guide -->
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);">
+                    <h3 style="margin: 0 0 12px 0; font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 1.3rem;">💡</span>
+                        Cách nhận cashback
+                    </h3>
+                    <ol style="margin: 0; padding-left: 24px; line-height: 1.8; font-size: 0.95rem;">
+                        <li><strong>Bấm vào sàn mua sắm</strong> bạn muốn mua hàng (Shopee, Lazada, Tiki...)</li>
+                        <li><strong>Đi đến trang chủ</strong> hoặc <strong>nhập link sản phẩm cụ thể</strong> mà bạn muốn mua</li>
+                        <li><strong>Tạo link mua hàng</strong> để hệ thống ghi nhận và tính hoa hồng cho bạn</li>
+                        <li>Hoàn tất đơn hàng và chờ cashback được duyệt về tài khoản! 🎉</li>
+                    </ol>
+                </div>
+
+                <!-- Merchants Grid -->
+                <div class="merchants-grid" id="merchantsGrid">
+                    <!-- Merchants will be loaded here -->
+                    <div class="loading">Đang tải...</div>
+                </div>
+
+                <!-- Carousel Navigation (Mobile only) -->
+                <div class="merchants-carousel-nav" id="merchantsCarouselNav" style="display: none;">
+                    <button class="carousel-nav-btn" id="prevCarouselBtn" aria-label="Previous">←</button>
+                    <span class="carousel-page-info" id="carouselPageInfo">1 / 1</span>
+                    <button class="carousel-nav-btn" id="nextCarouselBtn" aria-label="Next">→</button>
+                </div>
+
+                <!-- Pagination -->
+                <div class="merchants-pagination" id="merchantsPagination">
+                    <button id="prevMerchantsBtn" disabled>← Trước</button>
+                    <span id="merchantsPageInfo">Trang 1</span>
+                    <button id="nextMerchantsBtn">Sau →</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Merchant Modal -->
+    <div id="merchantModal" class="modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <button class="modal-close" id="closeModal">&times;</button>
+
+            <div class="modal-header">
+                <img id="modalMerchantLogo" src="" alt="" class="modal-merchant-logo">
+                <h2 id="modalMerchantName">Merchant</h2>
+            </div>
+
+            <div class="modal-body">
+                <!-- Option 1: Free Shopping -->
+                <div class="option-card">
+                    <div class="option-header">
+                        <span class="option-icon">🎯</span>
+                        <h3>Mua sắm tự do</h3>
+                    </div>
+                    <p class="option-description">
+                        Vào trang chủ <strong id="merchantNameOption1">Merchant</strong> để chọn sản phẩm bất kỳ
+                    </p>
+                    <button class="btn btn-primary" id="freeShoppingBtn">
+                        Đi đến <span id="merchantNameBtn1">Merchant</span>
+                    </button>
+                </div>
+
+                <!-- Option 2: Have Product Link -->
+                <div class="option-card">
+                    <div class="option-header">
+                        <span class="option-icon">🔗</span>
+                        <h3>Có link sản phẩm rồi</h3>
+                    </div>
+                    <p class="option-description">
+                        Paste link sản phẩm từ <strong id="merchantNameOption2">Merchant</strong> vào đây
+                    </p>
+                    <input
+                        type="url"
+                        id="productUrlInput"
+                        class="input-field"
+                        placeholder="https://shopee.vn/product/..."
+                    >
+                    <button class="btn btn-secondary" id="generateLinkBtn">
+                        Tạo link mua hàng
+                    </button>
+                </div>
+
+                <div class="modal-note">
+                    <span class="note-icon">ℹ️</span>
+                    <span>Bạn sẽ nhận hoàn tiền khi đơn hàng được duyệt (~7-30 ngày)</span>
+                </div>
+
+                <!-- Merchant Policy Note -->
+                <div id="merchantPolicySection" style="display: none; margin-top: 24px; padding: 20px; background: #fff9e6; border-left: 4px solid #ffc107; border-radius: 8px;">
+                    <h3 style="margin: 0 0 12px 0; color: #e65100; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 1.2rem;">⚠️</span>
+                        <span id="policyTitle">Quy định của Merchant</span>
+                    </h3>
+                    <div id="policyContent" style="color: #5d4037; line-height: 1.6; font-size: 0.95rem; white-space: pre-wrap;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/user-sidebar.js"></script>
+    <script src="js/mobile-menu.js"></script>
+    <script src="js/shopping.js"></script>
+</body>
+</html>

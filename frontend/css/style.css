@@ -278,7 +278,7 @@ body {
 /* Merchants Grid */
 .merchants-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(5, 1fr);
     gap: 20px;
 }
 
@@ -583,6 +583,14 @@ body {
     margin-bottom: 16px;
 }
 
+/* Center buttons in option cards */
+.option-card .btn {
+    display: block;
+    width: fit-content;
+    margin: 0 auto;
+    min-width: 200px;
+}
+
 /* Buttons */
 .btn {
     padding: 12px 24px;
@@ -592,7 +600,7 @@ body {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s;
-    max-width: 20%;
+
 }
 
 .btn-primary {
@@ -1735,7 +1743,7 @@ button:disabled {
 /* Merchants Grid - Desktop (Pagination) */
 .merchants-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    grid-template-columns: repeat(5, 1fr);
     gap: 20px;
 }
 
@@ -1975,6 +1983,7 @@ button:disabled {
     .stat-card {
         min-height: 48px;
         min-width: 48px;
+        width: 100%;
     }
 
     /* Larger tap targets for mobile */
@@ -2219,5 +2228,75 @@ button:disabled {
 
     .desktop-only {
         display: block !important;
+    }
+}
+
+/* Quick Stats Bar (Shopping page) */
+.quick-stats-bar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    padding: 16px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.quick-stat-item {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+    border-radius: 8px;
+}
+
+.quick-stat-icon {
+    font-size: 1.5rem;
+    min-width: 32px;
+    text-align: center;
+}
+
+.quick-stat-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.quick-stat-label {
+    font-size: 0.75rem;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.quick-stat-value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #111827;
+}
+
+@media (max-width: 768px) {
+    .quick-stats-bar {
+        padding: 12px;
+        gap: 8px;
+    }
+
+    .quick-stat-item {
+        padding: 10px 8px;
+        gap: 8px;
+    }
+
+    .quick-stat-icon {
+        font-size: 1.3rem;
+        min-width: 28px;
+    }
+
+    .quick-stat-label {
+        font-size: 0.7rem;
+    }
+
+    .quick-stat-value {
+        font-size: 0.9rem;
     }
 }

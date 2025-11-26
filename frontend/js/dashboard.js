@@ -17,7 +17,7 @@ let merchants = [];
 let currentClicksPage = 0;
 let clicksPerPage = 20; // Default: 20 items per page
 let currentMerchantsPage = 0;
-const merchantsPerPage = 10; // Desktop: 10 merchants per page
+const merchantsPerPage = 10; // Desktop: 10 merchants per page (2 rows x 5 merchants)
 let currentCarouselSlide = 0; // Mobile: carousel slide index
 const merchantsPerSlide = 6; // Mobile: 6 merchants per slide (3x2 grid)
 
@@ -136,8 +136,9 @@ function updateMerchantsPagination() {
 
     const totalPages = Math.ceil(merchants.length / merchantsPerPage);
 
-    // Show/hide pagination
-    pagination.style.display = totalPages > 1 ? 'flex' : 'none';
+    // Only show pagination on desktop (>768px)
+    const isDesktop = window.innerWidth > 768;
+    pagination.style.display = (isDesktop && totalPages > 1) ? 'flex' : 'none';
 
     // Update page info
     pageInfo.textContent = `Trang ${currentMerchantsPage + 1} / ${totalPages}`;
@@ -160,8 +161,9 @@ function updateCarouselNav() {
 
     const totalSlides = Math.ceil(merchants.length / merchantsPerSlide);
 
-    // Show/hide carousel nav
-    carouselNav.style.display = totalSlides > 1 ? 'flex' : 'none';
+    // Only show carousel nav on mobile (≤768px)
+    const isMobile = window.innerWidth <= 768;
+    carouselNav.style.display = (isMobile && totalSlides > 1) ? 'flex' : 'none';
 
     // Update page info
     pageInfo.textContent = `${currentCarouselSlide + 1} / ${totalSlides}`;
@@ -817,6 +819,21 @@ window.addEventListener('resize', () => {
     resizeTimer = setTimeout(() => {
         if (merchants.length > 0) {
             renderMerchants();
+
+            // Force hide/show correct navigation based on screen size
+            const isDesktop = window.innerWidth > 768;
+            const carouselNav = document.getElementById('merchantsCarouselNav');
+            const pagination = document.getElementById('merchantsPagination');
+
+            if (isDesktop) {
+                // Desktop: hide carousel, show pagination
+                if (carouselNav) carouselNav.style.display = 'none';
+                updateMerchantsPagination();
+            } else {
+                // Mobile: hide pagination, show carousel
+                if (pagination) pagination.style.display = 'none';
+                updateCarouselNav();
+            }
         }
     }, 250);
 });
