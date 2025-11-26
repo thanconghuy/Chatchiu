@@ -188,7 +188,7 @@
     const historyBtn = document.getElementById('btnBalanceHistory');
     if (historyBtn) {
       historyBtn.addEventListener('click', () => {
-        window.location.href = '/system-balance-history';
+        window.location.href = '/payment-history';
       });
     }
 

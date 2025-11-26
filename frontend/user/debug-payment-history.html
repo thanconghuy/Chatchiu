@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DEBUG - Payment History</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .log { margin: 5px 0; padding: 5px; background: #f0f0f0; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e9; color: #2e7d32; }
+        .warning { background: #fff3e0; color: #ef6c00; }
+    </style>
+</head>
+<body>
+    <h1>DEBUG - Payment History</h1>
+    <div id="logs"></div>
+
+    <script>
+        const logsEl = document.getElementById('logs');
+
+        function log(message, type = 'log') {
+            console.log(message);
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.textContent = `[${new Date().toISOString().split('T')[1].split('.')[0]}] ${message}`;
+            logsEl.appendChild(div);
+        }
+
+        async function runTests() {
+            log('=== STARTING DEBUG ===', 'warning');
+
+            // Step 1: Check token
+            const token = localStorage.getItem('cashback_token');
+            if (!token) {
+                log('❌ NO TOKEN FOUND!', 'error');
+                log('You need to login first', 'error');
+                return;
+            }
+            log('✅ Token found: ' + token.substring(0, 30) + '...', 'success');
+
+            // Step 2: Check user data
+            const userData = localStorage.getItem('cashback_user');
+            if (userData) {
+                try {
+                    const user = JSON.parse(userData);
+                    log('✅ User data found: ' + user.email, 'success');
+                } catch (e) {
+                    log('⚠️ User data parse error: ' + e.message, 'warning');
+                }
+            } else {
+                log('⚠️ No user data in localStorage', 'warning');
+            }
+
+            // Step 3: Test API endpoint
+            log('Testing API endpoint: /api/user/payment-history/summary', 'warning');
+
+            try {
+                const response = await fetch('http://localhost:3007/api/user/payment-history/summary', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                log(`API Response Status: ${response.status} ${response.statusText}`,
+                    response.ok ? 'success' : 'error');
+
+                const data = await response.json();
+                log('API Response Data: ' + JSON.stringify(data, null, 2),
+                    data.success ? 'success' : 'error');
+
+                if (!response.ok) {
+                    log('❌ API call failed!', 'error');
+
+                    // Check if this would trigger logout
+                    if (response.status === 401 || response.status === 403) {
+                        log('⚠️ This would trigger logout in real app!', 'warning');
+                    }
+                }
+
+            } catch (error) {
+                log('❌ API Request Error: ' + error.message, 'error');
+            }
+
+            // Step 4: Check if token still exists
+            const tokenAfter = localStorage.getItem('token');
+            if (!tokenAfter) {
+                log('❌ TOKEN WAS REMOVED!', 'error');
+            } else if (tokenAfter === token) {
+                log('✅ Token still intact', 'success');
+            } else {
+                log('⚠️ Token was changed!', 'warning');
+            }
+
+            log('=== DEBUG COMPLETE ===', 'warning');
+        }
+
+        // Run tests after 1 second
+        setTimeout(runTests, 1000);
+    </script>
+</body>
+</html>

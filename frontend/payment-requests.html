@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Yêu cầu thanh toán - Cashback System</title>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         /* Payment Requests Specific Styles */
         .balance-card {
@@ -52,7 +53,15 @@
             font-weight: 600;
         }
 
-        .create-request-btn {
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .create-request-btn,
+        .payment-history-btn {
+            flex: 1;
             background: white;
             color: #667eea;
             border: none;
@@ -61,11 +70,20 @@
             font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
-            margin-top: 1rem;
             transition: transform 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
         }
 
-        .create-request-btn:hover:not(:disabled) {
+        .payment-history-btn {
+            background: rgba(255, 255, 255, 0.9);
+            color: #5a67d8;
+        }
+
+        .create-request-btn:hover:not(:disabled),
+        .payment-history-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
@@ -73,6 +91,12 @@
         .create-request-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+        }
+
+        @media (max-width: 768px) {
+            .action-buttons {
+                flex-direction: column;
+            }
         }
 
         .ineligible-reasons {
@@ -334,9 +358,16 @@
                         </div>
                     </div>
 
-                    <button class="create-request-btn" id="createRequestBtn" onclick="showCreateModal()">
-                        Tạo yêu cầu thanh toán
-                    </button>
+                    <div class="action-buttons">
+                        <button class="create-request-btn" id="createRequestBtn" onclick="showCreateModal()">
+                            <i class="fas fa-plus-circle"></i>
+                            Tạo yêu cầu thanh toán
+                        </button>
+                        <button class="payment-history-btn" onclick="window.location.href='/payment-history'">
+                            <i class="fas fa-history"></i>
+                            Lịch sử thanh toán
+                        </button>
+                    </div>
 
                     <div class="ineligible-reasons" id="ineligibleReasons" style="display: none;">
                         <strong>Không đủ điều kiện:</strong>

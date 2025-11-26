@@ -24,21 +24,46 @@ router.get('/stats', authenticateToken, async (req, res) => {
     const user = await User.findById(req.userId);
     console.log('[Dashboard Stats] User found:', user ? user.email : 'null');
 
-    const stats = await User.getStats(req.userId);
-    console.log('[Dashboard Stats] User stats:', stats);
-
     const clickStats = await Click.getStats(req.userId);
     console.log('[Dashboard Stats] Click stats:', clickStats);
 
-    const conversionStats = await Conversion.getUserStats(req.userId);
-    console.log('[Dashboard Stats] Conversion stats:', conversionStats);
+    // Get balance from system_conversions instead of users table
+    const balanceQuery = `
+      SELECT
+        COALESCE(SUM(CASE WHEN status = 'approved' THEN cashback_amount ELSE 0 END), 0) as available_balance,
+        COALESCE(SUM(CASE WHEN status = 'pending' THEN cashback_amount ELSE 0 END), 0) as pending_balance,
+        COALESCE(SUM(CASE WHEN status IN ('approved', 'pending') THEN cashback_amount ELSE 0 END), 0) as total_cashback
+      FROM system_conversions
+      WHERE user_id = $1
+    `;
+    const balanceResult = await pool.query(balanceQuery, [req.userId]);
+    const balanceStats = balanceResult.rows[0];
+    console.log('[Dashboard Stats] Balance from system_conversions:', balanceStats);
+
+    // Get conversion stats from system_conversions
+    const conversionQuery = `
+      SELECT
+        COUNT(*) as total_conversions,
+        COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved_conversions,
+        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_conversions,
+        COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected_conversions,
+        COALESCE(SUM(CASE WHEN status = 'approved' THEN cashback_amount ELSE 0 END), 0) as total_approved_cashback,
+        COALESCE(SUM(CASE WHEN status = 'pending' THEN cashback_amount ELSE 0 END), 0) as total_pending_cashback,
+        COALESCE(SUM(CASE WHEN status = 'approved' THEN order_amount ELSE 0 END), 0) as total_approved_order_value,
+        COALESCE(SUM(order_amount), 0) as total_order_value
+      FROM system_conversions
+      WHERE user_id = $1
+    `;
+    const conversionResult = await pool.query(conversionQuery, [req.userId]);
+    const conversionStats = conversionResult.rows[0];
+    console.log('[Dashboard Stats] Conversion stats from system_conversions:', conversionStats);
 
     const responseData = {
       success: true,
       stats: {
-        availableBalance: parseFloat(user.available_balance) || 0,
-        pendingBalance: parseFloat(user.pending_balance) || 0,
-        totalCashback: parseFloat(user.total_cashback) || 0,
+        availableBalance: parseFloat(balanceStats.available_balance) || 0,
+        pendingBalance: parseFloat(balanceStats.pending_balance) || 0,
+        totalCashback: parseFloat(balanceStats.total_cashback) || 0,
         totalConversions: parseInt(conversionStats.total_conversions) || 0,
         approvedConversions: parseInt(conversionStats.approved_conversions) || 0,
         pendingConversions: parseInt(conversionStats.pending_conversions) || 0,

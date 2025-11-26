@@ -20,6 +20,8 @@ const AutoSyncConfig = require('../models/AutoSyncConfig');
 const autoSyncService = require('../services/autoSyncService');
 const SystemSettings = require('../services/systemSettings');
 const { ActivityLogger, ACTIVITY_TYPES } = require('../services/activityLogger');
+const paymentHistoryService = require('../services/paymentHistoryService');
+const UserPaymentHistory = require('../models/UserPaymentHistory');
 
 /**
  * GET /api/admin/dashboard/stats
@@ -5057,6 +5059,315 @@ router.post('/conversions/sync-status', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message
+    });
+  }
+});
+
+// =====================================================
+// PAYMENT HISTORY MANAGEMENT
+// =====================================================
+
+/**
+ * POST /api/admin/payment-history/create-period
+ * Create payment history for all users for a specific period
+ * Body: { payment_period: "YYYY-MM", reconciliation_date?: Date, status?: string }
+ */
+router.post('/payment-history/create-period', authenticateAdmin, async (req, res) => {
+  try {
+    const { payment_period, reconciliation_date, status } = req.body;
+
+    if (!payment_period || !/^\d{4}-\d{2}$/.test(payment_period)) {
+      return res.status(400).json({
+        success: false,
+        message: 'payment_period phải có định dạng YYYY-MM'
+      });
+    }
+
+    const result = await paymentHistoryService.createPaymentHistoryForPeriod(
+      payment_period,
+      {
+        reconciliationDate: reconciliation_date ? new Date(reconciliation_date) : new Date(),
+        status: status || 'pending'
+      }
+    );
+
+    // Log activity
+    await ActivityLogger.log({
+      userId: req.user.id,
+      activityType: ACTIVITY_TYPES.PAYMENT_HISTORY_CREATED,
+      description: `Tạo payment history cho kỳ ${payment_period}`,
+      metadata: {
+        payment_period,
+        created: result.created,
+        total_amount: result.totalAmount
+      },
+      req
+    });
+
+    res.json(result);
+
+  } catch (error) {
+    logger.error('Error creating payment history period', { error: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Không thể tạo payment history'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/payment-history
+ * Get all payment history records with filters
+ * Query params: period, status, user_id, limit, offset
+ */
+router.get('/payment-history', authenticateAdmin, async (req, res) => {
+  try {
+    const { period, status, user_id, limit, offset } = req.query;
+
+    const query = `
+      SELECT
+        uph.*,
+        u.full_name,
+        u.email,
+        COUNT(upd.id) as conversions_count
+      FROM user_payment_history uph
+      INNER JOIN users u ON u.id = uph.user_id
+      LEFT JOIN user_payment_details upd ON upd.payment_history_id = uph.id
+      WHERE 1=1
+      ${period ? `AND uph.payment_period = '${period}'` : ''}
+      ${status ? `AND uph.status = '${status}'` : ''}
+      ${user_id ? `AND uph.user_id = '${user_id}'` : ''}
+      GROUP BY uph.id, u.full_name, u.email
+      ORDER BY uph.payment_period DESC, uph.created_at DESC
+      LIMIT ${limit || 100} OFFSET ${offset || 0}
+    `;
+
+    const result = await pool.query(query);
+
+    res.json({
+      success: true,
+      data: result.rows,
+      count: result.rows.length
+    });
+
+  } catch (error) {
+    logger.error('Error getting payment history', { error: error.message });
+    res.status(500).json({
+      success: false,
+      message: 'Không thể tải payment history'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/payment-history/summary
+ * Get payment history summary for admin dashboard
+ * Query params: period, status
+ */
+router.get('/payment-history/summary', authenticateAdmin, async (req, res) => {
+  try {
+    const { period, status } = req.query;
+
+    const summary = await paymentHistoryService.getAdminSummary({ period, status });
+
+    res.json({
+      success: true,
+      data: summary
+    });
+
+  } catch (error) {
+    logger.error('Error getting payment summary', { error: error.message });
+    res.status(500).json({
+      success: false,
+      message: 'Không thể tải thống kê'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/payment-history/:id
+ * Get payment history detail by ID
+ */
+router.get('/payment-history/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const paymentHistory = await UserPaymentHistory.getById(id);
+
+    if (!paymentHistory) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy payment history'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: paymentHistory
+    });
+
+  } catch (error) {
+    logger.error('Error getting payment history detail', { error: error.message });
+    res.status(500).json({
+      success: false,
+      message: 'Không thể tải chi tiết'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/payment-history/:id/process
+ * Process payment (admin confirms payment)
+ * Body: { payment_method: string, payment_details: object }
+ */
+router.post('/payment-history/:id/process', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { payment_method, payment_details } = req.body;
+
+    const result = await paymentHistoryService.processPayment(id, {
+      paymentMethod: payment_method || 'bank_transfer',
+      paymentDetails: payment_details || {}
+    });
+
+    // Log activity
+    await ActivityLogger.log({
+      userId: req.user.id,
+      activityType: ACTIVITY_TYPES.PAYMENT_PROCESSED,
+      description: `Xác nhận thanh toán ID: ${id}`,
+      metadata: {
+        payment_history_id: id,
+        amount: result.amount,
+        payment_method
+      },
+      req
+    });
+
+    res.json(result);
+
+  } catch (error) {
+    logger.error('Error processing payment', { error: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Không thể xử lý thanh toán'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/payment-history/:id/cancel
+ * Cancel payment history
+ * Body: { reason: string }
+ */
+router.post('/payment-history/:id/cancel', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    const result = await paymentHistoryService.cancelPayment(id, reason || '');
+
+    // Log activity
+    await ActivityLogger.log({
+      userId: req.user.id,
+      activityType: ACTIVITY_TYPES.PAYMENT_CANCELLED,
+      description: `Hủy payment ID: ${id}`,
+      metadata: {
+        payment_history_id: id,
+        reason
+      },
+      req
+    });
+
+    res.json(result);
+
+  } catch (error) {
+    logger.error('Error cancelling payment', { error: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Không thể hủy payment'
+    });
+  }
+});
+
+/**
+ * PUT /api/admin/payment-history/:id
+ * Update payment history
+ * Body: { status, payment_method, payment_details, etc. }
+ */
+router.put('/payment-history/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+
+    const updated = await UserPaymentHistory.update(id, updateData);
+
+    // Log activity
+    await ActivityLogger.log({
+      userId: req.user.id,
+      activityType: ACTIVITY_TYPES.PAYMENT_UPDATED,
+      description: `Cập nhật payment ID: ${id}`,
+      metadata: {
+        payment_history_id: id,
+        changes: updateData
+      },
+      req
+    });
+
+    res.json({
+      success: true,
+      data: updated,
+      message: 'Cập nhật thành công'
+    });
+
+  } catch (error) {
+    logger.error('Error updating payment history', { error: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Không thể cập nhật'
+    });
+  }
+});
+
+/**
+ * DELETE /api/admin/payment-history/:id
+ * Delete payment history (cascade deletes details)
+ */
+router.delete('/payment-history/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if payment is already paid
+    const payment = await UserPaymentHistory.getById(id);
+    if (payment && payment.status === 'paid') {
+      return res.status(400).json({
+        success: false,
+        message: 'Không thể xóa payment đã được thanh toán'
+      });
+    }
+
+    await UserPaymentHistory.delete(id);
+
+    // Log activity
+    await ActivityLogger.log({
+      userId: req.user.id,
+      activityType: ACTIVITY_TYPES.PAYMENT_DELETED,
+      description: `Xóa payment ID: ${id}`,
+      metadata: {
+        payment_history_id: id
+      },
+      req
+    });
+
+    res.json({
+      success: true,
+      message: 'Xóa thành công'
+    });
+
+  } catch (error) {
+    logger.error('Error deleting payment history', { error: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Không thể xóa'
     });
   }
 });

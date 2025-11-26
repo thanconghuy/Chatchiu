@@ -42,6 +42,7 @@ const publicRoutes = require('./backend/routes/public');
 const systemReconciliationAdminRoutes = require('./backend/routes/systemReconciliationAdmin');
 const systemReconciliationUserRoutes = require('./backend/routes/systemReconciliationUser');
 const systemSettingsRoutes = require('./backend/routes/systemSettings');
+const userPaymentHistoryRoutes = require('./backend/routes/userPaymentHistory');
 
 // Mount API routes (BEFORE static files)
 app.use('/api/auth', authRoutes); // Keep old auth for backward compatibility
@@ -54,6 +55,7 @@ app.use('/api/public', publicRoutes); // Public endpoints (no auth required)
 app.use('/api/admin/system-reconciliation', systemReconciliationAdminRoutes); // System Reconciliation module (admin only)
 app.use('/api/user/system-reconciliation', systemReconciliationUserRoutes); // System Reconciliation module (user)
 app.use('/api/system-settings', systemSettingsRoutes); // System settings (admin only)
+app.use('/api/user', userPaymentHistoryRoutes); // User payment history module
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -75,6 +77,23 @@ pages.forEach(page => {
   app.get(`/${page}.html`, (req, res) => {
     res.redirect(301, `/${page}`);
   });
+});
+
+// Payment History routes (user module)
+app.get('/payment-history', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend', 'user', 'payment-history.html'));
+});
+
+app.get('/payment-history.html', (req, res) => {
+  res.redirect(301, '/payment-history');
+});
+
+app.get('/payment-detail', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend', 'user', 'payment-detail.html'));
+});
+
+app.get('/payment-detail.html', (req, res) => {
+  res.redirect(301, '/payment-detail');
 });
 
 // Reconciliation history - temporarily disabled (will be a separate module from history)
@@ -110,6 +129,27 @@ app.get('/admin/:page', (req, res, next) => {
 
   // Serve the HTML file
   res.sendFile(path.join(__dirname, 'frontend', 'admin', `${page}.html`));
+});
+
+// User routes (clean URLs without .html)
+app.get('/user/:page', (req, res, next) => {
+  const page = req.params.page;
+
+  // IMPORTANT: Skip static files (css, js, images, fonts, etc.)
+  // Only handle HTML pages
+  if (page.includes('.') && !page.endsWith('.html')) {
+    // This is a static file request, pass to next middleware (static handler)
+    return next();
+  }
+
+  // If page ends with .html, redirect to clean URL
+  if (page.endsWith('.html')) {
+    const cleanPage = page.replace('.html', '');
+    return res.redirect(301, `/user/${cleanPage}`);
+  }
+
+  // Serve the HTML file
+  res.sendFile(path.join(__dirname, 'frontend', 'user', `${page}.html`));
 });
 
 // Default route - serve landing page (index.html)

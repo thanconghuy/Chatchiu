@@ -718,7 +718,7 @@ a.nav-subitem.active i {
 }
 
 .stat-value {
-    font-size: 2rem;
+    font-size: 18pt !important;
     font-weight: 700;
     color: #2D3748;
     line-height: 1.2;

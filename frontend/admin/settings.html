@@ -1223,7 +1223,9 @@
 
         // Close edit modal
         function closeEditModal() {
-            document.getElementById('editModal').classList.remove('show');
+            const modal = document.getElementById('editModal');
+            modal.classList.remove('show');
+            modal.style.display = 'none'; // Also reset inline style if set
         }
 
         // ============ PAYMENT SETTINGS FUNCTIONS ============
@@ -1406,7 +1408,8 @@
                 '0 8 * * *': 'Mỗi ngày lúc 08:00'
             };
 
-            return schedules[cron] || cron;
+            // If not in presets, return with "Custom: " prefix
+            return schedules[cron] || `⚙️ Tùy Chỉnh: ${cron}`;
         }
 
         // Format datetime
@@ -1452,6 +1455,10 @@
 
         // Edit Sync Schedule
         async function editSyncSchedule() {
+            // Get current schedule first
+            const response = await apiRequest('/admin/auto-sync/config');
+            const currentSchedule = response.success ? response.data.cron_schedule : '0 */6 * * *';
+
             const scheduleOptions = [
                 { value: '*/30 * * * *', label: 'Mỗi 30 phút' },
                 { value: '0 */2 * * *', label: 'Mỗi 2 giờ' },
@@ -1459,7 +1466,9 @@
                 { value: '0 */4 * * *', label: 'Mỗi 4 giờ' },
                 { value: '0 */6 * * *', label: 'Mỗi 6 giờ (Khuyến nghị)' },
                 { value: '0 8,14,20 * * *', label: '3 lần/ngày (8h, 14h, 20h)' },
-                { value: '0 0 * * *', label: 'Mỗi ngày lúc 00:00' }
+                { value: '0 0 * * *', label: 'Mỗi ngày lúc 00:00' },
+                { value: '0 8 * * *', label: 'Mỗi ngày lúc 08:00' },
+                { value: 'custom', label: '⚙️ Tùy Chỉnh (Manual)' }
             ];
 
             let optionsHtml = scheduleOptions.map(opt =>
@@ -1469,33 +1478,95 @@
             const modalBody = `
                 <div class="form-group">
                     <label>Chọn Lịch Trình:</label>
-                    <select id="scheduleSelect" class="form-control">
+                    <select id="scheduleSelect" class="form-control" onchange="toggleCustomSchedule()">
                         ${optionsHtml}
                     </select>
+                </div>
+
+                <!-- Custom Cron Expression Input -->
+                <div class="form-group" id="customScheduleGroup" style="display: none;">
+                    <label>Cron Expression (Manual):</label>
+                    <input type="text"
+                           id="customScheduleInput"
+                           class="form-control"
+                           placeholder="Ví dụ: 0 */6 * * *"
+                           value="${currentSchedule}">
                     <small style="color: var(--gray-600); display: block; margin-top: 8px;">
-                        💡 Khuyến nghị: Mỗi 6 giờ để cân bằng giữa tốc độ và tải hệ thống
+                        📖 Format: minute hour day month weekday<br>
+                        Ví dụ:<br>
+                        • <code>*/30 * * * *</code> - Mỗi 30 phút<br>
+                        • <code>0 */6 * * *</code> - Mỗi 6 giờ<br>
+                        • <code>0 8,14,20 * * *</code> - 3 lần/ngày (8h, 14h, 20h)<br>
+                        • <code>0 0 * * *</code> - Mỗi ngày lúc 00:00
                     </small>
                 </div>
-                <div class="modal-actions">
+
+                <div style="margin-top: 8px; padding: 12px; background: #E3F2FD; border-radius: 6px; border-left: 4px solid #2196F3;">
+                    <small style="color: #1976D2;">
+                        💡 <strong>Khuyến nghị:</strong> Mỗi 6 giờ để cân bằng giữa tốc độ và tải hệ thống
+                    </small>
+                </div>
+
+                <div class="modal-actions" style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
                     <button class="btn-secondary" onclick="closeEditModal()">Hủy</button>
-                    <button class="btn-primary" onclick="saveSyncSchedule()">Lưu</button>
+                    <button class="btn-save" onclick="saveSyncSchedule()">Lưu</button>
                 </div>
             `;
 
             document.getElementById('modalTitle').textContent = 'Chỉnh Sửa Lịch Trình Sync';
             document.getElementById('modalBody').innerHTML = modalBody;
-            document.getElementById('editModal').style.display = 'flex';
+            document.getElementById('editModal').classList.add('show');
 
             // Set current value
-            const response = await apiRequest('/admin/auto-sync/config');
-            if (response.success) {
-                document.getElementById('scheduleSelect').value = response.data.cron_schedule;
+            const selectElement = document.getElementById('scheduleSelect');
+            const matchedOption = scheduleOptions.find(opt => opt.value === currentSchedule);
+
+            if (matchedOption && matchedOption.value !== 'custom') {
+                selectElement.value = currentSchedule;
+            } else {
+                // If current schedule doesn't match any preset, select "custom"
+                selectElement.value = 'custom';
+                toggleCustomSchedule();
+            }
+        }
+
+        // Toggle custom schedule input visibility
+        function toggleCustomSchedule() {
+            const selectValue = document.getElementById('scheduleSelect').value;
+            const customGroup = document.getElementById('customScheduleGroup');
+
+            if (selectValue === 'custom') {
+                customGroup.style.display = 'block';
+            } else {
+                customGroup.style.display = 'none';
             }
         }
 
         // Save Sync Schedule
         async function saveSyncSchedule() {
-            const schedule = document.getElementById('scheduleSelect').value;
+            const selectValue = document.getElementById('scheduleSelect').value;
+            let schedule;
+
+            if (selectValue === 'custom') {
+                // Use custom input
+                schedule = document.getElementById('customScheduleInput').value.trim();
+
+                // Basic validation
+                if (!schedule) {
+                    showToast('Vui lòng nhập cron expression', 'error');
+                    return;
+                }
+
+                // Check if it looks like a valid cron (has at least 5 parts)
+                const parts = schedule.split(' ');
+                if (parts.length < 5) {
+                    showToast('Cron expression không hợp lệ. Phải có ít nhất 5 phần (minute hour day month weekday)', 'error');
+                    return;
+                }
+            } else {
+                // Use preset value
+                schedule = selectValue;
+            }
 
             try {
                 const response = await apiRequest('/admin/auto-sync/config', {
@@ -1536,7 +1607,7 @@
 
             document.getElementById('modalTitle').textContent = 'Chỉnh Sửa Số Ngày Quét Ngược';
             document.getElementById('modalBody').innerHTML = modalBody;
-            document.getElementById('editModal').style.display = 'flex';
+            document.getElementById('editModal').classList.add('show');
 
             // Set current value
             const response = await apiRequest('/admin/auto-sync/config');

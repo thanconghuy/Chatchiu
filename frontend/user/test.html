@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Page</title>
+</head>
+<body>
+    <h1>Test Page - Payment History Route</h1>
+    <p>If you can see this page, the route is working!</p>
+    <p>Current URL: <span id="url"></span></p>
+    <p>Token in localStorage: <span id="token"></span></p>
+
+    <script>
+        document.getElementById('url').textContent = window.location.href;
+        const token = localStorage.getItem('token');
+        document.getElementById('token').textContent = token ? 'EXISTS (' + token.substring(0, 20) + '...)' : 'MISSING';
+        console.log('Test page loaded successfully');
+        console.log('Token:', token);
+    </script>
+</body>
+</html>

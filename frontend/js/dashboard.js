@@ -843,3 +843,23 @@ document.addEventListener('visibilitychange', () => {
         loadRecentOrders();
     }
 });
+
+/**
+ * Button event handlers
+ */
+
+// Balance History button - Navigate to payment history page
+const btnBalanceHistory = document.getElementById('btnBalanceHistory');
+if (btnBalanceHistory) {
+    btnBalanceHistory.addEventListener('click', () => {
+        window.location.href = '/payment-history';
+    });
+}
+
+// Withdraw button - Navigate to payment requests page
+const btnWithdraw = document.getElementById('btnWithdraw');
+if (btnWithdraw) {
+    btnWithdraw.addEventListener('click', () => {
+        window.location.href = '/payment-requests.html';
+    });
+}
