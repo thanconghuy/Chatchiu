@@ -59,7 +59,9 @@ class AutoSyncService {
         // Run sync with specified days
         const result = await syncConversions(syncDays);
 
-        await AutoSyncConfig.updateLastRun('success', `Synced ${result.imported} conversions successfully`);
+        // Format message with both imported and duplicates count
+        const message = `Đã import ${result.imported} conversions, ${result.duplicates} trùng lặp`;
+        await AutoSyncConfig.updateLastRun('success', message);
 
         logger.info('Auto-sync completed successfully', {
           imported: result.imported,
@@ -138,8 +140,9 @@ class AutoSyncService {
 
       const result = await syncConversions(syncDays);
 
-      // Save last run info
-      await AutoSyncConfig.updateLastRun('success', `Manual test: Synced ${result.imported} conversions successfully`);
+      // Save last run info with full details
+      const message = `Đã import ${result.imported} conversions, ${result.duplicates} trùng lặp`;
+      await AutoSyncConfig.updateLastRun('success', message);
 
       logger.info('Manual sync completed', {
         imported: result.imported,

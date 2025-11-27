@@ -1370,16 +1370,25 @@
                         const message = config.last_run_message || '-';
                         let formattedMessage = message;
 
-                        // Parse message like "Manual test: Synced 25 conversions successfully"
+                        // Parse different message formats
+                        // Format 1: "Đã import X conversions, Y trùng lặp"
+                        const importMatch = message.match(/import (\d+) conversions?, (\d+) trùng lặp/i);
+
+                        // Format 2: "Synced X conversions successfully"
                         const syncMatch = message.match(/Synced (\d+) conversions/i);
                         const duplicatesMatch = message.match(/(\d+) duplicates/i);
 
-                        if (syncMatch) {
+                        if (importMatch) {
+                            // Already in Vietnamese format
+                            formattedMessage = message;
+                        } else if (syncMatch) {
                             const imported = syncMatch[1];
                             const duplicates = duplicatesMatch ? duplicatesMatch[1] : 0;
                             formattedMessage = `Đã import ${imported} conversions, ${duplicates} trùng lặp`;
                         } else if (message.includes('successfully')) {
                             formattedMessage = 'Đồng bộ thành công';
+                        } else if (message.includes('No conversions')) {
+                            formattedMessage = 'Đã import 0 conversions, 0 trùng lặp';
                         }
 
                         document.getElementById('lastRunMessage').textContent = formattedMessage;
@@ -1412,21 +1421,20 @@
             return schedules[cron] || `⚙️ Tùy Chỉnh: ${cron}`;
         }
 
-        // Format datetime
+        // Format datetime to hh:mm - dd/mm/yyyy
         function formatDateTime(dateStr) {
             const date = new Date(dateStr);
-            const now = new Date();
-            const diff = now - date;
-            const hours = Math.floor(diff / (1000 * 60 * 60));
-            const minutes = Math.floor(diff / (1000 * 60));
 
-            if (minutes < 60) {
-                return `${minutes} phút trước`;
-            } else if (hours < 24) {
-                return `${hours} giờ trước`;
-            } else {
-                return date.toLocaleString('vi-VN');
-            }
+            // Get hours, minutes
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+
+            // Get day, month, year
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+
+            return `${hours}:${minutes} - ${day}/${month}/${year}`;
         }
 
         // Toggle Auto-Sync
