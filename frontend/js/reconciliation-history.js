@@ -83,9 +83,9 @@ function showToast(message, type = 'success') {
 // Get status badge HTML
 function getStatusBadge(status) {
     const statusMap = {
-        'draft': { label: 'Nháp', class: 'status-pending', icon: '📝' },
-        'finalized': { label: 'Đã Hoàn Tất', class: 'status-approved', icon: '✅' },
-        'confirmed': { label: 'Đã xác nhận', class: 'status-approved', icon: '✅' },
+        'draft': { label: 'Chờ duyệt', class: 'status-pending', icon: '🕐' },
+        'finalized': { label: 'Đã duyệt', class: 'status-approved', icon: '✅' },
+        'confirmed': { label: 'Đã duyệt', class: 'status-approved', icon: '✅' },
         'paid': { label: 'Đã thanh toán', class: 'status-approved', icon: '💰' },
         'cancelled': { label: 'Đã hủy', class: 'status-rejected', icon: '❌' }
     };

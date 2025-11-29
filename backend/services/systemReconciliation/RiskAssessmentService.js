@@ -141,8 +141,8 @@ class RiskAssessmentService {
       SELECT COUNT(*) as count
       FROM conversions
       WHERE user_id = $1
-        AND order_time >= $2 - INTERVAL '${hours} hours'
-        AND order_time <= $2
+        AND order_time >= $2::timestamp - INTERVAL '${hours} hours'
+        AND order_time <= $2::timestamp
     `;
 
     const result = await pool.query(query, [userId, orderTime]);

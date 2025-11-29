@@ -32,15 +32,19 @@ class SystemReconciliationService {
       const reconciliationDate = new Date(periodEnd);
       reconciliationDate.setDate(periodEnd.getDate() + 15);
 
-      // Check if reconciliation already exists
-      const checkQuery = `
-        SELECT id FROM system_reconciliations
-        WHERE period_start = $1 AND period_end = $2
+      // Check if any selected orders are already in another reconciliation
+      const checkOrdersQuery = `
+        SELECT sri.conversion_id, sr.period_label
+        FROM system_reconciliation_items sri
+        JOIN system_reconciliations sr ON sri.system_reconciliation_id = sr.id
+        WHERE sri.conversion_id = ANY($1)
+        LIMIT 1
       `;
-      const existing = await client.query(checkQuery, [periodStart, periodEnd]);
+      const existingOrders = await client.query(checkOrdersQuery, [selectedOrderIds]);
 
-      if (existing.rows.length > 0) {
-        throw new Error(`Kỳ đối soát ${periodLabel} đã tồn tại`);
+      if (existingOrders.rows.length > 0) {
+        const order = existingOrders.rows[0];
+        throw new Error(`Một số đơn hàng đã có trong kỳ đối soát "${order.period_label}". Vui lòng chọn đơn hàng khác.`);
       }
 
       // Collect selected orders from conversions
@@ -167,7 +171,17 @@ class SystemReconciliationService {
           riskScore
         ]);
       }
-// Update conversions status to 'processing' (Đang xử lý)      // This will auto-sync to system_conversions via trigger      await client.query(`        UPDATE conversions        SET          system_reconciliation_status = 'processing',          system_reconciliation_id = $1,          system_reconciled_at = CURRENT_TIMESTAMP        WHERE id = ANY($2)      `, [reconciliation.id, orders.map(o => o.conversion_id)]);
+
+      // Update conversions status to 'pending'
+      // This will auto-sync to system_conversions via trigger
+      await client.query(`
+        UPDATE conversions
+        SET
+          system_reconciliation_status = 'pending',
+          system_reconciliation_id = $1,
+          system_reconciled_at = CURRENT_TIMESTAMP
+        WHERE id = ANY($2)
+      `, [reconciliation.id, orders.map(o => o.conversion_id)]);
 
       // Log creation
       await client.query(`
@@ -299,7 +313,7 @@ class SystemReconciliationService {
         FROM system_reconciliation_items sri
         WHERE c.id = sri.conversion_id
           AND sri.system_reconciliation_id = $1
-          AND c.system_reconciliation_status = 'processing'
+          AND c.system_reconciliation_status = 'pending'
       `, [reconciliationId]);
 
       // Update reconciliation status
@@ -414,6 +428,470 @@ class SystemReconciliationService {
         totalPages: Math.ceil(total / limit)
       }
     };
+  }
+
+  /**
+   * Get available orders that can be added to a reconciliation
+   *
+   * @param {string} reconciliationId - ID of the reconciliation
+   * @param {Object} filters - { search, page, limit }
+   * @returns {Object} Available orders with pagination
+   */
+  static async getAvailableOrdersForReconciliation(reconciliationId, filters = {}) {
+    const { search = '', page = 1, limit = 20 } = filters;
+    const offset = (page - 1) * limit;
+
+    // Get reconciliation period
+    const reconQuery = `
+      SELECT period_start, period_end, period_label, status
+      FROM system_reconciliations
+      WHERE id = $1
+    `;
+    const reconResult = await pool.query(reconQuery, [reconciliationId]);
+
+    if (reconResult.rows.length === 0) {
+      throw new Error('Kỳ đối soát không tồn tại');
+    }
+
+    const recon = reconResult.rows[0];
+
+    if (recon.status !== 'draft') {
+      throw new Error('Chỉ có thể thêm đơn hàng vào kỳ đối soát DRAFT');
+    }
+
+    // Build search condition
+    let searchCondition = '';
+    const queryParams = [recon.period_start, recon.period_end, reconciliationId];
+
+    if (search) {
+      queryParams.push(`%${search}%`);
+      searchCondition = `
+        AND (
+          sc.id::text ILIKE $${queryParams.length}
+          OR sc.order_code ILIKE $${queryParams.length}
+          OR u.email ILIKE $${queryParams.length}
+          OR u.full_name ILIKE $${queryParams.length}
+          OR u.username ILIKE $${queryParams.length}
+        )
+      `;
+    }
+
+    // Count total available orders - exclude orders already in THIS reconciliation
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM system_conversions sc
+      LEFT JOIN clicks cl ON sc.click_id = cl.id
+      LEFT JOIN users u ON COALESCE(sc.user_id, cl.user_id) = u.id
+      WHERE sc.status = 'approved'
+        AND sc.order_time >= $1
+        AND sc.order_time <= $2
+        AND (sc.system_reconciliation_id IS NULL OR sc.system_reconciliation_id != $3)
+        AND (sc.system_reconciliation_status IS NULL
+             OR sc.system_reconciliation_status NOT IN ('reconciled', 'paid'))
+        ${searchCondition}
+    `;
+
+    const countResult = await pool.query(countQuery, queryParams);
+    const total = parseInt(countResult.rows[0].total);
+
+    // Get paginated orders - exclude orders already in THIS reconciliation
+    queryParams.push(limit, offset);
+    const ordersQuery = `
+      SELECT
+        sc.at_conversion_id as conversion_id,
+        COALESCE(sc.user_id, cl.user_id) as user_id,
+        COALESCE(sc.order_code, sc.id::text) as order_id,
+        sc.order_time,
+        COALESCE(sc.approval_time, sc.order_time) as confirmed_time,
+        COALESCE(sc.order_amount, 0) as order_value,
+        COALESCE(sc.commission, 0) as commission,
+        COALESCE(sc.cashback_amount, 0) as cashback_amount,
+        sc.status,
+        COALESCE(
+          NULLIF(TRIM(u.full_name), ''),
+          NULLIF(TRIM(u.username), ''),
+          u.email,
+          'Order ' || COALESCE(sc.order_code, sc.id::text)
+        ) as user_name,
+        COALESCE(u.email, '') as user_email
+      FROM system_conversions sc
+      LEFT JOIN clicks cl ON sc.click_id = cl.id
+      LEFT JOIN users u ON COALESCE(sc.user_id, cl.user_id) = u.id
+      WHERE sc.status = 'approved'
+        AND sc.order_time >= $1
+        AND sc.order_time <= $2
+        AND (sc.system_reconciliation_id IS NULL OR sc.system_reconciliation_id != $3)
+        AND (sc.system_reconciliation_status IS NULL
+             OR sc.system_reconciliation_status NOT IN ('reconciled', 'paid'))
+        ${searchCondition}
+      ORDER BY sc.approval_time DESC NULLS LAST, sc.order_time DESC
+      LIMIT $${queryParams.length - 1} OFFSET $${queryParams.length}
+    `;
+
+    const ordersResult = await pool.query(ordersQuery, queryParams);
+
+    return {
+      reconciliation: recon,
+      orders: ordersResult.rows,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    };
+  }
+
+  /**
+   * Add orders to an existing draft reconciliation
+   *
+   * @param {string} reconciliationId - ID of the reconciliation
+   * @param {Array<string>} orderIds - Array of conversion IDs to add
+   * @param {string} performedBy - Admin user ID
+   * @returns {Object} Updated reconciliation
+   */
+  static async addOrdersToReconciliation(reconciliationId, orderIds, performedBy) {
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // 1. Verify reconciliation is DRAFT
+      const reconResult = await client.query(
+        'SELECT * FROM system_reconciliations WHERE id = $1',
+        [reconciliationId]
+      );
+
+      if (reconResult.rows.length === 0) {
+        throw new Error('Kỳ đối soát không tồn tại');
+      }
+
+      const recon = reconResult.rows[0];
+
+      if (recon.status !== 'draft') {
+        throw new Error('Chỉ có thể thêm đơn hàng vào kỳ đối soát DRAFT');
+      }
+
+      // 2. Get order details (only approved, not already in any reconciliation)
+      const ordersQuery = `
+        SELECT
+          c.id as conversion_id,
+          c.user_id,
+          c.merchant_id,
+          COALESCE(c.merchant_name, 'Unknown') as merchant_name,
+          c.order_time,
+          c.confirmed_time,
+          COALESCE(c.order_amount, 0) as order_value,
+          COALESCE(c.commission, 0) as commission,
+          COALESCE(c.cashback_amount, 0) as cashback_amount,
+          c.status,
+          u.created_at as user_created_at
+        FROM conversions c
+        LEFT JOIN users u ON c.user_id = u.id
+        WHERE c.id = ANY($1)
+          AND c.status = 'approved'
+          AND NOT EXISTS (
+            SELECT 1 FROM system_reconciliation_items sri
+            WHERE sri.conversion_id = c.id
+          )
+        ORDER BY c.order_time ASC
+      `;
+
+      const ordersResult = await client.query(ordersQuery, [orderIds]);
+      const orders = ordersResult.rows;
+
+      if (orders.length === 0) {
+        throw new Error('Không có đơn hàng hợp lệ để thêm');
+      }
+
+      // 3. Insert reconciliation items
+      let addedCashback = 0;
+      const addedUserIds = new Set();
+
+      for (const order of orders) {
+        const riskScore = await RiskAssessmentService.calculateRiskScore({
+          conversion: order,
+          userCreatedAt: order.user_created_at
+        });
+
+        const isHighRisk = riskScore >= 50;
+
+        await client.query(`
+          INSERT INTO system_reconciliation_items (
+            system_reconciliation_id, conversion_id, user_id,
+            merchant_id, merchant_name, order_time, approval_time,
+            order_value, commission_amount, cashback_amount,
+            conversion_status, is_high_risk, risk_score
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        `, [
+          reconciliationId,
+          order.conversion_id,
+          order.user_id,
+          order.merchant_id,
+          order.merchant_name,
+          order.order_time,
+          order.confirmed_time,
+          order.order_value,
+          order.commission,
+          order.cashback_amount,
+          'Đã duyệt',
+          isHighRisk,
+          riskScore
+        ]);
+
+        addedCashback += parseFloat(order.cashback_amount);
+        addedUserIds.add(order.user_id);
+
+        if (isHighRisk) {
+          // Add to reserved amount
+          const approvalRate = await this.getHistoricalApprovalRate(client);
+          const rejectionBuffer = 1 - (approvalRate / 100);
+          const reservedForThisOrder = parseFloat(order.cashback_amount) * rejectionBuffer;
+
+          await client.query(`
+            UPDATE system_reconciliations
+            SET reserved_amount = reserved_amount + $1
+            WHERE id = $2
+          `, [reservedForThisOrder, reconciliationId]);
+        }
+      }
+
+      // 4. Update conversions status
+      await client.query(`
+        UPDATE conversions
+        SET
+          system_reconciliation_status = 'pending',
+          system_reconciliation_id = $1,
+          system_reconciled_at = CURRENT_TIMESTAMP
+        WHERE id = ANY($2)
+      `, [reconciliationId, orders.map(o => o.conversion_id)]);
+
+      // 5. Recalculate totals
+      const totalsQuery = `
+        SELECT
+          COUNT(*) as total_orders,
+          COUNT(DISTINCT user_id) as total_users,
+          SUM(cashback_amount) as total_cashback
+        FROM system_reconciliation_items
+        WHERE system_reconciliation_id = $1
+      `;
+
+      const totalsResult = await client.query(totalsQuery, [reconciliationId]);
+      const totals = totalsResult.rows[0];
+
+      // 6. Update reconciliation
+      await client.query(`
+        UPDATE system_reconciliations
+        SET
+          total_orders = $1,
+          total_users = $2,
+          total_cashback = $3,
+          approved_orders = $1
+        WHERE id = $4
+      `, [
+        totals.total_orders,
+        totals.total_users,
+        totals.total_cashback,
+        reconciliationId
+      ]);
+
+      // 7. Log action
+      await client.query(`
+        INSERT INTO system_reconciliation_logs (
+          system_reconciliation_id, action, performed_by,
+          new_status, new_total_cashback, reason
+        ) VALUES ($1, $2, $3, $4, $5, $6)
+      `, [
+        reconciliationId,
+        'orders_added',
+        performedBy,
+        'draft',
+        totals.total_cashback,
+        `Thêm ${orders.length} đơn hàng vào kỳ đối soát`
+      ]);
+
+      await client.query('COMMIT');
+
+      return {
+        added_count: orders.length,
+        added_cashback: addedCashback,
+        updated_reconciliation: await this.getReconciliationById(reconciliationId)
+      };
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Update reconciliation (status, label)
+   * Only allow updating draft/finalized reconciliations that haven't been paid
+   *
+   * @param {string} reconciliationId - ID of the reconciliation
+   * @param {Object} updates - { period_label, status }
+   * @param {string} performedBy - Admin user ID
+   * @returns {Object} Updated reconciliation
+   */
+  static async updateReconciliation(reconciliationId, updates, performedBy) {
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // Get current reconciliation
+      const reconResult = await client.query(
+        'SELECT * FROM system_reconciliations WHERE id = $1',
+        [reconciliationId]
+      );
+
+      if (reconResult.rows.length === 0) {
+        throw new Error('Kỳ đối soát không tồn tại');
+      }
+
+      const currentRecon = reconResult.rows[0];
+
+      // Validate: Cannot edit if already paid users
+      if (currentRecon.status === 'paid') {
+        throw new Error('Không thể chỉnh sửa kỳ đối soát đã thanh toán cho users');
+      }
+
+      // Build update query
+      const updateFields = [];
+      const updateValues = [];
+      let paramIndex = 1;
+
+      if (updates.period_label) {
+        updateFields.push(`period_label = $${paramIndex}`);
+        updateValues.push(updates.period_label);
+        paramIndex++;
+      }
+
+      if (updates.status) {
+        // Validate status transition
+        const validStatuses = ['draft', 'finalized'];
+        if (!validStatuses.includes(updates.status)) {
+          throw new Error('Trạng thái không hợp lệ. Chỉ cho phép: draft, finalized');
+        }
+
+        updateFields.push(`status = $${paramIndex}`);
+        updateValues.push(updates.status);
+        paramIndex++;
+
+        // If changing to draft, clear finalized_at
+        if (updates.status === 'draft') {
+          updateFields.push('finalized_at = NULL');
+          updateFields.push('performed_by = NULL');
+        }
+
+        // If changing to finalized, set finalized_at
+        if (updates.status === 'finalized' && currentRecon.status !== 'finalized') {
+          updateFields.push('finalized_at = CURRENT_TIMESTAMP');
+          updateFields.push(`performed_by = $${paramIndex}`);
+          updateValues.push(performedBy);
+          paramIndex++;
+        }
+      }
+
+      if (updateFields.length === 0) {
+        throw new Error('Không có thông tin nào để cập nhật');
+      }
+
+      updateValues.push(reconciliationId);
+
+      const updateQuery = `
+        UPDATE system_reconciliations
+        SET ${updateFields.join(', ')}
+        WHERE id = $${paramIndex}
+        RETURNING *
+      `;
+
+      const updateResult = await client.query(updateQuery, updateValues);
+      const updatedRecon = updateResult.rows[0];
+
+      // If status changed from finalized to draft, revert conversions status
+      if (currentRecon.status === 'finalized' && updates.status === 'draft') {
+        // First, check if all users have sufficient balance to revert
+        const itemsResult = await client.query(`
+          SELECT user_id, SUM(cashback_amount) as total_cashback
+          FROM system_reconciliation_items
+          WHERE system_reconciliation_id = $1
+          GROUP BY user_id
+        `, [reconciliationId]);
+
+        // Validate balances
+        for (const item of itemsResult.rows) {
+          const balanceCheck = await client.query(`
+            SELECT available_balance
+            FROM user_system_balance
+            WHERE user_id = $1
+          `, [item.user_id]);
+
+          if (balanceCheck.rows.length === 0) {
+            throw new Error(`Không tìm thấy balance cho user ${item.user_id}`);
+          }
+
+          const currentBalance = parseFloat(balanceCheck.rows[0].available_balance);
+          const revertAmount = parseFloat(item.total_cashback);
+
+          if (currentBalance < revertAmount) {
+            throw new Error(
+              `Không thể revert: User có số dư ${currentBalance.toLocaleString('vi-VN')}đ, ` +
+              `cần trừ ${revertAmount.toLocaleString('vi-VN')}đ. ` +
+              `Có thể user đã rút tiền.`
+            );
+          }
+        }
+
+        // If validation passes, proceed with revert
+        await client.query(`
+          UPDATE conversions
+          SET
+            system_reconciliation_status = 'pending'
+          WHERE system_reconciliation_id = $1
+            AND system_reconciliation_status = 'reconciled'
+        `, [reconciliationId]);
+
+        // Revert user balances
+        for (const item of itemsResult.rows) {
+          await client.query(`
+            UPDATE user_system_balance
+            SET
+              available_balance = available_balance - $1,
+              total_earned = total_earned - $1,
+              updated_at = CURRENT_TIMESTAMP
+            WHERE user_id = $2
+          `, [item.total_cashback, item.user_id]);
+        }
+      }
+
+      // Log action
+      await client.query(`
+        INSERT INTO system_reconciliation_logs (
+          system_reconciliation_id, action, performed_by,
+          old_status, new_status, reason
+        ) VALUES ($1, $2, $3, $4, $5, $6)
+      `, [
+        reconciliationId,
+        'updated',
+        performedBy,
+        currentRecon.status,
+        updates.status || currentRecon.status,
+        `Cập nhật kỳ đối soát: ${updates.period_label ? 'Đổi tên, ' : ''}${updates.status ? `Đổi trạng thái ${currentRecon.status} → ${updates.status}` : ''}`
+      ]);
+
+      await client.query('COMMIT');
+
+      return updatedRecon;
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 }
 

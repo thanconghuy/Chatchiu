@@ -189,6 +189,50 @@
             cursor: not-allowed;
         }
 
+        .btn-add-orders {
+            background: #8b5cf6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .btn-add-orders:hover {
+            background: #7c3aed;
+        }
+
+        .btn-add-orders i {
+            margin-right: 6px;
+        }
+
+        .order-checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .btn-edit {
+            background: #06b6d4;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .btn-edit:hover {
+            background: #0891b2;
+        }
+
+        .btn-edit i {
+            margin-right: 6px;
+        }
+
         .create-recon-form {
             background: white;
             padding: 24px;
@@ -529,12 +573,112 @@
         </div>
     </div>
 
+    <!-- Edit Reconciliation Modal -->
+    <div id="editReconciliationModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>Sửa Kỳ Đối Soát</h2>
+                <button class="modal-close" onclick="closeEditModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="editReconciliationForm" style="display: flex; flex-direction: column; gap: 20px;">
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600;">Nhãn kỳ đối soát</label>
+                        <input
+                            type="text"
+                            id="editPeriodLabel"
+                            required
+                            style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem;"
+                        >
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600;">Trạng thái</label>
+                        <select
+                            id="editStatus"
+                            required
+                            style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem;"
+                        >
+                            <option value="draft">Chưa hoàn tất (Draft)</option>
+                            <option value="finalized">Đã hoàn tất (Finalized)</option>
+                        </select>
+                    </div>
+                    <div style="padding: 12px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px;">
+                        <p style="margin: 0; font-size: 0.875rem; color: #92400e;">
+                            <strong>⚠️ Lưu ý:</strong> Đổi status về "Draft" sẽ revert lại số dư users (nếu đã finalize)
+                        </p>
+                    </div>
+                </form>
+                <div id="editStatusMessage" class="status-message" style="display: none;"></div>
+            </div>
+            <div class="modal-footer" style="padding: 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px;">
+                <button onclick="closeEditModal()" style="padding: 10px 24px; border: 1px solid #ddd; background: white; border-radius: 8px; cursor: pointer;">
+                    Hủy
+                </button>
+                <button
+                    onclick="confirmEditReconciliation()"
+                    style="padding: 10px 24px; background: #06b6d4; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;"
+                >
+                    Cập nhật
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Orders Modal -->
+    <div id="addOrdersModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 1000px;">
+            <div class="modal-header">
+                <h2 id="addOrdersModalTitle">Thêm Đơn Hàng</h2>
+                <button class="modal-close" onclick="closeAddOrdersModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Status Message -->
+                <div id="addOrdersStatusMessage" class="status-message" style="display: none;"></div>
+
+                <!-- Search Box -->
+                <div style="margin-bottom: 20px;">
+                    <input
+                        type="text"
+                        id="orderSearchInput"
+                        placeholder="Tìm theo Order ID, Email, Tên người dùng..."
+                        style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem;"
+                    >
+                </div>
+
+                <!-- Orders Table -->
+                <div id="availableOrdersContainer">
+                    <div class="loading">Đang tải đơn hàng...</div>
+                </div>
+
+                <!-- Pagination -->
+                <div id="addOrdersPagination" style="display: none; margin-top: 20px; justify-content: center; gap: 10px;">
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px;">
+                <button onclick="closeAddOrdersModal()" style="padding: 10px 24px; border: 1px solid #ddd; background: white; border-radius: 8px; cursor: pointer;">
+                    Hủy
+                </button>
+                <button
+                    id="confirmAddOrdersBtn"
+                    onclick="confirmAddOrders()"
+                    style="padding: 10px 24px; background: #8b5cf6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;"
+                    disabled
+                >
+                    Thêm Đơn Hàng
+                </button>
+            </div>
+        </div>
+    </div>
 
     <script src="../js/config.js"></script>
     <script>
         let currentPage = 1;
         let currentReconId = null;
         let itemsPerPage = 10;
+
+        // Eligible orders pagination
+        let eligibleOrdersPage = 1;
+        let eligibleOrdersLimit = 50;
 
         // Check auth
         const token = localStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN);
@@ -771,11 +915,9 @@
 
         function displayStats(data) {
             const stats = data.reconciliation_stats;
-            const balance = data.balance_stats;
 
             const html = `
-                <!-- First row: 4 cards -->
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 20px;">
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
                     <div class="stat-card">
                         <div class="stat-label">Tổng Kỳ Đối Soát</div>
                         <div class="stat-value">${stats.total_reconciliations || 0}</div>
@@ -790,18 +932,7 @@
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">Tổng Cashback</div>
-                        <div class="stat-value money">${formatMoney(stats.total_cashback_all_time || 0)}</div>
-                    </div>
-                </div>
-                <!-- Second row: Balance cards -->
-                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
-                    <div class="stat-card">
-                        <div class="stat-label">Số Dư Khả Dụng</div>
-                        <div class="stat-value money">${formatMoney(balance.total_available || 0)}</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Khoản Nợ</div>
-                        <div class="stat-value risk">${formatMoney(balance.total_debt || 0)}</div>
+                        <div class="stat-value money">${formatMoney(stats.total_cashback_finalized || 0)}</div>
                     </div>
                 </div>
             `;
@@ -901,14 +1032,22 @@
                         <button class="btn-view-items" onclick="viewItems('${recon.id}', '${escapeHtml(recon.period_label)}')">
                             Xem Chi Tiết
                         </button>
-                        ${recon.status === 'finalized' ? `
-                            <button class="btn-sync" onclick="syncReconciliation('${recon.id}', '${escapeHtml(recon.period_label)}')">
-                                🔄 Đồng bộ API
+                        ${recon.status !== 'paid' ? `
+                            <button class="btn-edit" onclick="openEditModal('${recon.id}', '${escapeHtml(recon.period_label)}', '${recon.status}')">
+                                <i class="fas fa-edit"></i> Sửa
                             </button>
                         ` : ''}
                         ${recon.status === 'draft' ? `
+                            <button class="btn-add-orders" onclick="openAddOrdersModal('${recon.id}', '${escapeHtml(recon.period_label)}')">
+                                <i class="fas fa-plus"></i> Thêm Đơn Hàng
+                            </button>
                             <button class="btn-finalize" onclick="finalizeReconciliation('${recon.id}')">
                                 Hoàn tất
+                            </button>
+                        ` : ''}
+                        ${recon.status === 'finalized' ? `
+                            <button class="btn-sync" onclick="syncReconciliation('${recon.id}', '${escapeHtml(recon.period_label)}')">
+                                🔄 Đồng bộ API
                             </button>
                         ` : ''}
                     </div>
@@ -1214,7 +1353,9 @@
             document.getElementById('itemsModal').classList.remove('show');
         }
 
-        async function loadEligibleOrders() {
+        async function loadEligibleOrders(page = 1) {
+            eligibleOrdersPage = page;
+
             const periodStart = document.getElementById('periodStart').value;
             const periodEnd = document.getElementById('periodEnd').value;
             const affSid = document.getElementById('affSidFilter').value;
@@ -1237,7 +1378,7 @@
             content.innerHTML = '<div class="loading">Đang tải dữ liệu...</div>';
 
             try {
-                const url = `${CONFIG.API_BASE_URL}/admin/system-reconciliation/preview?periodStart=${periodStart}&periodEnd=${periodEnd}&affSid=${affSid}`;
+                const url = `${CONFIG.API_BASE_URL}/admin/system-reconciliation/preview?periodStart=${periodStart}&periodEnd=${periodEnd}&affSid=${affSid}&page=${page}&limit=${eligibleOrdersLimit}`;
                 const response = await fetch(url, {
                     headers: {
                         'Authorization': `Bearer ${token}`
@@ -1258,7 +1399,7 @@
         }
 
         function displayEligibleOrders(data) {
-            const { orders, summary, period } = data;
+            const { orders, summary, period, pagination } = data;
             const content = document.getElementById('eligibleOrdersContent');
 
             if (orders.length === 0) {
@@ -1269,6 +1410,9 @@
                         <p>Không tìm thấy đơn hàng đã duyệt trong khoảng thời gian đã chọn</p>
                     </div>
                 `;
+                // Hide pagination when no orders
+                const paginationEl = document.getElementById('eligibleOrdersPagination');
+                if (paginationEl) paginationEl.style.display = 'none';
                 return;
             }
 
@@ -1369,17 +1513,22 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <div style="font-size: 0.875rem;">${formatDateTime(order.confirmed_time)}</div>
+                                    <div style="font-size: 0.875rem;">${formatDateTime(order.order_time)}</div>
                                     <small style="color: #64748b; font-size: 0.75rem;">Xác nhận</small>
                                 </td>
                             </tr>
                         `).join('')}
                     </tbody>
                 </table>
+
+                <div id="eligibleOrdersPagination" style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 24px; padding: 16px;"></div>
             `;
 
             content.innerHTML = html;
             updateSelection(); // Initialize selection count
+
+            // Display pagination
+            displayEligibleOrdersPagination(data.pagination);
         }
 
         // Selection management functions
@@ -1423,6 +1572,39 @@
                 selectAllCheckbox.indeterminate = false;
             }
             updateSelection();
+        }
+
+        function displayEligibleOrdersPagination(pagination) {
+            const paginationEl = document.getElementById('eligibleOrdersPagination');
+
+            if (!pagination || pagination.totalPages <= 1) {
+                paginationEl.style.display = 'none';
+                return;
+            }
+
+            paginationEl.style.display = 'flex';
+
+            let html = '';
+
+            // Previous button
+            if (pagination.page > 1) {
+                html += `<button onclick="changeEligibleOrdersPage(${pagination.page - 1})" style="padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-weight: 500;">Trước</button>`;
+            }
+
+            // Page numbers
+            html += `<span style="padding: 8px 16px; font-weight: 600;">Trang ${pagination.page} / ${pagination.totalPages}</span>`;
+            html += `<span style="padding: 8px 16px; color: #64748b; font-size: 0.875rem;">(${pagination.total} đơn hàng)</span>`;
+
+            // Next button
+            if (pagination.page < pagination.totalPages) {
+                html += `<button onclick="changeEligibleOrdersPage(${pagination.page + 1})" style="padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-weight: 500;">Sau</button>`;
+            }
+
+            paginationEl.innerHTML = html;
+        }
+
+        function changeEligibleOrdersPage(page) {
+            loadEligibleOrders(page);
         }
 
         function getOrderStatusClass(status) {
@@ -1484,6 +1666,338 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        // ===== Edit Reconciliation Modal Functions =====
+        let currentEditReconId = null;
+
+        function openEditModal(reconId, periodLabel, status) {
+            currentEditReconId = reconId;
+
+            document.getElementById('editPeriodLabel').value = periodLabel;
+            document.getElementById('editStatus').value = status;
+
+            // Hide status message
+            const statusEl = document.getElementById('editStatusMessage');
+            if (statusEl) statusEl.style.display = 'none';
+
+            document.getElementById('editReconciliationModal').style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            document.getElementById('editReconciliationModal').style.display = 'none';
+            currentEditReconId = null;
+
+            // Hide status message
+            const statusEl = document.getElementById('editStatusMessage');
+            if (statusEl) statusEl.style.display = 'none';
+        }
+
+        async function confirmEditReconciliation() {
+            const periodLabel = document.getElementById('editPeriodLabel').value.trim();
+            const status = document.getElementById('editStatus').value;
+            const statusEl = document.getElementById('editStatusMessage');
+
+            if (!periodLabel) {
+                alert('Vui lòng nhập nhãn kỳ đối soát');
+                return;
+            }
+
+            try {
+                const response = await fetch(
+                    `${CONFIG.API_BASE_URL}/admin/system-reconciliation/${currentEditReconId}`,
+                    {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            period_label: periodLabel,
+                            status: status
+                        })
+                    }
+                );
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showStatus(statusEl, 'success', result.message);
+                    setTimeout(() => {
+                        closeEditModal();
+                        loadReconciliations();
+                        loadStats();
+                    }, 1500);
+                } else {
+                    showStatus(statusEl, 'error', result.message);
+                }
+            } catch (error) {
+                console.error('Error updating reconciliation:', error);
+                showStatus(statusEl, 'error', `Lỗi: ${error.message}`);
+            }
+        }
+
+        // ===== Add Orders Modal Functions =====
+        let currentAddOrdersReconId = null;
+        let currentAddOrdersPage = 1;
+        let selectedOrderIds = new Set();
+        let orderSearchTimeout = null;
+
+        async function openAddOrdersModal(reconId, periodLabel) {
+            currentAddOrdersReconId = reconId;
+            currentAddOrdersPage = 1;
+            selectedOrderIds.clear();
+
+            document.getElementById('addOrdersModalTitle').textContent = `Thêm Đơn Hàng - ${periodLabel}`;
+            document.getElementById('addOrdersModal').style.display = 'flex';
+
+            // Hide status message
+            const statusEl = document.getElementById('addOrdersStatusMessage');
+            if (statusEl) statusEl.style.display = 'none';
+
+            // Setup search handler
+            const searchInput = document.getElementById('orderSearchInput');
+            searchInput.value = '';
+            searchInput.oninput = () => {
+                clearTimeout(orderSearchTimeout);
+                orderSearchTimeout = setTimeout(() => {
+                    currentAddOrdersPage = 1;
+                    loadAvailableOrders();
+                }, 500);
+            };
+
+            await loadAvailableOrders();
+        }
+
+        function closeAddOrdersModal() {
+            document.getElementById('addOrdersModal').style.display = 'none';
+            currentAddOrdersReconId = null;
+            selectedOrderIds.clear();
+
+            // Hide status message
+            const statusEl = document.getElementById('addOrdersStatusMessage');
+            if (statusEl) statusEl.style.display = 'none';
+        }
+
+        async function loadAvailableOrders() {
+            try {
+                const container = document.getElementById('availableOrdersContainer');
+                container.innerHTML = '<div class="loading">Đang tải đơn hàng...</div>';
+
+                const searchQuery = document.getElementById('orderSearchInput').value.trim();
+                const params = new URLSearchParams({
+                    page: currentAddOrdersPage,
+                    limit: 20,
+                    search: searchQuery
+                });
+
+                const response = await fetch(
+                    `${CONFIG.API_BASE_URL}/admin/system-reconciliation/${currentAddOrdersReconId}/available-orders?${params}`,
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    }
+                );
+
+                const result = await response.json();
+
+                if (result.success) {
+                    displayAvailableOrders(result.data);
+                } else {
+                    container.innerHTML = `<div class="error">${result.message}</div>`;
+                }
+            } catch (error) {
+                console.error('Error loading available orders:', error);
+                document.getElementById('availableOrdersContainer').innerHTML =
+                    `<div class="error">Lỗi kết nối: ${error.message}</div>`;
+            }
+        }
+
+        function displayAvailableOrders(data) {
+            const container = document.getElementById('availableOrdersContainer');
+            const orders = data.orders;
+
+            if (orders.length === 0) {
+                container.innerHTML = '<div class="no-data">Không có đơn hàng nào để thêm</div>';
+                return;
+            }
+
+            const html = `
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">
+                                <input
+                                    type="checkbox"
+                                    id="selectAllOrders"
+                                    class="order-checkbox"
+                                    onchange="toggleSelectAll(this)"
+                                >
+                            </th>
+                            <th>Người dùng</th>
+                            <th>Order ID</th>
+                            <th>Ngày đặt hàng</th>
+                            <th>Thời gian duyệt</th>
+                            <th>Giá trị đơn</th>
+                            <th>Cashback</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${orders.map(order => `
+                            <tr>
+                                <td>
+                                    <input
+                                        type="checkbox"
+                                        class="order-checkbox order-item-checkbox"
+                                        value="${order.conversion_id}"
+                                        ${selectedOrderIds.has(order.conversion_id) ? 'checked' : ''}
+                                        onchange="toggleOrderSelection('${order.conversion_id}')"
+                                    >
+                                </td>
+                                <td>
+                                    <div style="font-weight: 600;">${escapeHtml(order.user_name || 'N/A')}</div>
+                                    ${order.user_email ? `<small style="color: #64748b;">${escapeHtml(order.user_email)}</small>` : ''}
+                                </td>
+                                <td>
+                                    <code style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 0.875rem;">
+                                        ${order.order_id || order.conversion_id.substring(0, 8)}
+                                    </code>
+                                </td>
+                                <td>${formatDate(order.order_time)}</td>
+                                <td>
+                                    <div style="font-size: 0.875rem;">${formatDateTime(order.confirmed_time)}</div>
+                                </td>
+                                <td>${formatMoney(order.order_value)}</td>
+                                <td style="color: #10b981; font-weight: 600;">${formatMoney(order.cashback_amount)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            container.innerHTML = html;
+
+            // Update pagination
+            displayAddOrdersPagination(data.pagination);
+
+            // Update button state
+            updateAddOrdersButton();
+        }
+
+        function toggleSelectAll(checkbox) {
+            const checkboxes = document.querySelectorAll('.order-item-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = checkbox.checked;
+                const orderId = cb.value;
+                if (checkbox.checked) {
+                    selectedOrderIds.add(orderId);
+                } else {
+                    selectedOrderIds.delete(orderId);
+                }
+            });
+            updateAddOrdersButton();
+        }
+
+        function toggleOrderSelection(orderId) {
+            if (selectedOrderIds.has(orderId)) {
+                selectedOrderIds.delete(orderId);
+            } else {
+                selectedOrderIds.add(orderId);
+            }
+            updateAddOrdersButton();
+        }
+
+        function updateAddOrdersButton() {
+            const btn = document.getElementById('confirmAddOrdersBtn');
+            if (selectedOrderIds.size > 0) {
+                btn.disabled = false;
+                btn.textContent = `Thêm ${selectedOrderIds.size} Đơn Hàng`;
+            } else {
+                btn.disabled = true;
+                btn.textContent = 'Thêm Đơn Hàng';
+            }
+        }
+
+        function displayAddOrdersPagination(pagination) {
+            const paginationEl = document.getElementById('addOrdersPagination');
+
+            if (pagination.totalPages <= 1) {
+                paginationEl.style.display = 'none';
+                return;
+            }
+
+            paginationEl.style.display = 'flex';
+
+            let html = '';
+
+            // Previous button
+            if (pagination.page > 1) {
+                html += `<button onclick="changeAddOrdersPage(${pagination.page - 1})" style="padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer;">Trước</button>`;
+            }
+
+            // Page numbers
+            html += `<span style="padding: 8px 16px;">Trang ${pagination.page} / ${pagination.totalPages}</span>`;
+
+            // Next button
+            if (pagination.page < pagination.totalPages) {
+                html += `<button onclick="changeAddOrdersPage(${pagination.page + 1})" style="padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer;">Sau</button>`;
+            }
+
+            paginationEl.innerHTML = html;
+        }
+
+        function changeAddOrdersPage(page) {
+            currentAddOrdersPage = page;
+            loadAvailableOrders();
+        }
+
+        async function confirmAddOrders() {
+            if (selectedOrderIds.size === 0) {
+                alert('Vui lòng chọn ít nhất 1 đơn hàng');
+                return;
+            }
+
+            const btn = document.getElementById('confirmAddOrdersBtn');
+            const statusEl = document.getElementById('addOrdersStatusMessage');
+            btn.disabled = true;
+            btn.textContent = 'Đang xử lý...';
+
+            try {
+                const response = await fetch(
+                    `${CONFIG.API_BASE_URL}/admin/system-reconciliation/${currentAddOrdersReconId}/add-orders`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            orderIds: Array.from(selectedOrderIds)
+                        })
+                    }
+                );
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showStatus(statusEl, 'success', result.message);
+                    setTimeout(() => {
+                        closeAddOrdersModal();
+                        loadReconciliations();
+                        loadStats();
+                    }, 1500);
+                } else {
+                    showStatus(statusEl, 'error', result.message);
+                    btn.disabled = false;
+                    updateAddOrdersButton();
+                }
+            } catch (error) {
+                console.error('Error adding orders:', error);
+                showStatus(statusEl, 'error', `Lỗi: ${error.message}`);
+                btn.disabled = false;
+                updateAddOrdersButton();
+            }
         }
     </script>
 

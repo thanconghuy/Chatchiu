@@ -59,6 +59,7 @@ router.get('/stats', async (req, res) => {
         COUNT(CASE WHEN status = 'paid' THEN 1 END) as paid_count,
         SUM(total_cashback) as total_cashback_all_time,
         SUM(CASE WHEN status = 'finalized' THEN total_cashback ELSE 0 END) as total_cashback_finalized,
+        SUM(CASE WHEN status = 'draft' THEN total_cashback ELSE 0 END) as total_cashback_pending,
         SUM(reserved_amount) as total_reserved
       FROM system_reconciliations
     `;
@@ -66,14 +67,10 @@ router.get('/stats', async (req, res) => {
     const statsResult = await pool.query(query);
     const stats = statsResult.rows[0];
 
-    // Get balance stats
-    const balanceStats = await BalanceManagementService.getTotalStats();
-
     res.json({
       success: true,
       data: {
-        reconciliation_stats: stats,
-        balance_stats: balanceStats
+        reconciliation_stats: stats
       }
     });
 
@@ -92,7 +89,7 @@ router.get('/stats', async (req, res) => {
  */
 router.get('/preview', async (req, res) => {
   try {
-    const { periodStart: startStr, periodEnd: endStr, affSid } = req.query;
+    const { periodStart: startStr, periodEnd: endStr, affSid, page = 1, limit = 50 } = req.query;
 
     if (!startStr || !endStr) {
       return res.status(400).json({
@@ -119,12 +116,40 @@ router.get('/preview', async (req, res) => {
       affSidCondition = ` AND c.aff_sid = '${affSid}'`;
     }
 
-    // Query to get eligible orders for System Reconciliation
-    // Criteria:
-    // 1. status = 'approved' (approved by admin in system)
-    // 2. order_time is within the period (Tháng + 15 ngày)
-    // NOTE: We don't check is_confirmed here because this is System Reconciliation,
-    //       not API Reconciliation. is_confirmed is only used for API reconciliation.
+    // Count total eligible orders
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM conversions c
+      WHERE c.status = 'approved'
+        AND c.order_time >= $1
+        AND c.order_time <= $2
+        ${affSidCondition}
+    `;
+    const countResult = await pool.query(countQuery, [periodStart, periodEnd]);
+    const totalOrders = parseInt(countResult.rows[0].total);
+
+    // Calculate summary from all orders
+    const summaryQuery = `
+      SELECT
+        COUNT(*) as total_orders,
+        COUNT(DISTINCT user_id) as total_users,
+        COALESCE(SUM(cashback_amount), 0) as total_cashback,
+        COALESCE(SUM(commission), 0) as total_commission,
+        COALESCE(SUM(order_amount), 0) as total_order_amount
+      FROM conversions c
+      WHERE c.status = 'approved'
+        AND c.order_time >= $1
+        AND c.order_time <= $2
+        ${affSidCondition}
+    `;
+    const summaryResult = await pool.query(summaryQuery, [periodStart, periodEnd]);
+    const summary = summaryResult.rows[0];
+
+    // Get paginated orders
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const offset = (pageNum - 1) * limitNum;
+
     const query = `
       SELECT
         c.id,
@@ -154,29 +179,32 @@ router.get('/preview', async (req, res) => {
         AND c.order_time <= $2
         ${affSidCondition}
       ORDER BY c.order_time DESC
-      LIMIT 1000
+      LIMIT $3 OFFSET $4
     `;
 
-    const result = await pool.query(query, [periodStart, periodEnd]);
+    const result = await pool.query(query, [periodStart, periodEnd, limitNum, offset]);
     const orders = result.rows;
-
-    // Calculate summary
-    const summary = {
-      total_orders: orders.length,
-      total_users: new Set(orders.filter(o => o.user_id).map(o => o.user_id)).size,
-      total_cashback: orders.reduce((sum, o) => sum + parseFloat(o.cashback || 0), 0),
-      total_commission: orders.reduce((sum, o) => sum + parseFloat(o.commission || 0), 0),
-      total_order_amount: orders.reduce((sum, o) => sum + parseFloat(o.order_amount || 0), 0)
-    };
 
     res.json({
       success: true,
       data: {
         orders,
-        summary,
+        summary: {
+          total_orders: parseInt(summary.total_orders),
+          total_users: parseInt(summary.total_users),
+          total_cashback: parseFloat(summary.total_cashback),
+          total_commission: parseFloat(summary.total_commission),
+          total_order_amount: parseFloat(summary.total_order_amount)
+        },
         period: {
           start: periodStart,
           end: periodEnd
+        },
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total: totalOrders,
+          totalPages: Math.ceil(totalOrders / limitNum)
         }
       }
     });
@@ -371,6 +399,113 @@ router.post('/:id/finalize', async (req, res) => {
 
   } catch (error) {
     console.error('Error finalizing reconciliation:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/admin/system-reconciliation/:id/available-orders
+ * Get available orders that can be added to reconciliation
+ */
+router.get('/:id/available-orders', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { search = '', page = 1, limit = 20 } = req.query;
+
+    const result = await SystemReconciliationService.getAvailableOrdersForReconciliation(id, {
+      search,
+      page: parseInt(page),
+      limit: parseInt(limit)
+    });
+
+    res.json({
+      success: true,
+      data: result
+    });
+
+  } catch (error) {
+    console.error('Error getting available orders:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/admin/system-reconciliation/:id/add-orders
+ * Add orders to an existing draft reconciliation
+ */
+router.post('/:id/add-orders', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { orderIds } = req.body;
+
+    if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'orderIds phải là mảng và không được rỗng'
+      });
+    }
+
+    const result = await SystemReconciliationService.addOrdersToReconciliation(
+      id,
+      orderIds,
+      req.userId
+    );
+
+    res.json({
+      success: true,
+      message: `Đã thêm ${result.added_count} đơn hàng vào kỳ đối soát`,
+      data: result
+    });
+
+  } catch (error) {
+    console.error('Error adding orders:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
+ * PUT /api/admin/system-reconciliation/:id
+ * Update reconciliation (status, label)
+ */
+router.put('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { period_label, status } = req.body;
+
+    const updates = {};
+    if (period_label) updates.period_label = period_label;
+    if (status) updates.status = status;
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không có thông tin nào để cập nhật'
+      });
+    }
+
+    const updatedRecon = await SystemReconciliationService.updateReconciliation(
+      id,
+      updates,
+      req.userId
+    );
+
+    res.json({
+      success: true,
+      message: 'Cập nhật kỳ đối soát thành công',
+      data: updatedRecon
+    });
+
+  } catch (error) {
+    console.error('Error updating reconciliation:', error);
     res.status(500).json({
       success: false,
       message: error.message
