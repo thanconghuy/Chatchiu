@@ -22,6 +22,7 @@ const SystemSettings = require('../services/systemSettings');
 const { ActivityLogger, ACTIVITY_TYPES } = require('../services/activityLogger');
 const paymentHistoryService = require('../services/paymentHistoryService');
 const UserPaymentHistory = require('../models/UserPaymentHistory');
+const AutoSyncHistory = require('../models/AutoSyncHistory');
 
 /**
  * GET /api/admin/dashboard/stats
@@ -5368,6 +5369,82 @@ router.delete('/payment-history/:id', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Không thể xóa'
+    });
+  }
+});
+
+// ===================================================================
+// PHASE 3: AUTO-SYNC HISTORY & MONITORING ENDPOINTS
+// ===================================================================
+
+/**
+ * GET /api/admin/auto-sync/history
+ * Get recent sync history with pagination
+ */
+router.get('/auto-sync/history', authenticateAdmin, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 20;
+    const history = await AutoSyncHistory.getRecent(limit);
+
+    res.json({
+      success: true,
+      data: history
+    });
+  } catch (error) {
+    logger.error('Error fetching sync history', { error: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Không thể lấy lịch sử sync'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/auto-sync/history/:sessionId/changes
+ * Get detailed changes for a specific sync session
+ */
+router.get('/auto-sync/history/:sessionId/changes', authenticateAdmin, async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const limit = parseInt(req.query.limit) || 100;
+
+    const changes = await AutoSyncHistory.getChanges(sessionId, limit);
+
+    res.json({
+      success: true,
+      data: changes
+    });
+  } catch (error) {
+    logger.error('Error fetching sync changes', { error: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Không thể lấy chi tiết thay đổi'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/auto-sync/stats
+ * Get sync statistics for a date range
+ */
+router.get('/auto-sync/stats', authenticateAdmin, async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // Last 30 days
+    const end = endDate ? new Date(endDate) : new Date();
+
+    const stats = await AutoSyncHistory.getStats(start, end);
+
+    res.json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    logger.error('Error fetching sync stats', { error: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Không thể lấy thống kê sync'
     });
   }
 });

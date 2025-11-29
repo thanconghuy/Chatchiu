@@ -1,6 +1,7 @@
 require('dotenv').config();
 const accessTradeService = require('../services/accesstrade');
 const trackingService = require('../services/trackingService');
+const AutoSyncHistory = require('../models/AutoSyncHistory');
 const logger = require('../utils/logger');
 
 /**
@@ -8,10 +9,13 @@ const logger = require('../utils/logger');
  * Can be run standalone or called from cron job
  * @param {number} syncDays - Number of days to sync (default: 7)
  */
-async function syncConversions(syncDays = 7) {
+async function syncConversions(syncDays = 7, syncType = 'auto') {
   logger.info('='.repeat(60));
   logger.info('Starting conversion sync from AccessTrade');
   logger.info('='.repeat(60));
+
+  // PHASE 2: Create sync history session
+  let syncSession = null;
 
   try {
     // Get conversions from specified days
@@ -19,15 +23,55 @@ async function syncConversions(syncDays = 7) {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - syncDays);
 
+    // Create sync session
+    syncSession = await AutoSyncHistory.createSession({
+      syncType,
+      syncDays,
+      startDate,
+      endDate
+    });
+
+    logger.info('Sync session created', { sessionId: syncSession.id });
+
     logger.info('Fetching conversions', {
       syncDays,
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString()
     });
 
-    // Fetch conversions from AccessTrade (với limit tối đa)
-    const response = await accessTradeService.getConversions(startDate, endDate, { limit: 300 });
-    const conversions = response.data || [];
+    // CRITICAL FIX: Fetch ALL conversions with pagination
+    let allConversions = [];
+    let currentPage = 1;
+    let totalPages = 1;
+    let totalConversions = 0;
+
+    // Fetch first page to get total pages
+    logger.info('Fetching page 1...');
+    const firstResponse = await accessTradeService.getConversions(startDate, endDate, { limit: 300, page: 1 });
+    allConversions.push(...(firstResponse.data || []));
+    totalPages = firstResponse.pagination.total_page || 1;
+    totalConversions = firstResponse.pagination.total || firstResponse.data.length;
+
+    logger.info(`Page 1/${totalPages} fetched: ${firstResponse.data.length} conversions (Total: ${totalConversions})`);
+
+    // Fetch remaining pages if there are more
+    if (totalPages > 1) {
+      logger.info(`Fetching remaining ${totalPages - 1} pages...`);
+
+      for (let page = 2; page <= totalPages; page++) {
+        logger.info(`Fetching page ${page}/${totalPages}...`);
+
+        const pageResponse = await accessTradeService.getConversions(startDate, endDate, { limit: 300, page });
+        allConversions.push(...(pageResponse.data || []));
+
+        logger.info(`Page ${page}/${totalPages} fetched: ${pageResponse.data.length} conversions`);
+
+        // Small delay to avoid rate limiting (500ms between pages)
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+
+    const conversions = allConversions;
 
     if (conversions.length === 0) {
       logger.info('No conversions found in the specified period');
@@ -40,7 +84,7 @@ async function syncConversions(syncDays = 7) {
       };
     }
 
-    logger.info(`Processing ${conversions.length} conversions (Total: ${response.pagination.total})...`);
+    logger.info(`Processing ${conversions.length} conversions from ${totalPages} pages (API reported total: ${totalConversions})...`);
 
     // Process each conversion
     const results = {
@@ -90,17 +134,46 @@ async function syncConversions(syncDays = 7) {
     logger.success('Conversion sync completed', results);
     logger.info('='.repeat(60));
 
+    // PHASE 2: Update sync session with results
+    if (syncSession) {
+      await AutoSyncHistory.completeSession(syncSession.id, {
+        status: 'completed',
+        total: results.total,
+        created: results.created,
+        updated: results.updated,
+        skipped: results.skipped,
+        errors: results.errors
+      });
+      logger.info('Sync session completed', { sessionId: syncSession.id });
+    }
+
     // Return format compatible with autoSyncService
     return {
       ...results,
       imported: results.created + results.updated,
-      duplicates: results.skipped
+      duplicates: results.skipped,
+      sessionId: syncSession?.id
     };
   } catch (error) {
     logger.error('Fatal error during conversion sync', {
       error: error.message,
       stack: error.stack
     });
+
+    // PHASE 2: Mark sync session as failed
+    if (syncSession) {
+      try {
+        await AutoSyncHistory.completeSession(syncSession.id, {
+          status: 'failed',
+          errorMessage: error.message,
+          errorStack: error.stack
+        });
+        logger.info('Sync session marked as failed', { sessionId: syncSession.id });
+      } catch (logError) {
+        logger.error('Failed to update sync session', { error: logError.message });
+      }
+    }
+
     throw error;
   }
 }

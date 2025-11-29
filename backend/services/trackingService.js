@@ -78,6 +78,38 @@ class TrackingService {
     // Extract confirmation data
     const confirmationData = this.extractConfirmationData(accesstradeData);
 
+    // PHASE 2 FIX: Check reconciliation constraints
+    // Block updates if conversion is in finalized/paid reconciliation
+    if (existingConversion.system_reconciliation_status) {
+      const reconStatus = existingConversion.system_reconciliation_status;
+
+      if (reconStatus === 'reconciled' || reconStatus === 'paid') {
+        logger.warn('Cannot update status: conversion is in finalized reconciliation', {
+          conversionId: existingConversion.id,
+          currentStatus: existingConversion.status,
+          newStatus: newStatus,
+          reconciliationStatus: reconStatus
+        });
+
+        return {
+          status: 'skipped',
+          reason: 'in_finalized_reconciliation',
+          conversionId: existingConversion.id,
+          reconciliationStatus: reconStatus
+        };
+      }
+
+      // Warn if in draft reconciliation
+      if (reconStatus === 'draft' && existingConversion.status !== newStatus) {
+        logger.warn('Updating status for conversion in draft reconciliation', {
+          conversionId: existingConversion.id,
+          currentStatus: existingConversion.status,
+          newStatus: newStatus,
+          reconciliationStatus: reconStatus
+        });
+      }
+    }
+
     // Check if status changed from pending to approved
     if (existingConversion.status === 'pending' && newStatus === 'approved') {
       logger.info('Conversion status changed: pending → approved', {
@@ -86,6 +118,23 @@ class TrackingService {
       });
 
       await this.approveConversion(existingConversion.id);
+
+      // Sync to system_conversions (Conversion.updateStatus already does this, but double-check)
+      try {
+        await SystemConversion.updateStatusByATConversionId(
+          existingConversion.id,
+          'approved',
+          new Date()
+        );
+        logger.info('Synced approved status to system_conversions', {
+          conversionId: existingConversion.id
+        });
+      } catch (error) {
+        logger.warn('Could not sync to system_conversions (non-fatal)', {
+          conversionId: existingConversion.id,
+          error: error.message
+        });
+      }
 
       return {
         status: 'updated',
@@ -105,8 +154,31 @@ class TrackingService {
       const approvalTime = new Date();
       await Conversion.updateStatus(existingConversion.id, 'rejected', approvalTime);
 
-      // Remove from user's pending balance
-      await User.updateBalance(existingConversion.user_id, 'reject_pending', existingConversion.cashback_amount);
+      // Remove from user's pending balance (only if user_id exists)
+      if (existingConversion.user_id) {
+        await User.updateBalance(existingConversion.user_id, 'reject_pending', existingConversion.cashback_amount);
+      } else {
+        logger.warn('Cannot update balance: user_id is null', {
+          conversionId: existingConversion.id
+        });
+      }
+
+      // Sync to system_conversions (Conversion.updateStatus already does this)
+      try {
+        await SystemConversion.updateStatusByATConversionId(
+          existingConversion.id,
+          'rejected',
+          approvalTime
+        );
+        logger.info('Synced rejected status to system_conversions', {
+          conversionId: existingConversion.id
+        });
+      } catch (error) {
+        logger.warn('Could not sync to system_conversions (non-fatal)', {
+          conversionId: existingConversion.id,
+          error: error.message
+        });
+      }
 
       return {
         status: 'updated',
@@ -825,6 +897,41 @@ class TrackingService {
             continue;
           }
 
+          // PHASE 2 FIX: Check reconciliation constraints before updating
+          // Block updates if conversion is in finalized/paid reconciliation
+          if (updates.status && existingConversion.system_reconciliation_status) {
+            const reconStatus = existingConversion.system_reconciliation_status;
+
+            // Block if in finalized or paid reconciliation
+            if (reconStatus === 'reconciled' || reconStatus === 'paid') {
+              logger.warn('Cannot update status: conversion is in finalized reconciliation', {
+                orderId,
+                currentStatus: existingConversion.status,
+                newStatus: updates.status,
+                reconciliationStatus: reconStatus
+              });
+
+              results.skipped++;
+              results.details.push({
+                order_id: orderId,
+                status: 'skipped',
+                reason: 'in_finalized_reconciliation',
+                reconciliation_status: reconStatus
+              });
+              continue;
+            }
+
+            // Warn if in draft reconciliation
+            if (reconStatus === 'draft') {
+              logger.warn('Updating status for conversion in draft reconciliation', {
+                orderId,
+                currentStatus: existingConversion.status,
+                newStatus: updates.status,
+                reconciliationStatus: reconStatus
+              });
+            }
+          }
+
           // Update conversion in database
           const db = require('../config/database');
           const updateFields = [];
@@ -848,7 +955,74 @@ class TrackingService {
             RETURNING *
           `;
 
-          await db.query(updateQuery, updateValues);
+          const updateResult = await db.query(updateQuery, updateValues);
+          const updatedConversion = updateResult.rows[0];
+
+          // CRITICAL FIX: Update user balance if status changed
+          if (updates.status && existingConversion.user_id) {
+            const oldStatus = existingConversion.status;
+            const newStatusValue = updates.status;
+
+            // pending → approved: Move pending to available
+            if (oldStatus === 'pending' && newStatusValue === 'approved') {
+              await User.updateBalance(
+                existingConversion.user_id,
+                'pending_to_available',
+                existingConversion.cashback_amount
+              );
+              logger.info('Updated user balance: pending → approved', {
+                userId: existingConversion.user_id,
+                amount: existingConversion.cashback_amount
+              });
+            }
+
+            // pending → rejected: Remove from pending
+            if (oldStatus === 'pending' && newStatusValue === 'rejected') {
+              await User.updateBalance(
+                existingConversion.user_id,
+                'reject_pending',
+                existingConversion.cashback_amount
+              );
+              logger.info('Updated user balance: pending → rejected', {
+                userId: existingConversion.user_id,
+                amount: existingConversion.cashback_amount
+              });
+            }
+
+            // Edge case: approved → pending (reversal) - very rare
+            if (oldStatus === 'approved' && newStatusValue === 'pending') {
+              logger.warn('Status reversal detected: approved → pending', {
+                conversionId: existingConversion.id,
+                userId: existingConversion.user_id
+              });
+              // Move available back to pending
+              await User.updateBalance(
+                existingConversion.user_id,
+                'available_to_pending',
+                existingConversion.cashback_amount
+              );
+            }
+          }
+
+          // CRITICAL FIX: Sync to system_conversions
+          if (updates.status || updates.approval_time) {
+            try {
+              await SystemConversion.updateStatusByATConversionId(
+                existingConversion.id,
+                updates.status || existingConversion.status,
+                updates.approval_time || existingConversion.approval_time
+              );
+              logger.info('Synced status to system_conversions', {
+                orderId,
+                status: updates.status
+              });
+            } catch (error) {
+              logger.warn('Could not sync to system_conversions (non-fatal)', {
+                orderId,
+                error: error.message
+              });
+            }
+          }
 
           results.updated++;
           results.details.push({

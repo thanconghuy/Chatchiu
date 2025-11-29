@@ -131,7 +131,7 @@ class User {
   /**
    * Update user balance
    * @param {string} userId - UUID
-   * @param {string} type - 'add_pending' | 'pending_to_available' | 'subtract'
+   * @param {string} type - 'add_pending' | 'pending_to_available' | 'available_to_pending' | 'subtract' | 'reject_pending'
    * @param {number} amount - Amount to update
    * @returns {Object} Updated user
    */
@@ -161,6 +161,19 @@ class User {
             pending_balance = pending_balance - $1,
             updated_at = CURRENT_TIMESTAMP
           WHERE id = $2 AND pending_balance >= $1
+          RETURNING id, available_balance, pending_balance, total_cashback
+        `;
+        break;
+
+      case 'available_to_pending':
+        // Move from available back to pending (status reversal: approved → pending)
+        query = `
+          UPDATE users
+          SET
+            available_balance = available_balance - $1,
+            pending_balance = pending_balance + $1,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = $2 AND available_balance >= $1
           RETURNING id, available_balance, pending_balance, total_cashback
         `;
         break;

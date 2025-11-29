@@ -31,13 +31,69 @@ class AccessTradeService {
   }
 
   /**
-   * Get conversions from AccessTrade API
+   * Get conversions from AccessTrade API with retry logic
    * @param {Date} startDate
    * @param {Date} endDate
    * @param {Object} options - Additional query parameters
    * @returns {Promise<Array>}
    */
   async getConversions(startDate, endDate, options = {}) {
+    const maxRetries = options.maxRetries || 3;
+    const retryDelay = options.retryDelay || 2000; // 2 seconds
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await this._fetchConversions(startDate, endDate, options);
+      } catch (error) {
+        const isLastAttempt = attempt === maxRetries;
+        const isRetryable = this._isRetryableError(error);
+
+        if (!isRetryable || isLastAttempt) {
+          throw error;
+        }
+
+        const delay = retryDelay * attempt;
+        logger.warn(`Attempt ${attempt}/${maxRetries} failed, retrying in ${delay}ms...`, {
+          error: error.message,
+          status: error.response?.status
+        });
+
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  /**
+   * Check if error is retryable
+   * @param {Error} error
+   * @returns {boolean}
+   * @private
+   */
+  _isRetryableError(error) {
+    const status = error.response?.status;
+
+    // Retry on network errors
+    if (!status) return true;
+
+    // Retry on server errors (5xx)
+    if (status >= 500) return true;
+
+    // Retry on rate limiting (429)
+    if (status === 429) return true;
+
+    // Don't retry on client errors (4xx except 429)
+    return false;
+  }
+
+  /**
+   * Internal method to fetch conversions (actual API call)
+   * @param {Date} startDate
+   * @param {Date} endDate
+   * @param {Object} options
+   * @returns {Promise<Object>}
+   * @private
+   */
+  async _fetchConversions(startDate, endDate, options = {}) {
     try {
       // Format dates to ISO string with Z timezone
       const since = startDate.toISOString();

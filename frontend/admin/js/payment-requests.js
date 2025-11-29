@@ -166,22 +166,29 @@ function displayPaymentRequests(requests) {
             <td>${req.bank_account_number}</td>
             <td>${formatDateTime(req.created_at)}</td>
             <td>
-                <button class="action-btn btn-view" onclick="viewRequest('${req.id}')">
-                    👁️ Xem
-                </button>
-                ${req.status === 'pending' ? `
-                    <button class="action-btn btn-confirm" onclick="showConfirmModal('${req.id}')">
-                        ✅ Duyệt
+                <div class="action-dropdown" id="dropdown-${req.id}">
+                    <button class="action-dropdown-btn" onclick="toggleDropdown('${req.id}')">
+                        ⚙️ Thao tác <span style="font-size: 10px;">▼</span>
                     </button>
-                    <button class="action-btn btn-reject" onclick="showRejectModal('${req.id}')">
-                        ❌ Từ chối
-                    </button>
-                ` : ''}
-                ${req.status === 'confirmed' ? `
-                    <button class="action-btn btn-paid" onclick="showPaidModal('${req.id}')">
-                        💰 Đã thanh toán
-                    </button>
-                ` : ''}
+                    <div class="action-dropdown-menu">
+                        <button class="action-dropdown-item view" onclick="viewRequest('${req.id}'); closeDropdown('${req.id}')">
+                            👁️ Xem
+                        </button>
+                        ${req.status === 'pending' ? `
+                            <button class="action-dropdown-item approve" onclick="showConfirmModal('${req.id}'); closeDropdown('${req.id}')">
+                                ✅ Duyệt
+                            </button>
+                            <button class="action-dropdown-item reject" onclick="showRejectModal('${req.id}'); closeDropdown('${req.id}')">
+                                ❌ Từ chối
+                            </button>
+                        ` : ''}
+                        ${req.status === 'confirmed' ? `
+                            <button class="action-dropdown-item paid" onclick="showPaidModal('${req.id}'); closeDropdown('${req.id}')">
+                                💰 Đã thanh toán
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
             </td>
         </tr>
     `).join('');
@@ -561,3 +568,31 @@ function showToast(message, type = 'info') {
         setTimeout(() => toast.remove(), 300);
     }, 3000);
 }
+
+// Dropdown toggle functions
+function toggleDropdown(requestId) {
+    const dropdown = document.getElementById(`dropdown-${requestId}`);
+    // Close all other dropdowns
+    document.querySelectorAll('.action-dropdown.active').forEach(d => {
+        if (d.id !== `dropdown-${requestId}`) {
+            d.classList.remove('active');
+        }
+    });
+    dropdown.classList.toggle('active');
+}
+
+function closeDropdown(requestId) {
+    const dropdown = document.getElementById(`dropdown-${requestId}`);
+    if (dropdown) {
+        dropdown.classList.remove('active');
+    }
+}
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.action-dropdown')) {
+        document.querySelectorAll('.action-dropdown.active').forEach(d => {
+            d.classList.remove('active');
+        });
+    }
+});

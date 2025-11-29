@@ -92,6 +92,15 @@ async function apiRequest(endpoint, options = {}) {
         headers['Authorization'] = `Bearer ${token}`;
     }
 
+    // Debug logging
+    console.log('[API Request]', {
+        endpoint,
+        url: `${CONFIG.API_BASE_URL}${endpoint}`,
+        hasToken: !!token,
+        tokenPreview: token ? token.substring(0, 20) + '...' : null,
+        headers: { ...headers, Authorization: headers.Authorization ? 'Bearer [REDACTED]' : undefined }
+    });
+
     try {
         const response = await fetch(`${CONFIG.API_BASE_URL}${endpoint}`, {
             ...options,
@@ -100,13 +109,24 @@ async function apiRequest(endpoint, options = {}) {
 
         const data = await response.json();
 
+        console.log('[API Response]', {
+            endpoint,
+            status: response.status,
+            ok: response.ok,
+            data
+        });
+
         if (!response.ok) {
             throw new Error(data.message || 'Request failed');
         }
 
         return data;
     } catch (error) {
-        console.error('API Request Error:', error);
+        console.error('[API Request Error]', {
+            endpoint,
+            error: error.message,
+            stack: error.stack
+        });
         throw error;
     }
 }

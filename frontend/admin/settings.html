@@ -402,6 +402,75 @@
                 padding: 16px;
             }
         }
+
+        /* PHASE 4: Badge Styles for Sync History */
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .badge-success {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .badge-danger {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .badge-warning {
+            background: #feebc8;
+            color: #7c2d12;
+        }
+
+        .badge-info {
+            background: #bee3f8;
+            color: #2c5282;
+        }
+
+        .badge-primary {
+            background: #e9d8fd;
+            color: #553c9a;
+        }
+
+        .badge-secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        /* Data Table Styles */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+        }
+
+        .data-table thead {
+            background: #f7fafc !important;
+        }
+
+        .data-table th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #2d3748 !important;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .data-table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--gray-200);
+            color: #2d3748;
+        }
+
+        .data-table tbody tr:hover {
+            background: var(--gray-50);
+        }
     </style>
 </head>
 <body>
@@ -444,7 +513,7 @@
                             <i class="fas fa-wallet"></i>
                             <span>Thanh Toán</span>
                         </button>
-                        <button class="tab-button" onclick="switchTab('autosync')" data-tab="autosync">
+                        <button class="tab-button" onclick="switchTabWithHistory('autosync')" data-tab="autosync">
                             <i class="fas fa-sync"></i>
                             <span>Auto-Sync</span>
                         </button>
@@ -750,6 +819,73 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- PHASE 4: Sync History Section -->
+                    <div class="settings-section" style="margin-top: 30px;">
+                        <h2>📊 Lịch Sử Sync</h2>
+
+                        <div style="margin-bottom: 20px;">
+                            <button class="btn-primary" onclick="loadSyncHistory()" style="padding: 8px 16px;">
+                                <i class="fas fa-sync"></i> Làm mới
+                            </button>
+                        </div>
+
+                        <!-- Sync History Table -->
+                        <div style="overflow-x: auto;">
+                            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background: var(--gray-100); border-bottom: 2px solid var(--gray-300);">
+                                        <th style="padding: 12px; text-align: left;">Thời Gian</th>
+                                        <th style="padding: 12px; text-align: left;">Loại</th>
+                                        <th style="padding: 12px; text-align: center;">Trạng Thái</th>
+                                        <th style="padding: 12px; text-align: right;">Tổng</th>
+                                        <th style="padding: 12px; text-align: right;">Tạo Mới</th>
+                                        <th style="padding: 12px; text-align: right;">Cập Nhật</th>
+                                        <th style="padding: 12px; text-align: right;">Bỏ Qua</th>
+                                        <th style="padding: 12px; text-align: right;">Lỗi</th>
+                                        <th style="padding: 12px; text-align: center;">Thao Tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="syncHistoryTableBody">
+                                    <tr>
+                                        <td colspan="9" style="padding: 40px; text-align: center; color: var(--gray-500);">
+                                            <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
+                                            <div style="margin-top: 10px;">Đang tải...</div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Sync Stats -->
+                        <div style="margin-top: 20px; padding: 16px; background: var(--gray-50); border-radius: 8px;">
+                            <h3 style="margin: 0 0 12px 0; font-size: 1rem; color: var(--gray-700);">Thống Kê 30 Ngày Gần Đây</h3>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;">
+                                <div>
+                                    <div style="font-size: 0.85rem; color: var(--gray-600);">Tổng Sync</div>
+                                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--primary);" id="statsTotal">-</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 0.85rem; color: var(--gray-600);">Thành Công</div>
+                                    <div style="font-size: 1.5rem; font-weight: 700; color: #10b981;" id="statsSuccess">-</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 0.85rem; color: var(--gray-600);">Thất Bại</div>
+                                    <div style="font-size: 1.5rem; font-weight: 700; color: #ef4444;" id="statsFailed">-</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 0.85rem; color: var(--gray-600);">Tạo Mới</div>
+                                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--gray-900);" id="statsCreated">-</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 0.85rem; color: var(--gray-600);">Cập Nhật</div>
+                                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--gray-900);" id="statsUpdated">-</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Sync History Section -->
+
                     </div>
                     <!-- End Auto-Sync Tab -->
 
@@ -1670,6 +1806,8 @@
                         const result = response.data;
                         showToast(`✅ Sync thành công! Import: ${result.imported}, Duplicates: ${result.duplicates}`, 'success');
                         await loadAutoSyncConfig();
+                        // PHASE 4: Reload sync history after manual sync
+                        await loadSyncHistory();
                     } else {
                         throw new Error(response.message);
                     }
@@ -1686,6 +1824,330 @@
         // Load Auto-Sync config on page load
         window.addEventListener('load', () => {
             loadAutoSyncConfig();
+        });
+
+        // ============ PHASE 4: SYNC HISTORY FUNCTIONS ============
+
+        /**
+         * Load sync history and display in table
+         */
+        async function loadSyncHistory() {
+            try {
+                const tbody = document.getElementById('syncHistoryTableBody');
+
+                // Check if element exists
+                if (!tbody) {
+                    console.warn('syncHistoryTableBody element not found');
+                    return;
+                }
+
+                // Debug: Check token
+                const token = localStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN);
+                console.log('Loading sync history, token exists:', !!token);
+
+                const response = await apiRequest('/admin/auto-sync/history?limit=20');
+                console.log('Sync history response:', response);
+
+                if (!response.success) {
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px; color: red;">Lỗi: ' + (response.message || 'Không thể tải lịch sử') + '</td></tr>';
+                    return;
+                }
+
+                const history = response.data || [];
+
+                if (history.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px;">Chưa có lịch sử sync</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = history.map(session => {
+                    const startedAt = new Date(session.sync_started_at);
+                    const duration = session.sync_completed_at
+                        ? Math.round((new Date(session.sync_completed_at) - startedAt) / 1000)
+                        : '-';
+
+                    return `
+                        <tr>
+                            <td>
+                                <div>${formatDateTime(startedAt)}</div>
+                                <small style="color: var(--text-secondary);">
+                                    ${duration !== '-' ? `${duration}s` : 'Running...'}
+                                </small>
+                            </td>
+                            <td>
+                                <span class="badge ${getSyncTypeBadgeClass(session.sync_type)}">
+                                    ${getSyncTypeLabel(session.sync_type)}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge ${getStatusBadgeClass(session.sync_status)}">
+                                    ${getStatusLabel(session.sync_status)}
+                                </span>
+                            </td>
+                            <td>${session.total_fetched || 0}</td>
+                            <td style="color: var(--success-color);">${session.total_created || 0}</td>
+                            <td style="color: var(--warning-color);">${session.total_updated || 0}</td>
+                            <td style="color: var(--text-secondary);">${session.total_skipped || 0}</td>
+                            <td style="color: var(--error-color);">${session.total_errors || 0}</td>
+                            <td>
+                                <button class="btn-secondary" onclick="viewSyncDetails('${session.id}')" style="padding: 4px 8px; font-size: 12px;">
+                                    Chi tiết
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+                // Also load stats
+                await loadSyncStats();
+
+            } catch (error) {
+                console.error('Error loading sync history:', error);
+                const tbody = document.getElementById('syncHistoryTableBody');
+                if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px; color: red;">Lỗi: ' + error.message + '</td></tr>';
+                }
+                showToast('Lỗi tải lịch sử sync: ' + error.message, 'error');
+            }
+        }
+
+        /**
+         * Load sync statistics (last 30 days)
+         */
+        async function loadSyncStats() {
+            try {
+                const endDate = new Date();
+                const startDate = new Date();
+                startDate.setDate(startDate.getDate() - 30);
+
+                const response = await apiRequest(
+                    `/admin/auto-sync/stats?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`
+                );
+
+                if (!response.success) {
+                    throw new Error(response.message || 'Failed to load stats');
+                }
+
+                const stats = response.data || {};
+
+                document.getElementById('statsTotal').textContent = stats.totalSessions || 0;
+                document.getElementById('statsSuccess').textContent = stats.successfulSessions || 0;
+                document.getElementById('statsFailed').textContent = stats.failedSessions || 0;
+                document.getElementById('statsCreated').textContent = stats.totalCreated || 0;
+                document.getElementById('statsUpdated').textContent = stats.totalUpdated || 0;
+
+            } catch (error) {
+                console.error('Error loading sync stats:', error);
+                // Don't show error toast for stats as it's secondary info
+            }
+        }
+
+        /**
+         * View detailed changes for a sync session
+         */
+        async function viewSyncDetails(sessionId) {
+            try {
+                const response = await apiRequest(`/admin/auto-sync/history/${sessionId}/changes?limit=100`);
+
+                if (!response.success) {
+                    throw new Error(response.message || 'Failed to load changes');
+                }
+
+                const changes = response.data || [];
+
+                // Create modal to display changes
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;';
+
+                modal.innerHTML = `
+                    <div style="background: white; padding: 24px; border-radius: 12px; max-width: 900px; max-height: 80vh; overflow: auto; width: 90%;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2>Chi Tiết Sync Session</h2>
+                            <button onclick="this.closest('.modal').remove()" style="border: none; background: none; font-size: 24px; cursor: pointer;">&times;</button>
+                        </div>
+
+                        ${changes.length === 0 ?
+                            '<p style="text-align: center; padding: 40px;">Không có thay đổi nào</p>' :
+                            `<table class="data-table" style="width: 100%;">
+                                <thead>
+                                    <tr>
+                                        <th>Mã Đơn</th>
+                                        <th>Loại Thay Đổi</th>
+                                        <th>Trạng Thái</th>
+                                        <th>Balance</th>
+                                        <th>Lý Do</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${changes.map(change => `
+                                        <tr>
+                                            <td>${change.order_code || '-'}</td>
+                                            <td>
+                                                <span class="badge ${getChangeTypeBadgeClass(change.change_type)}">
+                                                    ${getChangeTypeLabel(change.change_type)}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                ${change.old_status && change.new_status ?
+                                                    `${change.old_status} → ${change.new_status}` :
+                                                    '-'
+                                                }
+                                            </td>
+                                            <td>
+                                                ${change.balance_change ?
+                                                    `${formatCurrency(change.balance_change)} (${change.balance_operation})` :
+                                                    '-'
+                                                }
+                                            </td>
+                                            <td>${change.reason || '-'}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>`
+                        }
+                    </div>
+                `;
+
+                document.body.appendChild(modal);
+
+            } catch (error) {
+                console.error('Error loading sync details:', error);
+                showToast('Lỗi tải chi tiết: ' + error.message, 'error');
+            }
+        }
+
+        /**
+         * Helper functions for formatting
+         */
+        function formatDateTime(date) {
+            return new Date(date).toLocaleString('vi-VN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('vi-VN', {
+                style: 'currency',
+                currency: 'VND'
+            }).format(amount);
+        }
+
+        function getSyncTypeBadgeClass(type) {
+            const classes = {
+                'auto': 'badge-info',
+                'manual': 'badge-primary',
+                'status_sync': 'badge-warning'
+            };
+            return classes[type] || 'badge-secondary';
+        }
+
+        function getSyncTypeLabel(type) {
+            const labels = {
+                'auto': 'Tự động',
+                'manual': 'Thủ công',
+                'status_sync': 'Sync trạng thái'
+            };
+            return labels[type] || type;
+        }
+
+        function getStatusBadgeClass(status) {
+            const classes = {
+                'completed': 'badge-success',
+                'failed': 'badge-danger',
+                'running': 'badge-warning'
+            };
+            return classes[status] || 'badge-secondary';
+        }
+
+        function getStatusLabel(status) {
+            const labels = {
+                'completed': 'Hoàn thành',
+                'failed': 'Thất bại',
+                'running': 'Đang chạy'
+            };
+            return labels[status] || status;
+        }
+
+        function getChangeTypeBadgeClass(type) {
+            const classes = {
+                'status_change': 'badge-warning',
+                'reconciliation_update': 'badge-info',
+                'created': 'badge-success',
+                'skipped': 'badge-secondary'
+            };
+            return classes[type] || 'badge-secondary';
+        }
+
+        function getChangeTypeLabel(type) {
+            const labels = {
+                'status_change': 'Đổi trạng thái',
+                'reconciliation_update': 'Cập nhật đối soát',
+                'created': 'Tạo mới',
+                'skipped': 'Bỏ qua'
+            };
+            return labels[type] || type;
+        }
+
+        // PHASE 4: Real-time sync status updates
+        let syncHistoryRefreshInterval = null;
+
+        // Auto-load sync history when switching to auto-sync tab
+        const originalSwitchTab = switchTab;
+        window.switchTabWithHistory = function(tabName) {
+            originalSwitchTab(tabName);
+            if (tabName === 'autosync') {
+                loadSyncHistory();
+                startSyncHistoryAutoRefresh();
+            } else {
+                stopSyncHistoryAutoRefresh();
+            }
+        };
+
+        /**
+         * Start auto-refresh for sync history (every 10 seconds)
+         * Only refreshes if there's a running sync session
+         */
+        function startSyncHistoryAutoRefresh() {
+            // Clear any existing interval
+            stopSyncHistoryAutoRefresh();
+
+            // Set up new interval
+            syncHistoryRefreshInterval = setInterval(async () => {
+                try {
+                    // Check if there's any running sync
+                    const response = await apiRequest('/admin/auto-sync/history?limit=5');
+                    if (response.success && response.data) {
+                        const hasRunningSyncs = response.data.some(session => session.sync_status === 'running');
+
+                        // Only refresh if there are running syncs
+                        if (hasRunningSyncs) {
+                            await loadSyncHistory();
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error in auto-refresh:', error);
+                }
+            }, 10000); // 10 seconds
+        }
+
+        /**
+         * Stop auto-refresh
+         */
+        function stopSyncHistoryAutoRefresh() {
+            if (syncHistoryRefreshInterval) {
+                clearInterval(syncHistoryRefreshInterval);
+                syncHistoryRefreshInterval = null;
+            }
+        }
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            stopSyncHistoryAutoRefresh();
         });
 
         // ============ TAB SWITCHING FUNCTION ============
@@ -1719,7 +2181,12 @@
         window.addEventListener('DOMContentLoaded', () => {
             const lastActiveTab = localStorage.getItem('settings_active_tab');
             if (lastActiveTab) {
-                switchTab(lastActiveTab);
+                // Use switchTabWithHistory for autosync tab to trigger data loading
+                if (lastActiveTab === 'autosync') {
+                    switchTabWithHistory(lastActiveTab);
+                } else {
+                    switchTab(lastActiveTab);
+                }
             }
         });
 
