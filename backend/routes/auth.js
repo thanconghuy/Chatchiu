@@ -265,19 +265,37 @@ router.post('/forgot-password', rateLimiters.forgotPassword, async (req, res) =>
       });
     }
 
-    // Validate SMTP configuration
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-      console.error('⚠️ SMTP credentials not configured. Email cannot be sent.');
-      return res.status(503).json({
-        success: false,
-        message: 'Email service is not configured. Please contact administrator.'
+    // Generate reset token first
+    const resetToken = await User.createResetToken(email);
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3007'}/reset-password?token=${resetToken}`;
+
+    // Check if SMTP is configured
+    const smtpConfigured = process.env.SMTP_USER && process.env.SMTP_PASS;
+
+    if (!smtpConfigured) {
+      // Development mode: Log reset link to console instead of sending email
+      console.log('\n' + '='.repeat(80));
+      console.log('📧 PASSWORD RESET REQUEST (Development Mode - No SMTP Configured)');
+      console.log('='.repeat(80));
+      console.log(`Email: ${email}`);
+      console.log(`Reset URL: ${resetUrl}`);
+      console.log(`Token: ${resetToken}`);
+      console.log(`Expires: 1 hour from now`);
+      console.log('='.repeat(80) + '\n');
+      console.log('💡 To enable email sending, configure SMTP in .env file');
+      console.log('📖 See docs/SMTP-SETUP.md for instructions\n');
+
+      return res.json({
+        success: true,
+        message: 'Password reset link generated (Development Mode)',
+        devInfo: process.env.NODE_ENV === 'development' ? {
+          resetUrl: resetUrl,
+          note: 'SMTP not configured. Check server console for reset link.'
+        } : undefined
       });
     }
 
-    // Generate reset token
-    const resetToken = await User.createResetToken(email);
-
-    // Configure email transporter
+    // Production mode: Send email via SMTP
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
       port: parseInt(process.env.SMTP_PORT) || 587,
@@ -302,9 +320,6 @@ router.post('/forgot-password', rateLimiters.forgotPassword, async (req, res) =>
         message: 'Email service is temporarily unavailable. Please try again later.'
       });
     }
-
-    // Reset URL
-    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
 
     // Send email with better error handling
     try {
