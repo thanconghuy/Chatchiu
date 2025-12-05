@@ -942,11 +942,17 @@
         const token = getToken();
 
         // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             displayUserName('userName');
-            loadSettings();
-            loadPaymentSettings();
-            loadCronJobsStatus();
+
+            // Load all settings in parallel
+            await Promise.all([
+                loadSettings(),
+                loadPaymentSettings(),
+                loadCronJobsStatus()
+            ]);
+
+            console.log('✅ All settings loaded successfully');
         });
 
         // Load all settings
@@ -993,64 +999,80 @@
 
         // Load Cron Jobs Status
         async function loadCronJobsStatus() {
+            console.log('🔄 Loading cron jobs status...');
+
             try {
                 const response = await apiRequest('/admin/cron/status');
+                console.log('Cron status response:', response);
 
-                if (response.success) {
-                    const status = response.data; // Backend returns data field, not status
+                if (!response || !response.success) {
+                    throw new Error(response?.message || 'Failed to load cron status');
+                }
 
-                    // Update toggle
-                    document.getElementById('autoCronToggle').checked = status.autoCronEnabled;
+                const status = response.data; // Backend returns data field, not status
+                console.log('Cron status data:', status);
 
-                    // Update status badge
-                    updateAutoCronStatus(status.autoCronEnabled ? 'true' : 'false');
+                // Update toggle
+                document.getElementById('autoCronToggle').checked = status.autoCronEnabled;
 
-                    // Update info text
-                    const infoText = status.isInitialized
-                        ? `Đã khởi tạo • ${status.jobsCount} jobs đang chạy`
-                        : 'Chưa được khởi tạo';
-                    document.getElementById('cronJobsInfo').textContent = infoText;
+                // Update status badge
+                updateAutoCronStatus(status.autoCronEnabled ? 'true' : 'false');
 
-                    // Update jobs list
-                    const jobsList = document.getElementById('cronJobsList');
-                    if (status.jobsCount > 0) {
-                        jobsList.innerHTML = `
-                            <table style="width: 100%; border-collapse: collapse;">
-                                <thead>
-                                    <tr style="background: white; border-bottom: 2px solid var(--gray-300);">
-                                        <th style="padding: 8px; text-align: left; font-size: 0.85rem;">Job Name</th>
-                                        <th style="padding: 8px; text-align: left; font-size: 0.85rem;">Lịch Trình</th>
-                                        <th style="padding: 8px; text-align: center; font-size: 0.85rem;">Trạng Thái</th>
+                // Update info text
+                const infoText = status.isInitialized
+                    ? `Đã khởi tạo • ${status.jobsCount} jobs đang chạy`
+                    : 'Chưa được khởi tạo';
+                document.getElementById('cronJobsInfo').textContent = infoText;
+
+                // Update jobs list
+                const jobsList = document.getElementById('cronJobsList');
+                if (status.jobsCount > 0) {
+                    jobsList.innerHTML = `
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: white; border-bottom: 2px solid var(--gray-300);">
+                                    <th style="padding: 8px; text-align: left; font-size: 0.85rem;">Job Name</th>
+                                    <th style="padding: 8px; text-align: left; font-size: 0.85rem;">Lịch Trình</th>
+                                    <th style="padding: 8px; text-align: center; font-size: 0.85rem;">Trạng Thái</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${status.jobs.map(job => `
+                                    <tr style="border-bottom: 1px solid var(--gray-200);">
+                                        <td style="padding: 8px; font-size: 0.9rem;">${formatJobName(job.name)}</td>
+                                        <td style="padding: 8px; font-size: 0.85rem; font-family: monospace;">${job.schedule}</td>
+                                        <td style="padding: 8px; text-align: center;">
+                                            <span style="background: #C6F6D5; color: #22543D; padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
+                                                Running
+                                            </span>
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    ${status.jobs.map(job => `
-                                        <tr style="border-bottom: 1px solid var(--gray-200);">
-                                            <td style="padding: 8px; font-size: 0.9rem;">${formatJobName(job.name)}</td>
-                                            <td style="padding: 8px; font-size: 0.85rem; font-family: monospace;">${job.schedule}</td>
-                                            <td style="padding: 8px; text-align: center;">
-                                                <span style="background: #C6F6D5; color: #22543D; padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
-                                                    Running
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        `;
-                    } else {
-                        jobsList.innerHTML = `
-                            <div style="text-align: center; color: var(--gray-500); padding: 20px;">
-                                ⚠️ Không có cron jobs nào đang chạy. Hãy bật "Auto Cron Jobs" ở trên.
-                            </div>
-                        `;
-                    }
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                    console.log('✅ Cron jobs list rendered successfully');
+                } else {
+                    jobsList.innerHTML = `
+                        <div style="text-align: center; color: var(--gray-500); padding: 20px;">
+                            ⚠️ Không có cron jobs nào đang chạy. Hãy bật "Auto Cron Jobs" ở trên.
+                        </div>
+                    `;
+                    console.log('ℹ️ No cron jobs running');
                 }
             } catch (error) {
-                console.error('Error loading cron jobs status:', error);
+                console.error('❌ Error loading cron jobs status:', error);
+                console.error('Error details:', {
+                    message: error.message,
+                    stack: error.stack
+                });
+
                 document.getElementById('cronJobsList').innerHTML = `
                     <div style="text-align: center; color: var(--error); padding: 20px;">
-                        ❌ Không thể tải trạng thái cron jobs
+                        ❌ Không thể tải trạng thái cron jobs<br>
+                        <small style="color: var(--gray-600); margin-top: 8px; display: block;">
+                            ${error.message}
+                        </small>
                     </div>
                 `;
             }
