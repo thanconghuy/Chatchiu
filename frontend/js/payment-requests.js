@@ -198,14 +198,16 @@ function displayPaymentRequests(requests) {
             <td>${req.bank_account_number}</td>
             <td>${formatDateTime(req.created_at)}</td>
             <td>
-                <button class="btn-sm btn-primary" onclick="viewRequest('${req.id}')">
-                    Xem
-                </button>
-                ${req.status === 'pending' ? `
-                    <button class="btn-sm btn-danger" onclick="cancelRequest('${req.id}')">
-                        Hủy
+                <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                    <button class="btn-sm btn-primary" onclick="viewRequest('${req.id}')" title="Xem chi tiết">
+                        <i class="fas fa-eye"></i> Xem
                     </button>
-                ` : ''}
+                    ${req.status === 'pending' ? `
+                        <button class="btn-sm btn-danger" onclick="cancelRequest('${req.id}')" title="Hủy yêu cầu">
+                            <i class="fas fa-times"></i> Hủy
+                        </button>
+                    ` : ''}
+                </div>
             </td>
         </tr>
     `).join('');
@@ -233,11 +235,11 @@ function displayPaymentRequests(requests) {
             </div>
             <div class="payment-card-actions">
                 <button class="btn-view" onclick="viewRequest('${req.id}')">
-                    Xem chi tiết
+                    <i class="fas fa-eye"></i> Xem chi tiết
                 </button>
                 ${req.status === 'pending' ? `
                     <button class="btn-cancel" onclick="cancelRequest('${req.id}')">
-                        Hủy
+                        <i class="fas fa-times"></i> Hủy
                     </button>
                 ` : ''}
             </div>

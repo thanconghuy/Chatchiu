@@ -625,6 +625,24 @@ body {
     box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
 }
 
+.btn-danger {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
+}
+
+/* Small button variant */
+.btn-sm {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.875rem;
+    border-radius: 6px;
+}
+
 .btn:disabled {
     opacity: 0.6;
     cursor: not-allowed;

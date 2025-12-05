@@ -290,21 +290,54 @@
 
         .btn-view {
             flex: 1;
-            padding: 0.5rem 1rem;
-            background: #667eea;
+            padding: 0.625rem 1rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
             border-radius: 6px;
             cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+        }
+
+        .btn-view:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-view:active {
+            transform: translateY(0);
         }
 
         .btn-cancel {
-            padding: 0.5rem 1rem;
+            padding: 0.625rem 1rem;
             background: #dc3545;
             color: white;
             border: none;
             border-radius: 6px;
             cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+        }
+
+        .btn-cancel:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
+        }
+
+        .btn-cancel:active {
+            transform: translateY(0);
         }
 
         @media (max-width: 768px) {
