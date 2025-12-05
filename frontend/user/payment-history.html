@@ -344,10 +344,41 @@
             to { transform: rotate(360deg); }
         }
 
-        /* Mobile */
+        /* Mobile card view for table */
+        .mobile-card {
+            display: none;
+        }
+
+        /* Tablet responsive */
+        @media (max-width: 1024px) {
+            .summary-cards {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 16px;
+            }
+
+            th, td {
+                padding: 12px 16px;
+                font-size: 0.8125rem;
+            }
+        }
+
+        /* Mobile responsive */
         @media (max-width: 768px) {
             .summary-cards {
                 grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .summary-card {
+                padding: 16px;
+            }
+
+            .summary-card-value {
+                font-size: 1.5rem;
+            }
+
+            .filters {
+                padding: 16px;
             }
 
             .filters-row {
@@ -358,23 +389,27 @@
 
             .filter-group {
                 width: 100%;
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .filter-group label {
+                margin-bottom: 4px;
             }
 
             .filter-group select {
                 flex: 1;
                 min-width: 0;
+                width: 100%;
             }
 
             .btn {
                 width: 100%;
+                padding: 10px 24px;
             }
 
-            table {
-                font-size: 0.75rem;
-            }
-
-            th, td {
-                padding: 8px 12px;
+            .header {
+                padding: 16px;
             }
 
             .header h1 {
@@ -384,16 +419,147 @@
             .main-content .container {
                 padding: 12px;
             }
+
+            /* Hide table on mobile, show card view instead */
+            table {
+                display: none;
+            }
+
+            .mobile-card {
+                display: block;
+            }
+
+            .payment-card {
+                padding: 16px;
+                border-bottom: 1px solid var(--gray-200);
+                transition: background 0.2s;
+            }
+
+            .payment-card:last-child {
+                border-bottom: none;
+            }
+
+            .payment-card:active {
+                background: var(--gray-50);
+            }
+
+            .payment-card-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                margin-bottom: 12px;
+                gap: 12px;
+            }
+
+            .payment-card-period {
+                font-weight: 700;
+                font-size: 1rem;
+                color: var(--gray-900);
+                flex: 1;
+            }
+
+            .payment-card-amount {
+                font-weight: 700;
+                font-size: 1.125rem;
+                color: var(--success);
+                white-space: nowrap;
+            }
+
+            .payment-card-info {
+                display: grid;
+                gap: 8px;
+                margin-bottom: 12px;
+            }
+
+            .payment-card-info-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                font-size: 0.875rem;
+            }
+
+            .payment-card-info-label {
+                color: var(--gray-600);
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+
+            .payment-card-info-value {
+                color: var(--gray-900);
+                font-weight: 500;
+                text-align: right;
+            }
+
+            .payment-card-footer {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
+                padding-top: 12px;
+                border-top: 1px solid var(--gray-100);
+            }
+
+            .payment-card-action {
+                flex: 1;
+                padding: 10px 16px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-weight: 600;
+                font-size: 0.875rem;
+                cursor: pointer;
+                transition: transform 0.2s, box-shadow 0.2s;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 6px;
+            }
+
+            .payment-card-action:active {
+                transform: scale(0.98);
+            }
         }
 
         /* Small mobile */
         @media (max-width: 480px) {
-            .filters {
-                padding: 16px;
+            .header h1 {
+                font-size: 1.25rem;
             }
 
-            .summary-card {
-                padding: 16px;
+            .header p {
+                font-size: 0.8125rem;
+            }
+
+            .summary-card-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 1.25rem;
+            }
+
+            .summary-card-value {
+                font-size: 1.25rem;
+            }
+
+            .summary-card-label {
+                font-size: 0.8125rem;
+            }
+
+            .payment-card {
+                padding: 14px;
+            }
+
+            .payment-card-period {
+                font-size: 0.9375rem;
+            }
+
+            .payment-card-amount {
+                font-size: 1rem;
+            }
+
+            .payment-card-info-row {
+                font-size: 0.8125rem;
             }
         }
     </style>
@@ -616,6 +782,7 @@
                 return;
             }
 
+            // Desktop table view
             let html = `
                 <table>
                     <thead>
@@ -654,6 +821,62 @@
                     </tbody>
                 </table>
             `;
+
+            // Mobile card view
+            html += `<div class="mobile-card">`;
+
+            paymentHistoryData.forEach(payment => {
+                html += `
+                    <div class="payment-card">
+                        <div class="payment-card-header">
+                            <div class="payment-card-period">
+                                <i class="fas fa-calendar-alt"></i> ${payment.payment_period}
+                            </div>
+                            <div class="payment-card-amount">
+                                ${formatCurrency(payment.total_cashback)}
+                            </div>
+                        </div>
+
+                        <div class="payment-card-info">
+                            <div class="payment-card-info-row">
+                                <div class="payment-card-info-label">
+                                    <i class="fas fa-chart-line"></i> Conversions
+                                </div>
+                                <div class="payment-card-info-value">
+                                    ${payment.conversions_count || 0}
+                                </div>
+                            </div>
+
+                            <div class="payment-card-info-row">
+                                <div class="payment-card-info-label">
+                                    <i class="fas fa-clock"></i> Đối soát
+                                </div>
+                                <div class="payment-card-info-value">
+                                    ${payment.reconciliation_date ? formatDate(payment.reconciliation_date) : '-'}
+                                </div>
+                            </div>
+
+                            <div class="payment-card-info-row">
+                                <div class="payment-card-info-label">
+                                    <i class="fas fa-money-check-alt"></i> Thanh toán
+                                </div>
+                                <div class="payment-card-info-value">
+                                    ${payment.payment_date ? formatDate(payment.payment_date) : '-'}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="payment-card-footer">
+                            ${getStatusBadge(payment.status)}
+                            <button class="payment-card-action" onclick="viewDetail('${payment.payment_period}')">
+                                <i class="fas fa-eye"></i> Xem chi tiết
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
 
             tableContent.innerHTML = html;
         }
