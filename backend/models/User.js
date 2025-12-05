@@ -308,9 +308,11 @@ class User {
       throw new Error('User not found');
     }
 
-    // Generate reset token (valid for 1 hour)
-    const resetToken = Math.random().toString(36).substr(2) + Date.now().toString(36);
-    const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour
+    // Generate cryptographically secure reset token (valid for 1 hour)
+    const crypto = require('crypto');
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
+    const resetTokenExpiry = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS);
 
     const query = `
       UPDATE users

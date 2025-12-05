@@ -58,6 +58,8 @@ async function createUsersTable() {
       available_balance DECIMAL(15, 2) DEFAULT 0.00,
       pending_balance DECIMAL(15, 2) DEFAULT 0.00,
       total_cashback DECIMAL(15, 2) DEFAULT 0.00,
+      reset_token VARCHAR(255),
+      reset_token_expiry TIMESTAMPTZ,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
@@ -65,6 +67,7 @@ async function createUsersTable() {
     -- Create index for faster lookups
     CREATE INDEX idx_users_email ON users(email);
     CREATE INDEX idx_users_username ON users(username);
+    CREATE INDEX idx_users_reset_token ON users(reset_token);
 
     -- Trigger to update updated_at
     CREATE OR REPLACE FUNCTION update_updated_at_column()

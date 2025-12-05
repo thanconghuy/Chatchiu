@@ -4,6 +4,7 @@ const User = require('../models/User');
 const { generateToken, authenticateToken } = require('../middleware/auth');
 const passport = require('../config/passport'); // Google OAuth enabled
 const nodemailer = require('nodemailer');
+const { rateLimiters } = require('../middleware/rateLimiter');
 
 /**
  * POST /api/auth/register
@@ -251,8 +252,9 @@ router.get('/google/callback',
 /**
  * POST /api/auth/forgot-password
  * Request password reset
+ * Rate limited: 3 requests per hour per IP
  */
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', rateLimiters.forgotPassword, async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -263,36 +265,103 @@ router.post('/forgot-password', async (req, res) => {
       });
     }
 
+    // Validate SMTP configuration
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+      console.error('⚠️ SMTP credentials not configured. Email cannot be sent.');
+      return res.status(503).json({
+        success: false,
+        message: 'Email service is not configured. Please contact administrator.'
+      });
+    }
+
     // Generate reset token
     const resetToken = await User.createResetToken(email);
 
     // Configure email transporter
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: process.env.SMTP_PORT || 587,
-      secure: false,
+      port: parseInt(process.env.SMTP_PORT) || 587,
+      secure: false, // true for 465, false for other ports
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS
-      }
+      },
+      // Connection timeout
+      connectionTimeout: 10000, // 10 seconds
+      greetingTimeout: 10000,
+      socketTimeout: 10000
     });
+
+    // Verify SMTP connection
+    try {
+      await transporter.verify();
+    } catch (smtpError) {
+      console.error('❌ SMTP connection failed:', smtpError.message);
+      return res.status(503).json({
+        success: false,
+        message: 'Email service is temporarily unavailable. Please try again later.'
+      });
+    }
 
     // Reset URL
     const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
 
-    // Send email
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM || 'noreply@cashback.com',
-      to: email,
-      subject: 'Reset Password - Cashback System',
-      html: `
-        <h2>Reset Your Password</h2>
-        <p>You requested to reset your password. Click the link below to reset:</p>
-        <a href="${resetUrl}">${resetUrl}</a>
-        <p>This link will expire in 1 hour.</p>
-        <p>If you didn't request this, please ignore this email.</p>
-      `
-    });
+    // Send email with better error handling
+    try {
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM || 'noreply@cashback.com',
+        to: email,
+        subject: 'Reset Password - ChatChiu Cashback',
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="UTF-8">
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+              .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+              .button { display: inline-block; padding: 15px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+              .footer { text-align: center; color: #999; font-size: 12px; margin-top: 20px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>🔐 Đặt lại mật khẩu</h1>
+              </div>
+              <div class="content">
+                <p>Xin chào,</p>
+                <p>Bạn đã yêu cầu đặt lại mật khẩu cho tài khoản ChatChiu Cashback của mình.</p>
+                <p>Nhấp vào nút bên dưới để tạo mật khẩu mới:</p>
+                <p style="text-align: center;">
+                  <a href="${resetUrl}" class="button">Đặt lại mật khẩu</a>
+                </p>
+                <p>Hoặc copy link này vào trình duyệt:</p>
+                <p style="background: white; padding: 10px; border-radius: 5px; word-break: break-all;">
+                  ${resetUrl}
+                </p>
+                <p><strong>⏰ Link này sẽ hết hạn sau 1 giờ.</strong></p>
+                <p>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này. Mật khẩu của bạn vẫn an toàn.</p>
+              </div>
+              <div class="footer">
+                <p>© 2025 ChatChiu Cashback. All rights reserved.</p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `
+      });
+    } catch (emailError) {
+      console.error('❌ Failed to send email:', emailError.message);
+      // Token already created, but email failed - clean up token
+      // Note: Consider adding a cleanup method if needed
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send reset email. Please try again.'
+      });
+    }
 
     res.json({
       success: true,
