@@ -142,6 +142,8 @@
             width: 90%;
             max-height: 90vh;
             overflow-y: auto;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
         }
 
         .modal-header {
@@ -319,8 +321,25 @@
             }
 
             .modal-content {
-                padding: 1.5rem;
+                padding: 1.25rem;
                 width: 95%;
+                max-height: 85vh;
+            }
+
+            .modal-header h2 {
+                font-size: 1.25rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .modal-content {
+                padding: 1rem;
+                width: 98%;
+                border-radius: 8px;
+            }
+
+            .balance-details {
+                grid-template-columns: 1fr;
             }
         }
     </style>

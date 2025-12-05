@@ -379,55 +379,64 @@ function displayRequestDetail(request) {
     content.innerHTML = `
         <div style="display: grid; gap: 1rem;">
             <div style="padding-bottom: 1rem; border-bottom: 2px solid #f0f0f0;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="margin: 0;">Yêu cầu #${request.id.substring(0, 8)}</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                    <h3 style="margin: 0; font-size: 1.25rem;">Yêu cầu #${request.id.substring(0, 8)}</h3>
                     ${getStatusBadge(request.status)}
                 </div>
             </div>
 
-            <div style="display: grid; gap: 0.75rem;">
+            <div style="display: grid; gap: 1rem;">
                 <div>
-                    <strong style="color: #666;">Số tiền yêu cầu:</strong>
-                    <div style="font-size: 1.5rem; font-weight: bold; color: #667eea; margin-top: 0.25rem;">
+                    <strong style="color: #666;"><i class="fas fa-money-bill-wave"></i> Số tiền yêu cầu:</strong>
+                    <div style="font-size: 1.5rem; font-weight: bold; color: #667eea; margin-top: 0.5rem;">
                         ${formatCurrency(request.requested_amount)}
                     </div>
                 </div>
 
                 <div>
-                    <strong style="color: #666;">Thông tin ngân hàng:</strong>
-                    <div style="margin-top: 0.5rem; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
-                        <div style="margin-bottom: 0.5rem;">
-                            <strong>Ngân hàng:</strong> ${request.bank_name}
+                    <strong style="color: #666;"><i class="fas fa-university"></i> Thông tin ngân hàng:</strong>
+                    <div style="margin-top: 0.75rem; padding: 1.25rem; background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); border: 1px solid #e0e0e0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                        <div style="margin-bottom: 0.75rem;">
+                            <strong><i class="fas fa-building"></i> Ngân hàng:</strong> <span style="color: #333;">${request.bank_name}</span>
                         </div>
-                        <div style="margin-bottom: 0.5rem;">
-                            <strong>Số tài khoản:</strong> ${request.bank_account_number}
+                        <div style="margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                            <div style="flex: 1;">
+                                <strong><i class="fas fa-credit-card"></i> Số tài khoản:</strong>
+                                <span style="color: #333; font-family: monospace; font-size: 1.05rem;">${request.bank_account_number}</span>
+                            </div>
+                            <button onclick="copyToClipboard('${request.bank_account_number}', 'Đã copy số tài khoản')"
+                                    style="padding: 0.4rem 0.75rem; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 0.25rem; transition: transform 0.2s;"
+                                    onmouseover="this.style.transform='scale(1.05)'"
+                                    onmouseout="this.style.transform='scale(1)'">
+                                <i class="fas fa-copy"></i> Copy
+                            </button>
                         </div>
-                        <div style="margin-bottom: 0.5rem;">
-                            <strong>Chủ tài khoản:</strong> ${request.bank_account_name}
+                        <div style="margin-bottom: 0.75rem;">
+                            <strong><i class="fas fa-user"></i> Chủ tài khoản:</strong> <span style="color: #333;">${request.bank_account_name}</span>
                         </div>
                         ${request.bank_branch ? `
                             <div>
-                                <strong>Chi nhánh:</strong> ${request.bank_branch}
+                                <strong><i class="fas fa-map-marker-alt"></i> Chi nhánh:</strong> <span style="color: #333;">${request.bank_branch}</span>
                             </div>
                         ` : ''}
                     </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                    <div>
-                        <strong style="color: #666;">Ngày tạo:</strong>
-                        <div>${formatDateTime(request.created_at)}</div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
+                    <div style="padding: 0.75rem; background: #f8f9fa; border-radius: 8px;">
+                        <strong style="color: #666; font-size: 0.9rem;"><i class="fas fa-calendar-plus"></i> Ngày tạo:</strong>
+                        <div style="margin-top: 0.25rem; font-weight: 500;">${formatDateTime(request.created_at)}</div>
                     </div>
                     ${request.confirmed_at ? `
-                        <div>
-                            <strong style="color: #666;">Ngày xác nhận:</strong>
-                            <div>${formatDateTime(request.confirmed_at)}</div>
+                        <div style="padding: 0.75rem; background: #d1ecf1; border-radius: 8px;">
+                            <strong style="color: #0c5460; font-size: 0.9rem;"><i class="fas fa-check-circle"></i> Ngày xác nhận:</strong>
+                            <div style="margin-top: 0.25rem; font-weight: 500; color: #0c5460;">${formatDateTime(request.confirmed_at)}</div>
                         </div>
                     ` : ''}
                     ${request.paid_at ? `
-                        <div>
-                            <strong style="color: #666;">Ngày thanh toán:</strong>
-                            <div>${formatDateTime(request.paid_at)}</div>
+                        <div style="padding: 0.75rem; background: #d4edda; border-radius: 8px;">
+                            <strong style="color: #155724; font-size: 0.9rem;"><i class="fas fa-money-check-alt"></i> Ngày thanh toán:</strong>
+                            <div style="margin-top: 0.25rem; font-weight: 500; color: #155724;">${formatDateTime(request.paid_at)}</div>
                         </div>
                     ` : ''}
                 </div>
@@ -479,9 +488,12 @@ function displayRequestDetail(request) {
                 ` : ''}
             </div>
 
-            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e0e0e0;">
-                <button class="btn-primary" onclick="closeViewModal()" style="width: 100%;">
-                    Đóng
+            <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #e0e0e0;">
+                <button onclick="closeViewModal()"
+                        style="width: 100%; padding: 0.875rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
+                        onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.4)'"
+                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                    <i class="fas fa-times-circle"></i> Đóng
                 </button>
             </div>
         </div>
@@ -491,6 +503,51 @@ function displayRequestDetail(request) {
 // Close view modal
 function closeViewModal() {
     document.getElementById('viewRequestModal').classList.remove('show');
+}
+
+// Copy to clipboard utility
+function copyToClipboard(text, successMessage = 'Đã copy!') {
+    // Try modern clipboard API first
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text)
+            .then(() => {
+                showToast(successMessage, 'success');
+            })
+            .catch(err => {
+                console.error('Clipboard API failed:', err);
+                fallbackCopyToClipboard(text, successMessage);
+            });
+    } else {
+        // Fallback for older browsers
+        fallbackCopyToClipboard(text, successMessage);
+    }
+}
+
+// Fallback copy method
+function fallbackCopyToClipboard(text, successMessage) {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.top = '0';
+    textArea.style.left = '0';
+    textArea.style.opacity = '0';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+
+    try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+            showToast(successMessage, 'success');
+        } else {
+            showToast('Không thể copy. Vui lòng copy thủ công.', 'error');
+        }
+    } catch (err) {
+        console.error('Fallback copy failed:', err);
+        showToast('Không thể copy. Vui lòng copy thủ công.', 'error');
+    }
+
+    document.body.removeChild(textArea);
 }
 
 // Cancel request
