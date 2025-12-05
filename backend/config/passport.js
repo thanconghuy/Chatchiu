@@ -15,6 +15,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       const email = profile.emails[0].value;
       const fullName = profile.displayName;
       const googleId = profile.id;
+      const profilePicture = profile.photos && profile.photos.length > 0 ? profile.photos[0].value : null;
 
       // Check if user already exists
       let user = await User.findByEmail(email);
@@ -28,12 +29,13 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
           email,
           fullName,
           username,
-          googleId
+          googleId,
+          profilePicture
         });
       } else {
-        // Update Google ID if not set
+        // Update Google ID and profile picture if not set
         if (!user.google_id) {
-          await User.updateGoogleId(user.id, googleId);
+          await User.updateGoogleId(user.id, googleId, profilePicture);
         }
       }
 

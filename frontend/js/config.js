@@ -117,6 +117,34 @@ async function apiRequest(endpoint, options = {}) {
         });
 
         if (!response.ok) {
+            // Handle token expiration - auto redirect to login
+            if (response.status === 401 && data.message) {
+                const isTokenExpired = data.message.toLowerCase().includes('expired') ||
+                                     data.message.toLowerCase().includes('token') ||
+                                     data.message === 'Access token required' ||
+                                     data.message === 'Invalid token';
+
+                if (isTokenExpired) {
+                    console.warn('[Auth] Token expired or invalid, redirecting to login...');
+
+                    // Save current URL for redirect after login
+                    const currentPath = window.location.pathname;
+                    if (currentPath !== '/login' && currentPath !== '/register') {
+                        localStorage.setItem('redirect_after_login', currentPath);
+                    }
+
+                    // Clear old auth data
+                    localStorage.removeItem(CONFIG.STORAGE_KEYS.TOKEN);
+                    localStorage.removeItem(CONFIG.STORAGE_KEYS.USER);
+
+                    // Redirect to login
+                    window.location.href = '/login?expired=true';
+
+                    // Don't throw error, let redirect happen
+                    return;
+                }
+            }
+
             throw new Error(data.message || 'Request failed');
         }
 

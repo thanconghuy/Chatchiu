@@ -256,9 +256,16 @@
         const token = urlParams.get('token');
         const googleLogin = urlParams.get('google_login');
         const error = urlParams.get('error');
+        const expired = urlParams.get('expired');
 
         const errorDiv = document.getElementById('error');
         const successDiv = document.getElementById('success');
+
+        // Show token expired message
+        if (expired === 'true') {
+            errorDiv.textContent = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+            errorDiv.classList.add('show');
+        }
 
         // Handle Google OAuth callback
         if (token && googleLogin === 'success') {
@@ -325,6 +332,14 @@
 
             try {
                 await login(email, password);
+
+                // Check for saved redirect URL
+                const redirectUrl = localStorage.getItem('redirect_after_login');
+                if (redirectUrl) {
+                    localStorage.removeItem('redirect_after_login');
+                    window.location.href = redirectUrl;
+                    return;
+                }
 
                 // Check if user is admin and redirect accordingly
                 const user = getUser();

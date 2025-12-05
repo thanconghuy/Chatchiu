@@ -49,7 +49,7 @@ class CronJobsService {
 
     // If already initialized and jobs are running, don't reinitialize unless forced
     if (this.isInitialized && this.jobs.length > 0 && !forceReload) {
-      logger.warn('Cron jobs already initialized and running');
+      logger.warn('Cron jobs already initialized and running (use forceReload=true to reload)');
       return;
     }
 
@@ -59,6 +59,12 @@ class CronJobsService {
       this.stopAll();
       this.isInitialized = true;
       return;
+    }
+
+    // Force reload: Reset initialization state to allow recreation
+    if (forceReload) {
+      logger.info('Force reload: Resetting cron jobs state...');
+      this.isInitialized = false;
     }
 
     logger.info('Initializing cron jobs...');

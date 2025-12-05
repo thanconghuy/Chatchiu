@@ -247,23 +247,22 @@ class User {
    * @param {Object} userData - User data from Google
    * @returns {Object} Created user
    */
-  static async createGoogleUser({ email, fullName, username, googleId }) {
+  static async createGoogleUser({ email, fullName, username, googleId, profilePicture }) {
     const query = `
-      INSERT INTO users (email, full_name, username, google_id, password_hash)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING id, email, full_name, username, phone, available_balance, pending_balance, total_cashback, created_at
+      INSERT INTO users (email, full_name, username, google_id, profile_picture, email_verified, password_hash)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id, email, full_name, username, phone, available_balance, pending_balance, total_cashback, google_id, profile_picture, created_at
     `;
 
     try {
-      // Use a random hash for password since Google OAuth users don't need password
-      const randomHash = await bcrypt.hash(Math.random().toString(36), SALT_ROUNDS);
-
       const result = await pool.query(query, [
         email.toLowerCase().trim(),
         fullName.trim(),
         username.toLowerCase().trim(),
         googleId,
-        randomHash
+        profilePicture,
+        true, // email_verified = true for Google OAuth
+        null  // password_hash = null for OAuth users (now nullable after migration)
       ]);
 
       return result.rows[0];
@@ -281,17 +280,21 @@ class User {
   }
 
   /**
-   * Update user's Google ID
+   * Update user's Google ID and profile picture
    * @param {string} userId
    * @param {string} googleId
+   * @param {string|null} profilePicture
    */
-  static async updateGoogleId(userId, googleId) {
+  static async updateGoogleId(userId, googleId, profilePicture = null) {
     const query = `
       UPDATE users
-      SET google_id = $1, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $2
+      SET google_id = $1,
+          profile_picture = COALESCE($2, profile_picture),
+          email_verified = true,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = $3
     `;
-    await pool.query(query, [googleId, userId]);
+    await pool.query(query, [googleId, profilePicture, userId]);
   }
 
   /**
