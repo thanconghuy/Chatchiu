@@ -97,6 +97,15 @@ function getStatusBadge(status) {
 // Load reconciliations
 async function loadReconciliations() {
     try {
+        // Show loading state
+        const tableBody = document.getElementById('reconciliationTable');
+        const cardsContainer = document.getElementById('reconciliationCards');
+
+        tableBody.innerHTML = '<tr class="loading-state"><td colspan="7"><div class="loading">Đang tải...</div></td></tr>';
+        if (cardsContainer) {
+            cardsContainer.innerHTML = '<div class="loading">Đang tải...</div>';
+        }
+
         const page = currentPage + 1; // API uses 1-based pagination
         const response = await apiCall(`/user/system-reconciliation/reconciliations?page=${page}&limit=${itemsPerPage}`);
 
@@ -114,13 +123,22 @@ async function loadReconciliations() {
     } catch (error) {
         console.error('Error loading reconciliations:', error);
         showToast('Không thể tải danh sách đối soát', 'error');
-        showEmptyState();
+
+        // Show error state
+        const tableBody = document.getElementById('reconciliationTable');
+        const cardsContainer = document.getElementById('reconciliationCards');
+
+        tableBody.innerHTML = '<tr class="error-state"><td colspan="7"><div class="error">Không thể tải dữ liệu</div></td></tr>';
+        if (cardsContainer) {
+            cardsContainer.innerHTML = '<div class="error">Không thể tải dữ liệu</div>';
+        }
     }
 }
 
 // Display reconciliations in table
 function displayReconciliations(reconciliations) {
     const tableBody = document.getElementById('reconciliationTable');
+    const cardsContainer = document.getElementById('reconciliationCards');
     const emptyState = document.getElementById('emptyState');
     const pagination = document.getElementById('pagination');
 
@@ -134,6 +152,7 @@ function displayReconciliations(reconciliations) {
     tableBody.innerHTML = '';
     pagination.style.display = 'flex';
 
+    // Render desktop table
     reconciliations.forEach(rec => {
         const row = document.createElement('tr');
         row.innerHTML = `
@@ -151,15 +170,77 @@ function displayReconciliations(reconciliations) {
         `;
         tableBody.appendChild(row);
     });
+
+    // Render mobile cards
+    if (cardsContainer) {
+        cardsContainer.innerHTML = reconciliations.map(rec => {
+            return `
+                <div class="reconciliation-card">
+                    <div class="reconciliation-card-header">
+                        <div class="reconciliation-card-period">
+                            <i class="fas fa-calendar-alt"></i>
+                            ${rec.period_label || 'N/A'}
+                        </div>
+                        <div class="reconciliation-card-status">
+                            ${getStatusBadge(rec.status)}
+                        </div>
+                    </div>
+
+                    <div class="reconciliation-card-body">
+                        <div class="reconciliation-card-row">
+                            <div class="reconciliation-card-label">
+                                <i class="fas fa-clock"></i> Thời gian
+                            </div>
+                            <div class="reconciliation-card-value">
+                                ${formatDate(rec.period_start)} - ${formatDate(rec.period_end)}
+                            </div>
+                        </div>
+
+                        <div class="reconciliation-card-row">
+                            <div class="reconciliation-card-label">
+                                <i class="fas fa-shopping-cart"></i> Số đơn hàng
+                            </div>
+                            <div class="reconciliation-card-value">
+                                ${rec.item_count || 0}
+                            </div>
+                        </div>
+
+                        <div class="reconciliation-card-row">
+                            <div class="reconciliation-card-label">
+                                <i class="fas fa-coins"></i> Tổng cashback
+                            </div>
+                            <div class="reconciliation-card-value highlight">
+                                ${formatCurrency(rec.total_cashback || 0)}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="reconciliation-card-footer">
+                        <div class="reconciliation-card-date">
+                            <i class="fas fa-calendar-check"></i>
+                            ${formatDate(rec.created_at)}
+                        </div>
+                        <button class="reconciliation-card-action" onclick="viewDetails('${rec.id}')">
+                            <i class="fas fa-eye"></i> Chi tiết
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
 }
 
 // Show empty state
 function showEmptyState() {
     const tableBody = document.getElementById('reconciliationTable');
+    const cardsContainer = document.getElementById('reconciliationCards');
     const emptyState = document.getElementById('emptyState');
     const pagination = document.getElementById('pagination');
 
     tableBody.innerHTML = '';
+    if (cardsContainer) {
+        cardsContainer.innerHTML = '<div style="text-align: center; padding: 40px 20px; color: #9ca3af;">Chưa có kỳ đối soát nào</div>';
+    }
     emptyState.style.display = 'block';
     pagination.style.display = 'none';
 }

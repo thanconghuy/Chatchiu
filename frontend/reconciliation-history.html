@@ -5,6 +5,178 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lịch sử đối soát - Cashback System</title>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Mobile card view styles */
+        .mobile-only {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .desktop-only {
+                display: none !important;
+            }
+            .mobile-only {
+                display: block !important;
+            }
+
+            /* Info box responsive */
+            .welcome h1 {
+                font-size: 1.5rem;
+            }
+
+            .subtitle {
+                font-size: 0.875rem;
+            }
+
+            /* Mobile card styles */
+            .reconciliation-cards {
+                display: flex;
+                flex-direction: column;
+                gap: 16px;
+                padding: 16px 0;
+            }
+
+            .reconciliation-card {
+                background: white;
+                border-radius: 12px;
+                padding: 16px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+                border: 1px solid #e5e7eb;
+                transition: transform 0.2s, box-shadow 0.2s;
+            }
+
+            .reconciliation-card:active {
+                transform: scale(0.98);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+            }
+
+            .reconciliation-card-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                margin-bottom: 12px;
+                padding-bottom: 12px;
+                border-bottom: 1px solid #f3f4f6;
+                gap: 12px;
+            }
+
+            .reconciliation-card-period {
+                font-weight: 700;
+                font-size: 1rem;
+                color: #111827;
+                flex: 1;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .reconciliation-card-status {
+                flex-shrink: 0;
+            }
+
+            .reconciliation-card-body {
+                display: grid;
+                gap: 12px;
+                margin-bottom: 12px;
+            }
+
+            .reconciliation-card-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                font-size: 0.875rem;
+            }
+
+            .reconciliation-card-label {
+                color: #6b7280;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+
+            .reconciliation-card-value {
+                color: #111827;
+                font-weight: 500;
+                text-align: right;
+            }
+
+            .reconciliation-card-value.highlight {
+                color: #10b981;
+                font-weight: 700;
+                font-size: 1.125rem;
+            }
+
+            .reconciliation-card-footer {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding-top: 12px;
+                border-top: 1px solid #f3f4f6;
+                gap: 12px;
+            }
+
+            .reconciliation-card-date {
+                font-size: 0.8rem;
+                color: #6b7280;
+                display: flex;
+                align-items: center;
+                gap: 4px;
+            }
+
+            .reconciliation-card-action {
+                padding: 8px 16px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-weight: 600;
+                font-size: 0.875rem;
+                cursor: pointer;
+                transition: transform 0.2s, box-shadow 0.2s;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                white-space: nowrap;
+            }
+
+            .reconciliation-card-action:active {
+                transform: scale(0.95);
+            }
+
+            /* Info box mobile */
+            [style*="background: linear-gradient(135deg, #e0f2fe"] {
+                padding: 16px !important;
+                margin-bottom: 16px !important;
+            }
+
+            [style*="background: linear-gradient(135deg, #e0f2fe"] h4 {
+                font-size: 0.9375rem !important;
+            }
+
+            [style*="background: linear-gradient(135deg, #e0f2fe"] p {
+                font-size: 0.8125rem !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .reconciliation-card {
+                padding: 14px;
+            }
+
+            .reconciliation-card-period {
+                font-size: 0.9375rem;
+            }
+
+            .reconciliation-card-value.highlight {
+                font-size: 1rem;
+            }
+
+            .reconciliation-card-row {
+                font-size: 0.8125rem;
+            }
+        }
+    </style>
 </head>
 <body>
     <!-- Mobile Menu Toggle -->
@@ -45,7 +217,8 @@
 
                 <!-- Reconciliation List -->
                 <section class="section">
-                    <div class="table-container">
+                    <!-- Desktop Table View -->
+                    <div class="table-container desktop-only">
                         <table class="data-table">
                             <thead>
                                 <tr>
@@ -66,6 +239,13 @@
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+
+                    <!-- Mobile Card View -->
+                    <div class="mobile-only">
+                        <div id="reconciliationCards" class="reconciliation-cards">
+                            <div class="loading">Đang tải...</div>
+                        </div>
                     </div>
 
                     <!-- Pagination -->
