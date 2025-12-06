@@ -37,6 +37,14 @@ function setupEventListeners() {
     // Create request button
     document.getElementById('createRequestBtn').addEventListener('click', showCreateModal);
 
+    // Payment history button
+    const paymentHistoryBtn = document.getElementById('paymentHistoryBtn');
+    if (paymentHistoryBtn) {
+        paymentHistoryBtn.addEventListener('click', () => {
+            window.location.href = '/payment-history';
+        });
+    }
+
     // Tab buttons for status filter
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
