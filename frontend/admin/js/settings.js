@@ -8,6 +8,9 @@
         document.addEventListener('DOMContentLoaded', async () => {
             displayUserName('userName');
 
+            // Setup event delegation
+            setupEventListeners();
+
             // Load all settings in parallel
             await Promise.all([
                 loadSettings(),
@@ -17,6 +20,52 @@
 
             console.log('✅ All settings loaded successfully');
         });
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Event delegation for all buttons
+            document.addEventListener('click', (e) => {
+                const target = e.target.closest('button');
+                if (!target) return;
+
+                // Save buttons
+                if (target.classList.contains('btn-save')) {
+                    if (target.dataset.action === 'saveRetrySchedule') saveRetrySchedule();
+                    else if (target.dataset.action === 'saveApiToken') saveApiToken();
+                    else if (target.dataset.action === 'saveApiUrl') saveApiUrl();
+                    else if (target.dataset.action === 'saveCommissionSplit') saveCommissionSplit();
+                    else if (target.dataset.action === 'saveSyncSchedule') saveSyncSchedule();
+                    return;
+                }
+
+                // Save days button
+                if (target.classList.contains('btn-primary') && target.dataset.action === 'saveSyncDays') {
+                    saveSyncDays();
+                    return;
+                }
+
+                // Secondary buttons (close/cancel)
+                if (target.classList.contains('btn-secondary')) {
+                    // View sync details
+                    if (target.dataset.sessionId) {
+                        viewSyncDetails(target.dataset.sessionId);
+                        return;
+                    }
+                    // Close modal
+                    if (target.dataset.action === 'closeEditModal') {
+                        closeEditModal();
+                        return;
+                    }
+                }
+
+                // Close modal X button
+                if (target.dataset.action === 'closeModal') {
+                    const modal = target.closest('.modal');
+                    if (modal) modal.remove();
+                    return;
+                }
+            });
+        }
 
         // Load all settings
         async function loadSettings() {
@@ -247,8 +296,8 @@
                         Ví dụ: "0 */6 * * *" = mỗi 6 giờ
                     </small>
                 </div>
-                <button class="btn-save" onclick="saveRetrySchedule()">Lưu</button>
-                <button class="btn-secondary" onclick="closeEditModal()" style="margin-left: 10px;">Hủy</button>
+                <button class="btn-save" data-action="saveRetrySchedule">Lưu</button>
+                <button class="btn-secondary" data-action="closeEditModal" style="margin-left: 10px;">Hủy</button>
             `;
 
             document.getElementById('editModal').classList.add('show');
@@ -290,8 +339,8 @@
                     <label for="apiToken">AccessTrade API Token</label>
                     <textarea id="apiToken" placeholder="Nhập API token..." rows="3"></textarea>
                 </div>
-                <button class="btn-save" onclick="saveApiToken()">Lưu</button>
-                <button class="btn-secondary" onclick="closeEditModal()" style="margin-left: 10px;">Hủy</button>
+                <button class="btn-save" data-action="saveApiToken">Lưu</button>
+                <button class="btn-secondary" data-action="closeEditModal" style="margin-left: 10px;">Hủy</button>
             `;
 
             document.getElementById('editModal').classList.add('show');
@@ -361,8 +410,8 @@
                     <label for="apiUrl">AccessTrade API URL</label>
                     <input type="text" id="apiUrl" value="${document.getElementById('apiUrlValue').textContent}">
                 </div>
-                <button class="btn-save" onclick="saveApiUrl()">Lưu</button>
-                <button class="btn-secondary" onclick="closeEditModal()" style="margin-left: 10px;">Hủy</button>
+                <button class="btn-save" data-action="saveApiUrl">Lưu</button>
+                <button class="btn-secondary" data-action="closeEditModal" style="margin-left: 10px;">Hủy</button>
             `;
 
             document.getElementById('editModal').classList.add('show');
@@ -406,8 +455,8 @@
                         Phần còn lại sẽ là của platform. VD: 70% = user nhận 70%, platform nhận 30%
                     </small>
                 </div>
-                <button class="btn-save" onclick="saveCommissionSplit()">Lưu</button>
-                <button class="btn-secondary" onclick="closeEditModal()" style="margin-left: 10px;">Hủy</button>
+                <button class="btn-save" data-action="saveCommissionSplit">Lưu</button>
+                <button class="btn-secondary" data-action="closeEditModal" style="margin-left: 10px;">Hủy</button>
             `;
 
             document.getElementById('editModal').classList.add('show');
@@ -737,8 +786,8 @@
                 </div>
 
                 <div class="modal-actions" style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
-                    <button class="btn-secondary" onclick="closeEditModal()">Hủy</button>
-                    <button class="btn-save" onclick="saveSyncSchedule()">Lưu</button>
+                    <button class="btn-secondary" data-action="closeEditModal">Hủy</button>
+                    <button class="btn-save" data-action="saveSyncSchedule">Lưu</button>
                 </div>
             `;
 
@@ -829,8 +878,8 @@
                     </small>
                 </div>
                 <div class="modal-actions">
-                    <button class="btn-secondary" onclick="closeEditModal()">Hủy</button>
-                    <button class="btn-primary" onclick="saveSyncDays()">Lưu</button>
+                    <button class="btn-secondary" data-action="closeEditModal">Hủy</button>
+                    <button class="btn-primary" data-action="saveSyncDays">Lưu</button>
                 </div>
             `;
 
@@ -975,7 +1024,7 @@
                             <td style="color: var(--text-secondary);">${session.total_skipped || 0}</td>
                             <td style="color: var(--error-color);">${session.total_errors || 0}</td>
                             <td>
-                                <button class="btn-secondary" onclick="viewSyncDetails('${session.id}')" style="padding: 4px 8px; font-size: 12px;">
+                                <button class="btn-secondary" data-session-id="${session.id}" style="padding: 4px 8px; font-size: 12px;">
                                     Chi tiết
                                 </button>
                             </td>
@@ -1049,7 +1098,7 @@
                     <div style="background: white; padding: 24px; border-radius: 12px; max-width: 900px; max-height: 80vh; overflow: auto; width: 90%;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                             <h2>Chi Tiết Sync Session</h2>
-                            <button onclick="this.closest('.modal').remove()" style="border: none; background: none; font-size: 24px; cursor: pointer;">&times;</button>
+                            <button data-action="closeModal" style="border: none; background: none; font-size: 24px; cursor: pointer;">&times;</button>
                         </div>
 
                         ${changes.length === 0 ?
