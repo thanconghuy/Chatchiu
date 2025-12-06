@@ -13,6 +13,9 @@
  */
 
 const SystemReconciliationService = require('../../services/systemReconciliation/SystemReconciliationService');
+const User = require('../../models/User');
+const emailService = require('../../services/emailService');
+const { ActivityLogger, ACTIVITY_TYPES } = require('../../services/activityLogger');
 
 class MonthlyReconciliationJob {
   /**
@@ -31,9 +34,14 @@ class MonthlyReconciliationJob {
 
       console.log(`[MonthlyReconciliationJob] Creating reconciliation for ${month}/${year}`);
 
-      // Use system user for auto-creation (you should have a system admin user)
-      // For now, we'll use null - admin will need to claim it
-      const createdBy = null; // TODO: Use system admin user ID
+      // Get system admin user ID for auto-creation
+      const createdBy = await User.getSystemAdminId();
+
+      if (!createdBy) {
+        console.warn('[MonthlyReconciliationJob] No admin user found - reconciliation will be created without owner');
+      } else {
+        console.log(`[MonthlyReconciliationJob] Using system admin ID: ${createdBy}`);
+      }
 
       // Create reconciliation
       const reconciliation = await SystemReconciliationService.createReconciliation({
@@ -55,7 +63,7 @@ class MonthlyReconciliationJob {
       console.log(`  - Reconciliation Date: ${new Date(reconciliation.reconciliation_date).toLocaleDateString('vi-VN')}`);
       console.log(`  - Duration: ${duration}ms`);
 
-      // TODO: Send notification to admin
+      // Send notification to admin
       await this.notifyAdmin(reconciliation);
 
       return {
@@ -86,19 +94,13 @@ class MonthlyReconciliationJob {
   }
 
   /**
-   * Notify admin about new reconciliation (placeholder)
+   * Notify admin about new reconciliation
+   * Sends email notification and logs activity
    */
   static async notifyAdmin(reconciliation) {
-    // TODO: Implement notification system
-    // Options:
-    // 1. Email notification
-    // 2. In-app notification
-    // 3. Slack/Discord webhook
-    // 4. SMS for high-value reconciliations
+    const startTime = Date.now();
 
-    console.log('[MonthlyReconciliationJob] Admin notification sent (placeholder)');
-
-    // Example notification message:
+    // Format notification message
     const message = `
 🔔 Kỳ đối soát mới: ${reconciliation.period_label}
 
@@ -115,12 +117,70 @@ class MonthlyReconciliationJob {
 👉 Vui lòng review và finalize tại Admin Dashboard
     `.trim();
 
+    console.log('[MonthlyReconciliationJob] Sending admin notification...');
     console.log(message);
+
+    let emailSent = false;
+    let notificationMethod = 'console';
+
+    // Try to send email notification
+    try {
+      emailSent = await emailService.sendAdminNotification({
+        subject: `Kỳ đối soát mới: ${reconciliation.period_label}`,
+        message: message,
+        data: {
+          'Reconciliation ID': reconciliation.id,
+          'Period': reconciliation.period_label,
+          'Total Orders': reconciliation.total_orders,
+          'Total Users': reconciliation.total_users,
+          'Total Cashback': this.formatMoney(reconciliation.total_cashback),
+          'Reserved Amount': this.formatMoney(reconciliation.reserved_amount),
+          'High Risk Orders': reconciliation.high_risk_count,
+          'Reconciliation Date': new Date(reconciliation.reconciliation_date).toLocaleDateString('vi-VN')
+        }
+      });
+
+      if (emailSent) {
+        notificationMethod = 'email';
+        console.log('[MonthlyReconciliationJob] Email notification sent successfully');
+      } else {
+        console.log('[MonthlyReconciliationJob] Email notification failed - SMTP not configured');
+      }
+    } catch (error) {
+      console.error('[MonthlyReconciliationJob] Failed to send email notification:', error.message);
+    }
+
+    // Log activity
+    const responseTime = Date.now() - startTime;
+    try {
+      await ActivityLogger.log({
+        activityType: ACTIVITY_TYPES.ADMIN_NOTIFICATION,
+        eventData: {
+          notificationType: 'monthly_reconciliation',
+          reconciliationId: reconciliation.id,
+          period: reconciliation.period_label,
+          stats: {
+            totalOrders: reconciliation.total_orders,
+            totalUsers: reconciliation.total_users,
+            totalCashback: reconciliation.total_cashback,
+            reservedAmount: reconciliation.reserved_amount,
+            highRiskCount: reconciliation.high_risk_count
+          },
+          emailSent,
+          notificationMethod
+        },
+        req: { headers: {}, ip: 'system' },
+        status: 'success',
+        responseTime
+      });
+    } catch (logError) {
+      console.error('[MonthlyReconciliationJob] Failed to log notification activity:', logError.message);
+    }
 
     // Return notification result
     return {
-      sent: false, // Change to true when implemented
-      method: 'none',
+      sent: emailSent,
+      method: notificationMethod,
       message
     };
   }

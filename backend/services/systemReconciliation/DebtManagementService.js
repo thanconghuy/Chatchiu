@@ -5,6 +5,9 @@
  */
 
 const { pool } = require('../../config/database');
+const emailService = require('../emailService');
+const { ActivityLogger, ACTIVITY_TYPES } = require('../activityLogger');
+const escapeHtml = require('../../utils/escapeHtml');
 
 class DebtManagementService {
   /**
@@ -76,18 +79,26 @@ class DebtManagementService {
         WHERE id = $1
       `, [conversionId]);
 
-      // Get conversion details for notification
+      // Get conversion and user details for notification
       const convResult = await client.query(
         'SELECT order_code, merchant_name FROM conversions WHERE id = $1',
         [conversionId]
       );
       const conversion = convResult.rows[0];
 
+      // Get user email for notification
+      const userResult = await client.query(
+        'SELECT email FROM users WHERE id = $1',
+        [userId]
+      );
+      const user = userResult.rows[0];
+
       await client.query('COMMIT');
 
       // Send notification (async, don't wait)
       this.sendDebtNotification({
         userId,
+        userEmail: user?.email,
         amount: cashbackAmount,
         orderCode: conversion?.order_code,
         merchantName: conversion?.merchant_name,
@@ -252,34 +263,141 @@ class DebtManagementService {
 
   /**
    * Send debt notification to user
-   * (Placeholder - integrate with your notification system)
+   * Sends email notification and logs activity
    *
    * @param {Object} params
    */
-  static async sendDebtNotification({ userId, amount, orderCode, merchantName, reason }) {
-    // TODO: Integrate with email/SMS service
+  static async sendDebtNotification({ userId, userEmail, amount, orderCode, merchantName, reason }) {
+    const startTime = Date.now();
+
     console.log(`[DEBT NOTIFICATION] User ${userId}:`);
     console.log(`  Order: ${orderCode} (${merchantName})`);
     console.log(`  Amount: ${amount}₫`);
     console.log(`  Reason: ${reason}`);
 
-    // Example email content:
-    const emailContent = `
-      Xin chào,
+    const formattedAmount = new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(amount);
 
-      Đơn hàng #${orderCode} tại ${merchantName} đã bị merchant từ chối.
+    // Email subject and content
+    const subject = `⚠️ Đơn hàng bị từ chối - ${orderCode}`;
+    const message = `
+Xin chào,
 
-      Số tiền cashback ${amount}₫ đã được trừ vào số dư của bạn.
-      Vui lòng nạp tiền hoặc sử dụng cashback mới để thanh toán khoản nợ này.
+Đơn hàng #${orderCode} tại ${merchantName} đã bị merchant từ chối.
 
-      Lý do: ${reason}
+Số tiền cashback ${formattedAmount} đã được trừ vào số dư của bạn.
+Vui lòng nạp tiền hoặc sử dụng cashback mới để thanh toán khoản nợ này.
 
-      Trân trọng,
-      Cashback System
-    `;
+Lý do từ chối: ${reason}
 
-    // TODO: Send email
-    // await EmailService.send(userId, 'Thông báo đơn hàng bị từ chối', emailContent);
+Trân trọng,
+ChatChiu Cashback System
+    `.trim();
+
+    let emailSent = false;
+    let notificationMethod = 'console';
+
+    // Try to send email if user email is provided
+    if (userEmail) {
+      try {
+        // Escape HTML in user-controlled content to prevent XSS
+        const safeOrderCode = escapeHtml(orderCode);
+        const safeMerchantName = escapeHtml(merchantName);
+        const safeReason = escapeHtml(reason);
+        // formattedAmount is already safe (from Intl.NumberFormat)
+
+        const htmlContent = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="UTF-8">
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background: linear-gradient(135deg, #f44336 0%, #e91e63 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+              .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+              .alert { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 5px; }
+              .info-box { background: white; padding: 15px; border-radius: 5px; margin: 20px 0; }
+              .footer { text-align: center; color: #999; font-size: 12px; margin-top: 20px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>⚠️ Đơn hàng bị từ chối</h1>
+              </div>
+              <div class="content">
+                <p>Xin chào,</p>
+                <div class="alert">
+                  <strong>Đơn hàng #${safeOrderCode}</strong> tại <strong>${safeMerchantName}</strong> đã bị merchant từ chối.
+                </div>
+                <div class="info-box">
+                  <p><strong>Số tiền cashback:</strong> ${formattedAmount}</p>
+                  <p><strong>Lý do từ chối:</strong> ${safeReason}</p>
+                </div>
+                <p>Số tiền cashback <strong>${formattedAmount}</strong> đã được trừ vào số dư của bạn.</p>
+                <p>Vui lòng nạp tiền hoặc sử dụng cashback mới để thanh toán khoản nợ này.</p>
+                <p style="color: #666; font-size: 12px; margin-top: 20px;">
+                  Nếu bạn có thắc mắc, vui lòng liên hệ bộ phận hỗ trợ.
+                </p>
+              </div>
+              <div class="footer">
+                <p>© 2025 ChatChiu Cashback. All rights reserved.</p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `;
+
+        emailSent = await emailService.sendEmail({
+          to: userEmail,
+          subject: subject,
+          html: htmlContent,
+          text: message
+        });
+
+        if (emailSent) {
+          notificationMethod = 'email';
+          console.log(`[DEBT NOTIFICATION] Email sent to ${userEmail}`);
+        } else {
+          console.log('[DEBT NOTIFICATION] Email sending failed - SMTP not configured');
+        }
+      } catch (error) {
+        console.error('[DEBT NOTIFICATION] Failed to send email:', error.message);
+      }
+    } else {
+      console.log('[DEBT NOTIFICATION] No email provided - skipping email notification');
+    }
+
+    // Log activity
+    const responseTime = Date.now() - startTime;
+    try {
+      await ActivityLogger.log({
+        activityType: ACTIVITY_TYPES.DEBT_NOTIFICATION,
+        userId,
+        eventData: {
+          orderCode,
+          merchantName,
+          amount,
+          reason,
+          emailSent,
+          notificationMethod
+        },
+        req: { headers: {}, ip: 'system' },
+        status: 'success',
+        responseTime
+      });
+    } catch (logError) {
+      console.error('[DEBT NOTIFICATION] Failed to log activity:', logError.message);
+    }
+
+    return {
+      sent: emailSent,
+      method: notificationMethod,
+      message
+    };
   }
 }
 

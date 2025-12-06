@@ -490,7 +490,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Tạo yêu cầu thanh toán</h2>
-                <button class="close-modal" onclick="closeCreateModal()">&times;</button>
+                <button class="close-modal" id="closeCreateModalBtn">&times;</button>
             </div>
             <form id="createRequestForm">
                 <div class="form-group">
@@ -568,7 +568,7 @@
                 </div>
 
                 <div style="display: flex; gap: 1rem; margin-top: 2rem;">
-                    <button type="button" class="btn-secondary" onclick="closeCreateModal()" style="flex: 1;">
+                    <button type="button" class="btn-secondary" id="cancelCreateBtn" style="flex: 1;">
                         Hủy
                     </button>
                     <button type="submit" class="btn-primary" style="flex: 2;">
@@ -584,7 +584,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Chi tiết yêu cầu</h2>
-                <button class="close-modal" onclick="closeViewModal()">&times;</button>
+                <button class="close-modal" id="closeViewModalBtn">&times;</button>
             </div>
             <div id="requestDetailContent">
                 <!-- Content will be loaded dynamically -->

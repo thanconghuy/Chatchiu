@@ -45,6 +45,22 @@ function setupEventListeners() {
         });
     }
 
+    // Modal close buttons
+    const closeCreateModalBtn = document.getElementById('closeCreateModalBtn');
+    if (closeCreateModalBtn) {
+        closeCreateModalBtn.addEventListener('click', closeCreateModal);
+    }
+
+    const cancelCreateBtn = document.getElementById('cancelCreateBtn');
+    if (cancelCreateBtn) {
+        cancelCreateBtn.addEventListener('click', closeCreateModal);
+    }
+
+    const closeViewModalBtn = document.getElementById('closeViewModalBtn');
+    if (closeViewModalBtn) {
+        closeViewModalBtn.addEventListener('click', closeViewModal);
+    }
+
     // Tab buttons for status filter
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -197,8 +213,10 @@ function displayPaymentRequests(requests) {
     }
 
     // Desktop table
-    tableBody.innerHTML = requests.map(req => `
-        <tr>
+    tableBody.innerHTML = '';
+    requests.forEach(req => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
             <td><code>${req.id.substring(0, 8)}</code></td>
             <td><strong>${formatCurrency(req.requested_amount)}</strong></td>
             <td>${getStatusBadge(req.status)}</td>
@@ -207,22 +225,37 @@ function displayPaymentRequests(requests) {
             <td>${formatDateTime(req.created_at)}</td>
             <td>
                 <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-                    <button class="btn-sm btn-primary" onclick="viewRequest('${req.id}')" title="Xem chi tiết">
+                    <button class="btn-sm btn-primary view-btn" data-id="${req.id}" title="Xem chi tiết">
                         <i class="fas fa-eye"></i> Xem
                     </button>
                     ${req.status === 'pending' ? `
-                        <button class="btn-sm btn-danger" onclick="cancelRequest('${req.id}')" title="Hủy yêu cầu">
+                        <button class="btn-sm btn-danger cancel-btn" data-id="${req.id}" title="Hủy yêu cầu">
                             <i class="fas fa-times"></i> Hủy
                         </button>
                     ` : ''}
                 </div>
             </td>
-        </tr>
-    `).join('');
+        `;
+        tableBody.appendChild(row);
+
+        // Add event listeners
+        const viewBtn = row.querySelector('.view-btn');
+        viewBtn.addEventListener('click', () => viewRequest(req.id));
+
+        if (req.status === 'pending') {
+            const cancelBtn = row.querySelector('.cancel-btn');
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', () => cancelRequest(req.id));
+            }
+        }
+    });
 
     // Mobile cards
-    cardsContainer.innerHTML = requests.map(req => `
-        <div class="payment-card">
+    cardsContainer.innerHTML = '';
+    requests.forEach(req => {
+        const card = document.createElement('div');
+        card.className = 'payment-card';
+        card.innerHTML = `
             <div class="payment-card-header">
                 <div class="payment-card-amount">${formatCurrency(req.requested_amount)}</div>
                 ${getStatusBadge(req.status)}
@@ -242,17 +275,29 @@ function displayPaymentRequests(requests) {
                 </div>
             </div>
             <div class="payment-card-actions">
-                <button class="btn-view" onclick="viewRequest('${req.id}')">
+                <button class="btn-view mobile-view-btn" data-id="${req.id}">
                     <i class="fas fa-eye"></i> Xem chi tiết
                 </button>
                 ${req.status === 'pending' ? `
-                    <button class="btn-cancel" onclick="cancelRequest('${req.id}')">
+                    <button class="btn-cancel mobile-cancel-btn" data-id="${req.id}">
                         <i class="fas fa-times"></i> Hủy
                     </button>
                 ` : ''}
             </div>
-        </div>
-    `).join('');
+        `;
+        cardsContainer.appendChild(card);
+
+        // Add event listeners
+        const viewBtn = card.querySelector('.mobile-view-btn');
+        viewBtn.addEventListener('click', () => viewRequest(req.id));
+
+        if (req.status === 'pending') {
+            const cancelBtn = card.querySelector('.mobile-cancel-btn');
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', () => cancelRequest(req.id));
+            }
+        }
+    });
 }
 
 // Get status badge HTML

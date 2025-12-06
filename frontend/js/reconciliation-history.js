@@ -68,16 +68,32 @@ function formatDateTime(dateString) {
     });
 }
 
-// Show toast notification
+// Show toast notification (using new Toast system)
 function showToast(message, type = 'success') {
-    const toast = document.getElementById('toast');
-    toast.textContent = message;
-    toast.className = `toast ${type}`;
-    toast.style.display = 'block';
+    // Use the global Toast system if available, otherwise fallback to old method
+    if (typeof Toast !== 'undefined') {
+        if (type === 'error') {
+            Toast.error(message);
+        } else if (type === 'warning') {
+            Toast.warning(message);
+        } else if (type === 'info') {
+            Toast.info(message);
+        } else {
+            Toast.success(message);
+        }
+    } else {
+        // Fallback to old toast method
+        const toast = document.getElementById('toast');
+        if (toast) {
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            toast.style.display = 'block';
 
-    setTimeout(() => {
-        toast.style.display = 'none';
-    }, 3000);
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+    }
 }
 
 // Get status badge HTML
@@ -163,70 +179,82 @@ function displayReconciliations(reconciliations) {
             <td>${getStatusBadge(rec.status)}</td>
             <td>${formatDate(rec.created_at)}</td>
             <td>
-                <button class="btn-secondary" style="padding: 6px 12px; font-size: 0.875rem;" onclick="viewDetails('${rec.id}')">
+                <button class="btn-secondary detail-btn" data-id="${rec.id}" style="padding: 6px 12px; font-size: 0.875rem;">
                     👁️ Chi tiết
                 </button>
             </td>
         `;
         tableBody.appendChild(row);
+
+        // Add event listener to the button
+        const btn = row.querySelector('.detail-btn');
+        btn.addEventListener('click', () => viewDetails(rec.id));
     });
 
     // Render mobile cards
     if (cardsContainer) {
-        cardsContainer.innerHTML = reconciliations.map(rec => {
-            return `
-                <div class="reconciliation-card">
-                    <div class="reconciliation-card-header">
-                        <div class="reconciliation-card-period">
-                            <i class="fas fa-calendar-alt"></i>
-                            ${rec.period_label || 'N/A'}
-                        </div>
-                        <div class="reconciliation-card-status">
-                            ${getStatusBadge(rec.status)}
-                        </div>
+        cardsContainer.innerHTML = '';
+
+        reconciliations.forEach(rec => {
+            const card = document.createElement('div');
+            card.className = 'reconciliation-card';
+            card.innerHTML = `
+                <div class="reconciliation-card-header">
+                    <div class="reconciliation-card-period">
+                        <i class="fas fa-calendar-alt"></i>
+                        ${rec.period_label || 'N/A'}
                     </div>
-
-                    <div class="reconciliation-card-body">
-                        <div class="reconciliation-card-row">
-                            <div class="reconciliation-card-label">
-                                <i class="fas fa-clock"></i> Thời gian
-                            </div>
-                            <div class="reconciliation-card-value">
-                                ${formatDate(rec.period_start)} - ${formatDate(rec.period_end)}
-                            </div>
-                        </div>
-
-                        <div class="reconciliation-card-row">
-                            <div class="reconciliation-card-label">
-                                <i class="fas fa-shopping-cart"></i> Số đơn hàng
-                            </div>
-                            <div class="reconciliation-card-value">
-                                ${rec.item_count || 0}
-                            </div>
-                        </div>
-
-                        <div class="reconciliation-card-row">
-                            <div class="reconciliation-card-label">
-                                <i class="fas fa-coins"></i> Tổng cashback
-                            </div>
-                            <div class="reconciliation-card-value highlight">
-                                ${formatCurrency(rec.total_cashback || 0)}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="reconciliation-card-footer">
-                        <div class="reconciliation-card-date">
-                            <i class="fas fa-calendar-check"></i>
-                            ${formatDate(rec.created_at)}
-                        </div>
-                        <button class="reconciliation-card-action" onclick="viewDetails('${rec.id}')">
-                            <i class="fas fa-eye"></i> Chi tiết
-                        </button>
+                    <div class="reconciliation-card-status">
+                        ${getStatusBadge(rec.status)}
                     </div>
                 </div>
+
+                <div class="reconciliation-card-body">
+                    <div class="reconciliation-card-row">
+                        <div class="reconciliation-card-label">
+                            <i class="fas fa-clock"></i> Thời gian
+                        </div>
+                        <div class="reconciliation-card-value">
+                            ${formatDate(rec.period_start)} - ${formatDate(rec.period_end)}
+                        </div>
+                    </div>
+
+                    <div class="reconciliation-card-row">
+                        <div class="reconciliation-card-label">
+                            <i class="fas fa-shopping-cart"></i> Số đơn hàng
+                        </div>
+                        <div class="reconciliation-card-value">
+                            ${rec.item_count || 0}
+                        </div>
+                    </div>
+
+                    <div class="reconciliation-card-row">
+                        <div class="reconciliation-card-label">
+                            <i class="fas fa-coins"></i> Tổng cashback
+                        </div>
+                        <div class="reconciliation-card-value highlight">
+                            ${formatCurrency(rec.total_cashback || 0)}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="reconciliation-card-footer">
+                    <div class="reconciliation-card-date">
+                        <i class="fas fa-calendar-check"></i>
+                        ${formatDate(rec.created_at)}
+                    </div>
+                    <button class="reconciliation-card-action mobile-detail-btn" data-id="${rec.id}">
+                        <i class="fas fa-eye"></i> Chi tiết
+                    </button>
+                </div>
             `;
-        }).join('');
+
+            cardsContainer.appendChild(card);
+
+            // Add event listener to the button
+            const btn = card.querySelector('.mobile-detail-btn');
+            btn.addEventListener('click', () => viewDetails(rec.id));
+        });
     }
 }
 

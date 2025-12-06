@@ -194,6 +194,107 @@ function setupEventListeners() {
         });
         console.log('✓ Sync status button listener attached');
     }
+
+    // Event delegation for dynamically created buttons
+    if (conversionsTable) {
+        conversionsTable.addEventListener('click', (e) => {
+            const target = e.target.closest('button');
+            if (!target) return;
+
+            // Action dropdown toggle
+            if (target.classList.contains('action-dropdown-btn')) {
+                toggleActionMenu(e);
+                return;
+            }
+
+            // Get conversion ID from data attribute or closest element
+            const convId = target.dataset.convId || target.closest('[data-conversion-id]')?.dataset.conversionId;
+
+            // View conversion details
+            if (target.classList.contains('action-view')) {
+                e.stopPropagation();
+                if (convId) viewConversionDetails(convId);
+                return;
+            }
+
+            // Check AT order status
+            if (target.classList.contains('action-check-at') || target.classList.contains('btn-check-at')) {
+                e.stopPropagation();
+                if (convId) {
+                    checkATOrderStatus(convId);
+                    // Close detail modal if open
+                    const detailModal = document.querySelector('.detail-modal-overlay');
+                    if (detailModal) closeDetailModal();
+                }
+                return;
+            }
+
+            // Approve conversion
+            if (target.classList.contains('action-approve') || target.classList.contains('btn-approve')) {
+                e.stopPropagation();
+                if (convId) approveConversion(convId);
+                return;
+            }
+
+            // Reject conversion
+            if (target.classList.contains('action-reject') || target.classList.contains('btn-reject')) {
+                e.stopPropagation();
+                if (convId) rejectConversion(convId);
+                return;
+            }
+
+            // Close buttons
+            if (target.classList.contains('close-btn')) {
+                closeDetailModal();
+                return;
+            }
+        });
+        console.log('✓ Event delegation for table actions attached');
+    }
+
+    // Event delegation for modals (overlay clicks)
+    document.addEventListener('click', (e) => {
+        // Close modal via overlay click
+        if (e.target.classList.contains('detail-modal-overlay')) {
+            closeATComparisonModal();
+            closeDetailModal();
+        }
+
+        // Close button clicked
+        const closeBtn = e.target.closest('.close-btn');
+        if (closeBtn) {
+            const modal = closeBtn.dataset.modal;
+            if (modal === 'at-comparison') {
+                closeATComparisonModal();
+            } else {
+                closeDetailModal();
+            }
+            return;
+        }
+
+        // Cancel AT modal button
+        if (e.target.closest('[data-action="cancel-at-modal"]')) {
+            closeATComparisonModal();
+            return;
+        }
+
+        // Confirm update from AT button
+        const confirmUpdateBtn = e.target.closest('[data-action="confirmUpdateFromAT"]');
+        if (confirmUpdateBtn) {
+            const convId = confirmUpdateBtn.dataset.convId;
+            const atData = confirmUpdateBtn.dataset.atData;
+            if (convId && atData) {
+                try {
+                    const accessTrade = JSON.parse(atData);
+                    confirmUpdateFromAT(convId, accessTrade);
+                } catch (err) {
+                    console.error('Failed to parse AT data:', err);
+                }
+            }
+            return;
+        }
+    });
+    console.log('✓ Event delegation for modals attached');
 }
 
 /**
@@ -352,24 +453,24 @@ function renderConversions(conversions) {
         // Actions dropdown - always show for all statuses
         actions = `
             <div class="action-dropdown">
-                <button class="action-dropdown-btn" onclick="toggleActionMenu(event)">
+                <button class="action-dropdown-btn" data-conv-id="${conv.id}">
                     ⋮
                 </button>
                 <div class="action-dropdown-menu">
-                    <button class="action-item action-view" onclick="viewConversionDetails('${conv.id}'); event.stopPropagation();">
+                    <button class="action-item action-view" data-conv-id="${conv.id}">
                         <span class="action-icon">👁</span>
                         <span>Xem chi tiết</span>
                     </button>
-                    <button class="action-item action-check-at" onclick="checkATOrderStatus('${conv.id}'); event.stopPropagation();">
+                    <button class="action-item action-check-at" data-conv-id="${conv.id}">
                         <span class="action-icon">🔍</span>
                         <span>Kiểm tra trạng thái AT</span>
                     </button>
                     ${conv.status === 'pending' ? `
-                        <button class="action-item action-approve" onclick="approveConversion('${conv.id}'); event.stopPropagation();">
+                        <button class="action-item action-approve" data-conv-id="${conv.id}">
                             <span class="action-icon">✓</span>
                             <span>Duyệt đơn</span>
                         </button>
-                        <button class="action-item action-reject" onclick="rejectConversion('${conv.id}'); event.stopPropagation();">
+                        <button class="action-item action-reject" data-conv-id="${conv.id}">
                             <span class="action-icon">✗</span>
                             <span>Từ chối</span>
                         </button>
@@ -586,11 +687,11 @@ function showATComparisonModal(conversionId, current, accessTrade, differences) 
     }
 
     const modalContent = `
-        <div class="detail-modal-overlay" onclick="closeATComparisonModal()">
-            <div class="detail-modal" onclick="event.stopPropagation()" style="max-width: 700px;">
+        <div class="detail-modal-overlay at-comparison-modal">
+            <div class="detail-modal" style="max-width: 700px;">
                 <div class="detail-modal-header">
                     <h2>🔍 So Sánh Trạng Thái</h2>
-                    <button class="close-btn" onclick="closeATComparisonModal()">✕</button>
+                    <button class="close-btn" data-modal="at-comparison">✕</button>
                 </div>
                 <div class="detail-modal-body">
                     <div style="background: #fee2e2; padding: 16px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ef4444;">
@@ -647,8 +748,8 @@ function showATComparisonModal(conversionId, current, accessTrade, differences) 
                     </div>
                 </div>
                 <div class="detail-modal-footer">
-                    <button class="btn btn-secondary" onclick="closeATComparisonModal()">Hủy</button>
-                    <button class="btn btn-primary" onclick="confirmUpdateFromAT('${conversionId}', ${JSON.stringify(accessTrade).replace(/"/g, '&quot;')})">
+                    <button class="btn btn-secondary" data-action="cancel-at-modal">Hủy</button>
+                    <button class="btn btn-primary" data-action="confirmUpdateFromAT" data-conv-id="${conversionId}" data-at-data='${JSON.stringify(accessTrade)}'>
                         ✓ Cập Nhật Từ AT
                     </button>
                 </div>
@@ -747,30 +848,30 @@ async function viewConversionDetails(conversionId) {
 
             // Create modal content
             const modalContent = `
-                <div class="detail-modal-overlay" onclick="closeDetailModal()">
-                    <div class="detail-modal" onclick="event.stopPropagation()">
+                <div class="detail-modal-overlay conversion-detail-modal">
+                    <div class="detail-modal">
                         <div class="detail-modal-header">
                             <div style="flex: 1;">
                                 <h2>📋 Chi tiết đơn hàng</h2>
-                                <div class="modal-actions">
+                                <div class="modal-actions" data-conversion-id="${conv.id}">
                                     ${getStatusBadge(conv.status)}
-                                    <button class="btn-check-at" onclick="checkATOrderStatus('${conv.id}'); closeDetailModal();">
+                                    <button class="btn-check-at" data-conv-id="${conv.id}">
                                         <span>🔍</span>
                                         <span>Kiểm tra AT</span>
                                     </button>
                                     ${conv.status === 'pending' ? `
-                                        <button class="btn-approve" onclick="approveConversion('${conv.id}'); event.stopPropagation();">
+                                        <button class="btn-approve" data-conv-id="${conv.id}">
                                             <span>✓</span>
                                             <span>Duyệt đơn</span>
                                         </button>
-                                        <button class="btn-reject" onclick="rejectConversion('${conv.id}'); event.stopPropagation();">
+                                        <button class="btn-reject" data-conv-id="${conv.id}">
                                             <span>✗</span>
                                             <span>Từ chối</span>
                                         </button>
                                     ` : ''}
                                 </div>
                             </div>
-                            <button class="close-btn" onclick="closeDetailModal()">✕</button>
+                            <button class="close-btn" data-modal="conversion-detail">✕</button>
                         </div>
                         <div class="detail-modal-body">
                             <div class="detail-section">
@@ -868,7 +969,7 @@ async function viewConversionDetails(conversionId) {
                             </div>
                         </div>
                         <div class="detail-modal-footer">
-                            <button class="btn btn-secondary" onclick="closeDetailModal()">Đóng</button>
+                            <button class="btn btn-secondary close-btn" data-modal="conversion-detail">Đóng</button>
                         </div>
                     </div>
                 </div>

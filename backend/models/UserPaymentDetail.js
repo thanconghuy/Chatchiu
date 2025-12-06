@@ -16,15 +16,16 @@ class UserPaymentDetail {
     try {
       const { status, limit = 1000, offset = 0 } = options;
 
+      // Optimized query - only select fields needed for payment detail page
       let query = `
         SELECT
-          upd.*,
-          c.order_id,
-          c.order_amount,
-          c.commission_amount,
-          c.confirmed_at,
-          m.name as merchant_name_current,
-          m.logo_url as merchant_logo
+          upd.id,
+          upd.cashback_amount,
+          upd.created_at,
+          c.order_code,
+          c.approved_at,
+          c.status,
+          COALESCE(m.name, upd.merchant_name) as merchant_name
         FROM user_payment_details upd
         LEFT JOIN conversions c ON c.id = upd.conversion_id
         LEFT JOIN merchants m ON m.id = c.merchant_id
