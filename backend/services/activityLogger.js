@@ -24,7 +24,12 @@ const ACTIVITY_TYPES = {
   SEARCH_MERCHANT: 'search_merchant',
   VIEW_CONVERSIONS: 'view_conversions',
   VIEW_CLICKS: 'view_clicks',
-  API_ERROR: 'api_error'
+  API_ERROR: 'api_error',
+  SYNC_CONVERSIONS_START: 'sync_conversions_start',
+  SYNC_CONVERSIONS_SUCCESS: 'sync_conversions_success',
+  SYNC_CONVERSIONS_FAILED: 'sync_conversions_failed',
+  ADMIN_NOTIFICATION: 'admin_notification',
+  DEBT_NOTIFICATION: 'debt_notification'
 };
 
 class ActivityLogger {

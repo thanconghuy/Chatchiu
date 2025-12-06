@@ -209,6 +209,19 @@ function setupEventListeners() {
             loadOrders();
         });
     }
+
+    // Event delegation for table row clicks
+    if (ordersTableBody) {
+        ordersTableBody.addEventListener('click', (e) => {
+            const row = e.target.closest('tr[data-order-id]');
+            if (row) {
+                const orderId = row.dataset.orderId;
+                if (orderId) {
+                    viewOrderDetail(orderId);
+                }
+            }
+        });
+    }
 }
 
 /**
@@ -571,7 +584,7 @@ function renderOrders(orders) {
         });
 
         return `
-            <tr style="cursor: pointer;" onclick="viewOrderDetail('${order.id}')" title="Click để xem chi tiết">
+            <tr style="cursor: pointer;" data-order-id="${order.id}" title="Click để xem chi tiết">
                 <td>
                     <div style="font-weight: 600;">${order.orderCode || order.accesstradeId || '-'}</div>
                     ${order.accesstradeId ? `<div style="font-size: 0.8rem; color: var(--gray-500);">AT: ${order.accesstradeId}</div>` : ''}
@@ -782,6 +795,14 @@ window.addEventListener('click', (e) => {
     const modal = document.getElementById('orderDetailModal');
     if (e.target === modal) {
         closeOrderDetailModal();
+    }
+});
+
+// Close modal button handler
+document.addEventListener('DOMContentLoaded', () => {
+    const modalCloseBtn = document.querySelector('#orderDetailModal .modal-close');
+    if (modalCloseBtn) {
+        modalCloseBtn.addEventListener('click', closeOrderDetailModal);
     }
 });
 

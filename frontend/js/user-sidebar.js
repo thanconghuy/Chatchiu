@@ -58,8 +58,6 @@
         if (path.includes('/shopping')) return 'shopping';
         if (path.includes('/statistics')) return 'statistics';
         if (path.includes('/dashboard')) return 'dashboard';
-        if (path.includes('/payment-history')) return 'payment-history';
-        if (path.includes('/payment-detail')) return 'payment-history';
         if (path.includes('/history')) return 'history';
         if (path.includes('/reconciliation-history')) return 'reconciliation-history';
         if (path.includes('/payment-requests')) return 'payment-requests';

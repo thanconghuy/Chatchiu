@@ -358,6 +358,67 @@ class User {
     await pool.query(updateQuery, [passwordHash, user.id]);
     return user;
   }
+
+  /**
+   * Get system admin user ID for automated tasks
+   * Returns the first admin user found
+   * Uses in-memory cache to avoid repeated database queries
+   * Cache TTL: 1 hour
+   * @returns {Promise<string|null>} Admin user ID or null if none found
+   */
+  static async getSystemAdminId() {
+    // Check cache first
+    const now = Date.now();
+    const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+    if (this._systemAdminIdCache && this._systemAdminIdCacheTime) {
+      const cacheAge = now - this._systemAdminIdCacheTime;
+      if (cacheAge < CACHE_TTL) {
+        console.log('[User.getSystemAdminId] Using cached admin ID');
+        return this._systemAdminIdCache;
+      }
+    }
+
+    // Cache miss or expired - query database
+    const query = `
+      SELECT id
+      FROM users
+      WHERE is_admin = true
+      ORDER BY created_at ASC
+      LIMIT 1
+    `;
+
+    const result = await pool.query(query);
+
+    if (result.rows.length === 0) {
+      console.warn('[User.getSystemAdminId] No admin user found for system tasks');
+      this._systemAdminIdCache = null;
+      this._systemAdminIdCacheTime = now;
+      return null;
+    }
+
+    // Update cache
+    const adminId = result.rows[0].id;
+    this._systemAdminIdCache = adminId;
+    this._systemAdminIdCacheTime = now;
+    console.log(`[User.getSystemAdminId] Cached admin ID: ${adminId}`);
+
+    return adminId;
+  }
+
+  /**
+   * Clear system admin ID cache
+   * Call this when admin users are modified
+   */
+  static clearSystemAdminIdCache() {
+    this._systemAdminIdCache = null;
+    this._systemAdminIdCacheTime = null;
+    console.log('[User.clearSystemAdminIdCache] Cache cleared');
+  }
 }
+
+// Initialize cache
+User._systemAdminIdCache = null;
+User._systemAdminIdCacheTime = null;
 
 module.exports = User;

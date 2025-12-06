@@ -364,6 +364,7 @@
         </div>
     </div>
 
+    <script src="../js/toast.js"></script>
     <script src="../js/config.js"></script>
     <script>
         let currentPaymentId = null;
@@ -399,7 +400,7 @@
             const status = document.getElementById('initialStatus').value;
 
             if (!periodInput) {
-                alert('Vui lòng chọn kỳ thanh toán');
+                Toast.warning('Vui lòng chọn kỳ thanh toán');
                 return;
             }
 
@@ -418,16 +419,16 @@
                 });
 
                 if (response.success) {
-                    alert(`Thành công! Đã tạo ${response.created} payment records\nTổng số tiền: ${formatCurrency(response.totalAmount)}`);
+                    Toast.success(`Đã tạo ${response.created} payment records | Tổng: ${formatCurrency(response.totalAmount)}`, 'Tạo kỳ thanh toán thành công');
                     toggleCreateForm();
                     await loadSummaryStats();
                     await loadPaymentHistory();
                 } else {
-                    alert('Lỗi: ' + response.message);
+                    Toast.error(response.message || 'Không thể tạo kỳ thanh toán');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('Lỗi: ' + error.message);
+                Toast.error(error.message || 'Đã xảy ra lỗi khi tạo kỳ thanh toán');
             }
         }
 
@@ -639,16 +640,16 @@
                 });
 
                 if (response.success) {
-                    alert('Thanh toán thành công!');
+                    Toast.success('Đã xác nhận thanh toán thành công');
                     closeModal('processModal');
                     await loadSummaryStats();
                     await loadPaymentHistory();
                 } else {
-                    alert('Lỗi: ' + response.message);
+                    Toast.error(response.message || 'Không thể xử lý thanh toán');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('Lỗi: ' + error.message);
+                Toast.error(error.message || 'Đã xảy ra lỗi khi xử lý thanh toán');
             }
         }
 
@@ -665,7 +666,7 @@
             const reason = document.getElementById('cancelReason').value;
 
             if (!reason) {
-                alert('Vui lòng nhập lý do hủy');
+                Toast.warning('Vui lòng nhập lý do hủy');
                 return;
             }
 
@@ -676,24 +677,23 @@
                 });
 
                 if (response.success) {
-                    alert('Đã hủy thanh toán');
+                    Toast.success('Đã hủy thanh toán thành công');
                     closeModal('cancelModal');
                     await loadSummaryStats();
                     await loadPaymentHistory();
                 } else {
-                    alert('Lỗi: ' + response.message);
+                    Toast.error(response.message || 'Không thể hủy thanh toán');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('Lỗi: ' + error.message);
+                Toast.error(error.message || 'Đã xảy ra lỗi khi hủy thanh toán');
             }
         }
 
-        // View detail (placeholder - can link to detail page)
+        // View detail - Navigate to detail page
         function viewDetail(paymentId) {
-            // TODO: Navigate to detail page or show modal with details
-            console.log('View detail:', paymentId);
-            alert('Chi tiết payment ID: ' + paymentId);
+            console.log('Navigating to payment detail:', paymentId);
+            window.location.href = `/admin/payment-detail?id=${paymentId}`;
         }
 
         // Helper functions

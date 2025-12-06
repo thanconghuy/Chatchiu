@@ -661,6 +661,7 @@
         </div>
     </div>
 
+    <script src="../js/toast.js"></script>
     <script src="../js/config.js"></script>
     <script>
         // Check authentication
@@ -686,7 +687,7 @@
             } catch (error) {
                 console.error('Error loading payment history:', error);
                 // Don't logout on error, just show error message
-                alert('Có lỗi khi tải dữ liệu: ' + error.message);
+                Toast.error(error.message || 'Có lỗi khi tải dữ liệu thanh toán');
             }
         });
 

@@ -294,8 +294,8 @@
                             <input type="date" id="dateToFilter">
                         </div>
                         <div class="filter-actions">
-                            <button class="btn btn-primary" onclick="applyFilters()">Áp Dụng</button>
-                            <button class="btn" onclick="resetFilters()">Reset</button>
+                            <button class="btn btn-primary">Áp Dụng</button>
+                            <button class="btn">Reset</button>
                         </div>
                     </div>
                 </div>
@@ -351,10 +351,10 @@
                         Logs sẽ tự động xóa sau 90 ngày. Bạn cũng có thể xóa thủ công bằng các tùy chọn bên dưới.
                     </p>
                     <div class="cleanup-actions">
-                        <button class="btn" onclick="manualCleanup90Days()" style="background: #f56565; color: white;">
+                        <button class="btn" style="background: #f56565; color: white;">
                             Xóa Logs > 90 Ngày
                         </button>
-                        <button class="btn" onclick="customDateRangeDelete()" style="background: #ed8936; color: white;">
+                        <button class="btn" style="background: #ed8936; color: white;">
                             Xóa Theo Khoảng Ngày
                         </button>
                     </div>
@@ -418,6 +418,24 @@
                         loadLogs();
                     }
                 });
+            }
+
+            // Setup filter buttons
+            const applyFiltersBtn = document.querySelector('.filter-actions .btn-primary');
+            if (applyFiltersBtn) {
+                applyFiltersBtn.addEventListener('click', applyFilters);
+            }
+
+            const resetFiltersBtn = document.querySelector('.filter-actions .btn:not(.btn-primary)');
+            if (resetFiltersBtn) {
+                resetFiltersBtn.addEventListener('click', resetFilters);
+            }
+
+            // Setup cleanup buttons
+            const cleanupButtons = document.querySelectorAll('.cleanup-actions .btn');
+            if (cleanupButtons.length >= 2) {
+                cleanupButtons[0].addEventListener('click', manualCleanup90Days);
+                cleanupButtons[1].addEventListener('click', customDateRangeDelete);
             }
 
             // Set default date range to last 7 days

@@ -3,6 +3,7 @@ const accessTradeService = require('../services/accesstrade');
 const trackingService = require('../services/trackingService');
 const AutoSyncHistory = require('../models/AutoSyncHistory');
 const logger = require('../utils/logger');
+const { ActivityLogger, ACTIVITY_TYPES } = require('../services/activityLogger');
 
 /**
  * Sync conversions from AccessTrade API
@@ -10,6 +11,8 @@ const logger = require('../utils/logger');
  * @param {number} syncDays - Number of days to sync (default: 7)
  */
 async function syncConversions(syncDays = 7, syncType = 'auto') {
+  const startTime = Date.now();
+
   logger.info('='.repeat(60));
   logger.info('Starting conversion sync from AccessTrade');
   logger.info('='.repeat(60));
@@ -32,6 +35,20 @@ async function syncConversions(syncDays = 7, syncType = 'auto') {
     });
 
     logger.info('Sync session created', { sessionId: syncSession.id });
+
+    // Log activity: Sync started
+    await ActivityLogger.log({
+      activityType: ACTIVITY_TYPES.SYNC_CONVERSIONS_START,
+      eventData: {
+        syncType,
+        syncDays,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        sessionId: syncSession.id
+      },
+      req: { headers: {}, ip: 'system' }, // System-triggered
+      status: 'success'
+    });
 
     logger.info('Fetching conversions', {
       syncDays,
@@ -147,6 +164,30 @@ async function syncConversions(syncDays = 7, syncType = 'auto') {
       logger.info('Sync session completed', { sessionId: syncSession.id });
     }
 
+    // Calculate response time
+    const responseTime = Date.now() - startTime;
+
+    // Log activity: Sync completed successfully
+    await ActivityLogger.log({
+      activityType: ACTIVITY_TYPES.SYNC_CONVERSIONS_SUCCESS,
+      eventData: {
+        syncType,
+        syncDays,
+        sessionId: syncSession?.id,
+        results: {
+          total: results.total,
+          created: results.created,
+          updated: results.updated,
+          skipped: results.skipped,
+          errors: results.errors,
+          imported: results.created + results.updated
+        }
+      },
+      req: { headers: {}, ip: 'system' },
+      status: 'success',
+      responseTime
+    });
+
     // Return format compatible with autoSyncService
     return {
       ...results,
@@ -173,6 +214,24 @@ async function syncConversions(syncDays = 7, syncType = 'auto') {
         logger.error('Failed to update sync session', { error: logError.message });
       }
     }
+
+    // Calculate response time
+    const responseTime = Date.now() - startTime;
+
+    // Log activity: Sync failed
+    await ActivityLogger.log({
+      activityType: ACTIVITY_TYPES.SYNC_CONVERSIONS_FAILED,
+      eventData: {
+        syncType,
+        syncDays,
+        sessionId: syncSession?.id,
+        error: error.message
+      },
+      req: { headers: {}, ip: 'system' },
+      status: 'failed',
+      errorMessage: error.message,
+      responseTime
+    });
 
     throw error;
   }

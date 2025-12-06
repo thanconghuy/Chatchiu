@@ -47,6 +47,9 @@ let conversionRateChart = null;
 // Initialize dashboard
 async function init() {
     try {
+        // Setup event listeners first
+        setupEventListeners();
+
         // Load dashboard data
         await loadDashboardData();
 
@@ -62,6 +65,86 @@ async function init() {
         console.error('Dashboard initialization error:', error);
         showToast('Không thể tải dữ liệu dashboard', 'error');
     }
+}
+
+/**
+ * Setup event listeners for transaction actions and modals
+ */
+function setupEventListeners() {
+    // Event delegation for transaction table
+    const transactionsTable = document.querySelector('.transactions-table tbody');
+    if (transactionsTable) {
+        transactionsTable.addEventListener('click', (e) => {
+            const target = e.target.closest('button');
+            if (!target) return;
+
+            // View transaction button
+            if (target.classList.contains('action-btn')) {
+                const row = target.closest('tr');
+                const txId = row?.dataset?.txId;
+                if (txId) {
+                    viewTransaction(txId);
+                }
+            }
+        });
+    }
+
+    // Event delegation for modals
+    document.addEventListener('click', (e) => {
+        // Close modal via overlay
+        if (e.target.classList.contains('detail-modal-overlay')) {
+            closeDetailModal();
+            return;
+        }
+
+        // Close button handling
+        const closeBtn = e.target.closest('.close-btn');
+        if (closeBtn) {
+            closeDetailModal();
+            return;
+        }
+
+        // Check AT button
+        const checkATBtn = e.target.closest('.btn-check-at');
+        if (checkATBtn) {
+            e.stopPropagation();
+            const convId = checkATBtn.dataset.convId;
+            if (convId) {
+                checkATOrderStatus(convId);
+                closeDetailModal();
+            }
+            return;
+        }
+
+        // Approve button
+        const approveBtn = e.target.closest('.btn-approve');
+        if (approveBtn) {
+            e.stopPropagation();
+            const convId = approveBtn.dataset.convId;
+            if (convId) {
+                approveConversion(convId);
+            }
+            return;
+        }
+
+        // Reject button
+        const rejectBtn = e.target.closest('.btn-reject');
+        if (rejectBtn) {
+            e.stopPropagation();
+            const convId = rejectBtn.dataset.convId;
+            if (convId) {
+                rejectConversion(convId);
+            }
+            return;
+        }
+
+        // Footer close button
+        const footerCloseBtn = e.target.closest('.btn-secondary');
+        if (footerCloseBtn && footerCloseBtn.textContent.includes('Đóng')) {
+            closeDetailModal();
+            return;
+        }
+    });
 }
 
 /**
@@ -544,7 +627,7 @@ function updateTransactionsTable(transactions) {
         const paymentClass = tx.paymentMethod === 'cashback' ? 'transfer' : 'shares';
 
         return `
-            <tr>
+            <tr data-tx-id="${tx.id}">
                 <td data-cashback="${formatCurrency(tx.cashbackAmount)}">
                     <div class="transaction-user">
                         <div class="user-avatar">${initials}</div>
@@ -563,7 +646,7 @@ function updateTransactionsTable(transactions) {
                 </td>
                 <td style="font-weight: 600; color: #10b981;">${formatCurrency(tx.cashbackAmount)}</td>
                 <td>
-                    <button class="action-btn" onclick="viewTransaction('${tx.id}')">Xem chi tiết</button>
+                    <button class="action-btn">Xem chi tiết</button>
                 </td>
             </tr>
         `;
@@ -582,30 +665,30 @@ async function viewTransaction(transactionId) {
 
             // Create modal content
             const modalContent = `
-                <div class="detail-modal-overlay" onclick="closeDetailModal()">
-                    <div class="detail-modal" onclick="event.stopPropagation()">
+                <div class="detail-modal-overlay">
+                    <div class="detail-modal">
                         <div class="detail-modal-header">
                             <div style="flex: 1;">
                                 <h2>📋 Chi tiết đơn hàng</h2>
                                 <div class="modal-actions">
                                     ${getStatusBadge(conv.status)}
-                                    <button class="btn-check-at" onclick="checkATOrderStatus('${conv.id}'); closeDetailModal();">
+                                    <button class="btn-check-at" data-conv-id="${conv.id}">
                                         <span>🔍</span>
                                         <span>Kiểm tra AT</span>
                                     </button>
                                     ${conv.status === 'pending' ? `
-                                        <button class="btn-approve" onclick="approveConversion('${conv.id}'); event.stopPropagation();">
+                                        <button class="btn-approve" data-conv-id="${conv.id}">
                                             <span>✓</span>
                                             <span>Duyệt đơn</span>
                                         </button>
-                                        <button class="btn-reject" onclick="rejectConversion('${conv.id}'); event.stopPropagation();">
+                                        <button class="btn-reject" data-conv-id="${conv.id}">
                                             <span>✗</span>
                                             <span>Từ chối</span>
                                         </button>
                                     ` : ''}
                                 </div>
                             </div>
-                            <button class="close-btn" onclick="closeDetailModal()">✕</button>
+                            <button class="close-btn">✕</button>
                         </div>
                         <div class="detail-modal-body">
                             <div class="detail-section">
@@ -703,7 +786,7 @@ async function viewTransaction(transactionId) {
                             </div>
                         </div>
                         <div class="detail-modal-footer">
-                            <button class="btn btn-secondary" onclick="closeDetailModal()">Đóng</button>
+                            <button class="btn btn-secondary">Đóng</button>
                         </div>
                     </div>
                 </div>

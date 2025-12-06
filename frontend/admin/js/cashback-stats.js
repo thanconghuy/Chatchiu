@@ -43,6 +43,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             closeDetailModal();
         }
     });
+
+    // Event delegation for table buttons
+    document.querySelector('#statsTableBody')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('button.btn-secondary');
+        if (btn) {
+            const userId = btn.dataset.userId;
+            const username = btn.dataset.username;
+            if (userId && username) {
+                showUserDetail(userId, username);
+            }
+        }
+    });
+
+    // Event delegation for modal close buttons
+    document.addEventListener('click', (e) => {
+        if (e.target.closest('.modal-close-btn')) {
+            closeDetailModal();
+        }
+    });
 });
 
 // ========================================
@@ -310,7 +329,7 @@ function renderStats(stats) {
             </td>
             <td style="text-align: center;">
                 <button class="btn-secondary" style="padding: 6px 12px; font-size: 0.85rem;"
-                        onclick="showUserDetail('${stat.userId}', '${escapeHtml(stat.username)}')">
+                        data-user-id="${stat.userId}" data-username="${escapeHtml(stat.username)}">
                     Xem chi tiết
                 </button>
             </td>
@@ -425,7 +444,7 @@ async function showUserDetail(userId, username) {
                 </div>
 
                 <div style="text-align: center;">
-                    <button class="btn-secondary" onclick="closeDetailModal()" style="padding: 10px 24px;">
+                    <button class="btn-secondary modal-close-btn" style="padding: 10px 24px;">
                         Đóng
                     </button>
                 </div>

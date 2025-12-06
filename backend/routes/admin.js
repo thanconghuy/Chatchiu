@@ -22,6 +22,7 @@ const SystemSettings = require('../services/systemSettings');
 const { ActivityLogger, ACTIVITY_TYPES } = require('../services/activityLogger');
 const paymentHistoryService = require('../services/paymentHistoryService');
 const UserPaymentHistory = require('../models/UserPaymentHistory');
+const UserPaymentDetail = require('../models/UserPaymentDetail');
 const AutoSyncHistory = require('../models/AutoSyncHistory');
 
 /**
@@ -5193,6 +5194,7 @@ router.get('/payment-history/:id', authenticateAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Get payment history
     const paymentHistory = await UserPaymentHistory.getById(id);
 
     if (!paymentHistory) {
@@ -5202,9 +5204,17 @@ router.get('/payment-history/:id', authenticateAdmin, async (req, res) => {
       });
     }
 
+    // Get conversions list for this payment
+    const conversions = await UserPaymentDetail.getByPaymentHistoryId(id, {
+      limit: 1000 // Get all conversions
+    });
+
     res.json({
       success: true,
-      data: paymentHistory
+      data: {
+        payment: paymentHistory,
+        conversions: conversions
+      }
     });
 
   } catch (error) {
