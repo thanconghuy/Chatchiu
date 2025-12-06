@@ -4,11 +4,25 @@ if (!process.env.VERCEL) {
   require('dotenv').config();
 }
 
+// SECURITY: Validate required environment variables
+if (!process.env.JWT_SECRET) {
+  console.error('❌ CRITICAL: JWT_SECRET environment variable is required');
+  console.error('   Generate secure secret: openssl rand -base64 32');
+  console.error('   Add to .env file: JWT_SECRET=<your-secret-here>');
+  process.exit(1);
+}
+
+if (!process.env.DATABASE_URL) {
+  console.error('❌ CRITICAL: DATABASE_URL environment variable is required');
+  process.exit(1);
+}
+
 // Set timezone to Vietnam (UTC+7)
 process.env.TZ = process.env.TZ || 'Asia/Ho_Chi_Minh';
 
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const path = require('path');
 const passport = require('./backend/config/passport'); // Google OAuth enabled
 // const cron = require('node-cron'); // DISABLED - manual sync only
@@ -19,11 +33,48 @@ const cronJobsService = require('./backend/jobs/cronJobs'); // Cron jobs for ret
 const app = express();
 const PORT = process.env.PORT || 3007;
 
+// SECURITY: CORS configuration with specific allowed origins
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
+  : [`http://localhost:${PORT}`, 'http://localhost:3007'];
+
+// SECURITY: Helmet.js for security headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"],
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      fontSrc: ["'self'", "https://cdnjs.cloudflare.com", "https://fonts.gstatic.com"],
+      connectSrc: ["'self'", "https://api.accesstrade.vn"],
+      frameSrc: ["'none'"],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: []
+    }
+  },
+  crossOriginEmbedderPolicy: false, // Allow embedding resources from CDNs
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+
 // Middleware
 app.use(cors({
-  origin: '*',
-  credentials: true
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, Postman, or same-origin)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`⚠️  CORS blocked request from origin: ${origin}`);
+      callback(new Error(`Origin ${origin} not allowed by CORS policy`));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 // Increase payload limit to 10MB for importing large conversion batches
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -240,7 +291,8 @@ if (process.env.VERCEL !== '1') {
     console.log(`🚀 Cashback Server is running`);
     console.log(`📍 URL: http://localhost:${PORT}`);
     console.log(`🗄️  Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
-    console.log(`🔑 JWT Secret: ${process.env.JWT_SECRET ? 'Configured' : 'Using default'}`);
+    console.log(`🔑 JWT Secret: ${process.env.JWT_SECRET ? 'Configured ✅' : 'MISSING ❌'}`);
+    console.log(`🌐 CORS Origins: ${allowedOrigins.join(', ')}`);
     console.log(`⏰ Auto Sync: DISABLED (Manual sync only)`);
     console.log('='.repeat(60));
 

@@ -5,53 +5,19 @@ const { generateToken, authenticateToken } = require('../middleware/auth');
 const passport = require('../config/passport'); // Google OAuth enabled
 const nodemailer = require('nodemailer');
 const { rateLimiters } = require('../middleware/rateLimiter');
+const { validations } = require('../middleware/validation');
 
 /**
  * POST /api/auth/register
  * Register new user
+ * SECURITY: Input validation with express-validator
  */
-router.post('/register', async (req, res) => {
+router.post('/register', validations.register, async (req, res) => {
   try {
     const { email, password, fullName, phone, username } = req.body;
 
     console.log('📝 Registration attempt:', { email, username, fullName });
-
-    // Validate required fields
-    if (!email || !password || !fullName || !username) {
-      console.log('❌ Missing required fields');
-      return res.status(400).json({
-        success: false,
-        message: 'Email, password, full name and username are required'
-      });
-    }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid email format'
-      });
-    }
-
-    // Validate password length
-    if (password.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: 'Password must be at least 6 characters'
-      });
-    }
-
-    // Validate username format (alphanumeric and underscore only)
-    const usernameRegex = /^[a-zA-Z0-9_]+$/;
-    if (!usernameRegex.test(username)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Username can only contain letters, numbers and underscores'
-      });
-    }
-
-    console.log('✅ Validation passed, creating user...');
+    console.log('✅ Validation passed (express-validator), creating user...');
 
     // Create user
     const user = await User.create(email, password, fullName, phone, username);
@@ -108,18 +74,11 @@ router.post('/register', async (req, res) => {
 /**
  * POST /api/auth/login
  * Login user (accepts email or username)
+ * SECURITY: Input validation with express-validator
  */
-router.post('/login', async (req, res) => {
+router.post('/login', validations.login, async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    // Validate required fields
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email/username and password are required'
-      });
-    }
 
     // Find user by email or username with password
     const user = await User.findByEmailOrUsername(email, true);

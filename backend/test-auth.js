@@ -8,7 +8,15 @@ require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const pool = require('./config/database');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-key';
+// SECURITY: JWT_SECRET is required
+if (!process.env.JWT_SECRET) {
+  console.error('❌ CRITICAL: JWT_SECRET environment variable is required');
+  console.error('   Generate secure secret: openssl rand -base64 32');
+  console.error('   Add to .env file: JWT_SECRET=<your-secret-here>');
+  process.exit(1);
+}
+
+const JWT_SECRET = process.env.JWT_SECRET;
 
 async function testAuth() {
   const token = process.argv[2];

@@ -1,7 +1,12 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
+// SECURITY: JWT_SECRET is required for production security
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required. Generate a secure secret: openssl rand -base64 32');
+}
+
+const JWT_SECRET = process.env.JWT_SECRET;
 
 /**
  * Authenticate JWT Token Middleware
