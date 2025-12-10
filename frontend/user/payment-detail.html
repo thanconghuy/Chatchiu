@@ -470,10 +470,10 @@
                     <p id="pageSubtitle">Chi tiết thanh toán theo conversion</p>
                 </div>
                 <div class="header-actions">
-                    <button class="btn btn-secondary" onclick="window.history.back()">
+                    <button class="btn btn-secondary" data-action="go-back">
                         <i class="fas fa-arrow-left"></i> Quay lại
                     </button>
-                    <button class="btn btn-primary" onclick="exportToExcel()" id="exportBtn" disabled>
+                    <button class="btn btn-primary" data-action="export-to-excel" id="exportBtn" disabled>
                         <i class="fas fa-file-excel"></i> Xuất Excel
                     </button>
                 </div>
@@ -524,12 +524,10 @@
     </div>
 
     <script src="../js/config.js"></script>
+    <script src="../js/auth.js"></script>
     <script>
         // Check authentication
-        const token = localStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN);
-        if (!token) {
-            window.location.href = '/login';
-        }
+        requireAuth();
 
         // Get period from URL
         const urlParams = new URLSearchParams(window.location.search);
@@ -801,6 +799,25 @@
 
             return `<span class="status-badge ${status}">${statusMap[status] || status}</span>`;
         }
+
+        // ============ CSP FIX: Event Delegation ============
+        document.addEventListener('click', (e) => {
+            const button = e.target.closest('[data-action]');
+            if (!button) return;
+
+            const action = button.dataset.action;
+
+            switch (action) {
+                case 'go-back':
+                    window.history.back();
+                    break;
+                case 'export-to-excel':
+                    exportToExcel();
+                    break;
+            }
+        });
+
+        console.log('[payment-detail.html] CSP-compliant event delegation loaded');
     </script>
 
     <script src="../js/user-sidebar.js"></script>

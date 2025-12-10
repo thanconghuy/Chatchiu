@@ -1,4 +1,5 @@
-// Admin Payment Requests Management
+// Admin Payment Requests Management - v20251209
+console.log('[Payment Requests] Script loaded - v20251209 - CSP compliant');
 const API_BASE_URL = window.location.hostname === 'localhost'
     ? 'http://localhost:3007/api'
     : '/api';
@@ -49,6 +50,25 @@ function setupEventListeners() {
     document.getElementById('nextPage').addEventListener('click', () => {
         currentPage++;
         loadPaymentRequests();
+    });
+
+    // Search and Reset buttons
+    document.getElementById('searchBtn').addEventListener('click', loadPaymentRequests);
+    document.getElementById('resetBtn').addEventListener('click', resetFilters);
+
+    // Modal close buttons
+    document.querySelectorAll('.close-modal').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const modalId = btn.dataset.modal;
+            if (modalId) closeModal(modalId);
+        });
+    });
+
+    document.querySelectorAll('.btn-cancel-modal').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const modalId = btn.dataset.modal;
+            if (modalId) closeModal(modalId);
+        });
     });
 
     // Forms
@@ -167,23 +187,23 @@ function displayPaymentRequests(requests) {
             <td>${formatDateTime(req.created_at)}</td>
             <td>
                 <div class="action-dropdown" id="dropdown-${req.id}">
-                    <button class="action-dropdown-btn" onclick="toggleDropdown('${req.id}')">
+                    <button class="action-dropdown-btn" data-action="toggle-dropdown" data-id="${req.id}">
                         ⚙️ Thao tác <span style="font-size: 10px;">▼</span>
                     </button>
                     <div class="action-dropdown-menu">
-                        <button class="action-dropdown-item view" onclick="viewRequest('${req.id}'); closeDropdown('${req.id}')">
+                        <button class="action-dropdown-item view" data-action="view" data-id="${req.id}">
                             👁️ Xem
                         </button>
                         ${req.status === 'pending' ? `
-                            <button class="action-dropdown-item approve" onclick="showConfirmModal('${req.id}'); closeDropdown('${req.id}')">
+                            <button class="action-dropdown-item approve" data-action="approve" data-id="${req.id}">
                                 ✅ Duyệt
                             </button>
-                            <button class="action-dropdown-item reject" onclick="showRejectModal('${req.id}'); closeDropdown('${req.id}')">
+                            <button class="action-dropdown-item reject" data-action="reject" data-id="${req.id}">
                                 ❌ Từ chối
                             </button>
                         ` : ''}
                         ${req.status === 'confirmed' ? `
-                            <button class="action-dropdown-item paid" onclick="showPaidModal('${req.id}'); closeDropdown('${req.id}')">
+                            <button class="action-dropdown-item paid" data-action="paid" data-id="${req.id}">
                                 💰 Đã thanh toán
                             </button>
                         ` : ''}
@@ -305,11 +325,26 @@ function displayRequestDetail(request) {
                 <div style="margin-bottom: 8px;">
                     <strong>Ngân hàng:</strong> ${request.bank_name}
                 </div>
-                <div style="margin-bottom: 8px;">
-                    <strong>Số tài khoản:</strong> ${request.bank_account_number}
+                <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 10px;">
+                    <div>
+                        <strong>Số tài khoản:</strong>
+                        <span id="accountNumberDisplay">${request.bank_account_number_decrypted || request.bank_account_number}</span>
+                    </div>
+                    ${request.bank_account_number_decrypted ? `
+                        <button class="btn-copy-account" data-text="${request.bank_account_number_decrypted}"
+                                style="padding: 0.3rem 0.6rem; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem;">
+                            <i class="fas fa-copy"></i> Copy
+                        </button>
+                    ` : ''}
+                    ${request.last_decrypted_at ? `
+                        <small style="color: #666; font-style: italic;">
+                            (Xem lần cuối: ${formatDateTime(request.last_decrypted_at)},
+                            Số lần xem: ${request.decrypt_count || 0})
+                        </small>
+                    ` : ''}
                 </div>
                 <div style="margin-bottom: 8px;">
-                    <strong>Chủ tài khoản:</strong> ${request.bank_account_name}
+                    <strong>Chủ tài khoản:</strong> ${request.bank_account_name_decrypted || request.bank_account_name}
                 </div>
                 ${request.bank_branch ? `
                     <div>
@@ -364,7 +399,7 @@ function displayRequestDetail(request) {
         ` : ''}
 
         <div style="margin-top: 2rem; padding-top: 1rem; border-top: 2px solid #f0f0f0;">
-            <button class="btn-primary" onclick="closeModal('viewModal')" style="width: 100%;">
+            <button class="btn-primary btn-close-view-modal" data-modal="viewModal" style="width: 100%;">
                 Đóng
             </button>
         </div>
@@ -596,3 +631,69 @@ document.addEventListener('click', (e) => {
         });
     }
 });
+
+// CSP-compliant event delegation for action buttons
+document.addEventListener('click', (e) => {
+    // Handle copy account button
+    if (e.target.closest('.btn-copy-account')) {
+        const btn = e.target.closest('.btn-copy-account');
+        const text = btn.dataset.text;
+        if (text) {
+            copyToClipboard(text, 'Đã copy số tài khoản');
+        }
+        return;
+    }
+
+    // Handle close view modal button
+    if (e.target.closest('.btn-close-view-modal')) {
+        const btn = e.target.closest('.btn-close-view-modal');
+        const modal = btn.dataset.modal;
+        if (modal) {
+            closeModal(modal);
+        }
+        return;
+    }
+
+    const button = e.target.closest('[data-action]');
+    if (!button) return;
+
+    const action = button.dataset.action;
+    const id = button.dataset.id;
+
+    if (!id) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    switch (action) {
+        case 'toggle-dropdown':
+            toggleDropdown(id);
+            break;
+        case 'view':
+            viewRequest(id);
+            closeDropdown(id);
+            break;
+        case 'approve':
+            showConfirmModal(id);
+            closeDropdown(id);
+            break;
+        case 'reject':
+            showRejectModal(id);
+            closeDropdown(id);
+            break;
+        case 'paid':
+            showPaidModal(id);
+            closeDropdown(id);
+            break;
+    }
+});
+
+// Copy to clipboard function
+function copyToClipboard(text, successMessage = 'Đã copy!') {
+    navigator.clipboard.writeText(text).then(() => {
+        showToast(successMessage, 'success');
+    }).catch(err => {
+        console.error('Copy failed:', err);
+        showToast('Không thể copy', 'error');
+    });
+}

@@ -116,7 +116,7 @@ function renderMerchants() {
         const paginatedMerchants = merchants.slice(startIndex, endIndex);
 
         merchantsGrid.innerHTML = paginatedMerchants.map(merchant => `
-            <div class="merchant-card" onclick="openMerchantModal('${merchant.id}')">
+            <div class="merchant-card" data-action="open-merchant-modal" data-merchant-id="${merchant.id}">
                 <img src="${merchant.logoUrl || 'https://via.placeholder.com/80'}" alt="${merchant.name}" class="merchant-logo">
                 <div class="merchant-name">${merchant.name}</div>
                 <div class="merchant-commission">Hoa hồng: ${merchant.commissionRate}</div>
@@ -133,7 +133,7 @@ function renderMerchants() {
         const slideMerchants = merchants.slice(startIndex, endIndex);
 
         merchantsGrid.innerHTML = slideMerchants.map(merchant => `
-            <div class="merchant-card" onclick="openMerchantModal('${merchant.id}')">
+            <div class="merchant-card" data-action="open-merchant-modal" data-merchant-id="${merchant.id}">
                 <img src="${merchant.logoUrl || 'https://via.placeholder.com/80'}" alt="${merchant.name}" class="merchant-logo">
                 <div class="merchant-name">${merchant.name}</div>
                 <div class="merchant-commission">Hoa hồng: ${merchant.commissionRate}</div>
@@ -502,3 +502,20 @@ document.addEventListener('visibilitychange', () => {
         loadQuickStats();
     }
 });
+
+// ============ CSP FIX: Event Delegation ============
+document.addEventListener('click', (e) => {
+    const element = e.target.closest('[data-action]');
+    if (!element) return;
+
+    const action = element.dataset.action;
+    const merchantId = element.dataset.merchantId;
+
+    switch (action) {
+        case 'open-merchant-modal':
+            openMerchantModal(merchantId);
+            break;
+    }
+});
+
+console.log('[shopping.js] CSP-compliant event delegation loaded');

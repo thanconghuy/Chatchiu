@@ -163,7 +163,7 @@ function displayReconciliations(reconciliations) {
             <td>${getStatusBadge(rec.status)}</td>
             <td>${formatDate(rec.created_at)}</td>
             <td>
-                <button class="btn-secondary" style="padding: 6px 12px; font-size: 0.875rem;" onclick="viewDetails('${rec.id}')">
+                <button class="btn-secondary btn-view-details" data-id="${rec.id}" style="padding: 6px 12px; font-size: 0.875rem;">
                     👁️ Chi tiết
                 </button>
             </td>
@@ -220,7 +220,7 @@ function displayReconciliations(reconciliations) {
                             <i class="fas fa-calendar-check"></i>
                             ${formatDate(rec.created_at)}
                         </div>
-                        <button class="reconciliation-card-action" onclick="viewDetails('${rec.id}')">
+                        <button class="reconciliation-card-action btn-view-details" data-id="${rec.id}">
                             <i class="fas fa-eye"></i> Chi tiết
                         </button>
                     </div>
@@ -258,10 +258,37 @@ function updatePagination() {
 
 // View reconciliation details
 async function viewDetails(reconciliationId) {
-    const modal = document.getElementById('detailsModal');
-    const modalBody = document.getElementById('modalBody');
-    const modalTitle = document.getElementById('modalTitle');
+    console.log('[Reconciliation] viewDetails called with ID:', reconciliationId);
 
+    // Ensure DOM is fully loaded
+    if (document.readyState !== 'complete') {
+        console.log('[Reconciliation] Waiting for DOM to load...');
+        await new Promise(resolve => window.addEventListener('load', resolve, { once: true }));
+    }
+
+    // Query modal elements with additional logging
+    console.log('[Reconciliation] Querying modal elements...');
+    const modal = document.querySelector('#detailsModal');
+    const modalBody = document.querySelector('#modalBody');
+    const modalTitle = document.querySelector('#modalTitle');
+
+    console.log('[Reconciliation] Modal query results:', {
+        modal: modal,
+        modalBody: modalBody,
+        modalTitle: modalTitle,
+        modalFound: !!modal,
+        bodyFound: !!modalBody,
+        titleFound: !!modalTitle
+    });
+
+    if (!modal || !modalBody || !modalTitle) {
+        console.error('[Reconciliation] Modal elements not found!');
+        console.error('[Reconciliation] DOM state:', document.readyState);
+        console.error('[Reconciliation] All modals in DOM:', document.querySelectorAll('[id*="Modal"], [id*="modal"]'));
+        return;
+    }
+
+    console.log('[Reconciliation] Opening modal...');
     modal.style.display = 'block';
     modalBody.innerHTML = '<div class="loading">Đang tải...</div>';
 
@@ -275,17 +302,17 @@ async function viewDetails(reconciliationId) {
         const details = response.data;
         modalTitle.textContent = `Chi tiết: ${details.period_label || 'Kỳ đối soát'}`;
 
-        // Build details HTML
+        // Build details HTML - use snake_case property names from API
         let html = `
             <div style="margin-bottom: 24px;">
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px;">
                     <div style="padding: 16px; background: #f9fafb; border-radius: 8px; border-left: 4px solid #3b82f6;">
                         <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 4px;">Số đơn hàng</div>
-                        <div style="font-size: 1.5rem; font-weight: 700; color: #1f2937;">${details.itemCount || 0}</div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: #1f2937;">${details.item_count || 0}</div>
                     </div>
                     <div style="padding: 16px; background: #f9fafb; border-radius: 8px; border-left: 4px solid #10b981;">
                         <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 4px;">Tổng cashback</div>
-                        <div style="font-size: 1.5rem; font-weight: 700; color: #10b981;">${formatCurrency(details.totalCashback || 0)}</div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: #10b981;">${formatCurrency(details.total_cashback || 0)}</div>
                     </div>
                     <div style="padding: 16px; background: #f9fafb; border-radius: 8px; border-left: 4px solid #f59e0b;">
                         <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 4px;">Trạng thái</div>
@@ -368,33 +395,68 @@ async function viewDetails(reconciliationId) {
 // Close modal
 function closeModal() {
     const modal = document.getElementById('detailsModal');
-    modal.style.display = 'none';
+    const modalBody = document.getElementById('modalBody');
+    if (modal) {
+        modal.style.display = 'none';
+        // Clear modal body to prevent stale data
+        if (modalBody) {
+            modalBody.innerHTML = '';
+        }
+    }
 }
-
-// Pagination handlers
-document.getElementById('prevBtn')?.addEventListener('click', () => {
-    if (currentPage > 0) {
-        currentPage--;
-        loadReconciliations();
-    }
-});
-
-document.getElementById('nextBtn')?.addEventListener('click', () => {
-    if ((currentPage + 1) * itemsPerPage < totalReconciliations) {
-        currentPage++;
-        loadReconciliations();
-    }
-});
-
-// Close modal handlers
-document.getElementById('closeModal')?.addEventListener('click', closeModal);
-document.getElementById('detailsModal')?.addEventListener('click', (e) => {
-    if (e.target.classList.contains('modal-overlay') || e.target.id === 'detailsModal') {
-        closeModal();
-    }
-});
 
 // Initialize page
 document.addEventListener('DOMContentLoaded', async () => {
+    // Setup modal close handlers
+    const closeModalBtn = document.getElementById('closeModal');
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', closeModal);
+    }
+
+    const modal = document.getElementById('detailsModal');
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal-overlay') || e.target.id === 'detailsModal') {
+                closeModal();
+            }
+        });
+    }
+
+    // Setup pagination handlers
+    const prevBtn = document.getElementById('prevBtn');
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            if (currentPage > 0) {
+                currentPage--;
+                loadReconciliations();
+            }
+        });
+    }
+
+    const nextBtn = document.getElementById('nextBtn');
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            if ((currentPage + 1) * itemsPerPage < totalReconciliations) {
+                currentPage++;
+                loadReconciliations();
+            }
+        });
+    }
+
+    // Load initial data
     loadReconciliations();
+});
+
+// CSP-compliant event delegation for view details buttons (global)
+document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn-view-details');
+    if (btn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        if (id) {
+            console.log('[Reconciliation] View details clicked:', id);
+            viewDetails(id);
+        }
+    }
 });

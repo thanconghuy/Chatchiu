@@ -352,24 +352,24 @@ function renderConversions(conversions) {
         // Actions dropdown - always show for all statuses
         actions = `
             <div class="action-dropdown">
-                <button class="action-dropdown-btn" onclick="toggleActionMenu(event)">
+                <button class="action-dropdown-btn" data-action="toggle-action-menu">
                     ⋮
                 </button>
                 <div class="action-dropdown-menu">
-                    <button class="action-item action-view" onclick="viewConversionDetails('${conv.id}'); event.stopPropagation();">
+                    <button class="action-item action-view" data-action="view-details" data-id="${conv.id}">
                         <span class="action-icon">👁</span>
                         <span>Xem chi tiết</span>
                     </button>
-                    <button class="action-item action-check-at" onclick="checkATOrderStatus('${conv.id}'); event.stopPropagation();">
+                    <button class="action-item action-check-at" data-action="check-at-status" data-id="${conv.id}">
                         <span class="action-icon">🔍</span>
                         <span>Kiểm tra trạng thái AT</span>
                     </button>
                     ${conv.status === 'pending' ? `
-                        <button class="action-item action-approve" onclick="approveConversion('${conv.id}'); event.stopPropagation();">
+                        <button class="action-item action-approve" data-action="approve" data-id="${conv.id}">
                             <span class="action-icon">✓</span>
                             <span>Duyệt đơn</span>
                         </button>
-                        <button class="action-item action-reject" onclick="rejectConversion('${conv.id}'); event.stopPropagation();">
+                        <button class="action-item action-reject" data-action="reject" data-id="${conv.id}">
                             <span class="action-icon">✗</span>
                             <span>Từ chối</span>
                         </button>
@@ -586,11 +586,11 @@ function showATComparisonModal(conversionId, current, accessTrade, differences) 
     }
 
     const modalContent = `
-        <div class="detail-modal-overlay" onclick="closeATComparisonModal()">
-            <div class="detail-modal" onclick="event.stopPropagation()" style="max-width: 700px;">
+        <div class="detail-modal-overlay" data-action="close-at-modal">
+            <div class="detail-modal" style="max-width: 700px;">
                 <div class="detail-modal-header">
                     <h2>🔍 So Sánh Trạng Thái</h2>
-                    <button class="close-btn" onclick="closeATComparisonModal()">✕</button>
+                    <button class="close-btn" data-action="close-at-modal">✕</button>
                 </div>
                 <div class="detail-modal-body">
                     <div style="background: #fee2e2; padding: 16px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ef4444;">
@@ -647,8 +647,8 @@ function showATComparisonModal(conversionId, current, accessTrade, differences) 
                     </div>
                 </div>
                 <div class="detail-modal-footer">
-                    <button class="btn btn-secondary" onclick="closeATComparisonModal()">Hủy</button>
-                    <button class="btn btn-primary" onclick="confirmUpdateFromAT('${conversionId}', ${JSON.stringify(accessTrade).replace(/"/g, '&quot;')})">
+                    <button class="btn btn-secondary" data-action="close-at-modal">Hủy</button>
+                    <button class="btn btn-primary" data-action="confirm-update-at" data-id="${conversionId}" data-at-data='${JSON.stringify(accessTrade)}'>
                         ✓ Cập Nhật Từ AT
                     </button>
                 </div>
@@ -747,30 +747,30 @@ async function viewConversionDetails(conversionId) {
 
             // Create modal content
             const modalContent = `
-                <div class="detail-modal-overlay" onclick="closeDetailModal()">
-                    <div class="detail-modal" onclick="event.stopPropagation()">
+                <div class="detail-modal-overlay" data-action="close-detail-modal">
+                    <div class="detail-modal">
                         <div class="detail-modal-header">
                             <div style="flex: 1;">
                                 <h2>📋 Chi tiết đơn hàng</h2>
                                 <div class="modal-actions">
                                     ${getStatusBadge(conv.status)}
-                                    <button class="btn-check-at" onclick="checkATOrderStatus('${conv.id}'); closeDetailModal();">
+                                    <button class="btn-check-at" data-action="check-at-status-close" data-id="${conv.id}">
                                         <span>🔍</span>
                                         <span>Kiểm tra AT</span>
                                     </button>
                                     ${conv.status === 'pending' ? `
-                                        <button class="btn-approve" onclick="approveConversion('${conv.id}'); event.stopPropagation();">
+                                        <button class="btn-approve" data-action="approve" data-id="${conv.id}">
                                             <span>✓</span>
                                             <span>Duyệt đơn</span>
                                         </button>
-                                        <button class="btn-reject" onclick="rejectConversion('${conv.id}'); event.stopPropagation();">
+                                        <button class="btn-reject" data-action="reject" data-id="${conv.id}">
                                             <span>✗</span>
                                             <span>Từ chối</span>
                                         </button>
                                     ` : ''}
                                 </div>
                             </div>
-                            <button class="close-btn" onclick="closeDetailModal()">✕</button>
+                            <button class="close-btn" data-action="close-detail-modal">✕</button>
                         </div>
                         <div class="detail-modal-body">
                             <div class="detail-section">
@@ -868,7 +868,7 @@ async function viewConversionDetails(conversionId) {
                             </div>
                         </div>
                         <div class="detail-modal-footer">
-                            <button class="btn btn-secondary" onclick="closeDetailModal()">Đóng</button>
+                            <button class="btn btn-secondary" data-action="close-detail-modal">Đóng</button>
                         </div>
                     </div>
                 </div>
@@ -1036,3 +1036,59 @@ window.closeDetailModal = closeDetailModal;
 window.checkATOrderStatus = checkATOrderStatus;
 window.closeATComparisonModal = closeATComparisonModal;
 window.confirmUpdateFromAT = confirmUpdateFromAT;
+
+// ============ CSP FIX: Event Delegation ============
+document.addEventListener('click', (e) => {
+    // Prevent modal overlay clicks from closing when clicking inside modal
+    if (e.target.closest('.detail-modal') && !e.target.closest('[data-action]')) {
+        e.stopPropagation();
+        return;
+    }
+
+    const button = e.target.closest('[data-action]');
+    if (!button) return;
+
+    const action = button.dataset.action;
+    const id = button.dataset.id;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    switch (action) {
+        case 'toggle-action-menu':
+            toggleActionMenu(e);
+            break;
+        case 'view-details':
+            if (id) viewConversionDetails(id);
+            break;
+        case 'check-at-status':
+            if (id) checkATOrderStatus(id);
+            break;
+        case 'check-at-status-close':
+            if (id) {
+                checkATOrderStatus(id);
+                closeDetailModal();
+            }
+            break;
+        case 'approve':
+            if (id) approveConversion(id);
+            break;
+        case 'reject':
+            if (id) rejectConversion(id);
+            break;
+        case 'close-at-modal':
+            closeATComparisonModal();
+            break;
+        case 'close-detail-modal':
+            closeDetailModal();
+            break;
+        case 'confirm-update-at':
+            if (id && button.dataset.atData) {
+                const atData = JSON.parse(button.dataset.atData);
+                confirmUpdateFromAT(id, atData);
+            }
+            break;
+    }
+});
+
+console.log('[Conversions] CSP-compliant event delegation loaded');

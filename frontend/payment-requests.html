@@ -411,11 +411,11 @@
                     </div>
 
                     <div class="action-buttons">
-                        <button class="create-request-btn" id="createRequestBtn" onclick="showCreateModal()">
+                        <button class="create-request-btn" id="createRequestBtn" data-action="show-create-modal">
                             <i class="fas fa-plus-circle"></i>
                             Tạo yêu cầu thanh toán
                         </button>
-                        <button class="payment-history-btn" onclick="window.location.href='/payment-history'">
+                        <button class="payment-history-btn" data-action="navigate-payment-history">
                             <i class="fas fa-history"></i>
                             Lịch sử thanh toán
                         </button>
@@ -490,7 +490,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Tạo yêu cầu thanh toán</h2>
-                <button class="close-modal" onclick="closeCreateModal()">&times;</button>
+                <button class="close-modal" data-action="close-create-modal">&times;</button>
             </div>
             <form id="createRequestForm">
                 <div class="form-group">
@@ -568,7 +568,7 @@
                 </div>
 
                 <div style="display: flex; gap: 1rem; margin-top: 2rem;">
-                    <button type="button" class="btn-secondary" onclick="closeCreateModal()" style="flex: 1;">
+                    <button type="button" class="btn-secondary" data-action="close-create-modal" style="flex: 1;">
                         Hủy
                     </button>
                     <button type="submit" class="btn-primary" style="flex: 2;">
@@ -584,7 +584,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Chi tiết yêu cầu</h2>
-                <button class="close-modal" onclick="closeViewModal()">&times;</button>
+                <button class="close-modal" data-action="close-view-modal">&times;</button>
             </div>
             <div id="requestDetailContent">
                 <!-- Content will be loaded dynamically -->
@@ -597,5 +597,38 @@
     <script src="js/user-sidebar.js"></script>
     <script src="js/mobile-menu.js"></script>
     <script src="js/payment-requests.js"></script>
+    <script>
+        // ============ CSP FIX: Event Delegation ============
+        document.addEventListener('click', (e) => {
+            const button = e.target.closest('[data-action]');
+            if (!button) return;
+
+            const action = button.dataset.action;
+            const id = button.dataset.id;
+
+            switch (action) {
+                case 'show-create-modal':
+                    showCreateModal();
+                    break;
+                case 'navigate-payment-history':
+                    window.location.href = '/payment-history';
+                    break;
+                case 'close-create-modal':
+                    closeCreateModal();
+                    break;
+                case 'close-view-modal':
+                    closeViewModal();
+                    break;
+                case 'view-request':
+                    if (id) viewRequest(id);
+                    break;
+                case 'cancel-request':
+                    if (id) cancelRequest(id);
+                    break;
+            }
+        });
+
+        console.log('[payment-requests.html] CSP-compliant event delegation loaded');
+    </script>
 </body>
 </html>

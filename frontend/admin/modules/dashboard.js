@@ -65,19 +65,19 @@ window.dashboardModule = {
                 <div class="dashboard-card">
                     <h2>🎯 Quick Actions</h2>
                     <div class="quick-actions">
-                        <button class="action-btn" onclick="navigateTo('users')">
+                        <button class="action-btn" data-action="navigate" data-route="users">
                             <span>👥</span>
                             <span>Quản lý Users</span>
                         </button>
-                        <button class="action-btn" onclick="navigateTo('conversions')">
+                        <button class="action-btn" data-action="navigate" data-route="conversions">
                             <span>💰</span>
                             <span>Quản lý Conversions</span>
                         </button>
-                        <button class="action-btn" onclick="navigateTo('at-orders')">
+                        <button class="action-btn" data-action="navigate" data-route="at-orders">
                             <span>📦</span>
                             <span>Xem đơn AT</span>
                         </button>
-                        <button class="action-btn" onclick="navigateTo('tools')">
+                        <button class="action-btn" data-action="navigate" data-route="tools">
                             <span>🔧</span>
                             <span>Admin Tools</span>
                         </button>
@@ -128,3 +128,22 @@ window.dashboardModule = {
         // Cleanup event listeners if any
     }
 };
+
+// ============ CSP FIX: Event Delegation ============
+document.addEventListener('click', (e) => {
+    const button = e.target.closest('[data-action]');
+    if (!button) return;
+
+    const action = button.dataset.action;
+    const route = button.dataset.route;
+
+    switch (action) {
+        case 'navigate':
+            if (typeof navigateTo === 'function') {
+                navigateTo(route);
+            }
+            break;
+    }
+});
+
+console.log('[modules/dashboard.js] CSP-compliant');

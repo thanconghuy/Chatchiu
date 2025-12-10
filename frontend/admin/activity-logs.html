@@ -294,8 +294,8 @@
                             <input type="date" id="dateToFilter">
                         </div>
                         <div class="filter-actions">
-                            <button class="btn btn-primary" onclick="applyFilters()">Áp Dụng</button>
-                            <button class="btn" onclick="resetFilters()">Reset</button>
+                            <button class="btn btn-primary" data-action="apply-filters">Áp Dụng</button>
+                            <button class="btn" data-action="reset-filters">Reset</button>
                         </div>
                     </div>
                 </div>
@@ -351,10 +351,10 @@
                         Logs sẽ tự động xóa sau 90 ngày. Bạn cũng có thể xóa thủ công bằng các tùy chọn bên dưới.
                     </p>
                     <div class="cleanup-actions">
-                        <button class="btn" onclick="manualCleanup90Days()" style="background: #f56565; color: white;">
+                        <button class="btn" data-action="cleanup-90days" style="background: #f56565; color: white;">
                             Xóa Logs > 90 Ngày
                         </button>
-                        <button class="btn" onclick="customDateRangeDelete()" style="background: #ed8936; color: white;">
+                        <button class="btn" data-action="custom-cleanup" style="background: #ed8936; color: white;">
                             Xóa Theo Khoảng Ngày
                         </button>
                     </div>
@@ -658,6 +658,33 @@
             div.textContent = text;
             return div.innerHTML;
         }
+
+        // ============ CSP FIX: Event Delegation ============
+        document.addEventListener('click', (e) => {
+            const button = e.target.closest('[data-action]');
+            if (!button) return;
+
+            const action = button.dataset.action;
+
+            switch (action) {
+                case 'apply-filters':
+                    applyFilters();
+                    break;
+                case 'reset-filters':
+                    resetFilters();
+                    break;
+                case 'cleanup-90days':
+                    manualCleanup90Days();
+                    break;
+                case 'custom-cleanup':
+                    customDateRangeDelete();
+                    break;
+            }
+        });
+
+        console.log('[activity-logs.html] CSP-compliant');
     </script>
+    <!-- CSP Fix: Remove inline event handlers -->
+    <script src="/admin/js/csp-fix.js"></script>
 </body>
 </html>

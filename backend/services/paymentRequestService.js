@@ -1,5 +1,5 @@
 const db = require('../config/database');
-const PaymentRequest = require('../models/PaymentRequest');
+const PaymentRequest = require('../models/PaymentRequestEncrypted');
 const PaymentSystemReconciliationService = require('./paymentSystemReconciliationService');
 const SystemSettingsService = require('./systemSettingsService');
 const logger = require('../utils/logger');

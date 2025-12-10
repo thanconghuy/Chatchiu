@@ -207,55 +207,11 @@
             background: #f6ad55;
         }
 
-        .cron-status {
-            background: white;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .cron-status h3 {
-            margin: 0 0 16px 0;
-            color: var(--gray-900);
-            font-size: 1.1rem;
-        }
-
-        .cron-job {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px;
-            background: var(--gray-50);
-            border-radius: 8px;
-            margin-bottom: 8px;
-        }
-
-        .cron-job-name {
-            font-weight: 600;
-            color: var(--gray-800);
-        }
-
-        .cron-job-schedule {
-            font-size: 0.85rem;
-            color: var(--gray-600);
-            font-family: 'Courier New', monospace;
-        }
-
         .status-badge {
             padding: 4px 12px;
             border-radius: 12px;
             font-size: 0.8rem;
             font-weight: 600;
-        }
-
-        .status-badge.running {
-            background: #c6f6d5;
-            color: #22543d;
-        }
-
-        .status-badge.stopped {
-            background: #fed7d7;
-            color: #742a2a;
         }
 
         .status-badge.status-success {
@@ -481,14 +437,6 @@
                         </div>
                     </div>
 
-                    <!-- Cron Jobs Status -->
-                    <div class="cron-status">
-                        <h3>Trạng Thái Cron Jobs</h3>
-                        <div id="cronJobsContainer">
-                            <p style="text-align: center; color: var(--gray-500);">Đang tải...</p>
-                        </div>
-                    </div>
-
                     <!-- Link Generation Metrics -->
                     <div class="chart-container">
                         <h2>📊 Thống Kê Tạo Link</h2>
@@ -577,6 +525,7 @@
     <script src="/js/auth.js"></script>
     <script src="/admin/sidebar.js"></script>
     <script src="/js/mobile-menu.js"></script>
+
     <script>
         // Check authentication
         requireAuth();
@@ -667,9 +616,6 @@
                     (linkModes.find(m => m.mode === 'api')?.count || 0).toLocaleString();
                 document.getElementById('diyCount').textContent =
                     (linkModes.find(m => m.mode === 'diy')?.count || 0).toLocaleString();
-
-                // Update cron jobs status
-                updateCronJobsStatus(data.cronJobsStatus);
 
                 // Show alerts if needed
                 updateAlerts(data.overview);
@@ -841,33 +787,6 @@
             }
         });
 
-        // Update cron jobs status
-        function updateCronJobsStatus(cronStatus) {
-            const container = document.getElementById('cronJobsContainer');
-
-            if (!cronStatus.isInitialized || cronStatus.jobsCount === 0) {
-                container.innerHTML = `
-                    <p style="text-align: center; color: var(--gray-500);">
-                        Cron jobs chưa được kích hoạt.
-                        ${cronStatus.autoCronEnabled ? 'Hệ thống sẽ tự động khởi động.' : 'Đặt AUTO_CRON_ENABLED=true để kích hoạt.'}
-                    </p>
-                `;
-                return;
-            }
-
-            const html = cronStatus.jobs.map(job => `
-                <div class="cron-job">
-                    <div>
-                        <div class="cron-job-name">${job.name}</div>
-                        <div class="cron-job-schedule">${job.schedule}</div>
-                    </div>
-                    <span class="status-badge ${job.status}">${job.status}</span>
-                </div>
-            `).join('');
-
-            container.innerHTML = html;
-        }
-
         // Update alerts
         function updateAlerts(overview) {
             const container = document.getElementById('alertsContainer');
@@ -1018,5 +937,8 @@
             }
         }
     </script>
+
+    <!-- CSP Fix: Remove inline event handlers -->
+    <script src="/admin/js/csp-fix.js"></script>
 </body>
 </html>

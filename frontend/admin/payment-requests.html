@@ -558,10 +558,10 @@
                         <input type="text" id="userFilter" placeholder="Email hoặc username">
                     </div>
                     <div class="action-buttons">
-                        <button class="btn-primary" onclick="loadPaymentRequests()">
+                        <button class="btn-primary" id="searchBtn">
                             🔍 Tìm kiếm
                         </button>
-                        <button class="btn-secondary" onclick="resetFilters()">
+                        <button class="btn-secondary" id="resetBtn">
                             🔄 Reset
                         </button>
                     </div>
@@ -612,7 +612,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Chi tiết yêu cầu thanh toán</h2>
-                <button class="close-modal" onclick="closeModal('viewModal')">&times;</button>
+                <button class="close-modal" data-modal="viewModal">&times;</button>
             </div>
             <div id="detailContent"></div>
         </div>
@@ -623,7 +623,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Xác nhận yêu cầu</h2>
-                <button class="close-modal" onclick="closeModal('confirmModal')">&times;</button>
+                <button class="close-modal" data-modal="confirmModal">&times;</button>
             </div>
             <form id="confirmForm">
                 <input type="hidden" id="confirmRequestId">
@@ -632,7 +632,7 @@
                     <textarea id="confirmNotes" placeholder="Ghi chú cho yêu cầu này..."></textarea>
                 </div>
                 <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-                    <button type="button" class="btn-secondary" onclick="closeModal('confirmModal')" style="flex: 1;">
+                    <button type="button" class="btn-secondary btn-cancel-modal" data-modal="confirmModal" style="flex: 1;">
                         Hủy
                     </button>
                     <button type="submit" class="btn-confirm" style="flex: 2;">
@@ -648,7 +648,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Từ chối yêu cầu</h2>
-                <button class="close-modal" onclick="closeModal('rejectModal')">&times;</button>
+                <button class="close-modal" data-modal="rejectModal">&times;</button>
             </div>
             <form id="rejectForm">
                 <input type="hidden" id="rejectRequestId">
@@ -657,7 +657,7 @@
                     <textarea id="rejectReason" required placeholder="Nhập lý do từ chối (bắt buộc)..."></textarea>
                 </div>
                 <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-                    <button type="button" class="btn-secondary" onclick="closeModal('rejectModal')" style="flex: 1;">
+                    <button type="button" class="btn-secondary btn-cancel-modal" data-modal="rejectModal" style="flex: 1;">
                         Hủy
                     </button>
                     <button type="submit" class="btn-reject" style="flex: 2;">
@@ -673,7 +673,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Đánh dấu đã thanh toán</h2>
-                <button class="close-modal" onclick="closeModal('paidModal')">&times;</button>
+                <button class="close-modal" data-modal="paidModal">&times;</button>
             </div>
             <form id="paidForm">
                 <input type="hidden" id="paidRequestId">
@@ -686,7 +686,7 @@
                     <textarea id="paidNotes" placeholder="Ghi chú về giao dịch..."></textarea>
                 </div>
                 <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-                    <button type="button" class="btn-secondary" onclick="closeModal('paidModal')" style="flex: 1;">
+                    <button type="button" class="btn-secondary btn-cancel-modal" data-modal="paidModal" style="flex: 1;">
                         Hủy
                     </button>
                     <button type="submit" class="btn-paid" style="flex: 2;">
@@ -700,6 +700,6 @@
     <script src="/js/config.js"></script>
     <script src="/admin/sidebar.js"></script>
     <script>initSidebar();</script>
-    <script src="/admin/js/payment-requests.js"></script>
+    <script src="/admin/js/payment-requests.js?v=20251210"></script>
 </body>
 </html>

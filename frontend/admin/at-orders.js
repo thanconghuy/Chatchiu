@@ -571,7 +571,7 @@ function renderOrders(orders) {
         });
 
         return `
-            <tr style="cursor: pointer;" onclick="viewOrderDetail('${order.id}')" title="Click để xem chi tiết">
+            <tr style="cursor: pointer;" data-action="view-order-detail" data-id="${order.id}" title="Click để xem chi tiết">
                 <td>
                     <div style="font-weight: 600;">${order.orderCode || order.accesstradeId || '-'}</div>
                     ${order.accesstradeId ? `<div style="font-size: 0.8rem; color: var(--gray-500);">AT: ${order.accesstradeId}</div>` : ''}
@@ -777,13 +777,30 @@ function closeOrderDetailModal() {
 window.viewOrderDetail = viewOrderDetail;
 window.closeOrderDetailModal = closeOrderDetailModal;
 
-// Close modal when clicking outside
-window.addEventListener('click', (e) => {
+// ============ CSP FIX: Event Delegation ============
+document.addEventListener('click', (e) => {
+    // Handle modal overlay clicks
     const modal = document.getElementById('orderDetailModal');
     if (e.target === modal) {
         closeOrderDetailModal();
+        return;
+    }
+
+    const button = e.target.closest('[data-action]');
+    if (!button) return;
+
+    const action = button.dataset.action;
+    const id = button.dataset.id;
+
+    switch (action) {
+        case 'view-order-detail':
+            viewOrderDetail(id);
+            break;
+        case 'close-order-detail-modal':
+            closeOrderDetailModal();
+            break;
     }
 });
 
 // Initialize on load
-console.log('AT Orders page loaded');
+console.log('[at-orders.js] CSP-compliant');

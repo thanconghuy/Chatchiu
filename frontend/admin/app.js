@@ -181,7 +181,7 @@ async function loadModule(moduleName) {
             <div class="error-state">
                 <h2>❌ Lỗi tải module</h2>
                 <p>${error.message}</p>
-                <button onclick="window.location.hash = '/dashboard'" class="btn btn-primary">
+                <button data-action="go-dashboard" class="btn btn-primary">
                     Về Dashboard
                 </button>
             </div>
@@ -195,3 +195,19 @@ async function loadModule(moduleName) {
 function navigateTo(route) {
     window.location.hash = `/${route}`;
 }
+
+// ============ CSP FIX: Event Delegation ============
+document.addEventListener('click', (e) => {
+    const button = e.target.closest('[data-action]');
+    if (!button) return;
+
+    const action = button.dataset.action;
+
+    switch (action) {
+        case 'go-dashboard':
+            window.location.hash = '/dashboard';
+            break;
+    }
+});
+
+console.log('[app.js] CSP-compliant');

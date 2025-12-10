@@ -191,7 +191,7 @@ function renderUsers(users) {
 
     usersTable.innerHTML = users.map(user => {
         return `
-            <tr onclick="openUserDetail('${user.id}')" style="cursor: pointer;" title="Click để xem chi tiết">
+            <tr data-action="open-user-detail" data-id="${user.id}" style="cursor: pointer;" title="Click để xem chi tiết">
                 <td><strong>${user.username}</strong></td>
                 <td>${user.email}</td>
                 <td>${user.fullName}</td>
@@ -382,3 +382,13 @@ document.addEventListener('keydown', (e) => {
         closeUserDetail();
     }
 });
+
+// ============ CSP FIX: Event Delegation ============
+document.addEventListener('click', (e) => {
+    const row = e.target.closest('[data-action="open-user-detail"]');
+    if (row) {
+        openUserDetail(row.dataset.id);
+    }
+});
+
+console.log('[users.js] CSP-compliant');

@@ -713,5 +713,339 @@ router.post('/:id/sync', async (req, res) => {
   }
 });
 
+// ========================================
+// AUTO-SYNC WAITING LIST ROUTES
+// ========================================
+
+/**
+ * GET /api/admin/system-reconciliation/auto-sync/preview
+ * Preview eligible orders not yet in waiting list
+ */
+router.get('/auto-sync/preview', async (req, res) => {
+  try {
+    // Get eligible conversions not yet in waiting list
+    const eligibleQuery = `
+      SELECT
+        conversion_id,
+        user_id,
+        merchant_id,
+        merchant_name,
+        order_code,
+        order_amount,
+        commission,
+        cashback_amount,
+        order_time,
+        approval_time,
+        eligible_date,
+        approval_month,
+        days_since_approval
+      FROM get_eligible_conversions_for_waiting_list()
+    `;
+
+    const result = await pool.query(eligibleQuery);
+    const eligibleOrders = result.rows;
+
+    // Group by month
+    const byMonth = {};
+    eligibleOrders.forEach(order => {
+      const monthKey = order.approval_month;
+      if (!byMonth[monthKey]) {
+        const date = new Date(monthKey);
+        byMonth[monthKey] = {
+          month: monthKey,
+          label: `Tháng ${date.getMonth() + 1}/${date.getFullYear()}`,
+          count: 0,
+          cashback: 0,
+          orders: []
+        };
+      }
+      byMonth[monthKey].count++;
+      byMonth[monthKey].cashback += parseFloat(order.cashback_amount);
+      byMonth[monthKey].orders.push(order);
+    });
+
+    const summary = Object.values(byMonth);
+
+    // Format response to match frontend expectations
+    const totalCashback = eligibleOrders.reduce((sum, o) => sum + parseFloat(o.cashback_amount || 0), 0);
+    const monthCount = Object.keys(byMonth).length;
+
+    // Transform byMonth to array with period_label
+    const byMonthArray = Object.values(byMonth).map(m => ({
+      approval_month: m.month,
+      period_label: m.label,
+      order_count: m.count,
+      total_cashback: m.cashback
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        summary: {
+          total_count: eligibleOrders.length,
+          total_cashback: totalCashback,
+          month_count: monthCount
+        },
+        byMonth: byMonthArray,
+        orders: eligibleOrders
+      }
+    });
+
+  } catch (error) {
+    console.error('Error previewing auto-sync:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/admin/system-reconciliation/auto-sync/add-to-waiting
+ * Add eligible orders to waiting list
+ */
+router.post('/auto-sync/add-to-waiting', async (req, res) => {
+  try {
+    const addedBy = req.userId || 'admin';
+
+    const result = await pool.query(
+      'SELECT * FROM add_eligible_conversions_to_waiting_list($1)',
+      [addedBy]
+    );
+
+    const { added_count, total_cashback } = result.rows[0];
+
+    // Get updated waiting list count
+    const countResult = await pool.query(
+      'SELECT COUNT(*) as total FROM reconciliation_waiting_list WHERE status = $1',
+      ['waiting']
+    );
+    const totalWaiting = parseInt(countResult.rows[0].total);
+
+    res.json({
+      success: true,
+      message: `Đã thêm ${added_count} đơn hàng vào danh sách chờ đối soát`,
+      data: {
+        added_count: parseInt(added_count),
+        total_cashback: parseFloat(total_cashback || 0),
+        total_waiting: totalWaiting
+      }
+    });
+
+  } catch (error) {
+    console.error('Error adding to waiting list:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/admin/system-reconciliation/auto-sync/waiting-list
+ * Get waiting list with optional filters
+ */
+router.get('/auto-sync/waiting-list', async (req, res) => {
+  try {
+    const { month, status = 'waiting', page = 1, limit = 50 } = req.query;
+
+    let query = `
+      SELECT
+        rwl.*,
+        u.full_name as user_name,
+        u.email as user_email
+      FROM reconciliation_waiting_list rwl
+      LEFT JOIN users u ON rwl.user_id = u.id
+      WHERE rwl.status = $1
+    `;
+
+    const params = [status];
+    let paramIndex = 2;
+
+    if (month) {
+      query += ` AND rwl.approval_month = $${paramIndex}`;
+      params.push(month);
+      paramIndex++;
+    }
+
+    // Get total count
+    const countQuery = query.replace(/SELECT[\s\S]*?FROM/, 'SELECT COUNT(*) as total FROM');
+    const countResult = await pool.query(countQuery, params);
+    const total = parseInt(countResult.rows[0].total);
+
+    // Add pagination
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    query += ` ORDER BY rwl.approval_time ASC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    params.push(limit, offset);
+
+    const result = await pool.query(query, params);
+
+    // Get summary
+    const summaryResult = await pool.query('SELECT * FROM get_waiting_list_summary()');
+
+    // Map month_label to period_label for summary
+    const summaryWithPeriodLabel = summaryResult.rows.map(s => ({
+      approval_month: s.approval_month,
+      period_label: s.month_label,
+      count: s.order_count,
+      total_cashback: s.total_cashback,
+      user_count: s.user_count
+    }));
+
+    // Add period_label to each item
+    const itemsWithLabels = result.rows.map(item => {
+      const date = new Date(item.approval_month);
+      return {
+        ...item,
+        period_label: `Tháng ${date.getMonth() + 1}/${date.getFullYear()}`,
+        username: item.user_name
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        items: itemsWithLabels,
+        summary: summaryWithPeriodLabel,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          totalPages: Math.ceil(total / parseInt(limit))
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error getting waiting list:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error code:', error.code);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+      code: error.code
+    });
+  }
+});
+
+/**
+ * POST /api/admin/system-reconciliation/auto-sync/create-from-waiting
+ * Create reconciliation from waiting list orders
+ */
+router.post('/auto-sync/create-from-waiting', async (req, res) => {
+  try {
+    const { month, periodLabel } = req.body;
+
+    if (!month || !periodLabel) {
+      return res.status(400).json({
+        success: false,
+        message: 'month and periodLabel are required'
+      });
+    }
+
+    // Get all orders from waiting list for this month
+    const waitingOrdersResult = await pool.query(`
+      SELECT conversion_id, cashback_amount
+      FROM reconciliation_waiting_list
+      WHERE approval_month = $1 AND status = 'waiting'
+      ORDER BY approval_time ASC
+    `, [month]);
+
+    if (waitingOrdersResult.rows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không có đơn hàng nào trong danh sách chờ cho tháng này'
+      });
+    }
+
+    const selectedOrderIds = waitingOrdersResult.rows.map(o => o.conversion_id);
+    const totalCashback = waitingOrdersResult.rows.reduce((sum, o) => sum + parseFloat(o.cashback_amount || 0), 0);
+
+    // Calculate period dates from month
+    const monthDate = new Date(month);
+    const periodStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+    const periodEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+    periodEnd.setHours(23, 59, 59, 999);
+
+    // Create reconciliation using existing service
+    const reconciliation = await SystemReconciliationService.createReconciliation({
+      periodStart,
+      periodEnd,
+      periodLabel,
+      selectedOrderIds,
+      createdBy: req.userId
+    });
+
+    // Move orders from waiting list to reconciled status
+    const movedResult = await pool.query(
+      'SELECT move_from_waiting_to_reconciliation($1, $2) as moved_count',
+      [reconciliation.id, selectedOrderIds]
+    );
+
+    const movedCount = movedResult.rows[0].moved_count;
+
+    // Get remaining waiting list count
+    const remainingResult = await pool.query(
+      'SELECT COUNT(*) as remaining FROM reconciliation_waiting_list WHERE status = $1',
+      ['waiting']
+    );
+    const remaining = parseInt(remainingResult.rows[0].remaining);
+
+    res.json({
+      success: true,
+      message: `Đã tạo kỳ đối soát "${periodLabel}" với ${selectedOrderIds.length} đơn hàng`,
+      data: {
+        reconciliation_id: reconciliation.id,
+        order_count: selectedOrderIds.length,
+        total_cashback: totalCashback,
+        moved_count: movedCount,
+        remaining_in_waiting: remaining
+      }
+    });
+
+  } catch (error) {
+    console.error('Error creating reconciliation from waiting list:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
+ * DELETE /api/admin/system-reconciliation/auto-sync/waiting-list/:id
+ * Remove order from waiting list
+ */
+router.delete('/auto-sync/waiting-list/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      'DELETE FROM reconciliation_waiting_list WHERE id = $1 AND status = $2 RETURNING *',
+      [id, 'waiting']
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy đơn hàng trong danh sách chờ'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Đã xóa đơn hàng khỏi danh sách chờ',
+      data: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('Error removing from waiting list:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
 module.exports = router;
  

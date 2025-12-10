@@ -93,7 +93,7 @@ function renderMerchants() {
         const paginatedMerchants = merchants.slice(startIndex, endIndex);
 
         merchantsGrid.innerHTML = paginatedMerchants.map(merchant => `
-            <div class="merchant-card" onclick="openMerchantModal('${merchant.id}')">
+            <div class="merchant-card" data-action="open-merchant-modal" data-merchant-id="${merchant.id}">
                 <img src="${merchant.logoUrl || 'https://via.placeholder.com/80'}" alt="${merchant.name}" class="merchant-logo">
                 <div class="merchant-name">${merchant.name}</div>
                 <div class="merchant-commission">Hoa hồng: ${merchant.commissionRate}</div>
@@ -110,7 +110,7 @@ function renderMerchants() {
         const slideMerchants = merchants.slice(startIndex, endIndex);
 
         merchantsGrid.innerHTML = slideMerchants.map(merchant => `
-            <div class="merchant-card" onclick="openMerchantModal('${merchant.id}')">
+            <div class="merchant-card" data-action="open-merchant-modal" data-merchant-id="${merchant.id}">
                 <img src="${merchant.logoUrl || 'https://via.placeholder.com/80'}" alt="${merchant.name}" class="merchant-logo">
                 <div class="merchant-name">${merchant.name}</div>
                 <div class="merchant-commission">Hoa hồng: ${merchant.commissionRate}</div>
@@ -243,7 +243,7 @@ function renderMobileHistoryCards(orders) {
 
         // Generate link button HTML
         const linkButton = order.affiliateUrl
-            ? `<button class="history-link-btn" onclick="window.open('${escapeHtml(order.affiliateUrl)}', '_blank')">
+            ? `<button class="history-link-btn" data-action="open-link" data-url="${escapeHtml(order.affiliateUrl)}">
                  🔗 Mở link
                </button>`
             : `<button class="history-link-btn" disabled style="opacity: 0.5;">
@@ -880,3 +880,24 @@ if (btnWithdraw) {
         window.location.href = '/payment-requests.html';
     });
 }
+
+// ============ CSP FIX: Event Delegation ============
+document.addEventListener('click', (e) => {
+    const element = e.target.closest('[data-action]');
+    if (!element) return;
+
+    const action = element.dataset.action;
+    const merchantId = element.dataset.merchantId;
+    const url = element.dataset.url;
+
+    switch (action) {
+        case 'open-merchant-modal':
+            openMerchantModal(merchantId);
+            break;
+        case 'open-link':
+            window.open(url, '_blank');
+            break;
+    }
+});
+
+console.log('[dashboard.js] CSP-compliant event delegation loaded');

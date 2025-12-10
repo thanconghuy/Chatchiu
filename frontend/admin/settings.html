@@ -497,27 +497,27 @@
 
                     <!-- Tab Navigation -->
                     <div class="settings-tabs">
-                        <button class="tab-button active" onclick="switchTab('cron')" data-tab="cron">
+                        <button class="tab-button active" data-action="switch-tab" data-tab="cron">
                             <i class="fas fa-clock"></i>
                             <span>Cron Jobs</span>
                         </button>
-                        <button class="tab-button" onclick="switchTab('api')" data-tab="api">
+                        <button class="tab-button" data-action="switch-tab" data-tab="api">
                             <i class="fas fa-plug"></i>
                             <span>API</span>
                         </button>
-                        <button class="tab-button" onclick="switchTab('system')" data-tab="system">
+                        <button class="tab-button" data-action="switch-tab" data-tab="system">
                             <i class="fas fa-cog"></i>
                             <span>Hệ Thống</span>
                         </button>
-                        <button class="tab-button" onclick="switchTab('payment')" data-tab="payment">
+                        <button class="tab-button" data-action="switch-tab" data-tab="payment">
                             <i class="fas fa-wallet"></i>
                             <span>Thanh Toán</span>
                         </button>
-                        <button class="tab-button" onclick="switchTabWithHistory('autosync')" data-tab="autosync">
+                        <button class="tab-button" data-action="switch-tab" data-tab="autosync" data-with-history="true">
                             <i class="fas fa-sync"></i>
                             <span>Auto-Sync</span>
                         </button>
-                        <button class="tab-button" onclick="switchTab('ai')" data-tab="ai">
+                        <button class="tab-button" data-action="switch-tab" data-tab="ai">
                             <i class="fas fa-robot"></i>
                             <span>AI/ML</span>
                         </button>
@@ -566,7 +566,7 @@
                                     <div class="setting-value" id="retryScheduleValue">Loading...</div>
                                 </div>
                                 <div class="setting-control">
-                                    <button class="btn-edit" onclick="editRetrySchedule()">Chỉnh sửa</button>
+                                    <button class="btn-edit" data-action="edit-retry-schedule">Chỉnh sửa</button>
                                 </div>
                             </div>
                         </div>
@@ -575,7 +575,7 @@
                         <div style="margin-top: 20px; padding: 16px; background: var(--gray-50); border-radius: 8px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                                 <h3 style="margin: 0; font-size: 1rem;">📊 Danh Sách Cron Jobs Đang Chạy</h3>
-                                <button class="btn-secondary" onclick="reloadCronJobs()" id="reloadCronBtn">
+                                <button class="btn-secondary" data-action="reload-cron-jobs" id="reloadCronBtn">
                                     <i class="fas fa-redo"></i> Reload Jobs
                                 </button>
                             </div>
@@ -624,8 +624,8 @@
                                     <div class="setting-value" id="apiTokenValue">••••••••••</div>
                                 </div>
                                 <div class="setting-control">
-                                    <button class="btn-test" onclick="testAccessTradeAPI()">Test API</button>
-                                    <button class="btn-edit" onclick="editApiToken()">Chỉnh sửa</button>
+                                    <button class="btn-test" data-action="test-api">Test API</button>
+                                    <button class="btn-edit" data-action="edit-api-token">Chỉnh sửa</button>
                                 </div>
                             </div>
 
@@ -639,7 +639,7 @@
                                     <div class="setting-value" id="apiUrlValue">Loading...</div>
                                 </div>
                                 <div class="setting-control">
-                                    <button class="btn-edit" onclick="editApiUrl()">Chỉnh sửa</button>
+                                    <button class="btn-edit" data-action="edit-api-url">Chỉnh sửa</button>
                                 </div>
                             </div>
                         </div>
@@ -664,7 +664,7 @@
                                     <div class="setting-value" id="commissionSplitValue">Loading...</div>
                                 </div>
                                 <div class="setting-control">
-                                    <button class="btn-edit" onclick="editCommissionSplit()">Chỉnh sửa</button>
+                                    <button class="btn-edit" data-action="edit-commission-split">Chỉnh sửa</button>
                                 </div>
                             </div>
 
@@ -690,7 +690,7 @@
                                     <div class="setting-value" id="minWithdrawalValue">Loading...</div>
                                 </div>
                                 <div class="setting-control">
-                                    <button class="btn-edit" onclick="editMinWithdrawal()">Chỉnh sửa</button>
+                                    <button class="btn-edit" data-action="edit-min-withdrawal">Chỉnh sửa</button>
                                 </div>
                             </div>
 
@@ -704,7 +704,7 @@
                                     <div class="setting-value" id="maxWithdrawalValue">Loading...</div>
                                 </div>
                                 <div class="setting-control">
-                                    <button class="btn-edit" onclick="editMaxWithdrawal()">Chỉnh sửa</button>
+                                    <button class="btn-edit" data-action="edit-max-withdrawal">Chỉnh sửa</button>
                                 </div>
                             </div>
 
@@ -718,7 +718,7 @@
                                     <div class="setting-value" id="processingDaysValue">Loading...</div>
                                 </div>
                                 <div class="setting-control">
-                                    <button class="btn-edit" onclick="editProcessingDays()">Chỉnh sửa</button>
+                                    <button class="btn-edit" data-action="edit-processing-days">Chỉnh sửa</button>
                                 </div>
                             </div>
                         </div>
@@ -750,7 +750,7 @@
                                 </div>
                                 <div class="setting-control">
                                     <label class="toggle-switch">
-                                        <input type="checkbox" id="autoSyncToggle" onchange="toggleAutoSync()">
+                                        <input type="checkbox" id="autoSyncToggle" data-action="toggle-auto-sync">
                                         <span class="toggle-slider"></span>
                                     </label>
                                 </div>
@@ -766,7 +766,7 @@
                                     <div class="setting-value" id="syncScheduleValue">Loading...</div>
                                 </div>
                                 <div class="setting-control">
-                                    <button class="btn-edit" onclick="editSyncSchedule()">Chỉnh sửa</button>
+                                    <button class="btn-edit" data-action="edit-sync-schedule">Chỉnh sửa</button>
                                 </div>
                             </div>
 
@@ -780,7 +780,7 @@
                                     <div class="setting-value" id="syncDaysValue">Loading...</div>
                                 </div>
                                 <div class="setting-control">
-                                    <button class="btn-edit" onclick="editSyncDays()">Chỉnh sửa</button>
+                                    <button class="btn-edit" data-action="edit-sync-days">Chỉnh sửa</button>
                                 </div>
                             </div>
 
@@ -793,7 +793,7 @@
                                     </div>
                                 </div>
                                 <div class="setting-control">
-                                    <button class="btn-primary" onclick="runManualSync()" id="manualSyncBtn">
+                                    <button class="btn-primary" data-action="run-manual-sync" id="manualSyncBtn">
                                         <i class="fas fa-sync"></i> Sync Ngay
                                     </button>
                                 </div>
@@ -825,7 +825,7 @@
                         <h2>📊 Lịch Sử Sync</h2>
 
                         <div style="margin-bottom: 20px;">
-                            <button class="btn-primary" onclick="loadSyncHistory()" style="padding: 8px 16px;">
+                            <button class="btn-primary" data-action="load-sync-history" style="padding: 8px 16px;">
                                 <i class="fas fa-sync"></i> Làm mới
                             </button>
                         </div>
@@ -919,7 +919,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3 id="modalTitle">Chỉnh Sửa Cấu Hình</h3>
-                <button class="modal-close" onclick="closeEditModal()">×</button>
+                <button class="modal-close" data-action="close-modal">×</button>
             </div>
             <div id="modalBody">
                 <!-- Dynamic content -->
@@ -1184,8 +1184,8 @@
                         Ví dụ: "0 */6 * * *" = mỗi 6 giờ
                     </small>
                 </div>
-                <button class="btn-save" onclick="saveRetrySchedule()">Lưu</button>
-                <button class="btn-secondary" onclick="closeEditModal()" style="margin-left: 10px;">Hủy</button>
+                <button class="btn-save" data-action="save-retry-schedule">Lưu</button>
+                <button class="btn-secondary" data-action="close-modal" style="margin-left: 10px;">Hủy</button>
             `;
 
             document.getElementById('editModal').classList.add('show');
@@ -1227,8 +1227,8 @@
                     <label for="apiToken">AccessTrade API Token</label>
                     <textarea id="apiToken" placeholder="Nhập API token..." rows="3"></textarea>
                 </div>
-                <button class="btn-save" onclick="saveApiToken()">Lưu</button>
-                <button class="btn-secondary" onclick="closeEditModal()" style="margin-left: 10px;">Hủy</button>
+                <button class="btn-save" data-action="save-api-token">Lưu</button>
+                <button class="btn-secondary" data-action="close-modal" style="margin-left: 10px;">Hủy</button>
             `;
 
             document.getElementById('editModal').classList.add('show');
@@ -1298,8 +1298,8 @@
                     <label for="apiUrl">AccessTrade API URL</label>
                     <input type="text" id="apiUrl" value="${document.getElementById('apiUrlValue').textContent}">
                 </div>
-                <button class="btn-save" onclick="saveApiUrl()">Lưu</button>
-                <button class="btn-secondary" onclick="closeEditModal()" style="margin-left: 10px;">Hủy</button>
+                <button class="btn-save" data-action="save-api-url">Lưu</button>
+                <button class="btn-secondary" data-action="close-modal" style="margin-left: 10px;">Hủy</button>
             `;
 
             document.getElementById('editModal').classList.add('show');
@@ -1343,8 +1343,8 @@
                         Phần còn lại sẽ là của platform. VD: 70% = user nhận 70%, platform nhận 30%
                     </small>
                 </div>
-                <button class="btn-save" onclick="saveCommissionSplit()">Lưu</button>
-                <button class="btn-secondary" onclick="closeEditModal()" style="margin-left: 10px;">Hủy</button>
+                <button class="btn-save" data-action="save-commission-split">Lưu</button>
+                <button class="btn-secondary" data-action="close-modal" style="margin-left: 10px;">Hủy</button>
             `;
 
             document.getElementById('editModal').classList.add('show');
@@ -1644,7 +1644,7 @@
             const modalBody = `
                 <div class="form-group">
                     <label>Chọn Lịch Trình:</label>
-                    <select id="scheduleSelect" class="form-control" onchange="toggleCustomSchedule()">
+                    <select id="scheduleSelect" class="form-control" data-action="toggle-custom-schedule">
                         ${optionsHtml}
                     </select>
                 </div>
@@ -1674,8 +1674,8 @@
                 </div>
 
                 <div class="modal-actions" style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
-                    <button class="btn-secondary" onclick="closeEditModal()">Hủy</button>
-                    <button class="btn-save" onclick="saveSyncSchedule()">Lưu</button>
+                    <button class="btn-secondary" data-action="close-modal">Hủy</button>
+                    <button class="btn-save" data-action="save-sync-schedule">Lưu</button>
                 </div>
             `;
 
@@ -1766,8 +1766,8 @@
                     </small>
                 </div>
                 <div class="modal-actions">
-                    <button class="btn-secondary" onclick="closeEditModal()">Hủy</button>
-                    <button class="btn-primary" onclick="saveSyncDays()">Lưu</button>
+                    <button class="btn-secondary" data-action="close-modal">Hủy</button>
+                    <button class="btn-primary" data-action="save-sync-days">Lưu</button>
                 </div>
             `;
 
@@ -1912,7 +1912,7 @@
                             <td style="color: var(--text-secondary);">${session.total_skipped || 0}</td>
                             <td style="color: var(--error-color);">${session.total_errors || 0}</td>
                             <td>
-                                <button class="btn-secondary" onclick="viewSyncDetails('${session.id}')" style="padding: 4px 8px; font-size: 12px;">
+                                <button class="btn-secondary view-sync-detail" data-session-id="${session.id}" style="padding: 4px 8px; font-size: 12px;">
                                     Chi tiết
                                 </button>
                             </td>
@@ -1952,11 +1952,11 @@
 
                 const stats = response.data || {};
 
-                document.getElementById('statsTotal').textContent = stats.totalSessions || 0;
-                document.getElementById('statsSuccess').textContent = stats.successfulSessions || 0;
-                document.getElementById('statsFailed').textContent = stats.failedSessions || 0;
-                document.getElementById('statsCreated').textContent = stats.totalCreated || 0;
-                document.getElementById('statsUpdated').textContent = stats.totalUpdated || 0;
+                document.getElementById('statsTotal').textContent = stats.total_syncs || 0;
+                document.getElementById('statsSuccess').textContent = stats.successful_syncs || 0;
+                document.getElementById('statsFailed').textContent = stats.failed_syncs || 0;
+                document.getElementById('statsCreated').textContent = stats.total_created || 0;
+                document.getElementById('statsUpdated').textContent = stats.total_updated || 0;
 
             } catch (error) {
                 console.error('Error loading sync stats:', error);
@@ -1986,7 +1986,7 @@
                     <div style="background: white; padding: 24px; border-radius: 12px; max-width: 900px; max-height: 80vh; overflow: auto; width: 90%;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                             <h2>Chi Tiết Sync Session</h2>
-                            <button onclick="this.closest('.modal').remove()" style="border: none; background: none; font-size: 24px; cursor: pointer;">&times;</button>
+                            <button class="close-sync-detail-modal" style="border: none; background: none; font-size: 24px; cursor: pointer;">&times;</button>
                         </div>
 
                         ${changes.length === 0 ?
@@ -2032,6 +2032,12 @@
                 `;
 
                 document.body.appendChild(modal);
+
+                // Add event listener for close button
+                const closeBtn = modal.querySelector('.close-sync-detail-modal');
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', () => modal.remove());
+                }
 
             } catch (error) {
                 console.error('Error loading sync details:', error);
@@ -2217,6 +2223,108 @@
             e.preventDefault();
             logout();
         });
+
+        // ============ CSP FIX: Event Delegation ============
+        document.addEventListener('click', (e) => {
+            const button = e.target.closest('[data-action]');
+            if (!button) return;
+
+            const action = button.dataset.action;
+
+            switch (action) {
+                case 'switch-tab':
+                    const tab = button.dataset.tab;
+                    const withHistory = button.dataset.withHistory === 'true';
+                    if (withHistory) {
+                        switchTabWithHistory(tab);
+                    } else {
+                        switchTab(tab);
+                    }
+                    break;
+                case 'edit-retry-schedule':
+                    editRetrySchedule();
+                    break;
+                case 'reload-cron-jobs':
+                    reloadCronJobs();
+                    break;
+                case 'test-api':
+                    testAccessTradeAPI();
+                    break;
+                case 'edit-api-token':
+                    editApiToken();
+                    break;
+                case 'edit-api-url':
+                    editApiUrl();
+                    break;
+                case 'edit-commission-split':
+                    editCommissionSplit();
+                    break;
+                case 'edit-min-withdrawal':
+                    editMinWithdrawal();
+                    break;
+                case 'edit-max-withdrawal':
+                    editMaxWithdrawal();
+                    break;
+                case 'edit-processing-days':
+                    editProcessingDays();
+                    break;
+                case 'edit-sync-schedule':
+                    editSyncSchedule();
+                    break;
+                case 'edit-sync-days':
+                    editSyncDays();
+                    break;
+                case 'run-manual-sync':
+                    runManualSync();
+                    break;
+                case 'load-sync-history':
+                    loadSyncHistory();
+                    break;
+                case 'close-modal':
+                    closeEditModal();
+                    break;
+                case 'save-retry-schedule':
+                    saveRetrySchedule();
+                    break;
+                case 'save-api-token':
+                    saveApiToken();
+                    break;
+                case 'save-api-url':
+                    saveApiUrl();
+                    break;
+                case 'save-commission-split':
+                    saveCommissionSplit();
+                    break;
+                case 'save-sync-schedule':
+                    saveSyncSchedule();
+                    break;
+                case 'save-sync-days':
+                    saveSyncDays();
+                    break;
+            }
+        });
+
+        // Handle change events for toggles
+        document.addEventListener('change', (e) => {
+            const element = e.target.closest('[data-action]');
+            if (!element) return;
+
+            const action = element.dataset.action;
+
+            switch (action) {
+                case 'toggle-auto-sync':
+                    toggleAutoSync();
+                    break;
+                case 'toggle-custom-schedule':
+                    toggleCustomSchedule();
+                    break;
+            }
+        });
+
+        console.log('[Settings] CSP-compliant event delegation loaded');
+
     </script>
+    <!-- CSP Fix: Remove inline event handlers -->
+    <script src="/admin/js/csp-fix.js"></script>
 </body>
 </html>

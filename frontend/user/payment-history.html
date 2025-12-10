@@ -640,7 +640,7 @@
                     </select>
                 </div>
 
-                <button class="btn btn-primary" onclick="applyFilters()">
+                <button class="btn btn-primary" data-action="apply-filters">
                     <i class="fas fa-filter"></i> Lọc
                 </button>
             </div>
@@ -662,16 +662,10 @@
     </div>
 
     <script src="../js/config.js"></script>
+    <script src="../js/auth.js"></script>
     <script>
         // Check authentication
-        const token = localStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN);
-        console.log('Payment History - Token:', token ? 'EXISTS' : 'MISSING');
-        if (!token) {
-            console.log('No token found, redirecting to login...');
-            window.location.href = '/login';
-        } else {
-            console.log('Token found, loading payment history...');
-        }
+        requireAuth();
 
         let paymentHistoryData = [];
         let summaryData = {};
@@ -809,7 +803,7 @@
                         <td>${payment.payment_date ? formatDate(payment.payment_date) : '-'}</td>
                         <td>${getStatusBadge(payment.status)}</td>
                         <td>
-                            <button class="action-btn" onclick="viewDetail('${payment.payment_period}')">
+                            <button class="action-btn" data-action="view-detail" data-period="${payment.payment_period}">
                                 <i class="fas fa-eye"></i> Chi tiết
                             </button>
                         </td>
@@ -868,7 +862,7 @@
 
                         <div class="payment-card-footer">
                             ${getStatusBadge(payment.status)}
-                            <button class="payment-card-action" onclick="viewDetail('${payment.payment_period}')">
+                            <button class="payment-card-action" data-action="view-detail" data-period="${payment.payment_period}">
                                 <i class="fas fa-eye"></i> Xem chi tiết
                             </button>
                         </div>
@@ -917,6 +911,26 @@
 
             return `<span class="status-badge ${status}">${statusMap[status] || status}</span>`;
         }
+
+        // ============ CSP FIX: Event Delegation ============
+        document.addEventListener('click', (e) => {
+            const button = e.target.closest('[data-action]');
+            if (!button) return;
+
+            const action = button.dataset.action;
+            const period = button.dataset.period;
+
+            switch (action) {
+                case 'apply-filters':
+                    applyFilters();
+                    break;
+                case 'view-detail':
+                    viewDetail(period);
+                    break;
+            }
+        });
+
+        console.log('[payment-history.html] CSP-compliant event delegation loaded');
     </script>
 
     <script src="../js/user-sidebar.js"></script>

@@ -1408,7 +1408,7 @@
 
             <div class="faq-container">
                 <div class="faq-item">
-                    <button class="faq-question-btn" onclick="toggleFAQ(this)">
+                    <button class="faq-question-btn" data-action="toggle-faq">
                         <span>Có mất phí không?</span>
                         <span class="faq-icon">▼</span>
                     </button>
@@ -1418,7 +1418,7 @@
                 </div>
 
                 <div class="faq-item">
-                    <button class="faq-question-btn" onclick="toggleFAQ(this)">
+                    <button class="faq-question-btn" data-action="toggle-faq">
                         <span>Tại sao có cashback?</span>
                         <span class="faq-icon">▼</span>
                     </button>
@@ -1428,7 +1428,7 @@
                 </div>
 
                 <div class="faq-item">
-                    <button class="faq-question-btn" onclick="toggleFAQ(this)">
+                    <button class="faq-question-btn" data-action="toggle-faq">
                         <span>Bao lâu nhận được tiền?</span>
                         <span class="faq-icon">▼</span>
                     </button>
@@ -1438,7 +1438,7 @@
                 </div>
 
                 <div class="faq-item">
-                    <button class="faq-question-btn" onclick="toggleFAQ(this)">
+                    <button class="faq-question-btn" data-action="toggle-faq">
                         <span>An toàn không?</span>
                         <span class="faq-icon">▼</span>
                     </button>
@@ -1766,6 +1766,22 @@
                 answer.classList.add('active');
             }
         }
+
+        // ============ CSP FIX: Event Delegation ============
+        document.addEventListener('click', (e) => {
+            const button = e.target.closest('[data-action]');
+            if (!button) return;
+
+            const action = button.dataset.action;
+
+            switch (action) {
+                case 'toggle-faq':
+                    toggleFAQ(button);
+                    break;
+            }
+        });
+
+        console.log('[index.html] CSP-compliant event delegation loaded');
 
         /**
          * Realtime Orders Display

@@ -202,7 +202,7 @@ function renderMerchants() {
                 <strong>${(merchant.total_conversions || 0).toLocaleString()}</strong>
             </td>
             <td>
-                <button class="btn btn-sm btn-primary" onclick="editMerchant('${merchant.id}')">
+                <button class="btn btn-sm btn-primary" data-action="edit-merchant" data-id="${merchant.id}">
                     Edit
                 </button>
             </td>
@@ -430,3 +430,20 @@ document.getElementById('editMerchantForm').addEventListener('submit', async (e)
 
 // Make editMerchant globally accessible for onclick handlers
 window.editMerchant = editMerchant;
+
+// ============ CSP FIX: Event Delegation ============
+document.addEventListener('click', (e) => {
+    const button = e.target.closest('[data-action]');
+    if (!button) return;
+
+    const action = button.dataset.action;
+    const id = button.dataset.id;
+
+    switch (action) {
+        case 'edit-merchant':
+            editMerchant(id);
+            break;
+    }
+});
+
+console.log('[merchants.js] CSP-compliant');

@@ -199,11 +199,11 @@ function displayPaymentRequests(requests) {
             <td>${formatDateTime(req.created_at)}</td>
             <td>
                 <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-                    <button class="btn-sm btn-primary" onclick="viewRequest('${req.id}')" title="Xem chi tiết">
+                    <button class="btn-sm btn-primary" data-action="view-request" data-id="${req.id}" title="Xem chi tiết">
                         <i class="fas fa-eye"></i> Xem
                     </button>
                     ${req.status === 'pending' ? `
-                        <button class="btn-sm btn-danger" onclick="cancelRequest('${req.id}')" title="Hủy yêu cầu">
+                        <button class="btn-sm btn-danger" data-action="cancel-request" data-id="${req.id}" title="Hủy yêu cầu">
                             <i class="fas fa-times"></i> Hủy
                         </button>
                     ` : ''}
@@ -234,11 +234,11 @@ function displayPaymentRequests(requests) {
                 </div>
             </div>
             <div class="payment-card-actions">
-                <button class="btn-view" onclick="viewRequest('${req.id}')">
+                <button class="btn-view" data-action="view-request" data-id="${req.id}">
                     <i class="fas fa-eye"></i> Xem chi tiết
                 </button>
                 ${req.status === 'pending' ? `
-                    <button class="btn-cancel" onclick="cancelRequest('${req.id}')">
+                    <button class="btn-cancel" data-action="cancel-request" data-id="${req.id}">
                         <i class="fas fa-times"></i> Hủy
                     </button>
                 ` : ''}
@@ -406,10 +406,8 @@ function displayRequestDetail(request) {
                                 <strong><i class="fas fa-credit-card"></i> Số tài khoản:</strong>
                                 <span style="color: #333; font-family: monospace; font-size: 1.05rem;">${request.bank_account_number}</span>
                             </div>
-                            <button onclick="copyToClipboard('${request.bank_account_number}', 'Đã copy số tài khoản')"
-                                    style="padding: 0.4rem 0.75rem; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 0.25rem; transition: transform 0.2s;"
-                                    onmouseover="this.style.transform='scale(1.05)'"
-                                    onmouseout="this.style.transform='scale(1)'">
+                            <button data-action="copy-to-clipboard" data-text="${request.bank_account_number}" data-message="Đã copy số tài khoản"
+                                    style="padding: 0.4rem 0.75rem; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 0.25rem; transition: transform 0.2s;">
                                 <i class="fas fa-copy"></i> Copy
                             </button>
                         </div>
@@ -491,10 +489,8 @@ function displayRequestDetail(request) {
             </div>
 
             <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #e0e0e0;">
-                <button onclick="closeViewModal()"
-                        style="width: 100%; padding: 0.875rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
-                        onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.4)'"
-                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                <button data-action="close-view-modal"
+                        style="width: 100%; padding: 0.875rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
                     <i class="fas fa-times-circle"></i> Đóng
                 </button>
             </div>
@@ -627,3 +623,24 @@ function showToast(message, type = 'info') {
         setTimeout(() => toast.remove(), 300);
     }, 3000);
 }
+
+// ============ CSP FIX: Event Delegation ============
+document.addEventListener('click', (e) => {
+    const element = e.target.closest('[data-action]');
+    if (!element) return;
+
+    const action = element.dataset.action;
+    const text = element.dataset.text;
+    const message = element.dataset.message;
+
+    switch (action) {
+        case 'copy-to-clipboard':
+            copyToClipboard(text, message);
+            break;
+        case 'close-view-modal':
+            closeViewModal();
+            break;
+    }
+});
+
+console.log('[payment-requests.js] CSP-compliant event delegation loaded');

@@ -767,7 +767,7 @@
         <div class="modal-content" style="max-width: 800px; position: relative; z-index: 2001;">
             <div class="modal-header">
                 <h2>📦 Chi tiết đơn hàng</h2>
-                <button class="modal-close" onclick="closeOrderDetailModal()">&times;</button>
+                <button class="modal-close" data-action="close-order-detail-modal">&times;</button>
             </div>
             <div class="modal-body">
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
@@ -860,5 +860,7 @@
     <script src="/admin/sidebar.js"></script>
     <script src="/js/mobile-menu.js"></script>
     <script src="/admin/at-orders.js"></script>
+    <!-- CSP Fix: Remove inline event handlers -->
+    <script src="/admin/js/csp-fix.js"></script>
 </body>
 </html>

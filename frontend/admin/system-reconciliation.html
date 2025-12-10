@@ -428,6 +428,539 @@
             border-left: 4px solid #f59e0b;
             color: #92400e;
         }
+
+        /* Tab Styles */
+        .tabs {
+            display: flex;
+            gap: 0;
+            border-bottom: 2px solid #e0e0e0;
+            margin-bottom: 24px;
+        }
+
+        .tab-btn {
+            padding: 14px 28px;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 500;
+            color: #666;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tab-btn:hover {
+            color: #2c3e50;
+            background: rgba(0, 0, 0, 0.02);
+        }
+
+        .tab-btn.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            font-weight: 600;
+        }
+
+        .tab-content {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Auto-Sync Specific Styles */
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+
+        .card-header {
+            background: #f8f9fa;
+            padding: 16px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        .month-group {
+            margin-bottom: 24px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .month-group-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .month-group-body {
+            padding: 16px;
+        }
+
+        .order-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+
+        .order-table th {
+            background: #f8f9fa;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #2c3e50;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .order-table td {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .order-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        /* Reconciliation Table Styles */
+        .reconciliation-table-container {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .reconciliation-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .reconciliation-table thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .reconciliation-table th {
+            padding: 16px 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .reconciliation-table th.text-center {
+            text-align: center;
+        }
+
+        .reconciliation-table th.text-right {
+            text-align: right;
+        }
+
+        .reconciliation-table tbody tr {
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.2s;
+        }
+
+        .reconciliation-table tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .reconciliation-table tbody tr:nth-child(even) {
+            background: #fafbfc;
+        }
+
+        .reconciliation-table tbody tr:nth-child(even):hover {
+            background: #f0f1f3;
+        }
+
+        .reconciliation-table td {
+            padding: 16px 12px;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .reconciliation-table td.text-center {
+            text-align: center;
+        }
+
+        .reconciliation-table td.text-right {
+            text-align: right;
+        }
+
+        .period-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .period-label {
+            font-weight: 600;
+            font-size: 15px;
+            color: #2c3e50;
+            margin-bottom: 4px;
+        }
+
+        .period-date {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .created-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .created-date {
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 2px;
+        }
+
+        .created-time {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .order-count {
+            font-size: 18px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .order-label {
+            font-size: 13px;
+            color: #666;
+            margin-left: 4px;
+        }
+
+        .money-positive {
+            color: #10b981;
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .money-risk {
+            color: #f59e0b;
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .money-zero {
+            color: #9ca3af;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .table-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .btn-table-action {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-view {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-view:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+
+        .btn-finalize-table {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-finalize-table:hover {
+            background: #059669;
+            transform: translateY(-1px);
+        }
+
+        .btn-delete-table {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-delete-table:hover {
+            background: #dc2626;
+            transform: translateY(-1px);
+        }
+
+        .btn-paid-table {
+            background: #8b5cf6;
+            color: white;
+        }
+
+        .btn-paid-table:hover {
+            background: #7c3aed;
+            transform: translateY(-1px);
+        }
+
+        .table-empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .table-empty i {
+            font-size: 64px;
+            opacity: 0.3;
+            margin-bottom: 16px;
+        }
+
+        /* Action Dropdown Menu */
+        .action-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .action-dropdown-btn {
+            background: transparent;
+            border: none;
+            padding: 8px;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+            color: #666;
+            font-size: 18px;
+        }
+
+        .action-dropdown-btn:hover {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .action-dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            margin-top: 4px;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            min-width: 180px;
+            z-index: 1000;
+            display: none;
+            overflow: hidden;
+        }
+
+        .action-dropdown-menu.show {
+            display: block;
+            animation: dropdownFadeIn 0.2s ease-out;
+        }
+
+        @keyframes dropdownFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .action-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            border: none;
+            background: white;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+            font-size: 14px;
+            color: #333;
+            transition: background 0.2s;
+            border-bottom: 1px solid #f5f5f5;
+        }
+
+        .action-dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .action-dropdown-item:hover {
+            background: #f8f9fa;
+        }
+
+        .action-dropdown-item i {
+            width: 16px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .action-dropdown-item.action-view {
+            color: #3b82f6;
+        }
+
+        .action-dropdown-item.action-finalize {
+            color: #10b981;
+        }
+
+        .action-dropdown-item.action-paid {
+            color: #8b5cf6;
+        }
+
+        .action-dropdown-item.action-delete {
+            color: #ef4444;
+        }
+
+        .action-dropdown-item.action-view:hover {
+            background: #eff6ff;
+        }
+
+        .action-dropdown-item.action-finalize:hover {
+            background: #ecfdf5;
+        }
+
+        .action-dropdown-item.action-paid:hover {
+            background: #f5f3ff;
+        }
+
+        .action-dropdown-item.action-delete:hover {
+            background: #fef2f2;
+        }
+
+        .table-pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: white;
+            border-radius: 0 0 12px 12px;
+            border-top: 2px solid #f0f0f0;
+        }
+
+        .pagination-info {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .pagination-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .page-btn {
+            padding: 8px 12px;
+            border: 1px solid #e0e0e0;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .page-btn:hover {
+            background: #f8f9fa;
+            border-color: #667eea;
+        }
+
+        .page-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+            font-weight: 600;
+        }
+
+        .btn-prev, .btn-next {
+            padding: 8px 16px;
+            border: 1px solid #e0e0e0;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .btn-prev:disabled, .btn-next:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -444,7 +977,22 @@
                 </div>
             </div>
 
-            <!-- Stats Cards -->
+            <!-- Tab Navigation -->
+            <div class="tabs" style="margin-bottom: 24px; border-bottom: 2px solid #e0e0e0;">
+                <button class="tab-btn active" data-tab="reconciliations">
+                    <i class="fas fa-list"></i> Danh Sách Đối Soát
+                </button>
+                <button class="tab-btn" data-tab="auto-sync">
+                    <i class="fas fa-robot"></i> Auto-Sync
+                </button>
+                <button class="tab-btn" data-tab="stats">
+                    <i class="fas fa-chart-bar"></i> Thống Kê
+                </button>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="tab-content" id="reconciliationsTab">
+                <!-- Stats Cards -->
             <div id="statsCards" style="margin-bottom: 30px;">
                 <div class="loading">Đang tải thống kê...</div>
             </div>
@@ -481,7 +1029,7 @@
                                    style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem;">
                         </div>
                         <div style="display: flex; gap: 10px;">
-                            <button type="button" class="btn-secondary" onclick="loadEligibleOrders()"
+                            <button type="button" class="btn-secondary" data-action="load-eligible-orders"
                                     style="padding: 10px 24px; height: 42px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; white-space: nowrap;">
                                 🔍 Lọc đơn hàng
                             </button>
@@ -538,25 +1086,122 @@
                 </div>
             </div>
 
-            <!-- Reconciliations List -->
-            <div id="reconciliationsList" class="reconciliation-grid">
-                <div class="loading">Đang tải danh sách đối soát...</div>
+            <!-- Reconciliations Table -->
+            <div class="reconciliation-table-container" style="display: block !important; visibility: visible !important; min-height: 400px;">
+                <table class="reconciliation-table" style="display: table !important; visibility: visible !important;">
+                    <thead>
+                        <tr>
+                            <th>Kỳ Đối Soát</th>
+                            <th>Ngày Tạo</th>
+                            <th class="text-center">Tổng Đơn Hàng</th>
+                            <th class="text-right">Tổng Cashback</th>
+                            <th class="text-center">Trạng Thái</th>
+                            <th class="text-center">Thao Tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reconciliationsList">
+                        <tr>
+                            <td colspan="6" class="table-empty">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <p>Đang tải danh sách đối soát...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Table Pagination -->
+                <div class="table-pagination" id="tablePagination" style="display: none;">
+                    <div class="pagination-info" id="paginationInfo">
+                        Hiển thị <strong>1-10</strong> trong tổng <strong>0</strong> kỳ đối soát
+                    </div>
+                    <div class="pagination-controls">
+                        <button class="btn-prev" id="prevPage" disabled>« Trước</button>
+                        <span id="pageNumbers"></span>
+                        <button class="btn-next" id="nextPage">Sau »</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- End Reconciliations Tab -->
+
+        <!-- Auto-Sync Tab -->
+        <div class="tab-content" id="autoSyncTab" style="display: none;">
+            <h2 style="margin-bottom: 20px;">
+                <i class="fas fa-robot"></i> Auto-Sync Đối Soát
+            </h2>
+
+            <!-- New Orders Preview Section -->
+            <div class="card" style="margin-bottom: 24px;">
+                <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px; border-radius: 8px 8px 0 0;">
+                    <h3 style="margin: 0; font-size: 18px;">
+                        <i class="fas fa-clock"></i> Đơn Hàng Mới Đủ Điều Kiện
+                    </h3>
+                    <p style="margin: 8px 0 0 0; font-size: 14px; opacity: 0.9;">
+                        Các đơn hàng đã duyệt + 15 ngày, chưa có trong danh sách chờ
+                    </p>
+                </div>
+                <div class="card-body" style="padding: 20px;">
+                    <div id="newOrdersPreview">
+                        <div class="loading" style="text-align: center; padding: 40px; color: #666;">
+                            <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
+                            <p style="margin-top: 12px;">Đang tải dữ liệu...</p>
+                        </div>
+                    </div>
+                    <div style="text-align: center; margin-top: 16px;">
+                        <button id="btnAddToWaiting" class="btn-primary" style="padding: 12px 24px; font-size: 16px;" disabled>
+                            <i class="fas fa-plus-circle"></i> Thêm Vào Danh Sách Chờ
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            <!-- Pagination -->
-            <div class="pagination" id="pagination" style="display: none; margin-top: 30px;">
-                <div class="rows-per-page">
-                    <label for="rowsPerPage">Hiển thị:</label>
-                    <select id="rowsPerPage">
-                        <option value="10" selected>10</option>
-                        <option value="20">20</option>
-                        <option value="50">50</option>
-                    </select>
+            <!-- Waiting List Section -->
+            <div class="card">
+                <div class="card-header" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 16px; border-radius: 8px 8px 0 0;">
+                    <h3 style="margin: 0; font-size: 18px;">
+                        <i class="fas fa-list-ul"></i> Danh Sách Chờ Đối Soát
+                    </h3>
+                    <p style="margin: 8px 0 0 0; font-size: 14px; opacity: 0.9;">
+                        Đơn hàng đang chờ được tạo kỳ đối soát
+                    </p>
                 </div>
-                <button id="prevPage" disabled>« Trước</button>
-                <span id="pageInfo">Trang 1</span>
-                <button id="nextPage">Sau »</button>
+                <div class="card-body" style="padding: 20px;">
+                    <!-- Month Filter -->
+                    <div style="margin-bottom: 16px;">
+                        <label style="font-weight: 600; margin-right: 8px;">Tháng:</label>
+                        <select id="waitingListMonthFilter" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="">Tất cả</option>
+                        </select>
+                        <button id="btnRefreshWaiting" class="btn-secondary" style="margin-left: 8px;">
+                            <i class="fas fa-sync"></i> Làm mới
+                        </button>
+                    </div>
+
+                    <div id="waitingListContent">
+                        <div class="loading" style="text-align: center; padding: 40px; color: #666;">
+                            <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
+                            <p style="margin-top: 12px;">Đang tải dữ liệu...</p>
+                        </div>
+                    </div>
+                </div>
             </div>
+        </div>
+        <!-- End Auto-Sync Tab -->
+
+        <!-- Stats Tab -->
+        <div class="tab-content" id="statsTab" style="display: none;">
+            <h2 style="margin-bottom: 20px;">
+                <i class="fas fa-chart-bar"></i> Thống Kê Đối Soát
+            </h2>
+            <div class="card">
+                <div class="card-body" style="padding: 40px; text-align: center; color: #666;">
+                    <i class="fas fa-chart-line" style="font-size: 48px; opacity: 0.3;"></i>
+                    <p style="margin-top: 16px; font-size: 16px;">Chức năng thống kê đang được phát triển</p>
+                </div>
+            </div>
+        </div>
+        <!-- End Stats Tab -->
+
         </main>
     </div>
 
@@ -565,7 +1210,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="modalTitle">Chi Tiết Đơn Hàng</h2>
-                <button class="modal-close" onclick="closeItemsModal()">&times;</button>
+                <button class="modal-close" data-action="close-items-modal">&times;</button>
             </div>
             <div id="itemsContent">
                 <div class="loading">Đang tải...</div>
@@ -578,7 +1223,7 @@
         <div class="modal-content" style="max-width: 500px;">
             <div class="modal-header">
                 <h2>Sửa Kỳ Đối Soát</h2>
-                <button class="modal-close" onclick="closeEditModal()">&times;</button>
+                <button class="modal-close" data-action="close-edit-modal">&times;</button>
             </div>
             <div class="modal-body">
                 <form id="editReconciliationForm" style="display: flex; flex-direction: column; gap: 20px;">
@@ -611,11 +1256,11 @@
                 <div id="editStatusMessage" class="status-message" style="display: none;"></div>
             </div>
             <div class="modal-footer" style="padding: 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px;">
-                <button onclick="closeEditModal()" style="padding: 10px 24px; border: 1px solid #ddd; background: white; border-radius: 8px; cursor: pointer;">
+                <button data-action="close-edit-modal" style="padding: 10px 24px; border: 1px solid #ddd; background: white; border-radius: 8px; cursor: pointer;">
                     Hủy
                 </button>
                 <button
-                    onclick="confirmEditReconciliation()"
+                    data-action="confirm-edit-reconciliation"
                     style="padding: 10px 24px; background: #06b6d4; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;"
                 >
                     Cập nhật
@@ -629,7 +1274,7 @@
         <div class="modal-content" style="max-width: 1000px;">
             <div class="modal-header">
                 <h2 id="addOrdersModalTitle">Thêm Đơn Hàng</h2>
-                <button class="modal-close" onclick="closeAddOrdersModal()">&times;</button>
+                <button class="modal-close" data-action="close-add-orders-modal">&times;</button>
             </div>
             <div class="modal-body">
                 <!-- Status Message -->
@@ -655,12 +1300,12 @@
                 </div>
             </div>
             <div class="modal-footer" style="padding: 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px;">
-                <button onclick="closeAddOrdersModal()" style="padding: 10px 24px; border: 1px solid #ddd; background: white; border-radius: 8px; cursor: pointer;">
+                <button data-action="close-add-orders-modal" style="padding: 10px 24px; border: 1px solid #ddd; background: white; border-radius: 8px; cursor: pointer;">
                     Hủy
                 </button>
                 <button
                     id="confirmAddOrdersBtn"
-                    onclick="confirmAddOrders()"
+                    data-action="confirm-add-orders"
                     style="padding: 10px 24px; background: #8b5cf6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;"
                     disabled
                 >
@@ -688,9 +1333,9 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
+            // Show reconciliations tab first
+            switchTab('reconciliations');
             setDefaultDateRange();
-            loadStats();
-            loadReconciliations();
             setupEventListeners();
         });
 
@@ -735,12 +1380,12 @@
                 await createReconciliation();
             });
 
-            // Rows per page
-            document.getElementById('rowsPerPage').addEventListener('change', (e) => {
-                itemsPerPage = parseInt(e.target.value);
-                currentPage = 1; // Reset to first page
-                loadReconciliations();
-            });
+            // Rows per page - REMOVED (no longer exists in table layout)
+            // document.getElementById('rowsPerPage').addEventListener('change', (e) => {
+            //     itemsPerPage = parseInt(e.target.value);
+            //     currentPage = 1; // Reset to first page
+            //     loadReconciliations();
+            // });
 
             // Pagination
             document.getElementById('prevPage').addEventListener('click', () => {
@@ -967,106 +1612,207 @@
 
                 const result = await response.json();
 
+                console.log('API Response:', result);
+
                 if (result.success) {
+                    console.log('Reconciliations:', result.data.reconciliations);
                     displayReconciliations(result.data.reconciliations);
                     updatePagination(result.data.pagination);
+                } else {
+                    console.error('API error:', result.message);
+                    const tbody = document.getElementById('reconciliationsList');
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="table-empty">
+                                <i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i>
+                                <p style="margin-top: 16px; color: #ef4444;">Lỗi: ${result.message || 'Không thể tải dữ liệu'}</p>
+                            </td>
+                        </tr>
+                    `;
                 }
             } catch (error) {
                 console.error('Error loading reconciliations:', error);
+                const tbody = document.getElementById('reconciliationsList');
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="table-empty">
+                            <i class="fas fa-times-circle" style="color: #ef4444;"></i>
+                            <p style="margin-top: 16px; color: #ef4444;">Lỗi: ${error.message}</p>
+                        </td>
+                    </tr>
+                `;
             }
         }
 
         function displayReconciliations(reconciliations) {
-            const container = document.getElementById('reconciliationsList');
+            const tbody = document.getElementById('reconciliationsList');
 
-            if (reconciliations.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">📭</div>
-                        <h3>Chưa có kỳ đối soát nào</h3>
-                        <p>Tạo kỳ đối soát mới bằng form bên trên</p>
-                    </div>
+            if (!tbody) {
+                console.error('Không tìm thấy element tbody');
+                return;
+            }
+
+            if (!reconciliations || reconciliations.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="table-empty">
+                            <i class="fas fa-inbox"></i>
+                            <p style="margin-top: 16px; font-size: 16px; font-weight: 500;">Chưa có kỳ đối soát nào</p>
+                            <p style="margin-top: 8px; color: #999;">Tạo kỳ đối soát mới hoặc sử dụng Auto-Sync</p>
+                        </td>
+                    </tr>
                 `;
                 return;
             }
 
-            container.innerHTML = reconciliations.map(recon => `
-                <div class="recon-card" style="position: relative;">
-                    ${recon.status === 'draft' ? `
-                        <div style="position: absolute; top: 16px; left: 16px; z-index: 10;">
-                            <input type="checkbox" id="checkbox-${recon.id}" class="recon-checkbox"
-                                   onchange="toggleSelection('${recon.id}')"
-                                   style="width: 20px; height: 20px; cursor: pointer;">
-                        </div>
-                    ` : ''}
-                    <div class="recon-card-header" style="${recon.status === 'draft' ? 'margin-left: 32px;' : ''}">
-                        <div class="recon-card-title">${escapeHtml(recon.period_label)}</div>
-                        <span class="recon-status-badge status-${recon.status}">${getStatusLabel(recon.status)}</span>
-                    </div>
+            try {
+                const html = reconciliations.map((recon, index) => {
+                    try {
+                        // Calculate period dates
+                        const periodStart = new Date(recon.period_start);
+                        const periodEnd = new Date(recon.period_end);
+                        const periodDateStr = `${periodStart.getDate().toString().padStart(2, '0')}/${(periodStart.getMonth() + 1).toString().padStart(2, '0')} - ${periodEnd.getDate().toString().padStart(2, '0')}/${(periodEnd.getMonth() + 1).toString().padStart(2, '0')}`;
 
-                    <div class="recon-stats">
-                        <div class="stat-item">
-                            <div class="stat-label">Tổng đơn hàng</div>
-                            <div class="stat-value">${recon.total_orders || 0}</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label">Người dùng</div>
-                            <div class="stat-value">${recon.total_users || 0}</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label">Tổng Cashback</div>
-                            <div class="stat-value money">${formatMoney(recon.total_cashback)}</div>
-                        </div>
-                    </div>
+                        // Created date
+                        const createdDate = new Date(recon.created_at);
+                        const createdDateStr = `${createdDate.getDate().toString().padStart(2, '0')}/${(createdDate.getMonth() + 1).toString().padStart(2, '0')}/${createdDate.getFullYear()}`;
+                        const createdTimeStr = `${createdDate.getHours().toString().padStart(2, '0')}:${createdDate.getMinutes().toString().padStart(2, '0')}`;
 
-                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #f0f0f0;">
-                        <p style="font-size: 0.875rem; color: #6c757d; margin-bottom: 4px;">
-                            <strong>Ngày đối soát:</strong> ${formatDate(recon.reconciliation_date)}
-                        </p>
-                        <p style="font-size: 0.875rem; color: #6c757d;">
-                            <strong>Tạo lúc:</strong> ${formatDateTime(recon.created_at)}
-                        </p>
-                    </div>
+                return `
+                    <tr>
+                        <!-- Kỳ Đối Soát -->
+                        <td>
+                            <div class="period-info">
+                                <div class="period-label">${escapeHtml(recon.period_label)}</div>
+                                <div class="period-date">${periodDateStr}</div>
+                            </div>
+                        </td>
 
-                    <div class="action-buttons">
-                        <button class="btn-view-items" onclick="viewItems('${recon.id}', '${escapeHtml(recon.period_label)}')">
-                            Xem Chi Tiết
-                        </button>
-                        ${recon.status !== 'paid' ? `
-                            <button class="btn-edit" onclick="openEditModal('${recon.id}', '${escapeHtml(recon.period_label)}', '${recon.status}')">
-                                <i class="fas fa-edit"></i> Sửa
-                            </button>
-                        ` : ''}
-                        ${recon.status === 'draft' ? `
-                            <button class="btn-add-orders" onclick="openAddOrdersModal('${recon.id}', '${escapeHtml(recon.period_label)}')">
-                                <i class="fas fa-plus"></i> Thêm Đơn Hàng
-                            </button>
-                            <button class="btn-finalize" onclick="finalizeReconciliation('${recon.id}')">
-                                Hoàn tất
-                            </button>
-                        ` : ''}
-                        ${recon.status === 'finalized' ? `
-                            <button class="btn-sync" onclick="syncReconciliation('${recon.id}', '${escapeHtml(recon.period_label)}')">
-                                🔄 Đồng bộ API
-                            </button>
-                        ` : ''}
-                    </div>
-                    <div id="status-${recon.id}" class="status-message" style="display: none;"></div>
-                </div>
-            `).join('');
+                        <!-- Ngày Tạo -->
+                        <td>
+                            <div class="created-info">
+                                <div class="created-date">${createdDateStr}</div>
+                                <div class="created-time">${createdTimeStr}</div>
+                            </div>
+                        </td>
+
+                        <!-- Tổng Đơn Hàng -->
+                        <td class="text-center">
+                            <span class="order-count">${recon.total_orders || 0}</span>
+                            <span class="order-label">đơn</span>
+                        </td>
+
+                        <!-- Tổng Cashback -->
+                        <td class="text-right money-positive">
+                            ${formatMoney(recon.total_cashback)}
+                        </td>
+
+                        <!-- Trạng Thái -->
+                        <td class="text-center">
+                            <span class="status-badge status-${recon.status}">${getStatusLabel(recon.status)}</span>
+                        </td>
+
+                        <!-- Thao Tác -->
+                        <td class="text-center">
+                            <div class="action-dropdown" data-dropdown-id="${recon.id}">
+                                <button class="action-dropdown-btn" data-action="toggle-dropdown" data-id="${recon.id}">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <div class="action-dropdown-menu" id="dropdown-${recon.id}">
+                                    <button class="action-dropdown-item action-view" data-action="view" data-id="${recon.id}" data-label="${escapeHtml(recon.period_label)}">
+                                        <i class="fas fa-eye"></i>
+                                        <span>Xem Chi Tiết</span>
+                                    </button>
+                                    ${recon.status === 'draft' ? `
+                                        <button class="action-dropdown-item action-finalize" data-action="finalize" data-id="${recon.id}">
+                                            <i class="fas fa-check-circle"></i>
+                                            <span>Duyệt Đối Soát</span>
+                                        </button>
+                                        <button class="action-dropdown-item action-delete" data-action="delete" data-id="${recon.id}">
+                                            <i class="fas fa-trash-alt"></i>
+                                            <span>Xóa</span>
+                                        </button>
+                                    ` : ''}
+                                    ${recon.status === 'finalized' ? `
+                                        <button class="action-dropdown-item action-paid" data-action="paid" data-id="${recon.id}">
+                                            <i class="fas fa-money-bill-wave"></i>
+                                            <span>Đánh Dấu Đã Trả</span>
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                        `;
+                    } catch (err) {
+                        console.error('Lỗi rendering row:', err, recon);
+                        return `
+                            <tr>
+                                <td colspan="6" style="padding: 12px; color: #ef4444;">
+                                    Lỗi hiển thị row: ${err.message}
+                                </td>
+                            </tr>
+                        `;
+                    }
+                }).join('');
+
+                tbody.innerHTML = html;
+            } catch (err) {
+                console.error('Lỗi in displayReconciliations:', err);
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="table-empty">
+                            <i class="fas fa-times-circle" style="color: #ef4444;"></i>
+                            <p style="margin-top: 16px; color: #ef4444;">Lỗi hiển thị: ${err.message}</p>
+                        </td>
+                    </tr>
+                `;
+            }
         }
 
         function updatePagination(pagination) {
-            const paginationEl = document.getElementById('pagination');
-            paginationEl.style.display = 'flex'; // Use flex for proper layout
+            const paginationEl = document.getElementById('tablePagination');
+            paginationEl.style.display = 'flex';
 
-            document.getElementById('pageInfo').textContent = `Trang ${pagination.page} / ${pagination.totalPages}`;
+            // Update pagination info
+            const start = (pagination.page - 1) * pagination.limit + 1;
+            const end = Math.min(pagination.page * pagination.limit, pagination.total);
+            document.getElementById('paginationInfo').innerHTML = `
+                Hiển thị <strong>${start}-${end}</strong> trong tổng <strong>${pagination.total}</strong> kỳ đối soát
+            `;
 
+            // Update page numbers
+            const pageNumbers = document.getElementById('pageNumbers');
+            let pagesHTML = '';
+
+            const maxPages = 5; // Show max 5 page numbers
+            let startPage = Math.max(1, pagination.page - 2);
+            let endPage = Math.min(pagination.totalPages, startPage + maxPages - 1);
+
+            // Adjust startPage if we're near the end
+            if (endPage - startPage < maxPages - 1) {
+                startPage = Math.max(1, endPage - maxPages + 1);
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                pagesHTML += `
+                    <button class="page-btn ${i === pagination.page ? 'active' : ''}"
+                            data-action="change-page" data-page="${i}">${i}</button>
+                `;
+            }
+            pageNumbers.innerHTML = pagesHTML;
+
+            // Update prev/next buttons
             const prevBtn = document.getElementById('prevPage');
             const nextBtn = document.getElementById('nextPage');
 
             prevBtn.disabled = pagination.page === 1;
             nextBtn.disabled = pagination.page >= pagination.totalPages;
+        }
+
+        function changePage(page) {
+            currentPage = page;
+            loadReconciliations();
         }
 
         async function createReconciliation() {
@@ -1454,7 +2200,7 @@
                         <strong>Đã chọn:</strong> <span id="selectedCount" style="color: #3b82f6; font-weight: 700;">0</span> đơn hàng
                         | <strong>Tổng cashback:</strong> <span id="selectedCashback" style="color: #10b981; font-weight: 700;">0 đ</span>
                     </div>
-                    <button type="button" onclick="clearSelection()" style="padding: 6px 12px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.875rem;">
+                    <button type="button" data-action="clear-selection" style="padding: 6px 12px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.875rem;">
                         Bỏ chọn tất cả
                     </button>
                 </div>
@@ -1588,7 +2334,7 @@
 
             // Previous button
             if (pagination.page > 1) {
-                html += `<button onclick="changeEligibleOrdersPage(${pagination.page - 1})" style="padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-weight: 500;">Trước</button>`;
+                html += `<button data-action="change-eligible-orders-page" data-page="${pagination.page - 1}" style="padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-weight: 500;">Trước</button>`;
             }
 
             // Page numbers
@@ -1597,7 +2343,7 @@
 
             // Next button
             if (pagination.page < pagination.totalPages) {
-                html += `<button onclick="changeEligibleOrdersPage(${pagination.page + 1})" style="padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-weight: 500;">Sau</button>`;
+                html += `<button data-action="change-eligible-orders-page" data-page="${pagination.page + 1}" style="padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-weight: 500;">Sau</button>`;
             }
 
             paginationEl.innerHTML = html;
@@ -1933,7 +2679,7 @@
 
             // Previous button
             if (pagination.page > 1) {
-                html += `<button onclick="changeAddOrdersPage(${pagination.page - 1})" style="padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer;">Trước</button>`;
+                html += `<button data-action="change-add-orders-page" data-page="${pagination.page - 1}" style="padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer;">Trước</button>`;
             }
 
             // Page numbers
@@ -1941,7 +2687,7 @@
 
             // Next button
             if (pagination.page < pagination.totalPages) {
-                html += `<button onclick="changeAddOrdersPage(${pagination.page + 1})" style="padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer;">Sau</button>`;
+                html += `<button data-action="change-add-orders-page" data-page="${pagination.page + 1}" style="padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer;">Sau</button>`;
             }
 
             paginationEl.innerHTML = html;
@@ -1999,9 +2745,518 @@
                 updateAddOrdersButton();
             }
         }
+
+        // ============================================
+        // TAB NAVIGATION
+        // ============================================
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.style.display = 'none';
+            });
+
+            // Remove active class from all buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            const selectedTab = document.getElementById(`${tabName}Tab`);
+            if (selectedTab) {
+                selectedTab.style.display = 'block';
+            }
+
+            // Add active class to clicked button
+            const activeBtn = document.querySelector(`[data-tab="${tabName}"]`);
+            if (activeBtn) {
+                activeBtn.classList.add('active');
+            }
+
+            // Load data based on tab
+            if (tabName === 'reconciliations') {
+                loadReconciliations();
+                loadStats();
+            } else if (tabName === 'auto-sync') {
+                loadAutoSyncData();
+            }
+        }
+
+        // ============================================
+        // AUTO-SYNC FUNCTIONS
+        // ============================================
+        async function loadAutoSyncData() {
+            await loadNewOrdersPreview();
+            await loadWaitingList();
+        }
+
+        async function loadNewOrdersPreview() {
+            const container = document.getElementById('newOrdersPreview');
+            const addBtn = document.getElementById('btnAddToWaiting');
+
+            try {
+                const response = await fetch(
+                    `${CONFIG.API_BASE_URL}/admin/system-reconciliation/auto-sync/preview`,
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    }
+                );
+
+                const result = await response.json();
+
+                if (result.success && result.data) {
+                    const { summary, byMonth } = result.data;
+
+                    if (summary.total_count === 0) {
+                        container.innerHTML = `
+                            <div style="text-align: center; padding: 40px; color: #666;">
+                                <i class="fas fa-check-circle" style="font-size: 48px; color: #10b981;"></i>
+                                <p style="margin-top: 16px; font-size: 16px;">Không có đơn hàng mới đủ điều kiện</p>
+                                <p style="font-size: 14px; color: #999; margin-top: 8px;">
+                                    Các đơn hàng đã duyệt + 15 ngày sẽ xuất hiện ở đây
+                                </p>
+                            </div>
+                        `;
+                        addBtn.disabled = true;
+                    } else {
+                        let html = `
+                            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; text-align: center;">
+                                    <div>
+                                        <div style="font-size: 14px; color: #666; margin-bottom: 8px;">Tổng đơn hàng</div>
+                                        <div style="font-size: 28px; font-weight: 700; color: #10b981;">${summary.total_count}</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 14px; color: #666; margin-bottom: 8px;">Tổng cashback</div>
+                                        <div style="font-size: 28px; font-weight: 700; color: #10b981;">${formatCurrency(summary.total_cashback)}</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 14px; color: #666; margin-bottom: 8px;">Số tháng</div>
+                                        <div style="font-size: 28px; font-weight: 700; color: #667eea;">${summary.month_count}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+
+                        // Show by month breakdown
+                        byMonth.forEach(month => {
+                            html += `
+                                <div style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <div>
+                                            <strong style="font-size: 16px; color: #2c3e50;">
+                                                <i class="fas fa-calendar"></i> ${month.period_label}
+                                            </strong>
+                                            <span style="margin-left: 16px; color: #666;">
+                                                ${month.order_count} đơn hàng
+                                            </span>
+                                        </div>
+                                        <div style="font-size: 18px; font-weight: 600; color: #10b981;">
+                                            ${formatCurrency(month.total_cashback)}
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+
+                        container.innerHTML = html;
+                        addBtn.disabled = false;
+                    }
+                } else {
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #999;">
+                            <i class="fas fa-exclamation-circle" style="font-size: 48px;"></i>
+                            <p style="margin-top: 16px;">${result.message || 'Không thể tải dữ liệu'}</p>
+                        </div>
+                    `;
+                    addBtn.disabled = true;
+                }
+            } catch (error) {
+                console.error('Error loading preview:', error);
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #ef4444;">
+                        <i class="fas fa-times-circle" style="font-size: 48px;"></i>
+                        <p style="margin-top: 16px;">Lỗi: ${error.message}</p>
+                    </div>
+                `;
+                addBtn.disabled = true;
+            }
+        }
+
+        async function addToWaitingList() {
+            const btn = document.getElementById('btnAddToWaiting');
+            const originalText = btn.innerHTML;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+
+            try {
+                const response = await fetch(
+                    `${CONFIG.API_BASE_URL}/admin/system-reconciliation/auto-sync/add-to-waiting`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            addedBy: 'admin-manual'
+                        })
+                    }
+                );
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showToast(`Đã thêm ${result.data.added_count} đơn hàng vào danh sách chờ`, 'success');
+                    await loadNewOrdersPreview();
+                    await loadWaitingList();
+                } else {
+                    showToast(result.message || 'Có lỗi xảy ra', 'error');
+                }
+            } catch (error) {
+                console.error('Error adding to waiting list:', error);
+                showToast(`Lỗi: ${error.message}`, 'error');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        async function loadWaitingList(month = '') {
+            const container = document.getElementById('waitingListContent');
+            const monthFilter = document.getElementById('waitingListMonthFilter');
+
+            try {
+                const url = month
+                    ? `${CONFIG.API_BASE_URL}/admin/system-reconciliation/auto-sync/waiting-list?month=${month}`
+                    : `${CONFIG.API_BASE_URL}/admin/system-reconciliation/auto-sync/waiting-list`;
+
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    const { items, summary } = result.data;
+
+                    // Update month filter options
+                    if (summary && summary.length > 0) {
+                        monthFilter.innerHTML = '<option value="">Tất cả</option>';
+                        summary.forEach(s => {
+                            monthFilter.innerHTML += `
+                                <option value="${s.approval_month}" ${month === s.approval_month ? 'selected' : ''}>
+                                    ${s.period_label} (${s.count} đơn)
+                                </option>
+                            `;
+                        });
+                    }
+
+                    if (items.length === 0) {
+                        container.innerHTML = `
+                            <div style="text-align: center; padding: 40px; color: #999;">
+                                <i class="fas fa-inbox" style="font-size: 48px;"></i>
+                                <p style="margin-top: 16px; font-size: 16px;">Danh sách chờ trống</p>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    // Group by month
+                    const byMonth = {};
+                    items.forEach(item => {
+                        const key = item.approval_month;
+                        if (!byMonth[key]) {
+                            byMonth[key] = [];
+                        }
+                        byMonth[key].push(item);
+                    });
+
+                    let html = '';
+                    Object.entries(byMonth).forEach(([month, orders]) => {
+                        const totalCashback = orders.reduce((sum, o) => sum + parseFloat(o.cashback_amount || 0), 0);
+                        const periodLabel = orders[0].period_label;
+
+                        html += `
+                            <div class="month-group">
+                                <div class="month-group-header">
+                                    <div>
+                                        <h3 style="margin: 0; font-size: 18px;">
+                                            <i class="fas fa-calendar"></i> ${periodLabel}
+                                        </h3>
+                                        <p style="margin: 4px 0 0 0; opacity: 0.9; font-size: 14px;">
+                                            ${orders.length} đơn hàng • ${formatCurrency(totalCashback)}
+                                        </p>
+                                    </div>
+                                    <button class="btn-success" data-action="create-reconciliation-from-waiting" data-month="${month}" data-period="${periodLabel}">
+                                        <i class="fas fa-check"></i> Tạo Kỳ Đối Soát
+                                    </button>
+                                </div>
+                                <div class="month-group-body">
+                                    <table class="order-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Mã đơn</th>
+                                                <th>Merchant</th>
+                                                <th>User</th>
+                                                <th>Cashback</th>
+                                                <th>Ngày duyệt</th>
+                                                <th>Ngày đủ ĐK</th>
+                                                <th>Thao tác</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                        `;
+
+                        orders.forEach(order => {
+                            html += `
+                                <tr>
+                                    <td><strong>${order.order_code || 'N/A'}</strong></td>
+                                    <td>${order.merchant_name || 'N/A'}</td>
+                                    <td>${order.username || order.user_email || 'N/A'}</td>
+                                    <td><strong style="color: #10b981;">${formatCurrency(order.cashback_amount)}</strong></td>
+                                    <td>${formatDate(order.approval_time)}</td>
+                                    <td>${formatDate(order.eligible_date)}</td>
+                                    <td>
+                                        <button class="btn-danger" data-action="remove-from-waiting-list" data-id="${order.id}">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+
+                        html += `
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #ef4444;">
+                            <p>${result.message || 'Không thể tải dữ liệu'}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading waiting list:', error);
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #ef4444;">
+                        <p>Lỗi: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function createReconciliationFromWaiting(month, periodLabel) {
+            if (!confirm(`Tạo kỳ đối soát "${periodLabel}"?\n\nTất cả đơn hàng trong tháng này sẽ được chuyển vào kỳ đối soát mới.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(
+                    `${CONFIG.API_BASE_URL}/admin/system-reconciliation/auto-sync/create-from-waiting`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            month,
+                            periodLabel
+                        })
+                    }
+                );
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showToast(`Đã tạo kỳ đối soát "${periodLabel}" với ${result.data.order_count} đơn hàng`, 'success');
+                    await loadWaitingList();
+                    await loadNewOrdersPreview();
+                } else {
+                    showToast(result.message || 'Có lỗi xảy ra', 'error');
+                }
+            } catch (error) {
+                console.error('Error creating reconciliation:', error);
+                showToast(`Lỗi: ${error.message}`, 'error');
+            }
+        }
+
+        async function removeFromWaitingList(waitingListId) {
+            if (!confirm('Xóa đơn hàng khỏi danh sách chờ?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(
+                    `${CONFIG.API_BASE_URL}/admin/system-reconciliation/auto-sync/waiting-list/${waitingListId}`,
+                    {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    }
+                );
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showToast('Đã xóa đơn hàng khỏi danh sách chờ', 'success');
+                    await loadWaitingList();
+                    await loadNewOrdersPreview();
+                } else {
+                    showToast(result.message || 'Có lỗi xảy ra', 'error');
+                }
+            } catch (error) {
+                console.error('Error removing from waiting list:', error);
+                showToast(`Lỗi: ${error.message}`, 'error');
+            }
+        }
+
+        // Format helper functions
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('vi-VN');
+        }
+
+        function formatCurrency(amount) {
+            if (!amount && amount !== 0) return '0đ';
+            return new Intl.NumberFormat('vi-VN', {
+                style: 'currency',
+                currency: 'VND'
+            }).format(amount);
+        }
+
+        // ============================================
+        // DROPDOWN MENU HANDLER
+        // ============================================
+
+        // Toggle dropdown when clicking 3-dot button
+        window.toggleDropdown = function(id) {
+            const dropdown = document.getElementById(`dropdown-${id}`);
+            if (!dropdown) return;
+
+            const isVisible = dropdown.classList.contains('show');
+
+            // Close all other dropdowns
+            document.querySelectorAll('.action-dropdown-menu.show').forEach(menu => {
+                if (menu.id !== `dropdown-${id}`) {
+                    menu.classList.remove('show');
+                }
+            });
+
+            // Toggle current dropdown
+            if (isVisible) {
+                dropdown.classList.remove('show');
+            } else {
+                dropdown.classList.add('show');
+            }
+        };
+
+        // Handle dropdown item clicks
+        window.handleDropdownAction = function(action, id, label) {
+            console.log('Dropdown action:', action, 'ID:', id);
+
+            // Close dropdown
+            const dropdown = document.getElementById(`dropdown-${id}`);
+            if (dropdown) {
+                dropdown.classList.remove('show');
+            }
+
+            // Execute action
+            if (action === 'view') {
+                viewItems(id, label);
+            } else if (action === 'finalize') {
+                finalizeReconciliation(id);
+            } else if (action === 'paid') {
+                markAsPaid(id);
+            } else if (action === 'delete') {
+                if (confirm('Bạn có chắc muốn xóa kỳ đối soát này?')) {
+                    deleteReconciliation(id);
+                }
+            }
+        };
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.action-dropdown')) {
+                document.querySelectorAll('.action-dropdown-menu.show').forEach(menu => {
+                    menu.classList.remove('show');
+                });
+            }
+        });
+
+        // Close dropdown on ESC key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.action-dropdown-menu.show').forEach(menu => {
+                    menu.classList.remove('show');
+                });
+            }
+        });
+
+        // ============ CSP FIX: Event Delegation ============
+        document.addEventListener('click', (e) => {
+            const button = e.target.closest('[data-action]');
+            if (!button) return;
+
+            const action = button.dataset.action;
+            const id = button.dataset.id;
+            const page = button.dataset.page;
+            const month = button.dataset.month;
+            const period = button.dataset.period;
+
+            switch (action) {
+                case 'close-edit-modal':
+                    closeEditModal();
+                    break;
+                case 'confirm-edit-reconciliation':
+                    confirmEditReconciliation();
+                    break;
+                case 'close-add-orders-modal':
+                    closeAddOrdersModal();
+                    break;
+                case 'confirm-add-orders':
+                    confirmAddOrders();
+                    break;
+                case 'change-page':
+                    changePage(parseInt(page));
+                    break;
+                case 'clear-selection':
+                    clearSelection();
+                    break;
+                case 'change-eligible-orders-page':
+                    changeEligibleOrdersPage(parseInt(page));
+                    break;
+                case 'change-add-orders-page':
+                    changeAddOrdersPage(parseInt(page));
+                    break;
+                case 'create-reconciliation-from-waiting':
+                    createReconciliationFromWaiting(month, period);
+                    break;
+                case 'remove-from-waiting-list':
+                    removeFromWaitingList(id);
+                    break;
+            }
+        });
+
+        console.log('[system-reconciliation.html] CSP-compliant event delegation loaded');
     </script>
 
     <!-- Sidebar Component -->
     <script src="/admin/sidebar.js"></script>
+    <!-- CSP Fix: Remove inline event handlers -->
+    <script src="/admin/js/csp-fix.js"></script>
 </body>
 </html>

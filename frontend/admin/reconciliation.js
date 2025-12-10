@@ -352,26 +352,26 @@ function displayReconciliationsList(reconciliations) {
             <td>v${rec.version || 1}</td>
             <td>${formatDateTime(rec.created_at)}</td>
             <td>
-                <button class="btn-secondary" onclick="viewDetails('${rec.id}')" style="padding: 6px 12px; font-size: 12px;">
+                <button class="btn-secondary" data-action="view-details" data-id="${rec.id}" style="padding: 6px 12px; font-size: 12px;">
                     👁️ Xem
                 </button>
                 ${rec.status === 'draft' ? `
-                    <button class="btn-success" onclick="updateStatus('${rec.id}', 'confirmed')" style="padding: 6px 12px; font-size: 12px;">
+                    <button class="btn-success" data-action="update-status" data-id="${rec.id}" data-status="confirmed" style="padding: 6px 12px; font-size: 12px;">
                         ✅ Xác nhận
                     </button>
                 ` : ''}
                 ${rec.status === 'confirmed' ? `
-                    <button class="btn-warning" onclick="updateStatus('${rec.id}', 'paid')" style="padding: 6px 12px; font-size: 12px;">
+                    <button class="btn-warning" data-action="update-status" data-id="${rec.id}" data-status="paid" style="padding: 6px 12px; font-size: 12px;">
                         💰 Đã thanh toán
                     </button>
                 ` : ''}
                 ${rec.status === 'draft' ? `
-                    <button class="btn-danger" onclick="deleteReconciliation('${rec.id}')" style="padding: 6px 12px; font-size: 12px;">
+                    <button class="btn-danger" data-action="delete-reconciliation" data-id="${rec.id}" style="padding: 6px 12px; font-size: 12px;">
                         🗑️ Xóa
                     </button>
                 ` : ''}
                 ${rec.status !== 'draft' ? `
-                    <button class="btn-secondary" onclick="rerunReconciliation('${rec.id}')" style="padding: 6px 12px; font-size: 12px;">
+                    <button class="btn-secondary" data-action="rerun-reconciliation" data-id="${rec.id}" style="padding: 6px 12px; font-size: 12px;">
                         🔄 Re-run
                     </button>
                 ` : ''}
@@ -644,4 +644,34 @@ document.addEventListener('DOMContentLoaded', async () => {
             sidebar.classList.toggle('active');
         });
     }
+
+    // ============ CSP FIX: Event Delegation ============
+    document.addEventListener('click', (e) => {
+        const button = e.target.closest('[data-action]');
+        if (!button) return;
+
+        const action = button.dataset.action;
+        const id = button.dataset.id;
+        const status = button.dataset.status;
+
+        switch (action) {
+            case 'toggle-preview-details':
+                togglePreviewDetails();
+                break;
+            case 'view-details':
+                viewDetails(id);
+                break;
+            case 'update-status':
+                updateStatus(id, status);
+                break;
+            case 'delete-reconciliation':
+                deleteReconciliation(id);
+                break;
+            case 'rerun-reconciliation':
+                rerunReconciliation(id);
+                break;
+        }
+    });
+
+    console.log('[reconciliation.js] CSP-compliant');
 });

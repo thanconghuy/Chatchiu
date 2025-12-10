@@ -218,7 +218,7 @@
             <a href="payment-history.html" class="active">Thanh Toán</a>
             <a href="settings.html">Settings</a>
         </div>
-        <div class="nav-user" onclick="logout()">
+        <div class="nav-user" data-action="logout">
             <i class="fas fa-sign-out-alt"></i> Logout
         </div>
     </nav>
@@ -231,10 +231,10 @@
 
         <!-- Action Buttons -->
         <div class="payment-actions">
-            <button class="btn btn-primary" onclick="toggleCreateForm()">
+            <button class="btn btn-primary" data-action="toggle-create-form">
                 <i class="fas fa-plus"></i> Tạo Kỳ Thanh Toán
             </button>
-            <button class="btn btn-secondary" onclick="loadPaymentHistory()">
+            <button class="btn btn-secondary" data-action="load-payment-history">
                 <i class="fas fa-sync"></i> Làm mới
             </button>
         </div>
@@ -242,7 +242,7 @@
         <!-- Create Payment Form -->
         <div class="create-payment-form" id="createForm">
             <h3 style="margin-bottom: 16px;">Tạo Kỳ Thanh Toán Mới</h3>
-            <form onsubmit="createPaymentPeriod(event)">
+            <form data-action="create-payment-period">
                 <div class="form-row">
                     <div class="form-group">
                         <label>Kỳ Thanh Toán (YYYY-MM) *</label>
@@ -264,7 +264,7 @@
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-check"></i> Tạo Kỳ Thanh Toán
                     </button>
-                    <button type="button" class="btn btn-secondary" onclick="toggleCreateForm()">
+                    <button type="button" class="btn btn-secondary" data-action="toggle-create-form">
                         Hủy
                     </button>
                 </div>
@@ -281,11 +281,11 @@
             <div class="form-row">
                 <div class="form-group">
                     <label>Kỳ Thanh Toán</label>
-                    <input type="month" id="filterPeriod" onchange="applyFilters()">
+                    <input type="month" id="filterPeriod" data-action="apply-filters">
                 </div>
                 <div class="form-group">
                     <label>Trạng Thái</label>
-                    <select id="filterStatus" onchange="applyFilters()">
+                    <select id="filterStatus" data-action="apply-filters">
                         <option value="">Tất cả</option>
                         <option value="pending">Chờ Xử Lý</option>
                         <option value="processing">Đang Xử Lý</option>
@@ -295,7 +295,7 @@
                 </div>
                 <div class="form-group">
                     <label>User ID</label>
-                    <input type="text" id="filterUserId" placeholder="UUID của user" onchange="applyFilters()">
+                    <input type="text" id="filterUserId" placeholder="UUID của user" data-action="apply-filters">
                 </div>
             </div>
         </div>
@@ -316,7 +316,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3 class="modal-title">Xác Nhận Thanh Toán</h3>
-                <button class="modal-close" onclick="closeModal('processModal')">&times;</button>
+                <button class="modal-close" data-action="close-modal" data-modal-id="processModal">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
@@ -338,8 +338,8 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('processModal')">Hủy</button>
-                <button class="btn btn-primary" onclick="confirmProcessPayment()">Xác Nhận</button>
+                <button class="btn btn-secondary" data-action="close-modal" data-modal-id="processModal">Hủy</button>
+                <button class="btn btn-primary" data-action="confirm-process-payment">Xác Nhận</button>
             </div>
         </div>
     </div>
@@ -349,7 +349,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3 class="modal-title">Hủy Thanh Toán</h3>
-                <button class="modal-close" onclick="closeModal('cancelModal')">&times;</button>
+                <button class="modal-close" data-action="close-modal" data-modal-id="cancelModal">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
@@ -358,8 +358,8 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('cancelModal')">Đóng</button>
-                <button class="btn btn-danger" onclick="confirmCancelPayment()">Xác Nhận Hủy</button>
+                <button class="btn btn-secondary" data-action="close-modal" data-modal-id="cancelModal">Đóng</button>
+                <button class="btn btn-danger" data-action="confirm-cancel-payment">Xác Nhận Hủy</button>
             </div>
         </div>
     </div>
@@ -580,14 +580,14 @@
                         <td>${payment.payment_date ? formatDate(payment.payment_date) : '-'}</td>
                         <td>
                             ${payment.status === 'pending' || payment.status === 'processing' ? `
-                                <button class="action-btn success" onclick="openProcessModal('${payment.id}')">
+                                <button class="action-btn success" data-action="open-process-modal" data-id="${payment.id}">
                                     <i class="fas fa-check"></i> Thanh Toán
                                 </button>
-                                <button class="action-btn danger" onclick="openCancelModal('${payment.id}')">
+                                <button class="action-btn danger" data-action="open-cancel-modal" data-id="${payment.id}">
                                     <i class="fas fa-times"></i> Hủy
                                 </button>
                             ` : ''}
-                            <button class="action-btn" onclick="viewDetail('${payment.id}')">
+                            <button class="action-btn" data-action="view-detail" data-id="${payment.id}">
                                 <i class="fas fa-eye"></i> Chi Tiết
                             </button>
                         </td>
@@ -730,6 +730,39 @@
             localStorage.removeItem('token');
             window.location.href = '/admin-login.html';
         }
+
+        // ============ CSP FIX: Event Delegation ============
+        document.addEventListener('click', (e) => {
+            const button = e.target.closest('[data-action]');
+            if (!button) return;
+
+            const action = button.dataset.action;
+            const id = button.dataset.id;
+            const modalId = button.dataset.modalId;
+
+            switch (action) {
+                case 'close-modal':
+                    closeModal(modalId);
+                    break;
+                case 'confirm-process-payment':
+                    confirmProcessPayment();
+                    break;
+                case 'confirm-cancel-payment':
+                    confirmCancelPayment();
+                    break;
+                case 'open-process-modal':
+                    openProcessModal(id);
+                    break;
+                case 'open-cancel-modal':
+                    openCancelModal(id);
+                    break;
+                case 'view-detail':
+                    viewDetail(id);
+                    break;
+            }
+        });
+
+        console.log('[payment-history.html] CSP-compliant event delegation loaded');
     </script>
 </body>
 </html>

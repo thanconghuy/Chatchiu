@@ -128,7 +128,7 @@ function renderMobileHistoryCards(orders) {
 
         // Generate link button HTML
         const linkButton = order.affiliateUrl
-            ? `<button class="history-link-btn" onclick="window.open('${escapeHtml(order.affiliateUrl)}', '_blank')">
+            ? `<button class="history-link-btn" data-action="open-link" data-url="${escapeHtml(order.affiliateUrl)}">
                  🔗 Mở link
                </button>`
             : `<button class="history-link-btn" disabled style="opacity: 0.5;">
@@ -396,3 +396,20 @@ if (btnWithdraw) {
         window.location.href = '/payment-requests.html';
     });
 }
+
+// ============ CSP FIX: Event Delegation ============
+document.addEventListener('click', (e) => {
+    const element = e.target.closest('[data-action]');
+    if (!element) return;
+
+    const action = element.dataset.action;
+    const url = element.dataset.url;
+
+    switch (action) {
+        case 'open-link':
+            window.open(url, '_blank');
+            break;
+    }
+});
+
+console.log('[statistics.js] CSP-compliant event delegation loaded');

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticateAdmin } = require('../middleware/adminAuth');
 const { authenticateToken } = require('../middleware/auth');
-const PaymentRequest = require('../models/PaymentRequest');
+const PaymentRequest = require('../models/PaymentRequestEncrypted');
 const paymentRequestService = require('../services/paymentRequestService');
 const logger = require('../utils/logger');
 
@@ -217,20 +217,13 @@ router.get('/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const userId = req.user.id;
 
-    const paymentRequest = await PaymentRequest.findByIdWithItems(id);
+    // Use findByIdWithDecryption to decrypt bank account information
+    const paymentRequest = await PaymentRequest.findByIdWithDecryption(id, userId, false);
 
     if (!paymentRequest) {
       return res.status(404).json({
         success: false,
         message: 'Không tìm thấy yêu cầu thanh toán'
-      });
-    }
-
-    // Check if user owns this payment request
-    if (paymentRequest.user_id !== userId) {
-      return res.status(403).json({
-        success: false,
-        message: 'Bạn không có quyền xem yêu cầu này'
       });
     }
 
@@ -244,6 +237,14 @@ router.get('/:id', authenticateToken, async (req, res) => {
       id: req.params.id,
       userId: req.user?.id
     });
+
+    // Handle unauthorized access
+    if (error.message === 'Unauthorized access') {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền xem yêu cầu này'
+      });
+    }
 
     res.status(500).json({
       success: false,
@@ -333,8 +334,10 @@ router.get('/:id/items', authenticateToken, async (req, res) => {
 router.get('/admin/:id', authenticateAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+    const adminId = req.user.id;
 
-    const paymentRequest = await PaymentRequest.findByIdWithItems(id);
+    // Use findByIdWithDecryption with admin privileges
+    const paymentRequest = await PaymentRequest.findByIdWithDecryption(id, adminId, true);
 
     if (!paymentRequest) {
       return res.status(404).json({

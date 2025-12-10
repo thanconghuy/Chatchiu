@@ -310,7 +310,7 @@ function renderStats(stats) {
             </td>
             <td style="text-align: center;">
                 <button class="btn-secondary" style="padding: 6px 12px; font-size: 0.85rem;"
-                        onclick="showUserDetail('${stat.userId}', '${escapeHtml(stat.username)}')">
+                        data-action="show-user-detail" data-user-id="${stat.userId}" data-username="${escapeHtml(stat.username)}">
                     Xem chi tiết
                 </button>
             </td>
@@ -425,7 +425,7 @@ async function showUserDetail(userId, username) {
                 </div>
 
                 <div style="text-align: center;">
-                    <button class="btn-secondary" onclick="closeDetailModal()" style="padding: 10px 24px;">
+                    <button class="btn-secondary" data-action="close-detail-modal" style="padding: 10px 24px;">
                         Đóng
                     </button>
                 </div>
@@ -507,3 +507,22 @@ function showToast(message, type = 'info') {
         toast.className = 'toast';
     }, 3000);
 }
+
+// ============ CSP FIX: Event Delegation ============
+document.addEventListener('click', (e) => {
+    const button = e.target.closest('[data-action]');
+    if (!button) return;
+
+    const action = button.dataset.action;
+
+    switch (action) {
+        case 'show-user-detail':
+            showUserDetail(button.dataset.userId, button.dataset.username);
+            break;
+        case 'close-detail-modal':
+            closeDetailModal();
+            break;
+    }
+});
+
+console.log('[cashback-stats.js] CSP-compliant');

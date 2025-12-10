@@ -563,7 +563,7 @@ function updateTransactionsTable(transactions) {
                 </td>
                 <td style="font-weight: 600; color: #10b981;">${formatCurrency(tx.cashbackAmount)}</td>
                 <td>
-                    <button class="action-btn" onclick="viewTransaction('${tx.id}')">Xem chi tiết</button>
+                    <button class="action-btn" data-action="view-transaction" data-id="${tx.id}">Xem chi tiết</button>
                 </td>
             </tr>
         `;
@@ -582,30 +582,30 @@ async function viewTransaction(transactionId) {
 
             // Create modal content
             const modalContent = `
-                <div class="detail-modal-overlay" onclick="closeDetailModal()">
-                    <div class="detail-modal" onclick="event.stopPropagation()">
+                <div class="detail-modal-overlay" data-action="close-detail-modal">
+                    <div class="detail-modal" data-modal-content="true">
                         <div class="detail-modal-header">
                             <div style="flex: 1;">
                                 <h2>📋 Chi tiết đơn hàng</h2>
                                 <div class="modal-actions">
                                     ${getStatusBadge(conv.status)}
-                                    <button class="btn-check-at" onclick="checkATOrderStatus('${conv.id}'); closeDetailModal();">
+                                    <button class="btn-check-at" data-action="check-at-status" data-id="${conv.id}">
                                         <span>🔍</span>
                                         <span>Kiểm tra AT</span>
                                     </button>
                                     ${conv.status === 'pending' ? `
-                                        <button class="btn-approve" onclick="approveConversion('${conv.id}'); event.stopPropagation();">
+                                        <button class="btn-approve" data-action="approve-conversion" data-id="${conv.id}">
                                             <span>✓</span>
                                             <span>Duyệt đơn</span>
                                         </button>
-                                        <button class="btn-reject" onclick="rejectConversion('${conv.id}'); event.stopPropagation();">
+                                        <button class="btn-reject" data-action="reject-conversion" data-id="${conv.id}">
                                             <span>✗</span>
                                             <span>Từ chối</span>
                                         </button>
                                     ` : ''}
                                 </div>
                             </div>
-                            <button class="close-btn" onclick="closeDetailModal()">✕</button>
+                            <button class="close-btn" data-action="close-detail-modal">✕</button>
                         </div>
                         <div class="detail-modal-body">
                             <div class="detail-section">
@@ -703,7 +703,7 @@ async function viewTransaction(transactionId) {
                             </div>
                         </div>
                         <div class="detail-modal-footer">
-                            <button class="btn btn-secondary" onclick="closeDetailModal()">Đóng</button>
+                            <button class="btn btn-secondary" data-action="close-detail-modal">Đóng</button>
                         </div>
                     </div>
                 </div>
@@ -875,3 +875,47 @@ Hoa hồng: ${formatCurrency(atOrder.conversion_commission_amount || 0)}
         showToast(error.message || 'Lỗi khi kiểm tra AT', 'error');
     }
 }
+
+// ============ CSP FIX: Event Delegation ============
+document.addEventListener('click', (e) => {
+    // Handle modal clicks - stop propagation for modal content
+    if (e.target.closest('.detail-modal') && !e.target.closest('[data-action]')) {
+        e.stopPropagation();
+        return;
+    }
+
+    // Handle modal overlay clicks
+    if (e.target.classList.contains('detail-modal-overlay')) {
+        closeDetailModal();
+        return;
+    }
+
+    const button = e.target.closest('[data-action]');
+    if (!button) return;
+
+    const action = button.dataset.action;
+    const id = button.dataset.id;
+
+    switch (action) {
+        case 'view-transaction':
+            viewTransaction(id);
+            break;
+        case 'close-detail-modal':
+            closeDetailModal();
+            break;
+        case 'check-at-status':
+            checkATOrderStatus(id);
+            closeDetailModal();
+            break;
+        case 'approve-conversion':
+            e.stopPropagation();
+            approveConversion(id);
+            break;
+        case 'reject-conversion':
+            e.stopPropagation();
+            rejectConversion(id);
+            break;
+    }
+});
+
+console.log('[admin.js] CSP-compliant');

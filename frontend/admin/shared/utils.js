@@ -141,7 +141,7 @@ function showTableError(tableBody, columnCount, errorMessage = 'Lỗi tải dữ
                 <div style="padding: 60px 20px; text-align: center;">
                     <div style="font-size: 3rem; margin-bottom: 16px;">❌</div>
                     <h3 style="font-size: 1.25rem; color: var(--danger); margin-bottom: 12px; font-weight: 600;">${errorMessage}</h3>
-                    <button onclick="window.location.reload()" class="btn btn-primary">
+                    <button data-action="reload-page" class="btn btn-primary">
                         🔄 Tải lại trang
                     </button>
                 </div>
@@ -266,3 +266,19 @@ async function initAdminPage() {
 
     return true;
 }
+
+// ============ CSP FIX: Event Delegation ============
+document.addEventListener('click', (e) => {
+    const button = e.target.closest('[data-action]');
+    if (!button) return;
+
+    const action = button.dataset.action;
+
+    switch (action) {
+        case 'reload-page':
+            window.location.reload();
+            break;
+    }
+});
+
+console.log('[shared/utils.js] CSP-compliant');

@@ -527,7 +527,7 @@
                 <div id="previewDetailsSection" style="margin-top: 24px; display: none;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                         <h4 style="margin: 0; color: #1f2937; font-size: 1rem;">Chi tiết đơn hàng đủ điều kiện</h4>
-                        <button onclick="togglePreviewDetails()" style="padding: 6px 12px; background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 0.875rem;">
+                        <button data-action="toggle-preview-details" style="padding: 6px 12px; background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: 0.875rem;">
                             <span id="togglePreviewDetailsIcon">▼</span> Thu gọn
                         </button>
                     </div>
@@ -626,5 +626,7 @@
     <script src="/admin/sidebar.js"></script>
     <script src="/js/mobile-menu.js"></script>
     <script src="/admin/reconciliation.js"></script>
+    <!-- CSP Fix: Remove inline event handlers -->
+    <script src="/admin/js/csp-fix.js"></script>
 </body>
 </html>
