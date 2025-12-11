@@ -110,13 +110,29 @@ app.use('/api/system-settings', systemSettingsRoutes); // System settings (admin
 app.use('/api/user', userProfileRoutes); // User profile module (must be before userPaymentHistoryRoutes)
 app.use('/api/user', userPaymentHistoryRoutes); // User payment history module
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({
+// Health check endpoint with database check
+app.get('/health', async (req, res) => {
+  const health = {
     status: 'ok',
     timestamp: new Date().toISOString(),
-    service: 'Cashback API'
-  });
+    service: 'Cashback API',
+    environment: process.env.VERCEL ? 'vercel' : 'local',
+    database: 'unknown'
+  };
+
+  try {
+    const { pool } = require('./backend/config/database');
+    const result = await pool.query('SELECT NOW() as time, version() as pg_version');
+    health.database = 'connected';
+    health.dbTime = result.rows[0].time;
+    health.dbVersion = result.rows[0].pg_version.split(' ')[0] + ' ' + result.rows[0].pg_version.split(' ')[1];
+  } catch (error) {
+    health.database = 'error';
+    health.dbError = error.message;
+    health.status = 'degraded';
+  }
+
+  res.json(health);
 });
 
 // Routes for HTML pages (without .html extension)

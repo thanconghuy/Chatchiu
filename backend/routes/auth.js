@@ -121,9 +121,16 @@ router.post('/login', validations.login, async (req, res) => {
     });
   } catch (error) {
     console.error('Login error:', error);
+    console.error('Login error stack:', error.stack);
+    console.error('Login error details:', {
+      message: error.message,
+      name: error.name,
+      code: error.code
+    });
     res.status(500).json({
       success: false,
-      message: 'Login failed'
+      message: 'Login failed',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });

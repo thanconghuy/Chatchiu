@@ -21,18 +21,29 @@ if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
 }
 
 // Create connection pool optimized for both serverless and local dev
-const pool = new Pool({
+const poolConfig = {
   connectionString: process.env.DATABASE_URL,
-  // Increased for better concurrent request handling
-  max: 10, // Allow up to 10 concurrent connections
-  min: 2, // Keep 2 connections warm
-  idleTimeoutMillis: 30000, // Close idle connections after 30s
-  connectionTimeoutMillis: 15000, // 15 seconds timeout (increased from 10s)
-  // Enable connection retry
-  allowExitOnIdle: false, // Keep connections alive
   // Set timezone to Vietnam (UTC+7)
   options: '-c timezone=Asia/Ho_Chi_Minh'
-});
+};
+
+// Optimize pool settings for serverless vs local
+if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+  // Serverless optimization - minimize connections
+  poolConfig.max = 1; // Single connection per serverless instance
+  poolConfig.idleTimeoutMillis = 10000; // Close idle after 10s
+  poolConfig.connectionTimeoutMillis = 10000;
+  poolConfig.allowExitOnIdle = true; // Allow exit when idle (serverless)
+} else {
+  // Local dev - normal pooling
+  poolConfig.max = 10;
+  poolConfig.min = 2;
+  poolConfig.idleTimeoutMillis = 30000;
+  poolConfig.connectionTimeoutMillis = 15000;
+  poolConfig.allowExitOnIdle = false;
+}
+
+const pool = new Pool(poolConfig);
 
 // Handle pool errors gracefully - don't exit process
 pool.on('error', (err, client) => {
