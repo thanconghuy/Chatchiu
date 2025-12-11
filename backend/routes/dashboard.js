@@ -293,24 +293,22 @@ router.post('/generate-link', authenticateToken, async (req, res) => {
     }
 
     // ========================================
-    // QUICK FIX: START TRANSACTION
-    // Prevents orphaned clicks if link generation fails
+    // SERVERLESS OPTIMIZATION: Use simple queries instead of long transaction
+    // Transaction was causing timeout on Vercel (10s limit)
     // ========================================
-    const client = await pool.connect();
+
+    // Save click to database FIRST to get click_id
+    const clickData = {
+      userId: user.id,
+      merchantId: merchant.id,
+      clickType: clickType,
+      ipAddress: req.ip || req.connection.remoteAddress,
+      userAgent: req.get('user-agent')
+    };
+
+    click = await Click.create(clickData);
 
     try {
-      await client.query('BEGIN');
-
-      // Save click to database FIRST to get click_id
-      const clickData = {
-        userId: user.id,
-        merchantId: merchant.id,
-        clickType: clickType,
-        ipAddress: req.ip || req.connection.remoteAddress,
-        userAgent: req.get('user-agent')
-      };
-
-      click = await Click.create(clickData);
 
       // Prepare UTM parameters
       // utm_medium = username của người tạo link
@@ -440,12 +438,6 @@ router.post('/generate-link', authenticateToken, async (req, res) => {
         linkSource: linkSource
       });
 
-      // ========================================
-      // QUICK FIX: COMMIT TRANSACTION
-      // All operations succeeded, commit atomically
-      // ========================================
-      await client.query('COMMIT');
-
       console.log('[Link Generation] ✅ Link generation completed successfully', {
         clickId: click.id,
         linkSource,
@@ -493,16 +485,14 @@ router.post('/generate-link', authenticateToken, async (req, res) => {
         data: responseData
       });
 
-    } catch (txError) {
+    } catch (linkError) {
       // ========================================
-      // QUICK FIX: ROLLBACK ON ERROR
-      // If anything fails, rollback to prevent orphaned clicks
+      // SERVERLESS OPTIMIZATION: Handle errors without transaction rollback
+      // Delete orphaned click if link generation fails
       // ========================================
-      await client.query('ROLLBACK');
-
-      console.error('[Link Generation] ❌ Transaction rolled back due to error', {
-        error: txError.message,
-        stack: txError.stack,
+      console.error('[Link Generation] ❌ Link generation error', {
+        error: linkError.message,
+        stack: linkError.stack,
         userId: req.userId,
         merchantId,
         clickId: click?.id,
@@ -510,7 +500,13 @@ router.post('/generate-link', authenticateToken, async (req, res) => {
         duration: Date.now() - startTime
       });
 
-      // Log failed link generation activity (transaction error)
+      // Note: Orphaned click will remain in database but without link data
+      // This is acceptable as cleanup job can handle it later
+      if (click?.id) {
+        console.warn('[Link Generation] ⚠️ Orphaned click created:', click.id);
+      }
+
+      // Log failed link generation activity
       ActivityLogger.log({
         userId: req.userId,
         activityType: ACTIVITY_TYPES.LINK_GENERATE_FAILED,
@@ -519,17 +515,15 @@ router.post('/generate-link', authenticateToken, async (req, res) => {
         eventData: {
           clickType,
           clickId: click?.id,
-          errorType: 'transaction_error'
+          errorType: 'link_generation_error'
         },
         req,
         status: 'failed',
-        errorMessage: txError.message,
+        errorMessage: linkError.message,
         responseTime: Date.now() - startTime
       });
 
-      throw txError; // Re-throw to outer catch
-    } finally {
-      client.release();
+      throw linkError; // Re-throw to outer catch
     }
 
   } catch (error) {

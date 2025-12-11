@@ -32,7 +32,7 @@ if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
   // Serverless optimization - minimize connections
   poolConfig.max = 1; // Single connection per serverless instance
   poolConfig.idleTimeoutMillis = 10000; // Close idle after 10s
-  poolConfig.connectionTimeoutMillis = 10000;
+  poolConfig.connectionTimeoutMillis = 20000; // 20s timeout (increased for external API calls)
   poolConfig.allowExitOnIdle = true; // Allow exit when idle (serverless)
 } else {
   // Local dev - normal pooling

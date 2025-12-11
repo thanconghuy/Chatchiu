@@ -200,6 +200,42 @@
         .forgot-password a:hover {
             text-decoration: underline;
         }
+
+        /* Password toggle */
+        .password-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .password-input-wrapper input {
+            flex: 1;
+            padding-right: 45px;
+        }
+
+        .password-toggle-btn {
+            position: absolute;
+            right: 12px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            transition: color 0.2s;
+            user-select: none;
+        }
+
+        .password-toggle-btn:hover {
+            color: #333;
+        }
+
+        .password-toggle-btn:active {
+            transform: scale(0.95);
+        }
     </style>
 </head>
 <body>
@@ -233,7 +269,12 @@
 
             <div class="form-group">
                 <label for="password">Mật khẩu</label>
-                <input type="password" id="password" required>
+                <div class="password-input-wrapper">
+                    <input type="password" id="password" required>
+                    <button type="button" class="password-toggle-btn" data-action="toggle-password" data-target="password" title="Hiển thị/Ẩn mật khẩu">
+                        <span class="toggle-icon">👁️</span>
+                    </button>
+                </div>
             </div>
 
             <div class="forgot-password">
@@ -309,6 +350,26 @@
         const form = document.getElementById('loginForm');
         const loginBtn = document.getElementById('loginBtn');
         const googleBtn = document.getElementById('googleBtn');
+
+        // Password toggle - CSP-compliant event delegation
+        document.addEventListener('click', function(e) {
+            const toggleBtn = e.target.closest('[data-action="toggle-password"]');
+            if (toggleBtn) {
+                const targetId = toggleBtn.getAttribute('data-target');
+                const passwordInput = document.getElementById(targetId);
+                const iconSpan = toggleBtn.querySelector('.toggle-icon');
+
+                if (passwordInput && iconSpan) {
+                    if (passwordInput.type === 'password') {
+                        passwordInput.type = 'text';
+                        iconSpan.textContent = '🙈'; // Closed eye - password visible
+                    } else {
+                        passwordInput.type = 'password';
+                        iconSpan.textContent = '👁️'; // Open eye - password hidden
+                    }
+                }
+            }
+        });
 
         // Google Sign In
         googleBtn.addEventListener('click', () => {
