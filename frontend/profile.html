@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hồ sơ cá nhân - Cashback System</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* Profile specific styles */
+        .profile-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .profile-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .profile-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--primary);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+        }
+
+        .profile-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .profile-header-info {
+            flex: 1;
+        }
+
+        .profile-header-info h1 {
+            font-size: 1.8rem;
+            margin-bottom: 8px;
+        }
+
+        .profile-header-info .email {
+            opacity: 0.9;
+            font-size: 1rem;
+            margin-bottom: 4px;
+        }
+
+        .profile-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-top: 8px;
+        }
+
+        .profile-section {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--gray-800);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title .icon {
+            font-size: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--gray-700);
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--gray-300);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .form-group input:disabled {
+            background: var(--gray-100);
+            color: var(--gray-600);
+            cursor: not-allowed;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background: var(--gray-200);
+            color: var(--gray-800);
+        }
+
+        .btn-secondary:hover {
+            background: var(--gray-300);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .info-item {
+            padding: 16px;
+            background: var(--gray-50);
+            border-radius: 8px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .info-item-label {
+            font-size: 0.85rem;
+            color: var(--gray-600);
+            margin-bottom: 4px;
+        }
+
+        .info-item-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        .alert.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .oauth-notice {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: start;
+            gap: 12px;
+        }
+
+        .oauth-notice .icon {
+            font-size: 1.5rem;
+        }
+
+        .oauth-notice-content {
+            flex: 1;
+        }
+
+        .oauth-notice-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .oauth-notice-text {
+            font-size: 0.9rem;
+            color: #0d47a1;
+        }
+
+        /* Password toggle */
+        .password-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .password-input-wrapper input {
+            flex: 1;
+            padding-right: 45px;
+        }
+
+        .password-toggle-btn {
+            position: absolute;
+            right: 12px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            transition: color 0.2s;
+            user-select: none;
+        }
+
+        .password-toggle-btn:hover {
+            color: #333;
+        }
+
+        .password-toggle-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .profile-header {
+                flex-direction: column;
+                text-align: center;
+                padding: 24px;
+            }
+
+            .profile-avatar {
+                width: 80px;
+                height: 80px;
+                font-size: 2rem;
+            }
+
+            .profile-header-info h1 {
+                font-size: 1.5rem;
+            }
+
+            .form-actions {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
+
+    <div class="app-container">
+        <!-- Sidebar will be loaded dynamically based on user role -->
+        <div id="sidebarContainer"></div>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-wrapper">
+                <div class="profile-container">
+                    <!-- Profile Header Card -->
+                    <div class="profile-header">
+                        <div class="profile-avatar" id="profileAvatar">
+                            <span id="avatarInitial">U</span>
+                        </div>
+                        <div class="profile-header-info">
+                            <h1 id="displayFullName">Đang tải...</h1>
+                            <div class="email" id="displayEmail">-</div>
+                            <div class="profile-badge" id="accountBadge">
+                                <span>👤</span>
+                                <span id="accountType">Tài khoản thường</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Account Balance Info -->
+                    <div class="profile-section">
+                        <h2 class="section-title">
+                            <span class="icon">💰</span>
+                            Số dư tài khoản
+                        </h2>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <div class="info-item-label">Số dư khả dụng</div>
+                                <div class="info-item-value" id="availableBalance">0đ</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-item-label">Số dư chờ duyệt</div>
+                                <div class="info-item-value" id="pendingBalance">0đ</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-item-label">Tổng cashback</div>
+                                <div class="info-item-value" id="totalCashback">0đ</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Personal Information -->
+                    <div class="profile-section">
+                        <h2 class="section-title">
+                            <span class="icon">📋</span>
+                            Thông tin cá nhân
+                        </h2>
+
+                        <div class="alert" id="profileAlert"></div>
+
+                        <form id="profileForm">
+                            <div class="form-group">
+                                <label for="fullName">Họ và tên *</label>
+                                <input
+                                    type="text"
+                                    id="fullName"
+                                    name="fullName"
+                                    placeholder="Nhập họ và tên"
+                                    required
+                                    minlength="2"
+                                    maxlength="255"
+                                >
+                            </div>
+
+                            <div class="form-group">
+                                <label for="username">Tên đăng nhập</label>
+                                <input
+                                    type="text"
+                                    id="username"
+                                    name="username"
+                                    disabled
+                                    title="Không thể thay đổi tên đăng nhập"
+                                >
+                            </div>
+
+                            <div class="form-group">
+                                <label for="email">Email</label>
+                                <input
+                                    type="email"
+                                    id="email"
+                                    name="email"
+                                    disabled
+                                    title="Không thể thay đổi email"
+                                >
+                            </div>
+
+                            <div class="form-group">
+                                <label for="phone">Số điện thoại</label>
+                                <input
+                                    type="tel"
+                                    id="phone"
+                                    name="phone"
+                                    placeholder="0123456789"
+                                    pattern="[0-9]{10,11}"
+                                    title="Nhập số điện thoại 10-11 chữ số"
+                                >
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary" id="saveProfileBtn">
+                                    Lưu thay đổi
+                                </button>
+                                <button type="button" class="btn btn-secondary" id="cancelEditBtn">
+                                    Hủy
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Change Password Section (only for non-OAuth users) -->
+                    <div class="profile-section" id="passwordSection" style="display: none;">
+                        <h2 class="section-title">
+                            <span class="icon">🔒</span>
+                            Đổi mật khẩu
+                        </h2>
+
+                        <div class="alert" id="passwordAlert"></div>
+
+                        <form id="passwordForm">
+                            <div class="form-group">
+                                <label for="currentPassword">Mật khẩu hiện tại *</label>
+                                <div class="password-input-wrapper">
+                                    <input
+                                        type="password"
+                                        id="currentPassword"
+                                        name="currentPassword"
+                                        placeholder="Nhập mật khẩu hiện tại"
+                                        required
+                                    >
+                                    <button type="button" class="password-toggle-btn" data-action="toggle-password" data-target="currentPassword" title="Hiển thị/Ẩn mật khẩu">
+                                        <span class="toggle-icon">👁️</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="newPassword">Mật khẩu mới *</label>
+                                <div class="password-input-wrapper">
+                                    <input
+                                        type="password"
+                                        id="newPassword"
+                                        name="newPassword"
+                                        placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
+                                        required
+                                        minlength="6"
+                                    >
+                                    <button type="button" class="password-toggle-btn" data-action="toggle-password" data-target="newPassword" title="Hiển thị/Ẩn mật khẩu">
+                                        <span class="toggle-icon">👁️</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="confirmPassword">Xác nhận mật khẩu mới *</label>
+                                <div class="password-input-wrapper">
+                                    <input
+                                        type="password"
+                                        id="confirmPassword"
+                                        name="confirmPassword"
+                                        placeholder="Nhập lại mật khẩu mới"
+                                        required
+                                        minlength="6"
+                                    >
+                                    <button type="button" class="password-toggle-btn" data-action="toggle-password" data-target="confirmPassword" title="Hiển thị/Ẩn mật khẩu">
+                                        <span class="toggle-icon">👁️</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary" id="changePasswordBtn">
+                                    Đổi mật khẩu
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- OAuth Notice (only for OAuth users) -->
+                    <div class="oauth-notice" id="oauthNotice" style="display: none;">
+                        <div class="icon">🔐</div>
+                        <div class="oauth-notice-content">
+                            <div class="oauth-notice-title">Đăng nhập bằng Google</div>
+                            <div class="oauth-notice-text">
+                                Bạn đang sử dụng tài khoản Google để đăng nhập. Mật khẩu được quản lý bởi Google.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+
+    <!-- Auto-detect and load correct sidebar based on user role -->
+    <script>
+        (function() {
+            const user = JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.USER) || '{}');
+            const isAdmin = user.isAdmin || user.is_admin;
+
+            console.log('[Profile Page] User from localStorage:', user);
+            console.log('[Profile Page] isAdmin check:', isAdmin);
+
+            if (isAdmin) {
+                console.log('[Profile Page] Loading ADMIN sidebar');
+                // Load admin sidebar
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = '/admin/admin.css';
+                document.head.appendChild(link);
+
+                // Load Font Awesome for admin
+                const fontAwesome = document.createElement('link');
+                fontAwesome.rel = 'stylesheet';
+                fontAwesome.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css';
+                document.head.appendChild(fontAwesome);
+
+                const script = document.createElement('script');
+                script.src = '/admin/sidebar.js';
+                document.body.appendChild(script);
+            } else {
+                console.log('[Profile Page] Loading USER sidebar');
+                // Load user sidebar
+                const script = document.createElement('script');
+                script.src = 'js/user-sidebar.js';
+                document.body.appendChild(script);
+
+                const mobileScript = document.createElement('script');
+                mobileScript.src = 'js/mobile-menu.js';
+                document.body.appendChild(mobileScript);
+            }
+        })();
+    </script>
+
+    <script src="js/profile.js"></script>
+</body>
+</html>

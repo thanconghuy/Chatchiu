@@ -93,7 +93,8 @@ class User {
    */
   static async findById(userId) {
     const query = `
-      SELECT id, email, full_name, username, phone, available_balance, pending_balance, total_cashback, is_admin, created_at
+      SELECT id, email, full_name, username, phone, available_balance, pending_balance, total_cashback,
+             is_admin, profile_picture, oauth_provider, google_id, email_verified, created_at, password_hash
       FROM users
       WHERE id = $1
     `;
@@ -357,6 +358,49 @@ class User {
 
     await pool.query(updateQuery, [passwordHash, user.id]);
     return user;
+  }
+
+  /**
+   * Update user profile fields
+   * @param {string} userId - UUID
+   * @param {Object} updates - Object with fields to update
+   * @returns {Object} Updated user object
+   */
+  static async update(userId, updates) {
+    // Allowed fields that can be updated
+    const allowedFields = ['full_name', 'phone', 'password_hash', 'profile_picture'];
+
+    const updateFields = [];
+    const values = [];
+    let paramIndex = 1;
+
+    // Build dynamic UPDATE query
+    for (const [key, value] of Object.entries(updates)) {
+      if (allowedFields.includes(key)) {
+        updateFields.push(`${key} = $${paramIndex}`);
+        values.push(value);
+        paramIndex++;
+      }
+    }
+
+    if (updateFields.length === 0) {
+      throw new Error('No valid fields to update');
+    }
+
+    // Always update updated_at
+    updateFields.push('updated_at = CURRENT_TIMESTAMP');
+
+    const query = `
+      UPDATE users
+      SET ${updateFields.join(', ')}
+      WHERE id = $${paramIndex}
+      RETURNING id, email, full_name, username, phone, available_balance, pending_balance, total_cashback, profile_picture, oauth_provider, google_id, email_verified, created_at, updated_at
+    `;
+
+    values.push(userId);
+
+    const result = await pool.query(query, values);
+    return result.rows[0] || null;
   }
 }
 
