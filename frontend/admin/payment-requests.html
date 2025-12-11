@@ -49,6 +49,10 @@
             border-left: 4px solid #ef4444;
         }
 
+        .stat-card.cancelled {
+            border-left: 4px solid #6b7280;
+        }
+
         .stat-label {
             font-size: 14px;
             color: #666;
@@ -222,6 +226,147 @@
             color: #f59e0b;
         }
 
+        /* Fix column widths */
+        .data-table th:nth-child(1),
+        .data-table td:nth-child(1) {
+            width: 80px;
+            max-width: 80px;
+        }
+
+        .data-table th:nth-child(2),
+        .data-table td:nth-child(2) {
+            width: 180px;
+            min-width: 180px;
+        }
+
+        .data-table th:nth-child(3),
+        .data-table td:nth-child(3) {
+            width: 100px;
+        }
+
+        .data-table th:nth-child(4),
+        .data-table td:nth-child(4) {
+            width: 110px;
+        }
+
+        .data-table th:nth-child(5),
+        .data-table td:nth-child(5) {
+            width: 150px;
+        }
+
+        .data-table th:nth-child(6),
+        .data-table td:nth-child(6) {
+            width: 100px;
+        }
+
+        .data-table th:nth-child(7),
+        .data-table td:nth-child(7) {
+            width: 120px;
+        }
+
+        .data-table th:last-child,
+        .data-table td:last-child {
+            width: 140px;
+            min-width: 140px;
+            position: relative;
+        }
+
+        /* Fix dropdown menu positioning in table */
+        .data-table tbody tr {
+            position: relative;
+        }
+
+        .data-table td:last-child {
+            overflow: visible;
+        }
+
+        .data-table tbody {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Position dropdown menu absolutely within viewport */
+        .action-dropdown-menu {
+            position: fixed !important;
+            right: auto !important;
+            left: auto !important;
+            transform: none !important;
+            margin-top: 4px;
+            margin-left: 0;
+        }
+
+        /* Increase z-index to ensure dropdown appears above other elements */
+        .action-dropdown {
+            z-index: 10;
+        }
+
+        .action-dropdown.active {
+            z-index: 100;
+        }
+
+        .action-dropdown.active .action-dropdown-menu {
+            z-index: 100;
+        }
+
+        /* Toast notification styles */
+        .toast-icon {
+            font-size: 1.1rem;
+            flex-shrink: 0;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .toast-success .toast-icon {
+            background: #28a745;
+            color: white;
+        }
+
+        .toast-error .toast-icon {
+            background: #dc3545;
+            color: white;
+        }
+
+        .toast-warning .toast-icon {
+            background: #ffc107;
+            color: white;
+        }
+
+        .toast-info .toast-icon {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .toast-message {
+            flex: 1;
+            line-height: 1.35;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+        }
+
         .modal {
             display: none;
             position: fixed;
@@ -242,11 +387,11 @@
 
         .modal-content {
             background-color: #fff;
-            padding: 2rem;
+            padding: 1.5rem;
             border-radius: 12px;
-            max-width: 800px;
+            max-width: 700px;
             width: 90%;
-            max-height: 90vh;
+            max-height: 85vh;
             overflow-y: auto;
         }
 
@@ -254,13 +399,14 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
             border-bottom: 2px solid #f0f0f0;
         }
 
         .modal-header h2 {
             margin: 0;
+            font-size: 1.25rem;
         }
 
         .close-modal {
@@ -328,6 +474,11 @@
         .status-rejected {
             background: #fee2e2;
             color: #991b1b;
+        }
+
+        .status-cancelled {
+            background: #e2e3e5;
+            color: #383d41;
         }
 
         .action-btn {
@@ -529,6 +680,11 @@
                     <div class="stat-value" id="rejectedCount">0</div>
                     <div class="stat-amount" id="rejectedAmount">0 ₫</div>
                 </div>
+                <div class="stat-card cancelled">
+                    <div class="stat-label">Đã hủy</div>
+                    <div class="stat-value" id="cancelledCount">0</div>
+                    <div class="stat-amount" id="cancelledAmount">0 ₫</div>
+                </div>
             </div>
 
             <!-- Filters -->
@@ -543,6 +699,7 @@
                             <option value="confirmed">Đã xác nhận</option>
                             <option value="paid">Đã thanh toán</option>
                             <option value="rejected">Từ chối</option>
+                            <option value="cancelled">Đã hủy</option>
                         </select>
                     </div>
                     <div class="filter-group">

@@ -110,7 +110,7 @@ router.get('/eligibility', authenticateToken, async (req, res) => {
  * POST /api/payment-requests
  * Create a new payment request
  * Enhanced with validation balance checking and audit logging
- * Body: { requestedAmount, bankName, bankAccountNumber, bankAccountName, bankBranch, notes }
+ * Body: { requestedAmount, bankName, bankAccountNumber, bankAccountName, bankBranch, notes, paymentAccountId }
  */
 router.post('/', authenticateToken, async (req, res) => {
   try {
@@ -121,7 +121,8 @@ router.post('/', authenticateToken, async (req, res) => {
       bankAccountNumber,
       bankAccountName,
       bankBranch,
-      notes
+      notes,
+      paymentAccountId
     } = req.body;
 
     // Validate required fields
@@ -146,6 +147,7 @@ router.post('/', authenticateToken, async (req, res) => {
       bankAccountName,
       bankBranch: bankBranch || null,
       notes: notes || null,
+      paymentAccountId: paymentAccountId ? parseInt(paymentAccountId) : null,
       context
     });
 
@@ -198,6 +200,58 @@ router.get('/', authenticateToken, async (req, res) => {
   } catch (error) {
     logger.error('Get payment requests failed', {
       error: error.message,
+      userId: req.user?.id
+    });
+
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/payment-requests/cancelled
+ * Get cancelled payment requests (user's own)
+ * IMPORTANT: This route must be before /:id to avoid route matching issues
+ */
+router.get('/cancelled', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { limit = 20, offset = 0 } = req.query;
+
+    // Use PaymentRequest model to get cancelled requests
+    const db = require('../config/database');
+    const query = `
+      SELECT
+        pr.*,
+        (SELECT COUNT(*) FROM payment_reconciliation_mapping
+         WHERE payment_request_id = pr.id) as items_count,
+        (SELECT COALESCE(SUM(cashback_amount), 0)
+         FROM payment_reconciliation_mapping
+         WHERE payment_request_id = pr.id) as total_from_items
+      FROM payment_requests pr
+      WHERE pr.user_id = $1
+        AND pr.cancelled_at IS NOT NULL
+      ORDER BY pr.cancelled_at DESC
+      LIMIT $2 OFFSET $3
+    `;
+
+    const result = await db.query(query, [userId, parseInt(limit), parseInt(offset)]);
+
+    logger.info('Get cancelled requests success', {
+      userId,
+      count: result.rows.length
+    });
+
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    logger.error('Get cancelled requests failed', {
+      error: error.message,
+      stack: error.stack,
       userId: req.user?.id
     });
 
@@ -282,6 +336,91 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     logger.error('Cancel payment request failed', {
+      error: error.message,
+      id: req.params.id,
+      userId: req.user?.id
+    });
+
+    res.status(400).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/payment-requests/:id/resubmit
+ * Resubmit a cancelled payment request (create new from old data)
+ */
+router.post('/:id/resubmit', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    // Get the cancelled request
+    const cancelledRequest = await PaymentRequest.findById(id);
+
+    // Debug logging
+    logger.info('Resubmit request debug', {
+      requestId: id,
+      userId,
+      found: !!cancelledRequest,
+      cancelledAt: cancelledRequest?.cancelled_at,
+      status: cancelledRequest?.status
+    });
+
+    if (!cancelledRequest) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy yêu cầu thanh toán'
+      });
+    }
+
+    if (cancelledRequest.user_id !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền thực hiện thao tác này'
+      });
+    }
+
+    if (!cancelledRequest.cancelled_at) {
+      logger.warn('Attempt to resubmit non-cancelled request', {
+        requestId: id,
+        userId,
+        cancelledAt: cancelledRequest.cancelled_at,
+        status: cancelledRequest.status
+      });
+      return res.status(400).json({
+        success: false,
+        message: 'Yêu cầu này chưa bị hủy'
+      });
+    }
+
+    // Check eligibility before resubmitting
+    const eligibility = await paymentRequestService.checkEligibility(userId);
+    if (!eligibility.isEligible) {
+      return res.status(400).json({
+        success: false,
+        message: eligibility.reasons.join(', ')
+      });
+    }
+
+    // Reactivate the cancelled request instead of creating new one
+    const reactivatedRequest = await PaymentRequest.resubmit(id, userId);
+
+    logger.info('Payment request resubmitted', {
+      requestId: id,
+      userId,
+      resubmittedAt: reactivatedRequest.resubmitted_at
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Đã gửi lại yêu cầu thanh toán',
+      data: reactivatedRequest
+    });
+  } catch (error) {
+    logger.error('Resubmit payment request failed', {
       error: error.message,
       id: req.params.id,
       userId: req.user?.id

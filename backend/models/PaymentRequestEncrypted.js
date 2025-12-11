@@ -255,12 +255,19 @@ class PaymentRequestEncrypted {
           pr.bank_branch,
           pr.notes,
           pr.status,
+          pr.admin_id,
           pr.admin_notes,
-          pr.approved_amount,
-          pr.processed_at,
-          pr.cancelled_at,
+          pr.transaction_reference,
+          pr.payment_account_id,
           pr.created_at,
+          pr.confirmed_at,
+          pr.paid_at,
+          pr.rejected_at,
           pr.updated_at,
+          pr.cancelled_at,
+          pr.cancelled_by,
+          pr.cancellation_reason,
+          pr.resubmitted_at,
           u.username,
           u.email,
           u.full_name
@@ -348,6 +355,7 @@ class PaymentRequestEncrypted {
          WHERE payment_request_id = pr.id) as total_from_items
       FROM payment_requests pr
       WHERE pr.user_id = $1
+        AND pr.cancelled_at IS NULL
     `;
 
     const values = [userId];
@@ -410,10 +418,19 @@ class PaymentRequestEncrypted {
     const values = [];
     let paramCount = 0;
 
-    if (status) {
+    // Filter by status - special handling for "cancelled"
+    if (status === 'cancelled') {
+      // Show only cancelled requests
+      query += ` AND pr.cancelled_at IS NOT NULL`;
+    } else if (status) {
+      // Show non-cancelled requests with specific status
+      query += ` AND pr.cancelled_at IS NULL`;
       paramCount++;
       query += ` AND pr.status = $${paramCount}`;
       values.push(status);
+    } else {
+      // Show only non-cancelled requests by default
+      query += ` AND pr.cancelled_at IS NULL`;
     }
 
     if (userId) {
@@ -607,35 +624,138 @@ class PaymentRequestEncrypted {
         throw new Error('Only pending requests can be cancelled');
       }
 
+      // Check if already cancelled
+      if (paymentRequest.cancelled_at) {
+        throw new Error('Payment request already cancelled');
+      }
+
+      // Delete payment mappings to free up reconciliation items
+      await client.query(`
+        DELETE FROM payment_system_reconciliation_mapping
+        WHERE payment_request_id = $1
+      `, [id]);
+
+      await client.query(`
+        DELETE FROM payment_reconciliation_mapping
+        WHERE payment_request_id = $1
+      `, [id]);
+
+      // Soft delete: Update status to 'cancelled' and set cancelled fields
       const updateQuery = `
         UPDATE payment_requests
         SET
           status = 'cancelled',
           cancelled_at = NOW(),
+          cancelled_by = $2,
+          cancellation_reason = $3,
           updated_at = NOW()
-        WHERE id = $1
+        WHERE id = $1 AND user_id = $2
         RETURNING *
       `;
 
-      await client.query(updateQuery, [id]);
+      const reason = 'Cancelled by user';
+      const result = await client.query(updateQuery, [id, userId, reason]);
 
+      if (result.rows.length === 0) {
+        throw new Error('Failed to cancel payment request');
+      }
+
+      // Log the cancellation
       await this._logAction(client, {
         paymentRequestId: id,
         action: 'cancelled',
         oldStatus: 'pending',
         newStatus: 'cancelled',
         performedBy: userId,
-        notes: 'Payment request cancelled by user'
+        notes: reason
       });
 
       await client.query('COMMIT');
 
-      logger.info('[PaymentRequest] Cancelled', { id, userId });
-      return true;
+      logger.info('[PaymentRequest] Soft deleted (cancelled)', { id, userId });
+      return result.rows[0];
 
     } catch (error) {
       await client.query('ROLLBACK');
       logger.error('[PaymentRequest] Cancel failed:', {
+        error: error.message,
+        id,
+        userId
+      });
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Resubmit a cancelled payment request (reactivate it)
+   * @param {string} id - Payment request ID
+   * @param {string} userId - User ID who is resubmitting
+   * @returns {Promise<Object>}
+   */
+  static async resubmit(id, userId) {
+    const client = await db.pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // Get current request to check status
+      const checkQuery = `
+        SELECT id, user_id, status, cancelled_at
+        FROM payment_requests
+        WHERE id = $1 AND user_id = $2
+      `;
+      const checkResult = await client.query(checkQuery, [id, userId]);
+
+      if (checkResult.rows.length === 0) {
+        throw new Error('Payment request not found');
+      }
+
+      const request = checkResult.rows[0];
+
+      if (!request.cancelled_at) {
+        throw new Error('Payment request is not cancelled');
+      }
+
+      // Reactivate: Clear cancellation fields, set status back to pending, and record resubmit time
+      const updateQuery = `
+        UPDATE payment_requests
+        SET
+          status = 'pending',
+          cancelled_at = NULL,
+          cancelled_by = NULL,
+          cancellation_reason = NULL,
+          resubmitted_at = NOW(),
+          updated_at = NOW()
+        WHERE id = $1 AND user_id = $2
+        RETURNING *
+      `;
+
+      const result = await client.query(updateQuery, [id, userId]);
+
+      if (result.rows.length === 0) {
+        throw new Error('Failed to resubmit payment request');
+      }
+
+      // Log the resubmission
+      await this._logAction(client, {
+        paymentRequestId: id,
+        action: 'resubmitted',
+        oldStatus: 'cancelled',
+        newStatus: 'pending',
+        performedBy: userId,
+        notes: 'Request resubmitted by user'
+      });
+
+      await client.query('COMMIT');
+
+      logger.info('[PaymentRequest] Resubmitted', { id, userId });
+      return result.rows[0];
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      logger.error('[PaymentRequest] Resubmit failed:', {
         error: error.message,
         id,
         userId

@@ -49,6 +49,51 @@
                 handlePasswordToggle(toggleBtn);
             }
         });
+
+        // Tab switching
+        const tabButtons = document.querySelectorAll('.profile-tab');
+        tabButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const tabName = this.getAttribute('data-tab');
+                switchTab(tabName);
+            });
+        });
+
+        // Payment account form handlers
+        const addPaymentBtn = document.getElementById('addPaymentAccountBtn');
+        if (addPaymentBtn) {
+            addPaymentBtn.addEventListener('click', showPaymentForm);
+        }
+
+        const cancelPaymentBtn = document.getElementById('cancelPaymentBtn');
+        if (cancelPaymentBtn) {
+            cancelPaymentBtn.addEventListener('click', hidePaymentForm);
+        }
+
+        const paymentForm = document.getElementById('paymentForm');
+        if (paymentForm) {
+            paymentForm.addEventListener('submit', handlePaymentSubmit);
+        }
+
+        // Account type change handler - show/hide bank fields
+        const accountTypeSelect = document.getElementById('accountType');
+        if (accountTypeSelect) {
+            accountTypeSelect.addEventListener('change', function() {
+                const bankNameGroup = document.getElementById('bankNameGroup');
+                const bankBranchGroup = document.getElementById('bankBranchGroup');
+                const bankName = document.getElementById('bankName');
+
+                if (this.value === 'bank') {
+                    bankNameGroup.style.display = 'block';
+                    bankBranchGroup.style.display = 'block';
+                    bankName.required = true;
+                } else {
+                    bankNameGroup.style.display = 'none';
+                    bankBranchGroup.style.display = 'none';
+                    bankName.required = false;
+                }
+            });
+        }
     }
 
     /**
@@ -404,5 +449,389 @@
             style: 'currency',
             currency: 'VND'
         }).format(amount);
+    }
+
+    /**
+     * Switch between tabs
+     */
+    function switchTab(tabName) {
+        // Remove active class from all tabs and contents
+        document.querySelectorAll('.profile-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+
+        // Add active class to selected tab and content
+        const selectedTab = document.querySelector(`[data-tab="${tabName}"]`);
+        const selectedContent = document.getElementById(`tab-${tabName}`);
+
+        if (selectedTab) selectedTab.classList.add('active');
+        if (selectedContent) selectedContent.classList.add('active');
+
+        // Load payment accounts when switching to payment tab
+        if (tabName === 'payment') {
+            loadPaymentAccounts();
+        }
+    }
+
+    /**
+     * Load payment accounts from API
+     */
+    async function loadPaymentAccounts() {
+        try {
+            const token = localStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN);
+            const response = await fetch(`${CONFIG.API_BASE_URL}/user/payment-accounts`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to load payment accounts');
+            }
+
+            displayPaymentAccounts(data.data || []);
+        } catch (error) {
+            console.error('Load payment accounts error:', error);
+            showPaymentAlert('error', 'Không thể tải danh sách tài khoản thanh toán');
+        }
+    }
+
+    /**
+     * Display payment accounts list
+     */
+    function displayPaymentAccounts(accounts) {
+        const container = document.getElementById('paymentAccountsList');
+        if (!container) return;
+
+        if (accounts.length === 0) {
+            container.innerHTML = `
+                <div class="empty-payment-state">
+                    <div class="icon">💳</div>
+                    <h3>Chưa có tài khoản thanh toán</h3>
+                    <p>Thêm tài khoản thanh toán để nhận tiền cashback</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = accounts.map(account => {
+            const accountTypeIcons = {
+                'bank': '🏦',
+                'momo': '📱',
+                'zalopay': '💰',
+                'other': '💳'
+            };
+
+            const accountTypeNames = {
+                'bank': 'Ngân hàng',
+                'momo': 'Momo',
+                'zalopay': 'ZaloPay',
+                'other': 'Khác'
+            };
+
+            return `
+                <div class="payment-account-card">
+                    <div class="payment-account-header">
+                        <div class="payment-account-type">
+                            <span class="icon">${accountTypeIcons[account.account_type] || '💳'}</span>
+                            <span>${accountTypeNames[account.account_type] || account.account_type}</span>
+                        </div>
+                        <div class="payment-status ${account.is_verified ? 'verified' : 'unverified'}">
+                            ${account.is_verified ? '✓ Đã xác minh' : '⏳ Chưa xác minh'}
+                        </div>
+                    </div>
+                    <div class="payment-account-info" data-account-id="${account.id}">
+                        <div class="payment-info-row">
+                            <span class="payment-info-label">Tên chủ tài khoản</span>
+                            <span class="payment-info-value account-name-full" style="text-transform: uppercase; font-weight: 600;">⏳ Đang tải...</span>
+                        </div>
+                        <div class="payment-info-row">
+                            <span class="payment-info-label">Số tài khoản</span>
+                            <span class="payment-info-value account-number-full" style="font-family: monospace; font-weight: 600;">⏳ Đang tải...</span>
+                        </div>
+                        ${account.bank_name ? `
+                            <div class="payment-info-row">
+                                <span class="payment-info-label">Ngân hàng</span>
+                                <span class="payment-info-value">${account.bank_name}</span>
+                            </div>
+                        ` : ''}
+                        ${account.bank_branch ? `
+                            <div class="payment-info-row">
+                                <span class="payment-info-label">Chi nhánh</span>
+                                <span class="payment-info-value">${account.bank_branch}</span>
+                            </div>
+                        ` : ''}
+                        ${account.notes ? `
+                            <div class="payment-info-row">
+                                <span class="payment-info-label">Ghi chú</span>
+                                <span class="payment-info-value">${account.notes}</span>
+                            </div>
+                        ` : ''}
+                        <div class="payment-info-row">
+                            <span class="payment-info-label">Trạng thái</span>
+                            <span class="payment-info-value">
+                                ${account.is_default ? '<strong>⭐ Mặc định</strong>' : 'Phụ'}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="form-actions" style="margin-top: 16px;">
+                        ${!account.is_default ? `
+                            <button type="button" class="btn btn-secondary" data-action="set-default" data-id="${account.id}">
+                                Đặt làm mặc định
+                            </button>
+                        ` : ''}
+                        <button type="button" class="btn btn-secondary" data-action="delete-payment" data-id="${account.id}">
+                            Xóa
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Add event listeners for action buttons
+        container.querySelectorAll('[data-action="set-default"]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                setDefaultPaymentAccount(this.getAttribute('data-id'));
+            });
+        });
+
+        container.querySelectorAll('[data-action="delete-payment"]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                deletePaymentAccount(this.getAttribute('data-id'));
+            });
+        });
+
+        // Auto-load decrypted data for all accounts using Promise.all
+        console.log('🔐 [Profile] Loading decrypted data for', accounts.length, 'accounts');
+
+        const token = localStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN);
+        console.log('🔑 [Profile] Token exists:', !!token);
+
+        // Use Promise.all to wait for all async operations
+        Promise.all(accounts.map(async account => {
+            try {
+                console.log('📡 [Profile] Fetching account ID:', account.id);
+                const response = await fetch(`/api/user/payment-accounts/${account.id}/decrypt`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const result = await response.json();
+                console.log('📦 [Profile] API Response for account', account.id, ':', result);
+
+                if (result.success && result.data) {
+                    console.log('✅ [Profile] Decrypted data:', {
+                        accountId: account.id,
+                        name: result.data.account_holder_name_decrypted,
+                        number: result.data.account_number_decrypted
+                    });
+
+                    // Update UI
+                    const accountInfo = container.querySelector(`.payment-account-info[data-account-id="${account.id}"]`);
+                    if (accountInfo) {
+                        const nameSpan = accountInfo.querySelector('.account-name-full');
+                        const numberSpan = accountInfo.querySelector('.account-number-full');
+
+                        if (nameSpan) {
+                            const newName = result.data.account_holder_name_decrypted || result.data.account_holder_name;
+                            nameSpan.textContent = newName;
+                            console.log('✅ Updated name for account', account.id, ':', newName);
+                        } else {
+                            console.error('❌ Name span not found for account:', account.id);
+                        }
+
+                        if (numberSpan) {
+                            const newNumber = result.data.account_number_decrypted || result.data.account_number;
+                            numberSpan.textContent = newNumber;
+                            console.log('✅ Updated number for account', account.id, ':', newNumber);
+                        } else {
+                            console.error('❌ Number span not found for account:', account.id);
+                        }
+                    } else {
+                        console.error('❌ [Profile] Element not found for account:', account.id);
+                    }
+                } else {
+                    console.error('❌ [Profile] API failed for account', account.id, ':', result);
+                    // Fallback to masked data
+                    const accountInfo = container.querySelector(`.payment-account-info[data-account-id="${account.id}"]`);
+                    if (accountInfo) {
+                        const nameSpan = accountInfo.querySelector('.account-name-full');
+                        const numberSpan = accountInfo.querySelector('.account-number-full');
+                        if (nameSpan) nameSpan.textContent = account.account_holder_name;
+                        if (numberSpan) numberSpan.textContent = account.account_number;
+                    }
+                }
+            } catch (error) {
+                console.error('❌ [Profile] Fetch error for account', account.id, ':', error);
+                // Fallback to masked data
+                const accountInfo = container.querySelector(`.payment-account-info[data-account-id="${account.id}"]`);
+                if (accountInfo) {
+                    const nameSpan = accountInfo.querySelector('.account-name-full');
+                    const numberSpan = accountInfo.querySelector('.account-number-full');
+                    if (nameSpan) nameSpan.textContent = account.account_holder_name;
+                    if (numberSpan) numberSpan.textContent = account.account_number;
+                }
+            }
+        })).then(() => {
+            console.log('✅ [Profile] All accounts decrypted and updated');
+        }).catch(err => {
+            console.error('❌ [Profile] Promise.all error:', err);
+        });
+    }
+
+    /**
+     * Show payment account form
+     */
+    function showPaymentForm() {
+        document.getElementById('paymentAccountForm').style.display = 'block';
+        document.getElementById('addPaymentAccountBtn').style.display = 'none';
+        document.getElementById('paymentForm').reset();
+    }
+
+    /**
+     * Hide payment account form
+     */
+    function hidePaymentForm() {
+        document.getElementById('paymentAccountForm').style.display = 'none';
+        document.getElementById('addPaymentAccountBtn').style.display = 'block';
+        document.getElementById('paymentForm').reset();
+    }
+
+    /**
+     * Handle payment account form submission
+     */
+    async function handlePaymentSubmit(e) {
+        e.preventDefault();
+
+        const accountType = document.getElementById('accountType').value;
+        const accountHolderName = document.getElementById('accountHolderName').value;
+        const accountNumber = document.getElementById('accountNumber').value;
+        const bankName = document.getElementById('bankName').value;
+        const bankBranch = document.getElementById('bankBranch').value;
+        const notes = document.getElementById('notes').value;
+        const isDefault = document.getElementById('isDefault').checked;
+
+        const saveBtn = document.getElementById('savePaymentBtn');
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Đang lưu...';
+
+        try {
+            const token = localStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN);
+            const response = await fetch(`${CONFIG.API_BASE_URL}/user/payment-accounts`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    accountType,
+                    accountHolderName,
+                    accountNumber,
+                    bankName: accountType === 'bank' ? bankName : null,
+                    bankBranch: accountType === 'bank' ? bankBranch : null,
+                    notes,
+                    isDefault
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to create payment account');
+            }
+
+            showPaymentAlert('success', 'Thêm tài khoản thanh toán thành công!');
+            hidePaymentForm();
+            loadPaymentAccounts();
+        } catch (error) {
+            console.error('Create payment account error:', error);
+            showPaymentAlert('error', error.message || 'Không thể thêm tài khoản thanh toán');
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Lưu tài khoản';
+        }
+    }
+
+    /**
+     * Set payment account as default
+     */
+    async function setDefaultPaymentAccount(accountId) {
+        if (!confirm('Đặt tài khoản này làm mặc định?')) return;
+
+        try {
+            const token = localStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN);
+            const response = await fetch(`${CONFIG.API_BASE_URL}/user/payment-accounts/${accountId}/set-default`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to set default');
+            }
+
+            showPaymentAlert('success', 'Đã đặt làm tài khoản mặc định');
+            loadPaymentAccounts();
+        } catch (error) {
+            console.error('Set default error:', error);
+            showPaymentAlert('error', error.message || 'Không thể đặt làm mặc định');
+        }
+    }
+
+    /**
+     * Delete payment account
+     */
+    async function deletePaymentAccount(accountId) {
+        if (!confirm('Bạn có chắc muốn xóa tài khoản thanh toán này?')) return;
+
+        try {
+            const token = localStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN);
+            const response = await fetch(`${CONFIG.API_BASE_URL}/user/payment-accounts/${accountId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to delete');
+            }
+
+            showPaymentAlert('success', 'Đã xóa tài khoản thanh toán');
+            loadPaymentAccounts();
+        } catch (error) {
+            console.error('Delete payment account error:', error);
+            showPaymentAlert('error', error.message || 'Không thể xóa tài khoản');
+        }
+    }
+
+    /**
+     * Show payment alert
+     */
+    function showPaymentAlert(type, message) {
+        const alert = document.getElementById('paymentAlert');
+        if (!alert) return;
+
+        alert.className = `alert ${type} show`;
+        alert.textContent = message;
+
+        // Auto hide after 5 seconds for success messages
+        if (type === 'success') {
+            setTimeout(() => {
+                alert.classList.remove('show');
+            }, 5000);
+        }
     }
 })();

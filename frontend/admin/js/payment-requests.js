@@ -109,6 +109,9 @@ function displayStats(stats) {
 
     document.getElementById('rejectedCount').textContent = stats.rejected_count;
     document.getElementById('rejectedAmount').textContent = '—';
+
+    document.getElementById('cancelledCount').textContent = stats.cancelled_count || 0;
+    document.getElementById('cancelledAmount').textContent = formatCurrency(stats.total_cancelled || 0);
 }
 
 // Load payment requests
@@ -181,7 +184,10 @@ function displayPaymentRequests(requests) {
                 <div style="font-size: 12px; color: #666;">${req.user_email || ''}</div>
             </td>
             <td><strong style="color: #667eea;">${formatCurrency(req.requested_amount)}</strong></td>
-            <td>${getStatusBadge(req.status)}</td>
+            <td>
+                ${getStatusBadge(req.status, req.cancelled_at)}
+                ${req.cancelled_at ? `<div style="font-size: 11px; color: #999; margin-top: 4px;">${formatDateTime(req.cancelled_at)}</div>` : ''}
+            </td>
             <td>${req.bank_name}</td>
             <td>${req.bank_account_number}</td>
             <td>${formatDateTime(req.created_at)}</td>
@@ -194,7 +200,7 @@ function displayPaymentRequests(requests) {
                         <button class="action-dropdown-item view" data-action="view" data-id="${req.id}">
                             👁️ Xem
                         </button>
-                        ${req.status === 'pending' ? `
+                        ${!req.cancelled_at && req.status === 'pending' ? `
                             <button class="action-dropdown-item approve" data-action="approve" data-id="${req.id}">
                                 ✅ Duyệt
                             </button>
@@ -202,7 +208,7 @@ function displayPaymentRequests(requests) {
                                 ❌ Từ chối
                             </button>
                         ` : ''}
-                        ${req.status === 'confirmed' ? `
+                        ${!req.cancelled_at && req.status === 'confirmed' ? `
                             <button class="action-dropdown-item paid" data-action="paid" data-id="${req.id}">
                                 💰 Đã thanh toán
                             </button>
@@ -215,13 +221,19 @@ function displayPaymentRequests(requests) {
 }
 
 // Get status badge
-function getStatusBadge(status) {
+function getStatusBadge(status, cancelledAt = null) {
     const statusMap = {
         'pending': { text: 'Chờ duyệt', class: 'status-pending' },
         'confirmed': { text: 'Đã xác nhận', class: 'status-confirmed' },
         'paid': { text: 'Đã thanh toán', class: 'status-paid' },
-        'rejected': { text: 'Từ chối', class: 'status-rejected' }
+        'rejected': { text: 'Từ chối', class: 'status-rejected' },
+        'cancelled': { text: 'Đã hủy', class: 'status-cancelled' }
     };
+
+    // If cancelled_at is set, show as cancelled regardless of status
+    if (cancelledAt) {
+        return `<span class="status-badge status-cancelled">Đã hủy</span>`;
+    }
 
     const info = statusMap[status] || { text: status, class: '' };
     return `<span class="status-badge ${info.class}">${info.text}</span>`;
@@ -270,6 +282,7 @@ async function viewRequest(id) {
 
         const result = await response.json();
         if (result.success) {
+            console.log('Payment request detail:', result.data);
             displayRequestDetail(result.data);
             openModal('viewModal');
         } else {
@@ -285,95 +298,104 @@ async function viewRequest(id) {
 function displayRequestDetail(request) {
     const content = document.getElementById('detailContent');
 
+    console.log('🔐 [ADMIN] Payment request detail:', request);
+    console.log('🔓 Decrypted account number:', request.bank_account_number_decrypted);
+    console.log('🔓 Decrypted account name:', request.bank_account_name_decrypted);
+    console.log('🔒 Masked account number:', request.bank_account_number);
+    console.log('🔒 Masked account name:', request.bank_account_name);
+
     content.innerHTML = `
-        <div class="info-grid">
-            <div class="info-item">
-                <div class="info-label">Mã yêu cầu</div>
-                <div class="info-value">${request.id.substring(0, 8)}</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+            <div>
+                <div class="info-label" style="font-size: 0.85rem; color: #666; margin-bottom: 0.25rem;">Trạng thái</div>
+                <div>${getStatusBadge(request.status)}</div>
             </div>
-            <div class="info-item">
-                <div class="info-label">Trạng thái</div>
-                <div class="info-value">${getStatusBadge(request.status)}</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">Số tiền yêu cầu</div>
-                <div class="info-value" style="color: #667eea;">${formatCurrency(request.requested_amount)}</div>
+            <div>
+                <div class="info-label" style="font-size: 0.85rem; color: #666; margin-bottom: 0.25rem;">Số tiền yêu cầu</div>
+                <div style="color: #667eea; font-weight: 700; font-size: 1.3em;">${formatCurrency(request.requested_amount)}</div>
             </div>
         </div>
 
-        <div style="margin-top: 1.5rem;">
-            <h4>Thông tin User</h4>
-            <div class="info-grid">
-                <div class="info-item">
-                    <div class="info-label">Họ tên</div>
-                    <div class="info-value">${request.user_name || 'N/A'}</div>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; font-size: 0.85rem; padding: 0.75rem; background: #f8f9fa; border-radius: 6px; margin-bottom: 1rem;">
+            <div><strong>Ngày tạo:</strong> ${formatDateTime(request.created_at)}</div>
+            ${request.confirmed_at ? `<div><strong>Ngày xác nhận:</strong> ${formatDateTime(request.confirmed_at)}</div>` : ''}
+            ${request.paid_at ? `<div><strong>Ngày thanh toán:</strong> ${formatDateTime(request.paid_at)}</div>` : ''}
+            ${request.rejected_at ? `<div><strong>Ngày từ chối:</strong> ${formatDateTime(request.rejected_at)}</div>` : ''}
+            ${request.cancelled_at ? `<div><strong>Ngày hủy:</strong> ${formatDateTime(request.cancelled_at)}</div>` : ''}
+            ${request.resubmitted_at ? `<div><strong>Ngày gửi lại:</strong> ${formatDateTime(request.resubmitted_at)}</div>` : ''}
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+            <h4 style="margin-bottom: 0.5rem; font-size: 1rem;">Thông tin User</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                <div>
+                    <div style="font-size: 0.85rem; color: #666;">Họ tên / Username</div>
+                    <div style="font-weight: 600;">${request.full_name || 'N/A'} • ${request.username || 'N/A'}</div>
                 </div>
-                <div class="info-item">
-                    <div class="info-label">Email</div>
-                    <div class="info-value">${request.user_email || 'N/A'}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Điện thoại</div>
-                    <div class="info-value">${request.user_phone || 'N/A'}</div>
+                <div>
+                    <div style="font-size: 0.85rem; color: #666;">Email</div>
+                    <div style="font-weight: 600;">${request.email || 'N/A'}</div>
                 </div>
             </div>
         </div>
 
-        <div style="margin-top: 1.5rem;">
-            <h4>Thông tin ngân hàng</h4>
-            <div class="info-item">
-                <div style="margin-bottom: 8px;">
-                    <strong>Ngân hàng:</strong> ${request.bank_name}
+        <div style="margin-bottom: 1rem;">
+            <h4 style="margin-bottom: 0.5rem; font-size: 1rem;">Thông tin ngân hàng</h4>
+            <div style="background: #f8f9fa; padding: 0.875rem; border-radius: 6px; border: 2px solid #667eea;">
+                <div style="margin-bottom: 10px;">
+                    <div style="font-size: 0.85rem; color: #667eea; font-weight: 600;">Ngân hàng:</div>
+                    <div style="font-size: 1em; font-weight: 600;">${request.bank_name}</div>
                 </div>
-                <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 10px;">
-                    <div>
-                        <strong>Số tài khoản:</strong>
-                        <span id="accountNumberDisplay">${request.bank_account_number_decrypted || request.bank_account_number}</span>
-                    </div>
-                    ${request.bank_account_number_decrypted ? `
-                        <button class="btn-copy-account" data-text="${request.bank_account_number_decrypted}"
-                                style="padding: 0.3rem 0.6rem; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem;">
+                <div style="margin-bottom: 10px;">
+                    <div style="font-size: 0.85rem; color: #667eea; font-weight: 600;">Số tài khoản:</div>
+                    <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                        <code style="font-size: 1.05em; background: white; padding: 0.4rem 0.7rem; border-radius: 4px; color: #000; font-weight: 700; letter-spacing: 0.5px;">
+                            ${request.bank_account_number_decrypted || request.bank_account_number}
+                        </code>
+                        <button class="btn-copy-account" data-text="${request.bank_account_number_decrypted || request.bank_account_number}"
+                                style="padding: 0.4rem 0.7rem; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 4px; font-weight: 600;">
                             <i class="fas fa-copy"></i> Copy
                         </button>
-                    ` : ''}
+                    </div>
                     ${request.last_decrypted_at ? `
-                        <small style="color: #666; font-style: italic;">
-                            (Xem lần cuối: ${formatDateTime(request.last_decrypted_at)},
-                            Số lần xem: ${request.decrypt_count || 0})
+                        <small style="color: #999; font-style: italic; margin-top: 4px; display: block; font-size: 0.75rem;">
+                            <i class="fas fa-eye"></i> Xem lần cuối: ${formatDateTime(request.last_decrypted_at)} • Số lần: ${request.decrypt_count || 0}
                         </small>
                     ` : ''}
                 </div>
                 <div style="margin-bottom: 8px;">
-                    <strong>Chủ tài khoản:</strong> ${request.bank_account_name_decrypted || request.bank_account_name}
+                    <div style="font-size: 0.85rem; color: #667eea; font-weight: 600;">Chủ tài khoản:</div>
+                    <div style="font-size: 1em; text-transform: uppercase; font-weight: 700;">${request.bank_account_name_decrypted || request.bank_account_name}</div>
                 </div>
                 ${request.bank_branch ? `
                     <div>
-                        <strong>Chi nhánh:</strong> ${request.bank_branch}
+                        <div style="font-size: 0.85rem; color: #667eea; font-weight: 600;">Chi nhánh:</div>
+                        <div style="font-size: 0.95em;">${request.bank_branch}</div>
                     </div>
                 ` : ''}
             </div>
         </div>
 
         ${request.transaction_reference ? `
-            <div style="margin-top: 1.5rem;">
-                <h4>Mã giao dịch</h4>
+            <div style="margin-top: 1rem;">
+                <h4 style="margin-bottom: 0.5rem; font-size: 1rem;">Mã giao dịch</h4>
                 <div class="info-item">
-                    <code style="font-size: 16px; color: #667eea;">${request.transaction_reference}</code>
+                    <code style="font-size: 0.95rem; color: #667eea; background: #f8f9fa; padding: 0.4rem 0.6rem; border-radius: 4px;">${request.transaction_reference}</code>
                 </div>
             </div>
         ` : ''}
 
         ${request.items && request.items.length > 0 ? `
-            <div style="margin-top: 1.5rem;">
-                <h4>Các đơn hàng thanh toán (${request.items.length})</h4>
-                <div class="items-list">
+            <div style="margin-top: 1rem;">
+                <h4 style="margin-bottom: 0.5rem; font-size: 1rem;">Các đơn hàng thanh toán (${request.items.length})</h4>
+                <div class="items-list" style="max-height: 180px; overflow-y: auto;">
                     ${request.items.map(item => `
-                        <div class="item-card">
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <div class="item-card" style="padding: 0.6rem; margin-bottom: 0.5rem;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 0.9em;">
                                 <strong>${item.merchant_name}</strong>
                                 <strong style="color: #667eea;">${formatCurrency(item.cashback_amount)}</strong>
                             </div>
-                            <div style="font-size: 13px; color: #666;">
+                            <div style="font-size: 0.8em; color: #666;">
                                 ${item.order_code} • ${item.period_label}
                             </div>
                         </div>
@@ -382,23 +404,34 @@ function displayRequestDetail(request) {
             </div>
         ` : ''}
 
-        ${request.logs && request.logs.length > 0 ? `
-            <div style="margin-top: 1.5rem;">
-                <h4>Lịch sử thay đổi</h4>
-                <div class="logs-timeline">
-                    ${request.logs.map(log => `
-                        <div class="log-item">
-                            <div class="log-time">${formatDateTime(log.created_at)}</div>
-                            <div class="log-action">${getLogActionText(log.action)} (${log.old_status || 'N/A'} → ${log.new_status || 'N/A'})</div>
-                            ${log.performed_by_name ? `<div style="font-size: 12px; color: #999;">Bởi: ${log.performed_by_name}</div>` : ''}
-                            ${log.notes ? `<div class="log-notes">${log.notes}</div>` : ''}
-                        </div>
-                    `).join('')}
+        ${request.notes ? `
+            <div style="margin-top: 1rem;">
+                <h4 style="margin-bottom: 0.5rem; font-size: 1rem;">Ghi chú của User</h4>
+                <div style="background: #fff3cd; padding: 0.75rem; border-radius: 6px; border-left: 4px solid #ffc107; font-size: 0.9em;">
+                    ${request.notes}
                 </div>
             </div>
         ` : ''}
 
-        <div style="margin-top: 2rem; padding-top: 1rem; border-top: 2px solid #f0f0f0;">
+        ${request.admin_notes ? `
+            <div style="margin-top: 1rem;">
+                <h4 style="margin-bottom: 0.5rem; font-size: 1rem;">Ghi chú của Admin</h4>
+                <div style="background: #d1ecf1; padding: 0.75rem; border-radius: 6px; border-left: 4px solid #17a2b8; font-size: 0.9em;">
+                    ${request.admin_notes}
+                </div>
+            </div>
+        ` : ''}
+
+        ${request.cancellation_reason ? `
+            <div style="margin-top: 1rem;">
+                <h4 style="margin-bottom: 0.5rem; font-size: 1rem;">Lý do hủy</h4>
+                <div style="background: #f8d7da; padding: 0.75rem; border-radius: 6px; border-left: 4px solid #dc3545; font-size: 0.9em;">
+                    ${request.cancellation_reason}
+                </div>
+            </div>
+        ` : ''}
+
+        <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #e0e0e0;">
             <button class="btn-primary btn-close-view-modal" data-modal="viewModal" style="width: 100%;">
                 Đóng
             </button>
@@ -582,17 +615,47 @@ function formatDateTime(dateString) {
 function showToast(message, type = 'info') {
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
-    toast.textContent = message;
+
+    // Icon mapping
+    const icons = {
+        'success': '✓',
+        'error': '✕',
+        'warning': '⚠',
+        'info': 'ℹ'
+    };
+
+    toast.innerHTML = `
+        <div class="toast-icon">${icons[type] || 'ℹ'}</div>
+        <div class="toast-message">${message}</div>
+    `;
+
     toast.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 1rem 1.5rem;
-        background: ${type === 'success' ? '#d4edda' : type === 'error' ? '#f8d7da' : '#fff3cd'};
-        color: ${type === 'success' ? '#155724' : type === 'error' ? '#721c24' : '#856404'};
-        border-radius: 8px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        z-index: 10000;
+        position: fixed !important;
+        top: 20px !important;
+        right: 20px !important;
+        left: auto !important;
+        bottom: auto !important;
+        width: auto !important;
+        height: auto !important;
+        padding: 0.75rem 1rem !important;
+        border-radius: 8px !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+        z-index: 10001 !important;
+        font-weight: 500;
+        font-size: 0.875rem;
+        max-width: 320px;
+        min-width: 260px;
+        word-wrap: break-word;
+        display: flex !important;
+        align-items: center;
+        justify-content: flex-start !important;
+        gap: 0.65rem;
+        background: ${type === 'success' ? 'linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%)' :
+                     type === 'error' ? 'linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%)' :
+                     type === 'warning' ? 'linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%)' :
+                     'linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%)'};
+        color: ${type === 'success' ? '#155724' : type === 'error' ? '#721c24' : type === 'warning' ? '#856404' : '#0c5460'};
+        border-left: 5px solid ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : type === 'warning' ? '#ffc107' : '#17a2b8'};
         animation: slideIn 0.3s ease;
     `;
 
@@ -607,13 +670,36 @@ function showToast(message, type = 'info') {
 // Dropdown toggle functions
 function toggleDropdown(requestId) {
     const dropdown = document.getElementById(`dropdown-${requestId}`);
+    const menu = dropdown.querySelector('.action-dropdown-menu');
+
     // Close all other dropdowns
     document.querySelectorAll('.action-dropdown.active').forEach(d => {
         if (d.id !== `dropdown-${requestId}`) {
             d.classList.remove('active');
         }
     });
-    dropdown.classList.toggle('active');
+
+    const isActive = dropdown.classList.toggle('active');
+
+    // Position the dropdown menu using fixed positioning
+    if (isActive && menu) {
+        const button = dropdown.querySelector('.action-dropdown-btn');
+        const rect = button.getBoundingClientRect();
+
+        // Position below the button
+        menu.style.top = `${rect.bottom + window.scrollY}px`;
+
+        // Position to align with button, but check if it goes off screen
+        const menuWidth = 160; // min-width from CSS
+        let leftPosition = rect.left + window.scrollX;
+
+        // If menu would go off right edge, align to right side of button
+        if (leftPosition + menuWidth > window.innerWidth) {
+            leftPosition = rect.right + window.scrollX - menuWidth;
+        }
+
+        menu.style.left = `${leftPosition}px`;
+    }
 }
 
 function closeDropdown(requestId) {

@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const PaymentRequest = require('../models/PaymentRequestEncrypted');
+const PaymentAccount = require('../models/PaymentAccount');
 const PaymentSystemReconciliationService = require('./paymentSystemReconciliationService');
 const SystemSettingsService = require('./systemSettingsService');
 const logger = require('../utils/logger');
@@ -32,21 +33,23 @@ class PaymentRequestService {
       const totalCashbackResult = await db.query(totalCashbackQuery, [userId]);
       const totalConfirmedCashback = parseFloat(totalCashbackResult.rows[0].total) || 0;
 
-      // Get total requested amount (all payment requests except rejected)
+      // Get total requested amount (all payment requests except rejected and cancelled)
       const totalRequestedQuery = `
         SELECT COALESCE(SUM(requested_amount), 0) as total
         FROM payment_requests
         WHERE user_id = $1
-          AND status != 'rejected'
+          AND status NOT IN ('rejected', 'cancelled')
       `;
       const totalRequestedResult = await db.query(totalRequestedQuery, [userId]);
       const totalRequested = parseFloat(totalRequestedResult.rows[0].total) || 0;
 
-      // Check for pending requests
+      // Check for pending requests (exclude cancelled)
       const pendingQuery = `
         SELECT COUNT(*) as count
         FROM payment_requests
-        WHERE user_id = $1 AND status = 'pending'
+        WHERE user_id = $1
+          AND status = 'pending'
+          AND cancelled_at IS NULL
       `;
       const pendingResult = await db.query(pendingQuery, [userId]);
       const hasPendingRequest = parseInt(pendingResult.rows[0].count) > 0;
@@ -183,6 +186,7 @@ class PaymentRequestService {
       bankAccountName,
       bankBranch = null,
       notes = null,
+      paymentAccountId = null,
       context = {}
     } = params;
 
@@ -236,6 +240,51 @@ class PaymentRequestService {
         throw error;
       }
 
+      // Auto-save payment account if not using saved account
+      let finalPaymentAccountId = paymentAccountId;
+
+      if (!paymentAccountId && bankName && bankAccountNumber && bankAccountName) {
+        try {
+          // Check if user already has 5 accounts (max limit)
+          const accountCount = await PaymentAccount.count(userId);
+
+          if (accountCount < 5) {
+            // Check if this exact account already exists
+            const existingAccounts = await PaymentAccount.findByUserId(userId);
+            const accountExists = existingAccounts.some(acc =>
+              acc.account_number === bankAccountNumber &&
+              acc.account_holder_name === bankAccountName
+            );
+
+            if (!accountExists) {
+              // Auto-save the payment account
+              const newAccount = await PaymentAccount.create({
+                userId,
+                accountType: 'bank', // Default to bank for payment requests
+                accountHolderName: bankAccountName,
+                accountNumber: bankAccountNumber,
+                bankName: bankName,
+                bankBranch: bankBranch || null,
+                isDefault: accountCount === 0, // Set as default if it's the first account
+                notes: 'Tự động lưu từ yêu cầu thanh toán'
+              });
+
+              finalPaymentAccountId = newAccount.id;
+              logger.info('Auto-saved payment account from payment request', {
+                accountId: newAccount.id,
+                userId
+              });
+            }
+          }
+        } catch (autoSaveError) {
+          // Non-critical error, just log it and continue
+          logger.warn('Failed to auto-save payment account', {
+            error: autoSaveError.message,
+            userId
+          });
+        }
+      }
+
       // Create payment request
       const paymentRequest = await PaymentRequest.create({
         userId,
@@ -244,7 +293,8 @@ class PaymentRequestService {
         bankAccountNumber,
         bankAccountName,
         bankBranch,
-        notes
+        notes,
+        paymentAccountId: finalPaymentAccountId
       });
 
       // VALIDATION LAYER 3: Link payment with items (includes pre-linking verification)

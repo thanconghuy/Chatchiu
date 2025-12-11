@@ -124,6 +124,28 @@
             cursor: not-allowed;
         }
 
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--gray-300);
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
         .form-actions {
             display: flex;
             gap: 12px;
@@ -276,6 +298,163 @@
             transform: scale(0.95);
         }
 
+        /* Tab Navigation */
+        .profile-tabs {
+            display: flex;
+            gap: 8px;
+            border-bottom: 2px solid #e5e7eb;
+            margin-bottom: 32px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .profile-tab {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #6b7280;
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .profile-tab:hover {
+            color: #4f46e5;
+            background: #f9fafb;
+        }
+
+        .profile-tab.active {
+            color: #4f46e5;
+            border-bottom-color: #4f46e5;
+            background: #f9fafb;
+        }
+
+        .profile-tab .tab-icon {
+            font-size: 1.2rem;
+        }
+
+        /* Tab Content */
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Payment Account Styles */
+        .payment-account-card {
+            background: #f9fafb;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .payment-account-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .payment-account-type {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .payment-account-type .icon {
+            font-size: 1.5rem;
+        }
+
+        .payment-status {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .payment-status.verified {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .payment-status.unverified {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .payment-account-info {
+            display: grid;
+            gap: 12px;
+        }
+
+        .payment-info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .payment-info-row:last-child {
+            border-bottom: none;
+        }
+
+        .payment-info-label {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .payment-info-value {
+            color: #1f2937;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .empty-payment-state {
+            text-align: center;
+            padding: 48px 24px;
+            color: #6b7280;
+        }
+
+        .empty-payment-state .icon {
+            font-size: 4rem;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-payment-state h3 {
+            font-size: 1.2rem;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+
+        .empty-payment-state p {
+            margin-bottom: 24px;
+        }
+
         /* Mobile responsive */
         @media (max-width: 768px) {
             .profile-header {
@@ -300,6 +479,30 @@
 
             .btn {
                 width: 100%;
+            }
+
+            .profile-tabs {
+                gap: 4px;
+            }
+
+            .profile-tab {
+                padding: 10px 16px;
+                font-size: 0.9rem;
+            }
+
+            .profile-tab .tab-icon {
+                font-size: 1rem;
+            }
+
+            .payment-account-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .payment-info-row {
+                flex-direction: column;
+                gap: 4px;
             }
         }
     </style>
@@ -353,8 +556,25 @@
                         </div>
                     </div>
 
-                    <!-- Personal Information -->
-                    <div class="profile-section">
+                    <!-- Tab Navigation -->
+                    <div class="profile-tabs">
+                        <button class="profile-tab active" data-tab="info">
+                            <span class="tab-icon">📋</span>
+                            <span>Thông tin cá nhân</span>
+                        </button>
+                        <button class="profile-tab" data-tab="password">
+                            <span class="tab-icon">🔒</span>
+                            <span>Đổi mật khẩu</span>
+                        </button>
+                        <button class="profile-tab" data-tab="payment">
+                            <span class="tab-icon">💳</span>
+                            <span>Tài khoản thanh toán</span>
+                        </button>
+                    </div>
+
+                    <!-- Tab: Personal Information -->
+                    <div class="tab-content active" id="tab-info">
+                        <div class="profile-section">
                         <h2 class="section-title">
                             <span class="icon">📋</span>
                             Thông tin cá nhân
@@ -419,10 +639,13 @@
                                 </button>
                             </div>
                         </form>
+                        </div>
                     </div>
+                    <!-- End Tab: Personal Information -->
 
-                    <!-- Change Password Section (only for non-OAuth users) -->
-                    <div class="profile-section" id="passwordSection" style="display: none;">
+                    <!-- Tab: Change Password -->
+                    <div class="tab-content" id="tab-password">
+                        <div class="profile-section" id="passwordSection">
                         <h2 class="section-title">
                             <span class="icon">🔒</span>
                             Đổi mật khẩu
@@ -487,18 +710,129 @@
                                 </button>
                             </div>
                         </form>
-                    </div>
 
-                    <!-- OAuth Notice (only for OAuth users) -->
-                    <div class="oauth-notice" id="oauthNotice" style="display: none;">
-                        <div class="icon">🔐</div>
-                        <div class="oauth-notice-content">
-                            <div class="oauth-notice-title">Đăng nhập bằng Google</div>
-                            <div class="oauth-notice-text">
-                                Bạn đang sử dụng tài khoản Google để đăng nhập. Mật khẩu được quản lý bởi Google.
+                        <!-- OAuth Notice (only for OAuth users) -->
+                        <div class="oauth-notice" id="oauthNotice" style="display: none;">
+                            <div class="icon">🔐</div>
+                            <div class="oauth-notice-content">
+                                <div class="oauth-notice-title">Đăng nhập bằng Google</div>
+                                <div class="oauth-notice-text">
+                                    Bạn đang sử dụng tài khoản Google để đăng nhập. Mật khẩu được quản lý bởi Google.
+                                </div>
+                            </div>
+                        </div>
+                        </div>
+                    </div>
+                    <!-- End Tab: Change Password -->
+
+                    <!-- Tab: Payment Account -->
+                    <div class="tab-content" id="tab-payment">
+                        <div class="profile-section">
+                            <h2 class="section-title">
+                                <span class="icon">💳</span>
+                                Tài khoản thanh toán
+                            </h2>
+
+                            <div class="alert" id="paymentAlert"></div>
+
+                            <!-- Payment Accounts List -->
+                            <div id="paymentAccountsList">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+
+                            <!-- Add New Payment Account Button -->
+                            <button type="button" class="btn btn-primary" id="addPaymentAccountBtn" style="margin-top: 20px;">
+                                <span>➕</span> Thêm tài khoản thanh toán
+                            </button>
+
+                            <!-- Payment Account Form (Initially Hidden) -->
+                            <div id="paymentAccountForm" style="display: none; margin-top: 24px;">
+                                <h3 style="margin-bottom: 20px;">Thêm tài khoản thanh toán mới</h3>
+                                <form id="paymentForm">
+                                    <div class="form-group">
+                                        <label for="accountType">Loại tài khoản *</label>
+                                        <select id="accountType" name="accountType" required>
+                                            <option value="">Chọn loại tài khoản</option>
+                                            <option value="bank">Ngân hàng</option>
+                                            <option value="momo">Momo</option>
+                                            <option value="zalopay">ZaloPay</option>
+                                            <option value="other">Khác</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="accountHolderName">Tên chủ tài khoản *</label>
+                                        <input
+                                            type="text"
+                                            id="accountHolderName"
+                                            name="accountHolderName"
+                                            placeholder="Nhập tên chủ tài khoản"
+                                            required
+                                        >
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="accountNumber">Số tài khoản *</label>
+                                        <input
+                                            type="text"
+                                            id="accountNumber"
+                                            name="accountNumber"
+                                            placeholder="Nhập số tài khoản"
+                                            required
+                                        >
+                                    </div>
+
+                                    <div class="form-group" id="bankNameGroup" style="display: none;">
+                                        <label for="bankName">Tên ngân hàng *</label>
+                                        <input
+                                            type="text"
+                                            id="bankName"
+                                            name="bankName"
+                                            placeholder="Ví dụ: Vietcombank, BIDV, Techcombank..."
+                                        >
+                                    </div>
+
+                                    <div class="form-group" id="bankBranchGroup" style="display: none;">
+                                        <label for="bankBranch">Chi nhánh</label>
+                                        <input
+                                            type="text"
+                                            id="bankBranch"
+                                            name="bankBranch"
+                                            placeholder="Ví dụ: Chi nhánh Hà Nội"
+                                        >
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="notes">Ghi chú</label>
+                                        <textarea
+                                            id="notes"
+                                            name="notes"
+                                            rows="3"
+                                            placeholder="Ghi chú thêm (tùy chọn)"
+                                        ></textarea>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                            <input type="checkbox" id="isDefault" name="isDefault">
+                                            <span>Đặt làm tài khoản mặc định</span>
+                                        </label>
+                                    </div>
+
+                                    <div class="form-actions">
+                                        <button type="submit" class="btn btn-primary" id="savePaymentBtn">
+                                            Lưu tài khoản
+                                        </button>
+                                        <button type="button" class="btn btn-secondary" id="cancelPaymentBtn">
+                                            Hủy
+                                        </button>
+                                    </div>
+                                </form>
                             </div>
                         </div>
                     </div>
+                    <!-- End Tab: Payment Account -->
+
                 </div>
             </div>
         </main>

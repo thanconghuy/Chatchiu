@@ -78,11 +78,12 @@ BEGIN
     -- Calculate available balance
     v_available_balance := calculate_user_available_balance_from_system_recon(p_user_id);
 
-    -- Check pending requests
+    -- Check pending requests (exclude cancelled)
     SELECT COUNT(*) INTO v_pending_count
     FROM payment_requests
     WHERE user_id = p_user_id
-      AND status = 'pending';
+      AND status = 'pending'
+      AND cancelled_at IS NULL;
 
     -- Validation: Has pending request
     IF v_pending_count > 0 THEN

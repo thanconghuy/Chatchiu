@@ -108,6 +108,7 @@ const systemReconciliationUserRoutes = require('./backend/routes/systemReconcili
 const systemSettingsRoutes = require('./backend/routes/systemSettings');
 const userPaymentHistoryRoutes = require('./backend/routes/userPaymentHistory');
 const userProfileRoutes = require('./backend/routes/userProfile');
+const paymentAccountRoutes = require('./backend/routes/paymentAccount');
 
 // Mount API routes (BEFORE static files)
 app.use('/api/auth', authRoutes); // Keep old auth for backward compatibility
@@ -122,6 +123,7 @@ app.use('/api/user/system-reconciliation', systemReconciliationUserRoutes); // S
 app.use('/api/system-settings', systemSettingsRoutes); // System settings (admin only)
 app.use('/api/user', userProfileRoutes); // User profile module (must be before userPaymentHistoryRoutes)
 app.use('/api/user', userPaymentHistoryRoutes); // User payment history module
+app.use('/api/user/payment-accounts', paymentAccountRoutes); // Payment account management
 
 // Health check endpoint with database check
 app.get('/health', async (req, res) => {

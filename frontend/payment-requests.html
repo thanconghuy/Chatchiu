@@ -236,6 +236,23 @@
             color: #721c24;
         }
 
+        .status-cancelled {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+
+        .status-resubmitted {
+            background: linear-gradient(135deg, #e7f3ff 0%, #cfe7ff 100%);
+            color: #0056b3;
+            font-weight: 600;
+            border: 1px solid #4a9eff;
+        }
+
+        .status-resubmitted i {
+            margin-left: 4px;
+            font-size: 0.85em;
+        }
+
         /* Mobile Card Styles */
         .payment-card {
             background: white;
@@ -340,6 +357,32 @@
             transform: translateY(0);
         }
 
+        .btn-resubmit {
+            padding: 0.625rem 1rem;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+        }
+
+        .btn-resubmit:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+        }
+
+        .btn-resubmit:active {
+            transform: translateY(0);
+        }
+
         @media (max-width: 768px) {
             .balance-card {
                 padding: 1.5rem;
@@ -373,6 +416,171 @@
 
             .balance-details {
                 grid-template-columns: 1fr;
+            }
+        }
+
+        /* Toast Notification Styles */
+        .toast {
+            position: fixed !important;
+            top: 20px !important;
+            right: 20px !important;
+            left: auto !important;
+            bottom: auto !important;
+            width: auto !important;
+            height: auto !important;
+            padding: 0.75rem 1rem !important;
+            border-radius: 8px !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+            z-index: 10001 !important;
+            font-weight: 500;
+            font-size: 0.875rem;
+            max-width: 320px;
+            min-width: 260px;
+            word-wrap: break-word;
+            display: flex !important;
+            align-items: center;
+            justify-content: flex-start !important;
+            gap: 0.65rem;
+        }
+
+        .toast-icon {
+            font-size: 1.1rem;
+            flex-shrink: 0;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .toast-message {
+            flex: 1;
+            line-height: 1.35;
+        }
+
+        .toast-success {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            color: #155724;
+            border-left: 5px solid #28a745;
+        }
+
+        .toast-success .toast-icon {
+            background: #28a745;
+            color: white;
+        }
+
+        .toast-error {
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+            color: #721c24;
+            border-left: 5px solid #dc3545;
+        }
+
+        .toast-error .toast-icon {
+            background: #dc3545;
+            color: white;
+        }
+
+        /* Custom Confirm Modal Styles */
+        #customConfirmModal {
+            display: none;
+            position: fixed;
+            z-index: 10000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+        }
+
+        #customConfirmModal.show {
+            display: flex !important;
+        }
+
+        #customConfirmModal .modal-content {
+            background-color: #fff;
+            padding: 1.5rem;
+            border-radius: 12px;
+            max-width: 400px;
+            width: 90%;
+            max-height: auto;
+            height: auto;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .toast-warning {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+            color: #856404;
+            border-left: 5px solid #ffc107;
+        }
+
+        .toast-warning .toast-icon {
+            background: #ffc107;
+            color: #856404;
+        }
+
+        .toast-info {
+            background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+            color: #0c5460;
+            border-left: 5px solid #17a2b8;
+        }
+
+        .toast-info .toast-icon {
+            background: #17a2b8;
+            color: white;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOutRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+        }
+
+        .toast-slide-in {
+            animation: slideInRight 0.3s ease-out;
+        }
+
+        .toast-slide-out {
+            animation: slideOutRight 0.3s ease-in;
+        }
+
+        @media (max-width: 768px) {
+            .toast {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+                max-width: calc(100% - 20px);
+                min-width: unset;
+                padding: 0.65rem 0.85rem;
+                font-size: 0.8rem;
+            }
+
+            .toast-icon {
+                width: 26px;
+                height: 26px;
+                font-size: 1rem;
+            }
+
+            .toast-message {
+                line-height: 1.3;
             }
         }
     </style>
@@ -434,6 +642,7 @@
                     <button class="tab-btn" data-status="confirmed">Đã xác nhận</button>
                     <button class="tab-btn" data-status="paid">Đã thanh toán</button>
                     <button class="tab-btn" data-status="rejected">Từ chối</button>
+                    <button class="tab-btn" data-status="cancelled">Đã hủy</button>
                 </div>
 
                 <!-- Desktop Table View -->
@@ -506,6 +715,19 @@
                         required
                     >
                     <small>Tối thiểu: 100,000 VNĐ | Tối đa: <span id="maxAmount">0</span> VNĐ</small>
+                </div>
+
+                <!-- Payment Account Selector -->
+                <div class="form-group" style="background: #f0f9ff; padding: 16px; border-radius: 8px; border: 2px solid #3b82f6;">
+                    <label for="savedPaymentAccount" style="color: #1e40af; font-weight: 600;">
+                        💳 Chọn tài khoản đã lưu
+                    </label>
+                    <select id="savedPaymentAccount" name="savedPaymentAccount" style="margin-bottom: 8px;">
+                        <option value="">-- Nhập thông tin mới hoặc chọn tài khoản đã lưu --</option>
+                    </select>
+                    <small style="color: #1e40af;">
+                        💡 <a href="/profile" target="_blank" style="color: #2563eb; text-decoration: underline;">Quản lý tài khoản thanh toán trong Profile</a>
+                    </small>
                 </div>
 
                 <div class="form-group">
@@ -592,39 +814,57 @@
         </div>
     </div>
 
+    <!-- Custom Confirm Modal -->
+    <div id="customConfirmModal">
+        <div class="modal-content">
+            <div style="text-align: center; margin-bottom: 1.25rem;">
+                <div style="width: 48px; height: 48px; margin: 0 auto 1rem; background: #ffc107; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.75rem;">
+                    ⚠
+                </div>
+                <h3 id="confirmTitle" style="margin: 0 0 0.5rem 0; font-size: 1.1rem; color: #333;">Xác nhận</h3>
+                <p id="confirmMessage" style="margin: 0; color: #666; font-size: 0.9rem; line-height: 1.4;">Bạn có chắc muốn thực hiện hành động này?</p>
+            </div>
+            <div style="display: flex; gap: 0.75rem;">
+                <button id="confirmCancel" class="btn-secondary" style="flex: 1; padding: 0.625rem 1rem; font-size: 0.9rem;">
+                    Hủy
+                </button>
+                <button id="confirmOk" class="btn-primary" style="flex: 1; padding: 0.625rem 1rem; font-size: 0.9rem;">
+                    Xác nhận
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="js/config.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/user-sidebar.js"></script>
     <script src="js/mobile-menu.js"></script>
     <script src="js/payment-requests.js"></script>
     <script>
-        // ============ CSP FIX: Event Delegation ============
+        // ============ CSP FIX: Event Delegation for HTML-specific actions ============
+        // Note: payment-requests.js handles its own actions (cancel, resubmit, etc.)
         document.addEventListener('click', (e) => {
             const button = e.target.closest('[data-action]');
             if (!button) return;
 
             const action = button.dataset.action;
-            const id = button.dataset.id;
 
+            // Only handle HTML-specific actions, not payment request actions
             switch (action) {
                 case 'show-create-modal':
+                    e.preventDefault();
+                    e.stopPropagation();
                     showCreateModal();
                     break;
                 case 'navigate-payment-history':
-                    window.location.href = '/payment-history';
+                    // Allow default navigation
                     break;
                 case 'close-create-modal':
+                    e.preventDefault();
+                    e.stopPropagation();
                     closeCreateModal();
                     break;
-                case 'close-view-modal':
-                    closeViewModal();
-                    break;
-                case 'view-request':
-                    if (id) viewRequest(id);
-                    break;
-                case 'cancel-request':
-                    if (id) cancelRequest(id);
-                    break;
+                // Remove cancel-request and view-request - handled by payment-requests.js
             }
         });
 

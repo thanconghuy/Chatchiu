@@ -16,6 +16,7 @@ class PaymentRequest {
    * @param {string} data.bankAccountName - Bank account holder name
    * @param {string} data.bankBranch - Bank branch (optional)
    * @param {string} data.notes - User notes (optional)
+   * @param {number} data.paymentAccountId - Saved payment account ID (optional)
    * @param {Array} data.reconciliationItemIds - Array of reconciliation_item IDs to include
    * @returns {Promise<Object>}
    */
@@ -28,6 +29,7 @@ class PaymentRequest {
       bankAccountName,
       bankBranch = null,
       notes = null,
+      paymentAccountId = null,
       reconciliationItemIds = []
     } = data;
 
@@ -47,8 +49,9 @@ class PaymentRequest {
           bank_account_name,
           bank_branch,
           notes,
+          payment_account_id,
           status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *
       `;
 
@@ -60,6 +63,7 @@ class PaymentRequest {
         bankAccountName,
         bankBranch,
         notes,
+        paymentAccountId,
         'pending'
       ];
 
@@ -195,6 +199,7 @@ class PaymentRequest {
          WHERE payment_request_id = pr.id) as total_from_items
       FROM payment_requests pr
       WHERE pr.user_id = $1
+        AND pr.cancelled_at IS NULL
     `;
 
     const values = [userId];
@@ -265,11 +270,19 @@ class PaymentRequest {
     const values = [];
     let paramCount = 0;
 
-    // Filter by status
-    if (status) {
+    // Filter by status - special handling for "cancelled"
+    if (status === 'cancelled') {
+      // Show only cancelled requests
+      query += ` AND pr.cancelled_at IS NOT NULL`;
+    } else if (status) {
+      // Show non-cancelled requests with specific status
+      query += ` AND pr.cancelled_at IS NULL`;
       paramCount++;
       query += ` AND pr.status = $${paramCount}`;
       values.push(status);
+    } else {
+      // Show only non-cancelled requests by default
+      query += ` AND pr.cancelled_at IS NULL`;
     }
 
     // Filter by user ID (exact match)
@@ -412,12 +425,13 @@ class PaymentRequest {
   }
 
   /**
-   * Cancel payment request (user only, only if status is pending)
+   * Cancel payment request (SOFT DELETE - user only, only if status is pending)
    * @param {string} id
    * @param {string} userId
-   * @returns {Promise<boolean>}
+   * @param {string} reason - Optional cancellation reason
+   * @returns {Promise<Object>}
    */
-  static async cancel(id, userId) {
+  static async cancel(id, userId, reason = null) {
     const paymentRequest = await this.findById(id);
 
     if (!paymentRequest) {
@@ -432,32 +446,42 @@ class PaymentRequest {
       throw new Error('Can only cancel pending requests');
     }
 
+    // Check if already cancelled
+    if (paymentRequest.cancelled_at) {
+      throw new Error('Payment request already cancelled');
+    }
+
     const client = await db.pool.connect();
 
     try {
       await client.query('BEGIN');
 
-      // Delete payment request (CASCADE will delete mappings)
+      // Soft delete: Update cancelled fields instead of DELETE
       const query = `
-        DELETE FROM payment_requests
+        UPDATE payment_requests
+        SET
+          cancelled_at = NOW(),
+          cancelled_by = $2,
+          cancellation_reason = $3,
+          updated_at = NOW()
         WHERE id = $1 AND user_id = $2
-        RETURNING id
+        RETURNING *
       `;
 
-      const result = await client.query(query, [id, userId]);
+      const result = await client.query(query, [id, userId, reason]);
 
       // Log the cancellation
       await this._logAction(client, {
         paymentRequestId: id,
         action: 'cancelled',
         oldStatus: 'pending',
-        newStatus: null,
+        newStatus: 'cancelled',
         performedBy: userId,
-        notes: 'Payment request cancelled by user'
+        notes: reason || 'Payment request cancelled by user'
       });
 
       await client.query('COMMIT');
-      return result.rows.length > 0;
+      return result.rows[0];
 
     } catch (error) {
       await client.query('ROLLBACK');
@@ -520,15 +544,17 @@ class PaymentRequest {
   static async getStats() {
     const query = `
       SELECT
-        COUNT(*) as total_requests,
-        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
-        COUNT(CASE WHEN status = 'confirmed' THEN 1 END) as confirmed_count,
-        COUNT(CASE WHEN status = 'paid' THEN 1 END) as paid_count,
-        COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected_count,
-        COALESCE(SUM(requested_amount), 0) as total_amount,
-        COALESCE(SUM(CASE WHEN status = 'paid' THEN requested_amount ELSE 0 END), 0) as total_paid,
-        COALESCE(SUM(CASE WHEN status = 'pending' THEN requested_amount ELSE 0 END), 0) as total_pending,
-        COALESCE(SUM(CASE WHEN status = 'confirmed' THEN requested_amount ELSE 0 END), 0) as total_confirmed
+        COUNT(*) FILTER (WHERE cancelled_at IS NULL) as total_requests,
+        COUNT(*) FILTER (WHERE cancelled_at IS NULL AND status = 'pending') as pending_count,
+        COUNT(*) FILTER (WHERE cancelled_at IS NULL AND status = 'confirmed') as confirmed_count,
+        COUNT(*) FILTER (WHERE cancelled_at IS NULL AND status = 'paid') as paid_count,
+        COUNT(*) FILTER (WHERE cancelled_at IS NULL AND status = 'rejected') as rejected_count,
+        COUNT(*) FILTER (WHERE cancelled_at IS NOT NULL) as cancelled_count,
+        COALESCE(SUM(requested_amount) FILTER (WHERE cancelled_at IS NULL), 0) as total_amount,
+        COALESCE(SUM(requested_amount) FILTER (WHERE cancelled_at IS NULL AND status = 'paid'), 0) as total_paid,
+        COALESCE(SUM(requested_amount) FILTER (WHERE cancelled_at IS NULL AND status = 'pending'), 0) as total_pending,
+        COALESCE(SUM(requested_amount) FILTER (WHERE cancelled_at IS NULL AND status = 'confirmed'), 0) as total_confirmed,
+        COALESCE(SUM(requested_amount) FILTER (WHERE cancelled_at IS NOT NULL), 0) as total_cancelled
       FROM payment_requests
     `;
 
