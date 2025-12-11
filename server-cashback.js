@@ -36,7 +36,12 @@ const PORT = process.env.PORT || 3007;
 // SECURITY: CORS configuration with specific allowed origins
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
-  : [`http://localhost:${PORT}`, 'http://localhost:3007'];
+  : [
+      `http://localhost:${PORT}`,
+      'http://localhost:3007',
+      'https://chatchiu.online',
+      'https://www.chatchiu.online'
+    ];
 
 // SECURITY: Helmet.js for security headers
 app.use(helmet({
@@ -60,8 +65,16 @@ app.use(helmet({
 // Middleware
 app.use(cors({
   origin: (origin, callback) => {
+    // Log for debugging
+    console.log('[CORS] Request origin:', origin || 'no-origin');
+
     // Allow requests with no origin (like mobile apps, Postman, or same-origin)
     if (!origin) return callback(null, true);
+
+    // Allow all origins in production if ALLOWED_ORIGINS not set (for same-domain deployment)
+    if (process.env.VERCEL && !process.env.ALLOWED_ORIGINS) {
+      return callback(null, true);
+    }
 
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
