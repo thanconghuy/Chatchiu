@@ -94,6 +94,7 @@ const systemReconciliationAdminRoutes = require('./backend/routes/systemReconcil
 const systemReconciliationUserRoutes = require('./backend/routes/systemReconciliationUser');
 const systemSettingsRoutes = require('./backend/routes/systemSettings');
 const userPaymentHistoryRoutes = require('./backend/routes/userPaymentHistory');
+const userProfileRoutes = require('./backend/routes/userProfile');
 
 // Mount API routes (BEFORE static files)
 app.use('/api/auth', authRoutes); // Keep old auth for backward compatibility
@@ -106,6 +107,7 @@ app.use('/api/public', publicRoutes); // Public endpoints (no auth required)
 app.use('/api/admin/system-reconciliation', systemReconciliationAdminRoutes); // System Reconciliation module (admin only)
 app.use('/api/user/system-reconciliation', systemReconciliationUserRoutes); // System Reconciliation module (user)
 app.use('/api/system-settings', systemSettingsRoutes); // System settings (admin only)
+app.use('/api/user', userProfileRoutes); // User profile module (must be before userPaymentHistoryRoutes)
 app.use('/api/user', userPaymentHistoryRoutes); // User payment history module
 
 // Health check endpoint
@@ -118,7 +120,7 @@ app.get('/health', (req, res) => {
 });
 
 // Routes for HTML pages (without .html extension)
-const pages = ['login', 'login-neon', 'register', 'dashboard', 'history', 'reconciliation-history', 'payment-requests', 'forgot-password', 'reset-password'];
+const pages = ['login', 'login-neon', 'register', 'dashboard', 'history', 'reconciliation-history', 'payment-requests', 'forgot-password', 'reset-password', 'profile'];
 pages.forEach(page => {
   app.get(`/${page}`, (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend', `${page}.html`));
@@ -176,6 +178,11 @@ app.get('/admin/:page', (req, res, next) => {
   if (page.endsWith('.html')) {
     const cleanPage = page.replace('.html', '');
     return res.redirect(301, `/admin/${cleanPage}`);
+  }
+
+  // Special case: redirect admin profile to user profile (same page for both)
+  if (page === 'profile') {
+    return res.redirect(301, '/profile');
   }
 
   // Serve the HTML file

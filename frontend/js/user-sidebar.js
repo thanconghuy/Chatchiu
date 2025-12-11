@@ -63,6 +63,7 @@
         if (path.includes('/history')) return 'history';
         if (path.includes('/reconciliation-history')) return 'reconciliation-history';
         if (path.includes('/payment-requests')) return 'payment-requests';
+        if (path.includes('/profile')) return 'profile';
         return 'shopping'; // Default to shopping page
     }
 
