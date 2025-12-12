@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear Debug Data - Reset localStorage</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 500px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        p {
+            color: #64748b;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+
+        .info-box {
+            background: #f1f5f9;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: left;
+            border-radius: 4px;
+        }
+
+        .info-box strong {
+            color: #334155;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 600;
+            display: none;
+        }
+
+        .status.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 2px solid #10b981;
+        }
+
+        .status.info {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 2px solid #3b82f6;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🧹 Clear Debug Data</h1>
+
+        <p>Trang này sẽ xóa tất cả debug data trong localStorage để reset về trạng thái bình thường.</p>
+
+        <div class="info-box">
+            <strong>⚠️ Lưu ý:</strong><br>
+            Sau khi clear, bạn sẽ bị logout và cần đăng nhập lại.
+        </div>
+
+        <div id="currentData" class="info-box" style="border-left-color: #f59e0b;">
+            <strong>📊 Current Data:</strong><br>
+            <div id="userData">Loading...</div>
+        </div>
+
+        <button onclick="clearDebugData()">Clear Debug Data</button>
+
+        <div id="status" class="status"></div>
+    </div>
+
+    <script>
+        // Show current user data
+        window.addEventListener('DOMContentLoaded', () => {
+            try {
+                const user = JSON.parse(localStorage.getItem('cashback_user') || '{}');
+                const userName = user.fullName || user.full_name || 'Not found';
+                const userEmail = user.email || 'Not found';
+
+                document.getElementById('userData').innerHTML = `
+                    User: <strong>${userName}</strong><br>
+                    Email: <strong>${userEmail}</strong>
+                `;
+
+                if (userName === 'Debug User') {
+                    document.getElementById('currentData').style.borderLeftColor = '#dc2626';
+                    document.getElementById('userData').innerHTML += `<br><br><span style="color: #dc2626;">⚠️ Debug User detected!</span>`;
+                }
+            } catch (e) {
+                document.getElementById('userData').textContent = 'Error reading data';
+            }
+        });
+
+        function clearDebugData() {
+            const status = document.getElementById('status');
+
+            try {
+                // Get all keys
+                const keys = Object.keys(localStorage);
+                const clearedKeys = [];
+
+                // Clear all localStorage
+                keys.forEach(key => {
+                    clearedKeys.push(key);
+                    localStorage.removeItem(key);
+                });
+
+                // Show success
+                status.className = 'status success';
+                status.style.display = 'block';
+                status.innerHTML = `
+                    ✅ <strong>Cleared!</strong><br>
+                    Removed ${clearedKeys.length} items:<br>
+                    <small>${clearedKeys.join(', ')}</small>
+                `;
+
+                // Update current data display
+                document.getElementById('userData').innerHTML = `
+                    <span style="color: #10b981;">✅ All data cleared!</span>
+                `;
+
+                // Auto redirect after 3 seconds
+                setTimeout(() => {
+                    status.innerHTML += '<br><br>🔄 Redirecting to login...';
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 1000);
+                }, 2000);
+
+            } catch (e) {
+                status.className = 'status error';
+                status.style.display = 'block';
+                status.textContent = '❌ Error: ' + e.message;
+            }
+        }
+    </script>
+</body>
+</html>

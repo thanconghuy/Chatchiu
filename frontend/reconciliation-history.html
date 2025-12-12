@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lịch sử đối soát - Cashback System</title>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/user-sidebar.css">
+    <link rel="stylesheet" href="css/user-layout.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         /* Mobile card view styles */
@@ -177,16 +179,20 @@
             }
         }
     </style>
+    <link rel="stylesheet" href="css/user-sidebar.css">
+    <link rel="stylesheet" href="css/user-layout.css">
 </head>
 <body>
     <!-- Mobile Menu Toggle -->
-    <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
+    <button class="mobile-menu-btn" id="mobileMenuToggle">
+        <i class="fa-solid fa-bars"></i>
+    </button>
 
     <div class="app-container">
-        <!-- Sidebar will be loaded by user-sidebar.js -->
+        <!-- Sidebar will be loaded by user-sidebar-v2.js -->
 
         <!-- Main Content -->
-        <main class="main-content">
+        <main class="user-main-content">
             <div class="content-wrapper">
                 <!-- Header -->
                 <header class="header">
@@ -285,7 +291,7 @@
 
     <script src="js/config.js"></script>
     <script src="js/auth.js"></script>
-    <script src="js/user-sidebar.js"></script>
+    <script src="js/user-sidebar-v2.js"></script>
     <script src="js/mobile-menu.js"></script>
     <script src="js/reconciliation-history.js?v=6"></script>
     <script src="js/analytics.js"></script>

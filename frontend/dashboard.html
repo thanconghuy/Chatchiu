@@ -6,16 +6,22 @@
     <title>Dashboard - Cashback System</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/system-balance.css">
+    <link rel="stylesheet" href="css/user-sidebar.css">
+    <link rel="stylesheet" href="css/user-layout.css">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
 <body>
     <!-- Mobile Menu Toggle -->
-    <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
+    <button class="mobile-menu-btn" id="mobileMenuToggle">
+        <i class="fa-solid fa-bars"></i>
+    </button>
 
     <div class="app-container">
-        <!-- Sidebar will be loaded by user-sidebar.js -->
+        <!-- Sidebar will be loaded by user-sidebar-v2.js -->
 
         <!-- Main Content -->
-        <main class="main-content">
+        <main class="user-main-content">
             <div class="content-wrapper">
                 <!-- Desktop Header -->
                 <header class="desktop-header">
@@ -291,7 +297,7 @@
 
     <script src="js/config.js"></script>
     <script src="js/auth.js"></script>
-    <script src="js/user-sidebar.js"></script>
+    <script src="js/user-sidebar-v2.js"></script>
     <script src="js/mobile-menu.js"></script>
     <script src="js/system-balance-widget.js"></script>
     <script src="js/dashboard.js"></script>

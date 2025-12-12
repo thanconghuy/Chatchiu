@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DEBUG Sidebar - Width Test</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/user-sidebar.css">
+    <link rel="stylesheet" href="css/user-sidebar-force.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <style>
+        .debug-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #dc2626;
+            color: white;
+            padding: 8px;
+            text-align: center;
+            font-weight: bold;
+            z-index: 99999;
+            font-size: 14px;
+        }
+
+        .debug-info {
+            position: fixed;
+            top: 40px;
+            right: 20px;
+            background: white;
+            border: 3px solid #10b981;
+            border-radius: 8px;
+            padding: 15px;
+            z-index: 99998;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            font-family: monospace;
+            font-size: 13px;
+            min-width: 300px;
+        }
+
+        .debug-info h3 {
+            margin: 0 0 10px 0;
+            color: #10b981;
+            font-size: 16px;
+        }
+
+        .debug-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            padding: 5px;
+            background: #f3f4f6;
+            border-radius: 4px;
+        }
+
+        .debug-label {
+            font-weight: bold;
+            color: #374151;
+        }
+
+        .debug-value {
+            color: #7c3aed;
+            font-weight: bold;
+        }
+
+        .debug-value.success {
+            color: #10b981;
+        }
+
+        .debug-value.error {
+            color: #dc2626;
+        }
+
+        .main-content {
+            padding-top: 60px;
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-banner">
+        🐛 DEBUG MODE - Testing Sidebar Width = 250px
+    </div>
+
+    <div class="debug-info" id="debugInfo">
+        <h3>📊 Real-time Debug Info</h3>
+        <div class="debug-row">
+            <span class="debug-label">Sidebar Width:</span>
+            <span class="debug-value" id="sidebarWidth">-</span>
+        </div>
+        <div class="debug-row">
+            <span class="debug-label">Sidebar Classes:</span>
+            <span class="debug-value" id="sidebarClasses">-</span>
+        </div>
+        <div class="debug-row">
+            <span class="debug-label">CSS Variable:</span>
+            <span class="debug-value" id="cssVar">-</span>
+        </div>
+        <div class="debug-row">
+            <span class="debug-label">Computed Width:</span>
+            <span class="debug-value" id="computedWidth">-</span>
+        </div>
+        <div class="debug-row">
+            <span class="debug-label">Main Margin:</span>
+            <span class="debug-value" id="mainMargin">-</span>
+        </div>
+        <div class="debug-row">
+            <span class="debug-label">Screen Width:</span>
+            <span class="debug-value" id="screenWidth">-</span>
+        </div>
+        <div class="debug-row">
+            <span class="debug-label">Status:</span>
+            <span class="debug-value" id="status">⏳ Loading...</span>
+        </div>
+    </div>
+
+    <button class="mobile-menu-btn" id="mobileMenuToggle">
+        <i class="fa-solid fa-bars"></i>
+    </button>
+
+    <div class="app-container">
+        <!-- Sidebar will be loaded by user-sidebar-v2.js -->
+
+        <main class="main-content">
+            <div class="content-wrapper" style="padding: 30px;">
+                <h1>🔍 Sidebar Width Debug Page</h1>
+                <p>This page shows real-time debug information about the sidebar.</p>
+
+                <div style="background: white; padding: 20px; border-radius: 8px; margin-top: 20px;">
+                    <h2>Expected Values:</h2>
+                    <ul style="line-height: 2;">
+                        <li><strong>Sidebar Width:</strong> 250px</li>
+                        <li><strong>Sidebar Classes:</strong> sidebar user-sidebar</li>
+                        <li><strong>Main Content Margin:</strong> 250px (desktop) / 0px (mobile)</li>
+                    </ul>
+                </div>
+
+                <div style="background: white; padding: 20px; border-radius: 8px; margin-top: 20px;">
+                    <h2>Test Actions:</h2>
+                    <button onclick="location.reload()" style="padding: 10px 20px; margin: 5px; cursor: pointer;">
+                        🔄 Refresh Page
+                    </button>
+                    <button onclick="toggleDebug()" style="padding: 10px 20px; margin: 5px; cursor: pointer;">
+                        👁️ Toggle Debug Panel
+                    </button>
+                    <button onclick="copyDebugInfo()" style="padding: 10px 20px; margin: 5px; cursor: pointer;">
+                        📋 Copy Debug Info
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script>
+        // Mock user for testing
+        localStorage.setItem('cashback_user', JSON.stringify({
+            fullName: 'Debug User',
+            email: 'debug@test.com'
+        }));
+    </script>
+    <script src="js/user-sidebar-v2.js"></script>
+    <script>
+        function updateDebugInfo() {
+            const sidebar = document.getElementById('sidebar');
+            const main = document.querySelector('.main-content');
+
+            if (!sidebar) {
+                document.getElementById('status').textContent = '❌ Sidebar not found';
+                document.getElementById('status').className = 'debug-value error';
+                return;
+            }
+
+            // Get values
+            const width = sidebar.offsetWidth;
+            const classes = sidebar.className;
+            const cssVar = getComputedStyle(document.documentElement)
+                .getPropertyValue('--user-sidebar-width').trim();
+            const computedWidth = getComputedStyle(sidebar).width;
+            const mainMargin = main ? getComputedStyle(main).marginLeft : 'N/A';
+            const screenWidth = window.innerWidth;
+
+            // Update display
+            document.getElementById('sidebarWidth').textContent = width + 'px';
+            document.getElementById('sidebarClasses').textContent = classes;
+            document.getElementById('cssVar').textContent = cssVar;
+            document.getElementById('computedWidth').textContent = computedWidth;
+            document.getElementById('mainMargin').textContent = mainMargin;
+            document.getElementById('screenWidth').textContent = screenWidth + 'px';
+
+            // Check status
+            if (width === 250 && classes.includes('user-sidebar')) {
+                document.getElementById('status').textContent = '✅ PERFECT!';
+                document.getElementById('status').className = 'debug-value success';
+            } else {
+                document.getElementById('status').textContent = '❌ WIDTH ERROR!';
+                document.getElementById('status').className = 'debug-value error';
+            }
+        }
+
+        function toggleDebug() {
+            const panel = document.getElementById('debugInfo');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function copyDebugInfo() {
+            const sidebar = document.getElementById('sidebar');
+            const info = `
+Sidebar Debug Info:
+- Width: ${sidebar?.offsetWidth || 'N/A'}px
+- Classes: ${sidebar?.className || 'N/A'}
+- CSS Var: ${getComputedStyle(document.documentElement).getPropertyValue('--user-sidebar-width').trim()}
+- Computed: ${sidebar ? getComputedStyle(sidebar).width : 'N/A'}
+- Screen: ${window.innerWidth}px
+            `.trim();
+            navigator.clipboard.writeText(info);
+            alert('Debug info copied to clipboard!');
+        }
+
+        // Update every 100ms
+        setInterval(updateDebugInfo, 100);
+
+        // Initial update after sidebar loads
+        setTimeout(updateDebugInfo, 500);
+    </script>
+</body>
+</html>
