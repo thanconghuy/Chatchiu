@@ -113,21 +113,32 @@ body {
 
 .logo {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: var(--spacing-sm);
+    gap: 4px;
     margin-bottom: var(--spacing-md);
 }
 
-.logo-icon {
-    font-size: 1.8rem;
-    color: white;
+.sidebar .logo-text,
+aside.sidebar .logo-text {
+    font-size: 1.35rem !important;
+    font-weight: 800 !important;
+    background: linear-gradient(135deg, #ffffff 0%, #e0d5ff 100%) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
+    letter-spacing: -0.02em !important;
+    text-align: center !important;
 }
 
-.logo-text {
-    font-size: 1.3rem;
-    font-weight: 700;
-    color: white;
+.logo-subtitle {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.7);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-align: center;
 }
 
 /* Admin User Info in Sidebar */

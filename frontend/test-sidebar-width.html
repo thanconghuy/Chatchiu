@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Sidebar Width - 250px</title>
+    <link rel="stylesheet" href="css/user-sidebar.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        .test-banner {
+            position: fixed;
+            top: 0;
+            left: 250px;
+            right: 0;
+            background: #fbbf24;
+            color: #000;
+            padding: 10px 20px;
+            text-align: center;
+            font-weight: bold;
+            z-index: 10001;
+        }
+
+        .main-content {
+            margin-left: 250px;
+            padding: 60px 30px 30px;
+            min-height: 100vh;
+            background: #f3f4f6;
+        }
+
+        .test-card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .test-card h2 {
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+
+        .width-indicator {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .width-box {
+            flex: 1;
+            padding: 20px;
+            background: #e0e7ff;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .width-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .width-label {
+            color: #64748b;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-banner">
+        🧪 TEST MODE - Kiểm tra sidebar width = 250px
+    </div>
+
+    <div class="app-container">
+        <!-- Sidebar will be loaded by user-sidebar-v2.js -->
+
+        <main class="main-content">
+            <div class="test-card">
+                <h2>✅ Sidebar Width Test</h2>
+                <p>Trang này để test sidebar có đúng width 250px không.</p>
+
+                <div class="width-indicator">
+                    <div class="width-box">
+                        <div class="width-value" id="sidebarWidth">-</div>
+                        <div class="width-label">Sidebar Width (CSS)</div>
+                    </div>
+                    <div class="width-box">
+                        <div class="width-value" id="sidebarActualWidth">-</div>
+                        <div class="width-label">Sidebar Actual Width (DOM)</div>
+                    </div>
+                    <div class="width-box">
+                        <div class="width-value" id="mainContentMargin">-</div>
+                        <div class="width-label">Main Content Margin-Left</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="test-card">
+                <h2>📋 Checklist</h2>
+                <ul style="line-height: 2;">
+                    <li id="check1">❌ Sidebar CSS variable = 250px</li>
+                    <li id="check2">❌ Sidebar actual width = 250px</li>
+                    <li id="check3">❌ Main content margin-left = 250px</li>
+                    <li id="check4">❌ No balance widget visible</li>
+                </ul>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script>
+        // Mock user for testing
+        localStorage.setItem('cashback_user', JSON.stringify({
+            fullName: 'Test User',
+            email: 'test@example.com'
+        }));
+    </script>
+    <script src="js/user-sidebar-v2.js"></script>
+    <script>
+        // Wait for sidebar to load
+        setTimeout(() => {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.querySelector('.main-content');
+
+            if (sidebar && mainContent) {
+                // Get CSS variable
+                const cssWidth = getComputedStyle(document.documentElement)
+                    .getPropertyValue('--user-sidebar-width').trim();
+                document.getElementById('sidebarWidth').textContent = cssWidth;
+
+                // Get actual width
+                const actualWidth = sidebar.offsetWidth + 'px';
+                document.getElementById('sidebarActualWidth').textContent = actualWidth;
+
+                // Get main content margin
+                const margin = getComputedStyle(mainContent).marginLeft;
+                document.getElementById('mainContentMargin').textContent = margin;
+
+                // Check results
+                if (cssWidth === '250px') {
+                    document.getElementById('check1').innerHTML = '✅ Sidebar CSS variable = 250px';
+                }
+                if (actualWidth === '250px') {
+                    document.getElementById('check2').innerHTML = '✅ Sidebar actual width = 250px';
+                }
+                if (margin === '250px') {
+                    document.getElementById('check3').innerHTML = '✅ Main content margin-left = 250px';
+                }
+
+                // Check if balance widget exists
+                const balanceWidget = document.querySelector('.balance-widget');
+                if (!balanceWidget) {
+                    document.getElementById('check4').innerHTML = '✅ No balance widget visible';
+                }
+            }
+        }, 500);
+    </script>
+</body>
+</html>

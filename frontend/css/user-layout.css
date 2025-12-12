@@ -1,0 +1,132 @@
+/**
+ * USER LAYOUT - Master CSS File
+ * Single source of truth for ALL user pages
+ * Includes: Sidebar + Content layout for desktop, tablet, mobile
+ */
+
+/* ===== CSS VARIABLES ===== */
+:root {
+    --user-sidebar-width: 280px;        /* Increased for better content fit */
+    --user-primary-gradient: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+    --user-group-header-bg: rgba(109, 103, 201, 1);
+    --user-group-header-hover: rgba(28, 21, 133, 1);
+}
+
+/* ===== DESKTOP & TABLET: ≥769px ===== */
+@media (min-width: 769px) {
+    /* User Sidebar - Fixed 260px */
+    aside.user-sidebar {
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        width: var(--user-sidebar-width) !important;
+        z-index: 1000 !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+
+        /* Visual styles */
+        background: var(--user-primary-gradient) !important;
+        color: white !important;
+        padding: 20px 16px !important;  /* Reduced padding for more content space */
+        box-shadow: 0 0 30px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    /* User Main Content - NO OVERLAP */
+    main.user-main-content,
+    main.main-content {
+        margin-left: var(--user-sidebar-width) !important;
+        width: calc(100% - var(--user-sidebar-width)) !important;
+        min-height: 100vh !important;
+        box-sizing: border-box !important;
+        padding: 30px !important;   /* Uniform padding all sides */
+    }
+}
+
+/* ===== MOBILE: ≤768px ===== */
+@media (max-width: 768px) {
+    /* Hide sidebar off-screen */
+    aside.user-sidebar {
+        position: fixed !important;
+        left: -100% !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        width: 280px !important;
+        max-width: 85vw !important;
+        z-index: 10000 !important;
+        overflow-y: auto !important;
+        transition: left 0.3s ease !important;
+
+        /* Visual styles */
+        background: var(--user-primary-gradient) !important;
+        color: white !important;
+        padding: 20px 16px !important;
+        box-shadow: none !important;
+    }
+
+    /* Show sidebar when active */
+    aside.user-sidebar.show {
+        left: 0 !important;
+        box-shadow: 0 0 30px rgba(0, 0, 0, 0.5) !important;
+    }
+
+    /* Mobile overlay */
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 9999;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .sidebar-overlay.show {
+        display: block;
+        opacity: 1;
+    }
+
+    /* User Main Content - Full width on mobile */
+    main.user-main-content,
+    main.main-content {
+        margin-left: 0 !important;
+        width: 100% !important;
+        padding: 80px 20px 20px 20px !important;  /* Top padding for mobile menu button */
+    }
+
+    /* Mobile menu button */
+    .mobile-menu-btn {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+        top: 16px;
+        left: 16px;
+        z-index: 9998;
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: var(--user-primary-gradient);
+        border: none;
+        color: white;
+        font-size: 20px;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    /* Prevent body scroll when sidebar open */
+    body.sidebar-open {
+        overflow: hidden;
+    }
+}
+
+/* ===== DESKTOP: Hide mobile button ===== */
+@media (min-width: 769px) {
+    .mobile-menu-btn {
+        display: none !important;
+    }
+
+    .sidebar-overlay {
+        display: none !important;
+    }
+}
