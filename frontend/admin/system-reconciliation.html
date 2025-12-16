@@ -3398,7 +3398,7 @@
                                         <select class="draft-recon-select-month" data-month="${month}" style="flex: 1; padding: 8px; border: 2px solid rgba(255,255,255,0.3); border-radius: 6px; background: rgba(255,255,255,0.9); color: #333; font-size: 14px;">
                                             <option value="">-- Chọn kỳ đối soát nháp --</option>
                                         </select>
-                                        <button class="btn-success add-to-draft-btn" data-month="${month}" data-action="add-selected-to-draft" disabled>
+                                        <button class="btn-success add-to-draft-btn" data-month="${month}" data-action="add-selected-to-draft">
                                             <i class="fas fa-plus"></i> Thêm Vào Kỳ Đối Soát
                                         </button>
                                     </div>
@@ -3581,19 +3581,9 @@
 
         // Update button state for a specific month
         function updateAddToDraftButtonState(month) {
-            const btn = document.querySelector(`.add-to-draft-btn[data-month="${month}"]`);
-            const select = document.querySelector(`.draft-recon-select-month[data-month="${month}"]`);
-            const checkboxes = document.querySelectorAll(`input[type="checkbox"][data-month="${month}"].order-checkbox:checked`);
-
-            console.log('Updating button state for month:', month);
-            console.log('Button found:', !!btn);
-            console.log('Select found:', !!select, 'Select value:', select?.value);
-            console.log('Checked checkboxes:', checkboxes.length);
-
-            if (btn && select) {
-                btn.disabled = !select.value || checkboxes.length === 0;
-                console.log('Button disabled:', btn.disabled);
-            }
+            // Button is always enabled - validation happens when clicking
+            // This function is kept for future enhancements if needed
+            console.log('Button state check for month:', month);
         }
 
         // Add selected orders to draft reconciliation
