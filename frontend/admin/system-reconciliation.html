@@ -876,6 +876,10 @@
             color: #3b82f6;
         }
 
+        .action-dropdown-item.action-add-orders {
+            color: #8b5cf6;
+        }
+
         .action-dropdown-item.action-finalize {
             color: #10b981;
         }
@@ -890,6 +894,10 @@
 
         .action-dropdown-item.action-view:hover {
             background: #eff6ff;
+        }
+
+        .action-dropdown-item.action-add-orders:hover {
+            background: #f5f3ff;
         }
 
         .action-dropdown-item.action-finalize:hover {
@@ -1141,6 +1149,22 @@
                     </p>
                 </div>
                 <div class="card-body" style="padding: 20px;">
+                    <!-- Month Filter -->
+                    <div style="margin-bottom: 20px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                        <label style="font-weight: 600; color: #2c3e50;">
+                            <i class="fas fa-filter"></i> Lọc theo tháng:
+                        </label>
+                        <select id="newOrdersMonthFilter" style="padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px; min-width: 200px;">
+                            <option value="">Tất cả</option>
+                        </select>
+                        <button id="btnRefreshNewOrders" class="btn-secondary" style="padding: 8px 16px;">
+                            <i class="fas fa-sync"></i> Làm mới
+                        </button>
+                        <div id="newOrdersSummary" style="margin-left: auto; font-weight: 600; color: #667eea;">
+                            <!-- Summary will be inserted here -->
+                        </div>
+                    </div>
+
                     <div id="newOrdersPreview">
                         <div class="loading" style="text-align: center; padding: 40px; color: #666;">
                             <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
@@ -1414,6 +1438,40 @@
             // Batch actions
             document.getElementById('batchFinalizeBtn').addEventListener('click', batchFinalize);
             document.getElementById('clearSelectionBtn').addEventListener('click', clearSelection);
+
+            // Auto-Sync event listeners
+            const newOrdersMonthFilter = document.getElementById('newOrdersMonthFilter');
+            if (newOrdersMonthFilter) {
+                newOrdersMonthFilter.addEventListener('change', (e) => {
+                    loadNewOrdersPreview(e.target.value);
+                });
+            }
+
+            const btnRefreshNewOrders = document.getElementById('btnRefreshNewOrders');
+            if (btnRefreshNewOrders) {
+                btnRefreshNewOrders.addEventListener('click', () => {
+                    loadNewOrdersPreview(selectedMonth);
+                });
+            }
+
+            const btnAddToWaiting = document.getElementById('btnAddToWaiting');
+            if (btnAddToWaiting) {
+                btnAddToWaiting.addEventListener('click', addToWaitingList);
+            }
+
+            const waitingListMonthFilter = document.getElementById('waitingListMonthFilter');
+            if (waitingListMonthFilter) {
+                waitingListMonthFilter.addEventListener('change', (e) => {
+                    loadWaitingList(e.target.value);
+                });
+            }
+
+            const btnRefreshWaiting = document.getElementById('btnRefreshWaiting');
+            if (btnRefreshWaiting) {
+                btnRefreshWaiting.addEventListener('click', () => {
+                    loadWaitingList();
+                });
+            }
         }
 
         // Debounce helper
@@ -1724,6 +1782,10 @@
                                         <span>Xem Chi Tiết</span>
                                     </button>
                                     ${recon.status === 'draft' ? `
+                                        <button class="action-dropdown-item action-add-orders" data-action="add-orders" data-id="${recon.id}" data-label="${escapeHtml(recon.period_label)}">
+                                            <i class="fas fa-plus-circle"></i>
+                                            <span>Thêm Đơn Hàng</span>
+                                        </button>
                                         <button class="action-dropdown-item action-finalize" data-action="finalize" data-id="${recon.id}">
                                             <i class="fas fa-check-circle"></i>
                                             <span>Duyệt Đối Soát</span>
@@ -2210,10 +2272,12 @@
                     <thead>
                         <tr>
                             <th style="width: 40px;">
-                                <input type="checkbox" id="selectAllOrders" onchange="toggleSelectAll(this)"
+                                <input type="checkbox" id="selectAllEligibleOrders"
+                                       data-action="toggle-select-all-eligible"
                                        style="width: 18px; height: 18px; cursor: pointer;">
                             </th>
                             <th>Người dùng</th>
+                            <th>Aff Sid</th>
                             <th>Nhà bán hàng</th>
                             <th>Mã đơn</th>
                             <th>Giá trị đơn</th>
@@ -2228,16 +2292,21 @@
                         ${orders.map(order => `
                             <tr>
                                 <td style="text-align: center;">
-                                    <input type="checkbox" class="order-checkbox"
+                                    <input type="checkbox" class="order-checkbox eligible-order-checkbox"
                                            value="${order.id}"
                                            data-cashback="${order.cashback}"
-                                           onchange="updateSelection()"
+                                           data-action="toggle-eligible-order"
                                            ${order.is_reconciled ? 'disabled title="Đã đối soát"' : ''}
                                            style="width: 18px; height: 18px; cursor: ${order.is_reconciled ? 'not-allowed' : 'pointer'};">
                                 </td>
                                 <td>
                                     <strong>${escapeHtml(order.user_name || order.user_email)}</strong><br>
                                     <small style="color: #64748b;">${escapeHtml(order.user_email)}</small>
+                                </td>
+                                <td>
+                                    <code style="background: #fef3c7; padding: 4px 8px; border-radius: 4px; font-size: 0.875rem; color: #92400e;">
+                                        ${escapeHtml(order.aff_sid || 'N/A')}
+                                    </code>
                                 </td>
                                 <td>${escapeHtml(order.merchant_name)}</td>
                                 <td>
@@ -2278,8 +2347,8 @@
         }
 
         // Selection management functions
-        function toggleSelectAll(checkbox) {
-            const checkboxes = document.querySelectorAll('.order-checkbox:not([disabled])');
+        function toggleSelectAllEligible(checkbox) {
+            const checkboxes = document.querySelectorAll('.eligible-order-checkbox:not([disabled])');
             checkboxes.forEach(cb => {
                 cb.checked = checkbox.checked;
             });
@@ -2490,29 +2559,45 @@
         let orderSearchTimeout = null;
 
         async function openAddOrdersModal(reconId, periodLabel) {
-            currentAddOrdersReconId = reconId;
-            currentAddOrdersPage = 1;
-            selectedOrderIds.clear();
+            console.log('[Add Orders] Opening modal for recon:', reconId, 'Label:', periodLabel);
 
-            document.getElementById('addOrdersModalTitle').textContent = `Thêm Đơn Hàng - ${periodLabel}`;
-            document.getElementById('addOrdersModal').style.display = 'flex';
+            try {
+                currentAddOrdersReconId = reconId;
+                currentAddOrdersPage = 1;
+                selectedOrderIds.clear();
 
-            // Hide status message
-            const statusEl = document.getElementById('addOrdersStatusMessage');
-            if (statusEl) statusEl.style.display = 'none';
+                const modalTitle = document.getElementById('addOrdersModalTitle');
+                const modal = document.getElementById('addOrdersModal');
 
-            // Setup search handler
-            const searchInput = document.getElementById('orderSearchInput');
-            searchInput.value = '';
-            searchInput.oninput = () => {
-                clearTimeout(orderSearchTimeout);
-                orderSearchTimeout = setTimeout(() => {
-                    currentAddOrdersPage = 1;
-                    loadAvailableOrders();
-                }, 500);
-            };
+                if (!modalTitle || !modal) {
+                    console.error('[Add Orders] Modal elements not found!', { modalTitle, modal });
+                    alert('Lỗi: Không tìm thấy modal element');
+                    return;
+                }
 
-            await loadAvailableOrders();
+                modalTitle.textContent = `Thêm Đơn Hàng - ${periodLabel}`;
+                modal.style.display = 'flex';
+
+                console.log('[Add Orders] Modal opened successfully');
+
+                // Hide status message
+                const statusEl = document.getElementById('addOrdersStatusMessage');
+                if (statusEl) statusEl.style.display = 'none';
+
+                // Setup search handler using event delegation (already handled globally)
+                const searchInput = document.getElementById('orderSearchInput');
+                if (searchInput) {
+                    searchInput.value = '';
+                    // Event handler added via addEventListener below (CSP-compliant)
+                }
+
+                // Load orders
+                await loadAvailableOrders();
+
+            } catch (error) {
+                console.error('[Add Orders] Error opening modal:', error);
+                alert('Lỗi mở modal: ' + error.message);
+            }
         }
 
         function closeAddOrdersModal() {
@@ -2576,29 +2661,54 @@
                             <th style="width: 50px;">
                                 <input
                                     type="checkbox"
-                                    id="selectAllOrders"
+                                    id="selectAllAvailableOrders"
                                     class="order-checkbox"
-                                    onchange="toggleSelectAll(this)"
+                                    data-action="toggle-select-all-available"
                                 >
                             </th>
                             <th>Người dùng</th>
                             <th>Order ID</th>
                             <th>Ngày đặt hàng</th>
                             <th>Thời gian duyệt</th>
-                            <th>Giá trị đơn</th>
+                            <th>Trạng thái</th>
                             <th>Cashback</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${orders.map(order => `
-                            <tr>
+                        ${orders.map(order => {
+                            // Real order status from database (system_conversions.status)
+                            let statusBadge = '';
+                            const status = order.status || 'pending';
+
+                            switch(status.toLowerCase()) {
+                                case 'approved':
+                                    statusBadge = '<span class="badge badge-success">✓ Đã duyệt</span>';
+                                    break;
+                                case 'pending':
+                                    statusBadge = '<span class="badge badge-warning">⏳ Chờ duyệt</span>';
+                                    break;
+                                case 'rejected':
+                                    statusBadge = '<span class="badge badge-danger">✗ Từ chối</span>';
+                                    break;
+                                default:
+                                    statusBadge = `<span class="badge badge-secondary">${escapeHtml(status)}</span>`;
+                            }
+
+                            // Check if order is already in ANY reconciliation
+                            const isInReconciliation = order.is_in_reconciliation || false;
+                            const isDisabled = isInReconciliation;
+
+                            return `
+                            <tr ${isDisabled ? 'style="opacity: 0.5; background: #f9fafb;"' : ''}>
                                 <td>
                                     <input
                                         type="checkbox"
                                         class="order-checkbox order-item-checkbox"
                                         value="${order.conversion_id}"
+                                        data-action="toggle-order-selection"
+                                        data-order-id="${order.conversion_id}"
                                         ${selectedOrderIds.has(order.conversion_id) ? 'checked' : ''}
-                                        onchange="toggleOrderSelection('${order.conversion_id}')"
+                                        ${isDisabled ? 'disabled title="Đã tồn tại trong kỳ đối soát khác"' : ''}
                                     >
                                 </td>
                                 <td>
@@ -2614,10 +2724,14 @@
                                 <td>
                                     <div style="font-size: 0.875rem;">${formatDateTime(order.confirmed_time)}</div>
                                 </td>
-                                <td>${formatMoney(order.order_value)}</td>
+                                <td>
+                                    ${statusBadge}
+                                    ${isInReconciliation ? '<div style="margin-top: 4px;"><small style="color: #f59e0b;">⚠️ Đã trong kỳ DS khác</small></div>' : ''}
+                                </td>
                                 <td style="color: #10b981; font-weight: 600;">${formatMoney(order.cashback_amount)}</td>
                             </tr>
-                        `).join('')}
+                            `;
+                        }).join('')}
                     </tbody>
                 </table>
             `;
@@ -2631,8 +2745,9 @@
             updateAddOrdersButton();
         }
 
-        function toggleSelectAll(checkbox) {
-            const checkboxes = document.querySelectorAll('.order-item-checkbox');
+        function toggleSelectAllAvailable(checkbox) {
+            // Only select/deselect enabled checkboxes (not disabled ones)
+            const checkboxes = document.querySelectorAll('.order-item-checkbox:not([disabled])');
             checkboxes.forEach(cb => {
                 cb.checked = checkbox.checked;
                 const orderId = cb.value;
@@ -2760,10 +2875,18 @@
                 btn.classList.remove('active');
             });
 
-            // Show selected tab
-            const selectedTab = document.getElementById(`${tabName}Tab`);
+            // Convert kebab-case to camelCase for tab ID
+            // auto-sync -> autoSync, then add Tab -> autoSyncTab
+            const tabId = tabName.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+            const selectedTab = document.getElementById(`${tabId}Tab`);
+
+            console.log(`[Tab Switch] Switching to: ${tabName}, looking for ID: ${tabId}Tab`);
+            console.log(`[Tab Switch] Found element:`, selectedTab);
+
             if (selectedTab) {
                 selectedTab.style.display = 'block';
+            } else {
+                console.error(`[Tab Switch] Tab element not found: ${tabId}Tab`);
             }
 
             // Add active class to clicked button
@@ -2789,9 +2912,22 @@
             await loadWaitingList();
         }
 
-        async function loadNewOrdersPreview() {
+        // Store orders data globally for filtering
+        let allEligibleOrders = [];
+        let selectedMonth = '';
+
+        async function loadNewOrdersPreview(monthFilter = '') {
             const container = document.getElementById('newOrdersPreview');
             const addBtn = document.getElementById('btnAddToWaiting');
+            const monthSelect = document.getElementById('newOrdersMonthFilter');
+            const summaryDiv = document.getElementById('newOrdersSummary');
+
+            console.log('[Auto-Sync] Loading new orders preview...', 'Month filter:', monthFilter);
+
+            if (!container) {
+                console.error('[Auto-Sync] Container #newOrdersPreview not found!');
+                return;
+            }
 
             try {
                 const response = await fetch(
@@ -2803,12 +2939,59 @@
                     }
                 );
 
+                // Check if response is OK
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText || 'Server error'}`);
+                }
+
                 const result = await response.json();
 
-                if (result.success && result.data) {
-                    const { summary, byMonth } = result.data;
+                console.log('[Auto-Sync] API Response:', result);
 
-                    if (summary.total_count === 0) {
+                if (result.success && result.data) {
+                    const { summary, byMonth, orders } = result.data;
+
+                    // Store orders for filtering
+                    allEligibleOrders = orders || [];
+                    selectedMonth = monthFilter;
+
+                    console.log('[Auto-Sync] Total orders:', allEligibleOrders.length);
+
+                    // Update month filter options
+                    if (byMonth && byMonth.length > 0) {
+                        monthSelect.innerHTML = '<option value="">Tất cả</option>';
+                        byMonth.forEach(m => {
+                            monthSelect.innerHTML += `
+                                <option value="${m.approval_month}" ${monthFilter === m.approval_month ? 'selected' : ''}>
+                                    ${m.period_label} (${m.order_count} đơn)
+                                </option>
+                            `;
+                        });
+                    }
+
+                    // Filter orders by month
+                    let filteredOrders = allEligibleOrders;
+                    if (monthFilter) {
+                        filteredOrders = allEligibleOrders.filter(order => {
+                            const orderMonth = new Date(order.approval_month).toISOString().split('T')[0];
+                            return orderMonth === monthFilter;
+                        });
+                    }
+
+                    // Update summary
+                    const totalCashback = filteredOrders.reduce((sum, o) => sum + parseFloat(o.cashback_amount || 0), 0);
+                    summaryDiv.innerHTML = `
+                        <span style="font-size: 16px;">
+                            <i class="fas fa-box"></i> ${filteredOrders.length} đơn hàng
+                            <span style="margin-left: 16px; color: #10b981;">
+                                <i class="fas fa-coins"></i> ${formatCurrency(totalCashback)}
+                            </span>
+                        </span>
+                    `;
+
+                    if (filteredOrders.length === 0) {
+                        console.log('[Auto-Sync] No eligible orders found');
                         container.innerHTML = `
                             <div style="text-align: center; padding: 40px; color: #666;">
                                 <i class="fas fa-check-circle" style="font-size: 48px; color: #10b981;"></i>
@@ -2820,68 +3003,145 @@
                         `;
                         addBtn.disabled = true;
                     } else {
-                        let html = `
-                            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
-                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; text-align: center;">
-                                    <div>
-                                        <div style="font-size: 14px; color: #666; margin-bottom: 8px;">Tổng đơn hàng</div>
-                                        <div style="font-size: 28px; font-weight: 700; color: #10b981;">${summary.total_count}</div>
-                                    </div>
-                                    <div>
-                                        <div style="font-size: 14px; color: #666; margin-bottom: 8px;">Tổng cashback</div>
-                                        <div style="font-size: 28px; font-weight: 700; color: #10b981;">${formatCurrency(summary.total_cashback)}</div>
-                                    </div>
-                                    <div>
-                                        <div style="font-size: 14px; color: #666; margin-bottom: 8px;">Số tháng</div>
-                                        <div style="font-size: 28px; font-weight: 700; color: #667eea;">${summary.month_count}</div>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-
-                        // Show by month breakdown
-                        byMonth.forEach(month => {
-                            html += `
-                                <div style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                                        <div>
-                                            <strong style="font-size: 16px; color: #2c3e50;">
-                                                <i class="fas fa-calendar"></i> ${month.period_label}
-                                            </strong>
-                                            <span style="margin-left: 16px; color: #666;">
-                                                ${month.order_count} đơn hàng
-                                            </span>
-                                        </div>
-                                        <div style="font-size: 18px; font-weight: 600; color: #10b981;">
-                                            ${formatCurrency(month.total_cashback)}
-                                        </div>
-                                    </div>
-                                </div>
-                            `;
-                        });
-
-                        container.innerHTML = html;
+                        // Render data table
+                        renderOrdersTable(filteredOrders);
                         addBtn.disabled = false;
                     }
                 } else {
+                    // API returned success: false
                     container.innerHTML = `
-                        <div style="text-align: center; padding: 40px; color: #999;">
-                            <i class="fas fa-exclamation-circle" style="font-size: 48px;"></i>
-                            <p style="margin-top: 16px;">${result.message || 'Không thể tải dữ liệu'}</p>
+                        <div style="text-align: center; padding: 40px; color: #f59e0b;">
+                            <i class="fas fa-exclamation-triangle" style="font-size: 48px;"></i>
+                            <p style="margin-top: 16px; font-size: 16px; font-weight: 600;">Không thể tải dữ liệu</p>
+                            <p style="font-size: 14px; color: #666; margin-top: 8px;">${result.message || 'Vui lòng thử lại sau'}</p>
                         </div>
                     `;
                     addBtn.disabled = true;
                 }
             } catch (error) {
                 console.error('Error loading preview:', error);
+
+                // Display detailed error message
+                let errorMsg = 'Đã xảy ra lỗi không xác định';
+                if (error.message) {
+                    if (error.message.includes('function') && error.message.includes('does not exist')) {
+                        errorMsg = 'Lỗi cơ sở dữ liệu: Chưa chạy migration cho Auto-Sync';
+                    } else if (error.message.includes('HTTP 500')) {
+                        errorMsg = 'Lỗi server: Vui lòng kiểm tra console backend';
+                    } else if (error.message.includes('HTTP 401') || error.message.includes('HTTP 403')) {
+                        errorMsg = 'Lỗi xác thực: Vui lòng đăng nhập lại';
+                    } else {
+                        errorMsg = error.message;
+                    }
+                }
+
                 container.innerHTML = `
-                    <div style="text-align: center; padding: 40px; color: #ef4444;">
-                        <i class="fas fa-times-circle" style="font-size: 48px;"></i>
-                        <p style="margin-top: 16px;">Lỗi: ${error.message}</p>
+                    <div style="background: #fee2e2; border: 1px solid #fca5a5; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                        <div style="text-align: center; color: #dc2626;">
+                            <i class="fas fa-times-circle" style="font-size: 48px;"></i>
+                            <p style="margin-top: 16px; font-size: 16px; font-weight: 600;">Lỗi khi tải dữ liệu</p>
+                            <p style="font-size: 14px; margin-top: 8px; font-family: monospace; background: white; padding: 12px; border-radius: 4px; text-align: left;">
+                                ${errorMsg}
+                            </p>
+                            <button data-action="retry-load-new-orders" style="margin-top: 16px; padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                                <i class="fas fa-sync"></i> Thử lại
+                            </button>
+                        </div>
                     </div>
                 `;
                 addBtn.disabled = true;
             }
+        }
+
+        /**
+         * Render orders data table
+         */
+        function renderOrdersTable(orders) {
+            const container = document.getElementById('newOrdersPreview');
+
+            if (!orders || orders.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #999;">Không có dữ liệu</p>';
+                return;
+            }
+
+            let html = `
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                        <thead>
+                            <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                                <th style="padding: 12px 8px; text-align: center; border: 1px solid #ddd;">#</th>
+                                <th style="padding: 12px 8px; text-align: left; border: 1px solid #ddd;">Ngày duyệt</th>
+                                <th style="padding: 12px 8px; text-align: left; border: 1px solid #ddd;">User</th>
+                                <th style="padding: 12px 8px; text-align: left; border: 1px solid #ddd;">Merchant</th>
+                                <th style="padding: 12px 8px; text-align: left; border: 1px solid #ddd;">Mã đơn</th>
+                                <th style="padding: 12px 8px; text-align: right; border: 1px solid #ddd;">Số tiền đơn</th>
+                                <th style="padding: 12px 8px; text-align: right; border: 1px solid #ddd;">Cashback</th>
+                                <th style="padding: 12px 8px; text-align: center; border: 1px solid #ddd;">Ngày đủ ĐK</th>
+                                <th style="padding: 12px 8px; text-align: center; border: 1px solid #ddd;">Số ngày</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            orders.forEach((order, index) => {
+                const approvalDate = formatDateVN(order.approval_time);
+                const eligibleDate = formatDateVN(order.eligible_date);
+                const userDisplay = order.user_full_name || order.user_email || 'N/A';
+
+                html += `
+                    <tr style="background: ${index % 2 === 0 ? '#f9fafb' : 'white'}; border-bottom: 1px solid #e5e7eb;">
+                        <td style="padding: 10px 8px; text-align: center; border: 1px solid #e5e7eb;">${index + 1}</td>
+                        <td style="padding: 10px 8px; border: 1px solid #e5e7eb;">
+                            <span style="white-space: nowrap;">${approvalDate}</span>
+                        </td>
+                        <td style="padding: 10px 8px; border: 1px solid #e5e7eb;">
+                            <div style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${userDisplay}">
+                                ${userDisplay}
+                            </div>
+                        </td>
+                        <td style="padding: 10px 8px; border: 1px solid #e5e7eb;">
+                            <span style="font-weight: 600; color: #667eea;">${order.merchant_name || 'N/A'}</span>
+                        </td>
+                        <td style="padding: 10px 8px; border: 1px solid #e5e7eb; font-family: monospace;">
+                            ${order.order_code || 'N/A'}
+                        </td>
+                        <td style="padding: 10px 8px; text-align: right; border: 1px solid #e5e7eb;">
+                            ${formatCurrency(order.order_amount || 0)}
+                        </td>
+                        <td style="padding: 10px 8px; text-align: right; border: 1px solid #e5e7eb;">
+                            <span style="font-weight: 700; color: #10b981;">${formatCurrency(order.cashback_amount || 0)}</span>
+                        </td>
+                        <td style="padding: 10px 8px; text-align: center; border: 1px solid #e5e7eb;">
+                            <span style="white-space: nowrap;">${eligibleDate}</span>
+                        </td>
+                        <td style="padding: 10px 8px; text-align: center; border: 1px solid #e5e7eb;">
+                            <span style="background: #dbeafe; color: #1e40af; padding: 4px 8px; border-radius: 4px; font-weight: 600;">
+                                ${order.days_since_approval || 0} ngày
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        /**
+         * Format date to Vietnamese format DD/MM/YYYY
+         */
+        function formatDateVN(dateStr) {
+            if (!dateStr) return 'N/A';
+            const date = new Date(dateStr);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
         }
 
         async function addToWaitingList() {
@@ -2910,15 +3170,27 @@
 
                 if (result.success) {
                     showToast(`Đã thêm ${result.data.added_count} đơn hàng vào danh sách chờ`, 'success');
+
+                    // Reload data - these functions may disable/enable the button
                     await loadNewOrdersPreview();
                     await loadWaitingList();
+
+                    // Restore button text after reload
+                    // loadNewOrdersPreview() handles disabled state, but not text
+                    const currentBtn = document.getElementById('btnAddToWaiting');
+                    if (currentBtn) {
+                        currentBtn.innerHTML = originalText;
+                    }
                 } else {
                     showToast(result.message || 'Có lỗi xảy ra', 'error');
+                    // Only restore button on error
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
                 }
             } catch (error) {
                 console.error('Error adding to waiting list:', error);
                 showToast(`Lỗi: ${error.message}`, 'error');
-            } finally {
+                // Restore button on error
                 btn.innerHTML = originalText;
                 btn.disabled = false;
             }
@@ -2938,6 +3210,12 @@
                         'Authorization': `Bearer ${token}`
                     }
                 });
+
+                // Check if response is OK
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText || 'Server error'}`);
+                }
 
                 const result = await response.json();
 
@@ -2982,24 +3260,39 @@
                         const periodLabel = orders[0].period_label;
 
                         html += `
-                            <div class="month-group">
-                                <div class="month-group-header">
-                                    <div>
-                                        <h3 style="margin: 0; font-size: 18px;">
-                                            <i class="fas fa-calendar"></i> ${periodLabel}
-                                        </h3>
-                                        <p style="margin: 4px 0 0 0; opacity: 0.9; font-size: 14px;">
-                                            ${orders.length} đơn hàng • ${formatCurrency(totalCashback)}
-                                        </p>
+                            <div class="month-group" data-month="${month}">
+                                <div class="month-group-header" style="flex-direction: column; align-items: stretch;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                        <div>
+                                            <h3 style="margin: 0; font-size: 18px;">
+                                                <i class="fas fa-calendar"></i> ${periodLabel}
+                                            </h3>
+                                            <p style="margin: 4px 0 0 0; opacity: 0.9; font-size: 14px;">
+                                                ${orders.length} đơn hàng • ${formatCurrency(totalCashback)}
+                                            </p>
+                                        </div>
+                                        <button class="btn-success" data-action="create-reconciliation-from-waiting" data-month="${month}" data-period="${periodLabel}">
+                                            <i class="fas fa-check"></i> Tạo Kỳ Đối Soát
+                                        </button>
                                     </div>
-                                    <button class="btn-success" data-action="create-reconciliation-from-waiting" data-month="${month}" data-period="${periodLabel}">
-                                        <i class="fas fa-check"></i> Tạo Kỳ Đối Soát
-                                    </button>
+                                    <div style="display: flex; gap: 8px; align-items: center; background: rgba(255,255,255,0.1); padding: 12px; border-radius: 6px;">
+                                        <label style="display: flex; align-items: center; gap: 6px; margin: 0; cursor: pointer; white-space: nowrap;">
+                                            <input type="checkbox" class="select-all-month-orders" data-month="${month}" style="width: 18px; height: 18px; cursor: pointer;">
+                                            <span style="font-weight: 600;">Chọn tất cả</span>
+                                        </label>
+                                        <select class="draft-recon-select-month" data-month="${month}" style="flex: 1; padding: 8px; border: 2px solid rgba(255,255,255,0.3); border-radius: 6px; background: rgba(255,255,255,0.9); color: #333; font-size: 14px;">
+                                            <option value="">-- Chọn kỳ đối soát nháp --</option>
+                                        </select>
+                                        <button class="btn-success add-to-draft-btn" data-month="${month}" data-action="add-selected-to-draft" disabled>
+                                            <i class="fas fa-plus"></i> Thêm Vào Kỳ Đối Soát
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="month-group-body">
                                     <table class="order-table">
                                         <thead>
                                             <tr>
+                                                <th style="width: 40px;"></th>
                                                 <th>Mã đơn</th>
                                                 <th>Merchant</th>
                                                 <th>User</th>
@@ -3015,6 +3308,9 @@
                         orders.forEach(order => {
                             html += `
                                 <tr>
+                                    <td style="text-align: center;">
+                                        <input type="checkbox" class="order-checkbox" value="${order.id}" data-conversion-id="${order.conversion_id}" data-month="${month}" style="width: 18px; height: 18px; cursor: pointer;">
+                                    </td>
                                     <td><strong>${order.order_code || 'N/A'}</strong></td>
                                     <td>${order.merchant_name || 'N/A'}</td>
                                     <td>${order.username || order.user_email || 'N/A'}</td>
@@ -3039,29 +3335,274 @@
                     });
 
                     container.innerHTML = html;
+
+                    // Load draft reconciliations into all dropdowns
+                    await loadDraftReconciliationsIntoSelects();
+
+                    // Setup event listeners for this month group
+                    setupMonthGroupEventListeners();
                 } else {
+                    // API returned success: false
                     container.innerHTML = `
-                        <div style="text-align: center; padding: 40px; color: #ef4444;">
-                            <p>${result.message || 'Không thể tải dữ liệu'}</p>
+                        <div style="text-align: center; padding: 40px; color: #f59e0b;">
+                            <i class="fas fa-exclamation-triangle" style="font-size: 48px;"></i>
+                            <p style="margin-top: 16px; font-size: 16px; font-weight: 600;">Không thể tải danh sách chờ</p>
+                            <p style="font-size: 14px; color: #666; margin-top: 8px;">${result.message || 'Vui lòng thử lại sau'}</p>
                         </div>
                     `;
                 }
             } catch (error) {
                 console.error('Error loading waiting list:', error);
+
+                // Display detailed error message
+                let errorMsg = 'Đã xảy ra lỗi không xác định';
+                if (error.message) {
+                    if (error.message.includes('function') && error.message.includes('does not exist')) {
+                        errorMsg = 'Lỗi cơ sở dữ liệu: Chưa chạy migration cho Auto-Sync';
+                    } else if (error.message.includes('HTTP 500')) {
+                        errorMsg = 'Lỗi server: Vui lòng kiểm tra console backend';
+                    } else if (error.message.includes('HTTP 401') || error.message.includes('HTTP 403')) {
+                        errorMsg = 'Lỗi xác thực: Vui lòng đăng nhập lại';
+                    } else {
+                        errorMsg = error.message;
+                    }
+                }
+
                 container.innerHTML = `
-                    <div style="text-align: center; padding: 40px; color: #ef4444;">
-                        <p>Lỗi: ${error.message}</p>
+                    <div style="background: #fee2e2; border: 1px solid #fca5a5; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                        <div style="text-align: center; color: #dc2626;">
+                            <i class="fas fa-times-circle" style="font-size: 48px;"></i>
+                            <p style="margin-top: 16px; font-size: 16px; font-weight: 600;">Lỗi khi tải danh sách chờ</p>
+                            <p style="font-size: 14px; margin-top: 8px; font-family: monospace; background: white; padding: 12px; border-radius: 4px; text-align: left;">
+                                ${errorMsg}
+                            </p>
+                            <button data-action="retry-load-waiting-list" style="margin-top: 16px; padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                                <i class="fas fa-sync"></i> Thử lại
+                            </button>
+                        </div>
                     </div>
                 `;
             }
         }
 
-        async function createReconciliationFromWaiting(month, periodLabel) {
-            if (!confirm(`Tạo kỳ đối soát "${periodLabel}"?\n\nTất cả đơn hàng trong tháng này sẽ được chuyển vào kỳ đối soát mới.`)) {
+        // Load draft reconciliations into all month group dropdowns
+        async function loadDraftReconciliationsIntoSelects() {
+            try {
+                const response = await fetch(
+                    `${CONFIG.API_BASE_URL}/admin/system-reconciliation?status=draft&limit=50`,
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    }
+                );
+
+                const result = await response.json();
+
+                if (result.success && result.data && result.data.reconciliations) {
+                    const drafts = result.data.reconciliations;
+                    const selects = document.querySelectorAll('.draft-recon-select-month');
+
+                    selects.forEach(select => {
+                        select.innerHTML = '<option value="">-- Chọn kỳ đối soát nháp --</option>';
+
+                        if (drafts.length === 0) {
+                            select.innerHTML += '<option value="" disabled>Không có kỳ nháp nào</option>';
+                        } else {
+                            drafts.forEach(draft => {
+                                select.innerHTML += `
+                                    <option value="${draft.id}">
+                                        ${draft.period_label} (${draft.total_orders} đơn, ${formatCurrency(draft.total_cashback)})
+                                    </option>
+                                `;
+                            });
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading draft reconciliations:', error);
+            }
+        }
+
+        // Setup event listeners for month group controls
+        function setupMonthGroupEventListeners() {
+            // Handle "Select All" checkbox for each month
+            document.querySelectorAll('.select-all-month-orders').forEach(checkbox => {
+                checkbox.addEventListener('change', (e) => {
+                    const month = e.target.dataset.month;
+                    console.log('Select All clicked for month:', month);
+                    // Use attribute selector instead of class name
+                    const monthCheckboxes = document.querySelectorAll(`input[type="checkbox"][data-month="${month}"].order-checkbox`);
+                    console.log('Found individual checkboxes:', monthCheckboxes.length);
+                    monthCheckboxes.forEach(cb => cb.checked = e.target.checked);
+                    updateAddToDraftButtonState(month);
+                });
+            });
+
+            // Handle individual order checkboxes
+            document.querySelectorAll('.order-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', (e) => {
+                    const month = e.target.dataset.month;
+                    updateAddToDraftButtonState(month);
+
+                    // Update "Select All" state
+                    const allCheckboxes = document.querySelectorAll(`input[type="checkbox"][data-month="${month}"].order-checkbox`);
+                    const checkedCheckboxes = document.querySelectorAll(`input[type="checkbox"][data-month="${month}"].order-checkbox:checked`);
+                    const selectAllCheckbox = document.querySelector(`.select-all-month-orders[data-month="${month}"]`);
+                    if (selectAllCheckbox) {
+                        selectAllCheckbox.checked = allCheckboxes.length === checkedCheckboxes.length && allCheckboxes.length > 0;
+                    }
+                });
+            });
+
+            // Handle dropdown change
+            document.querySelectorAll('.draft-recon-select-month').forEach(select => {
+                select.addEventListener('change', (e) => {
+                    const month = e.target.dataset.month;
+                    updateAddToDraftButtonState(month);
+                });
+            });
+        }
+
+        // Update button state for a specific month
+        function updateAddToDraftButtonState(month) {
+            const btn = document.querySelector(`.add-to-draft-btn[data-month="${month}"]`);
+            const select = document.querySelector(`.draft-recon-select-month[data-month="${month}"]`);
+            const checkboxes = document.querySelectorAll(`input[type="checkbox"][data-month="${month}"].order-checkbox:checked`);
+
+            console.log('Updating button state for month:', month);
+            console.log('Button found:', !!btn);
+            console.log('Select found:', !!select, 'Select value:', select?.value);
+            console.log('Checked checkboxes:', checkboxes.length);
+
+            if (btn && select) {
+                btn.disabled = !select.value || checkboxes.length === 0;
+                console.log('Button disabled:', btn.disabled);
+            }
+        }
+
+        // Add selected orders to draft reconciliation
+        async function addSelectedOrdersToDraft(month) {
+            const btn = document.querySelector(`.add-to-draft-btn[data-month="${month}"]`);
+            const select = document.querySelector(`.draft-recon-select-month[data-month="${month}"]`);
+            const checkboxes = document.querySelectorAll(`input[type="checkbox"][data-month="${month}"].order-checkbox:checked`);
+
+            const reconciliationId = select?.value;
+            const selectedOrders = Array.from(checkboxes).map(cb => cb.dataset.conversionId);
+            const waitingListIds = Array.from(checkboxes).map(cb => cb.value);
+
+            if (!reconciliationId) {
+                showToast('Vui lòng chọn kỳ đối soát', 'error');
                 return;
             }
 
+            if (selectedOrders.length === 0) {
+                showToast('Vui lòng chọn ít nhất một đơn hàng', 'error');
+                return;
+            }
+
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang thêm...';
+            btn.disabled = true;
+
             try {
+                const response = await fetch(
+                    `${CONFIG.API_BASE_URL}/admin/system-reconciliation/${reconciliationId}/add-orders`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            orderIds: selectedOrders
+                        })
+                    }
+                );
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showToast(`Đã thêm ${selectedOrders.length} đơn hàng vào kỳ đối soát`, 'success');
+
+                    // Remove added orders from waiting list
+                    for (const id of waitingListIds) {
+                        await fetch(
+                            `${CONFIG.API_BASE_URL}/admin/system-reconciliation/auto-sync/waiting-list/${id}`,
+                            {
+                                method: 'DELETE',
+                                headers: {
+                                    'Authorization': `Bearer ${token}`
+                                }
+                            }
+                        );
+                    }
+
+                    // Reload data
+                    await loadWaitingList();
+                    await loadReconciliations();
+                } else {
+                    showToast(result.message || 'Có lỗi xảy ra', 'error');
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error adding orders to draft:', error);
+                showToast(`Lỗi: ${error.message}`, 'error');
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        async function createReconciliationFromWaiting(month, periodLabel) {
+            try {
+                // First, check if there's an existing draft reconciliation for this period
+                const checkResponse = await fetch(
+                    `${CONFIG.API_BASE_URL}/admin/system-reconciliation/auto-sync/check-draft-reconciliation?month=${month}`,
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    }
+                );
+
+                const checkResult = await checkResponse.json();
+
+                let reconciliationId = null;
+                let actionMessage = '';
+
+                // If draft reconciliation(s) exist, ask user what to do
+                if (checkResult.success && checkResult.data.has_draft) {
+                    const drafts = checkResult.data.draft_reconciliations;
+
+                    // Build options message
+                    let optionsText = `Đã tìm thấy ${drafts.length} kỳ đối soát nháp trong cùng khoảng thời gian:\n\n`;
+                    drafts.forEach((draft, index) => {
+                        optionsText += `${index + 1}. ${draft.period_label} (${draft.total_orders} đơn hàng, ${formatCurrency(draft.total_cashback)})\n`;
+                    });
+                    optionsText += `\nBạn muốn:\n`;
+                    optionsText += `- Chọn "OK" để THÊM vào kỳ nháp đầu tiên\n`;
+                    optionsText += `- Chọn "Cancel" để TẠO MỚI kỳ đối soát`;
+
+                    const addToExisting = confirm(optionsText);
+
+                    if (addToExisting) {
+                        // Add to first draft
+                        reconciliationId = drafts[0].id;
+                        actionMessage = `Thêm vào kỳ "${drafts[0].period_label}"`;
+                    } else {
+                        // Create new
+                        actionMessage = `Tạo kỳ mới "${periodLabel}"`;
+                    }
+                } else {
+                    // No draft found, create new
+                    if (!confirm(`Tạo kỳ đối soát "${periodLabel}"?\n\nTất cả đơn hàng trong tháng này sẽ được chuyển vào kỳ đối soát mới.`)) {
+                        return;
+                    }
+                    actionMessage = `Tạo kỳ mới "${periodLabel}"`;
+                }
+
+                // Create or add to reconciliation
                 const response = await fetch(
                     `${CONFIG.API_BASE_URL}/admin/system-reconciliation/auto-sync/create-from-waiting`,
                     {
@@ -3072,7 +3613,8 @@
                         },
                         body: JSON.stringify({
                             month,
-                            periodLabel
+                            periodLabel,
+                            reconciliationId // null if creating new, id if adding to existing
                         })
                     }
                 );
@@ -3080,14 +3622,16 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    showToast(`Đã tạo kỳ đối soát "${periodLabel}" với ${result.data.order_count} đơn hàng`, 'success');
+                    showToast(result.message, 'success');
                     await loadWaitingList();
                     await loadNewOrdersPreview();
+                    // Optionally reload reconciliations list to show updated data
+                    await loadReconciliations();
                 } else {
                     showToast(result.message || 'Có lỗi xảy ra', 'error');
                 }
             } catch (error) {
-                console.error('Error creating reconciliation:', error);
+                console.error('Error creating/adding to reconciliation:', error);
                 showToast(`Lỗi: ${error.message}`, 'error');
             }
         }
@@ -3164,29 +3708,11 @@
             }
         };
 
-        // Handle dropdown item clicks
-        window.handleDropdownAction = function(action, id, label) {
-            console.log('Dropdown action:', action, 'ID:', id);
-
-            // Close dropdown
-            const dropdown = document.getElementById(`dropdown-${id}`);
-            if (dropdown) {
-                dropdown.classList.remove('show');
-            }
-
-            // Execute action
-            if (action === 'view') {
-                viewItems(id, label);
-            } else if (action === 'finalize') {
-                finalizeReconciliation(id);
-            } else if (action === 'paid') {
-                markAsPaid(id);
-            } else if (action === 'delete') {
-                if (confirm('Bạn có chắc muốn xóa kỳ đối soát này?')) {
-                    deleteReconciliation(id);
-                }
-            }
-        };
+        // ============================================
+        // OLD HANDLER - REMOVED (Using CSP event delegation instead)
+        // ============================================
+        // This function was replaced by the event delegation system below
+        // to comply with CSP (Content Security Policy) requirements
 
         // Close dropdown when clicking outside
         document.addEventListener('click', function(e) {
@@ -3216,8 +3742,15 @@
             const page = button.dataset.page;
             const month = button.dataset.month;
             const period = button.dataset.period;
+            const label = button.dataset.label;
+
+            console.log('[Event Delegation] Action:', action, 'ID:', id, 'Label:', label);
 
             switch (action) {
+                case 'close-items-modal':
+                    // Close items detail modal
+                    document.getElementById('itemsModal').classList.remove('show');
+                    break;
                 case 'close-edit-modal':
                     closeEditModal();
                     break;
@@ -3229,6 +3762,41 @@
                     break;
                 case 'confirm-add-orders':
                     confirmAddOrders();
+                    break;
+                case 'toggle-dropdown':
+                    toggleDropdown(id);
+                    break;
+                case 'view':
+                    // Close dropdown first
+                    const viewDropdown = document.getElementById(`dropdown-${id}`);
+                    if (viewDropdown) viewDropdown.classList.remove('show');
+                    viewItems(id, label);
+                    break;
+                case 'add-orders':
+                    // Close dropdown first
+                    const addDropdown = document.getElementById(`dropdown-${id}`);
+                    if (addDropdown) addDropdown.classList.remove('show');
+                    openAddOrdersModal(id, label);
+                    break;
+                case 'finalize':
+                    // Close dropdown first
+                    const finalizeDropdown = document.getElementById(`dropdown-${id}`);
+                    if (finalizeDropdown) finalizeDropdown.classList.remove('show');
+                    finalizeReconciliation(id);
+                    break;
+                case 'paid':
+                    // Close dropdown first
+                    const paidDropdown = document.getElementById(`dropdown-${id}`);
+                    if (paidDropdown) paidDropdown.classList.remove('show');
+                    markAsPaid(id);
+                    break;
+                case 'delete':
+                    // Close dropdown first
+                    const deleteDropdown = document.getElementById(`dropdown-${id}`);
+                    if (deleteDropdown) deleteDropdown.classList.remove('show');
+                    if (confirm('Bạn có chắc muốn xóa kỳ đối soát này?')) {
+                        deleteReconciliation(id);
+                    }
                     break;
                 case 'change-page':
                     changePage(parseInt(page));
@@ -3248,6 +3816,40 @@
                 case 'remove-from-waiting-list':
                     removeFromWaitingList(id);
                     break;
+                case 'toggle-select-all-available':
+                    toggleSelectAllAvailable(e.target);
+                    break;
+                case 'toggle-order-selection':
+                    const orderId = button.dataset.orderId;
+                    toggleOrderSelection(orderId);
+                    break;
+                case 'toggle-select-all-eligible':
+                    toggleSelectAllEligible(e.target);
+                    break;
+                case 'toggle-eligible-order':
+                    updateSelection();
+                    break;
+                case 'retry-load-new-orders':
+                    loadNewOrdersPreview();
+                    break;
+                case 'retry-load-waiting-list':
+                    loadWaitingList();
+                    break;
+                case 'add-selected-to-draft':
+                    const monthData = button.dataset.month;
+                    addSelectedOrdersToDraft(monthData);
+                    break;
+            }
+        });
+
+        // ============ CSP FIX: Search Input Handler ============
+        document.addEventListener('input', (e) => {
+            if (e.target.id === 'orderSearchInput') {
+                clearTimeout(orderSearchTimeout);
+                orderSearchTimeout = setTimeout(() => {
+                    currentAddOrdersPage = 1;
+                    loadAvailableOrders();
+                }, 500);
             }
         });
 
