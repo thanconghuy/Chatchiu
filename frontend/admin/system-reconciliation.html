@@ -1239,6 +1239,9 @@
             <div id="itemsContent">
                 <div class="loading">Đang tải...</div>
             </div>
+            <div id="itemsPagination" style="display: none; padding: 20px; border-top: 1px solid #e5e7eb; background: #f9fafb;">
+                <!-- Pagination will be inserted here -->
+            </div>
         </div>
     </div>
 
@@ -1344,6 +1347,11 @@
         let currentPage = 1;
         let currentReconId = null;
         let itemsPerPage = 10;
+
+        // Items modal pagination
+        let itemsModalPage = 1;
+        let itemsModalLimit = 20;
+        let itemsModalPeriodLabel = '';
 
         // Eligible orders pagination
         let eligibleOrdersPage = 1;
@@ -2092,23 +2100,32 @@
             element.style.display = 'none';
         }
 
-        async function viewItems(reconId, periodLabel) {
+        async function viewItems(reconId, periodLabel, page = 1) {
             currentReconId = reconId;
+            itemsModalPage = page;
+            itemsModalPeriodLabel = periodLabel;
+
             document.getElementById('modalTitle').textContent = `Chi Tiết: ${periodLabel}`;
             document.getElementById('itemsModal').classList.add('show');
             document.getElementById('itemsContent').innerHTML = '<div class="loading">Đang tải...</div>';
+            document.getElementById('itemsPagination').style.display = 'none';
 
             try {
-                const response = await fetch(`${CONFIG.API_BASE_URL}/admin/system-reconciliation/${reconId}/items?limit=100`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
+                const response = await fetch(
+                    `${CONFIG.API_BASE_URL}/admin/system-reconciliation/${reconId}/items?page=${page}&limit=${itemsModalLimit}`,
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
                     }
-                });
+                );
 
                 const result = await response.json();
 
                 if (result.success) {
-                    displayItems(result.data.items);
+                    displayItems(result.data.items, result.data.pagination);
+                } else {
+                    document.getElementById('itemsContent').innerHTML = `<div class="error">${result.message || 'Lỗi tải dữ liệu'}</div>`;
                 }
             } catch (error) {
                 console.error('Error loading items:', error);
@@ -2116,9 +2133,10 @@
             }
         }
 
-        function displayItems(items) {
+        function displayItems(items, pagination) {
             if (items.length === 0) {
                 document.getElementById('itemsContent').innerHTML = '<div class="empty-state">Không có đơn hàng nào</div>';
+                document.getElementById('itemsPagination').style.display = 'none';
                 return;
             }
 
@@ -2155,6 +2173,103 @@
             `;
 
             document.getElementById('itemsContent').innerHTML = html;
+
+            // Render pagination
+            if (pagination && pagination.totalPages > 1) {
+                renderItemsPagination(pagination);
+                document.getElementById('itemsPagination').style.display = 'block';
+            } else {
+                document.getElementById('itemsPagination').style.display = 'none';
+            }
+        }
+
+        function renderItemsPagination(pagination) {
+            const { page, totalPages, total } = pagination;
+            const container = document.getElementById('itemsPagination');
+
+            let html = `
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="color: #64748b; font-size: 14px;">
+                        Hiển thị trang ${page} / ${totalPages} (Tổng: ${total} đơn hàng)
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+            `;
+
+            // Previous button
+            if (page > 1) {
+                html += `
+                    <button class="btn-secondary" data-action="items-page-prev" style="padding: 8px 12px;">
+                        <i class="fas fa-chevron-left"></i> Trước
+                    </button>
+                `;
+            } else {
+                html += `
+                    <button class="btn-secondary" disabled style="padding: 8px 12px; opacity: 0.5; cursor: not-allowed;">
+                        <i class="fas fa-chevron-left"></i> Trước
+                    </button>
+                `;
+            }
+
+            // Page numbers
+            const maxVisiblePages = 5;
+            let startPage = Math.max(1, page - Math.floor(maxVisiblePages / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+            if (endPage - startPage + 1 < maxVisiblePages) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+
+            if (startPage > 1) {
+                html += `<button class="btn-secondary" data-action="items-goto-page" data-page="1" style="padding: 8px 12px;">1</button>`;
+                if (startPage > 2) {
+                    html += `<span style="padding: 0 8px; color: #94a3b8;">...</span>`;
+                }
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                if (i === page) {
+                    html += `
+                        <button class="btn-primary" style="padding: 8px 12px; font-weight: 600;">
+                            ${i}
+                        </button>
+                    `;
+                } else {
+                    html += `
+                        <button class="btn-secondary" data-action="items-goto-page" data-page="${i}" style="padding: 8px 12px;">
+                            ${i}
+                        </button>
+                    `;
+                }
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    html += `<span style="padding: 0 8px; color: #94a3b8;">...</span>`;
+                }
+                html += `<button class="btn-secondary" data-action="items-goto-page" data-page="${totalPages}" style="padding: 8px 12px;">${totalPages}</button>`;
+            }
+
+            // Next button
+            if (page < totalPages) {
+                html += `
+                    <button class="btn-secondary" data-action="items-page-next" style="padding: 8px 12px;">
+                        Sau <i class="fas fa-chevron-right"></i>
+                    </button>
+                `;
+            } else {
+                html += `
+                    <button class="btn-secondary" disabled style="padding: 8px 12px; opacity: 0.5; cursor: not-allowed;">
+                        Sau <i class="fas fa-chevron-right"></i>
+                    </button>
+                `;
+            }
+
+            html += `
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = html;
         }
 
         function closeItemsModal() {
@@ -3809,6 +3924,20 @@
                     break;
                 case 'change-add-orders-page':
                     changeAddOrdersPage(parseInt(page));
+                    break;
+                case 'items-page-prev':
+                    if (itemsModalPage > 1) {
+                        viewItems(currentReconId, itemsModalPeriodLabel, itemsModalPage - 1);
+                    }
+                    break;
+                case 'items-page-next':
+                    viewItems(currentReconId, itemsModalPeriodLabel, itemsModalPage + 1);
+                    break;
+                case 'items-goto-page':
+                    const targetPage = parseInt(button.dataset.page);
+                    if (targetPage && targetPage !== itemsModalPage) {
+                        viewItems(currentReconId, itemsModalPeriodLabel, targetPage);
+                    }
                     break;
                 case 'create-reconciliation-from-waiting':
                     createReconciliationFromWaiting(month, period);
