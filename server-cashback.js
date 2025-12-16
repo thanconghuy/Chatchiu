@@ -348,7 +348,7 @@ if (process.env.VERCEL !== '1') {
 
     // Initialize cron jobs for retry and cleanup
     try {
-      cronJobsService.initialize();
+      await cronJobsService.initialize();
       const status = cronJobsService.getStatus();
       if (status.isInitialized) {
         console.log(`⏱️  Cron Jobs: ${status.jobsCount} jobs initialized`);

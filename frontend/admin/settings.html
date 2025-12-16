@@ -471,6 +471,84 @@
         .data-table tbody tr:hover {
             background: var(--gray-50);
         }
+
+        /* Sync History Table Column Widths */
+        .sync-history-table th:nth-child(1),
+        .sync-history-table td:nth-child(1) { width: 12%; } /* Thời gian */
+        .sync-history-table th:nth-child(2),
+        .sync-history-table td:nth-child(2) { width: 10%; } /* Loại */
+        .sync-history-table th:nth-child(3),
+        .sync-history-table td:nth-child(3) { width: 10%; } /* Trạng thái */
+        .sync-history-table th:nth-child(4),
+        .sync-history-table td:nth-child(4) { width: 8%; }  /* Tổng */
+        .sync-history-table th:nth-child(5),
+        .sync-history-table td:nth-child(5) { width: 8%; }  /* Tạo mới */
+        .sync-history-table th:nth-child(6),
+        .sync-history-table td:nth-child(6) { width: 8%; }  /* Cập nhật */
+        .sync-history-table th:nth-child(7),
+        .sync-history-table td:nth-child(7) { width: 8%; }  /* Bỏ qua */
+        .sync-history-table th:nth-child(8),
+        .sync-history-table td:nth-child(8) { width: 8%; }  /* Lỗi */
+        .sync-history-table th:nth-child(9),
+        .sync-history-table td:nth-child(9) { width: 28%; text-align: center; } /* Thao tác - wider */
+
+        /* Pagination Styles */
+        .pagination-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding: 16px;
+            background: var(--gray-50);
+            border-radius: 8px;
+        }
+
+        .pagination-info {
+            color: var(--gray-700);
+            font-size: 0.9rem;
+        }
+
+        .pagination-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .pagination-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--gray-300);
+            background: white;
+            color: var(--gray-700);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .page-number-btn {
+            min-width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
     </style>
 </head>
 <body>
@@ -832,7 +910,7 @@
 
                         <!-- Sync History Table -->
                         <div style="overflow-x: auto;">
-                            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                            <table class="data-table sync-history-table" style="width: 100%; border-collapse: collapse;">
                                 <thead>
                                     <tr style="background: var(--gray-100); border-bottom: 2px solid var(--gray-300);">
                                         <th style="padding: 12px; text-align: left;">Thời Gian</th>
@@ -856,6 +934,9 @@
                                 </tbody>
                             </table>
                         </div>
+
+                        <!-- Pagination -->
+                        <div id="syncHistoryPagination"></div>
 
                         <!-- Sync Stats -->
                         <div style="margin-top: 20px; padding: 16px; background: var(--gray-50); border-radius: 8px;">
@@ -943,7 +1024,12 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
-            displayUserName('userName');
+            // Try to display user name if element exists
+            try {
+                displayUserName('userName');
+            } catch (error) {
+                console.warn('⚠️ userName element not found, skipping...', error.message);
+            }
 
             // Load all settings in parallel
             await Promise.all([
@@ -1421,37 +1507,69 @@
 
         // Edit min withdrawal amount
         async function editMinWithdrawal() {
+            console.log('[Payment] Editing min withdrawal...');
             const currentValue = await getSetting('min_withdrawal_amount');
-            const newValue = prompt('Nhập hạn mức rút tiền tối thiểu (VNĐ):', currentValue);
+            console.log('[Payment] Current value:', currentValue);
 
-            if (newValue !== null && !isNaN(newValue) && parseInt(newValue) > 0) {
+            // Format default value with fallback
+            const defaultValue = currentValue ? currentValue : '50000';
+            const formattedValue = parseInt(defaultValue).toLocaleString('vi-VN');
+            const message = `Nhập hạn mức rút tiền tối thiểu (VNĐ):\n\nGiá trị hiện tại: ${formattedValue} VNĐ`;
+
+            const newValue = prompt(message, defaultValue);
+
+            if (newValue !== null && newValue.trim() !== '' && !isNaN(newValue) && parseInt(newValue) > 0) {
                 const reason = prompt('Lý do thay đổi (tùy chọn):', 'Điều chỉnh hạn mức theo yêu cầu');
-                await updateSetting('min_withdrawal_amount', parseInt(newValue), reason);
-                await loadPaymentSettings();
+                if (reason !== null) {
+                    await updateSetting('min_withdrawal_amount', parseInt(newValue), reason || 'Cập nhật hạn mức');
+                    await loadPaymentSettings();
+                    showToast('✅ Đã cập nhật hạn mức rút tiền tối thiểu', 'success');
+                }
             }
         }
 
         // Edit max withdrawal amount
         async function editMaxWithdrawal() {
+            console.log('[Payment] Editing max withdrawal...');
             const currentValue = await getSetting('max_withdrawal_amount');
-            const newValue = prompt('Nhập hạn mức rút tiền tối đa (VNĐ):', currentValue);
+            console.log('[Payment] Current value:', currentValue);
 
-            if (newValue !== null && !isNaN(newValue) && parseInt(newValue) > 0) {
+            // Format default value with fallback
+            const defaultValue = currentValue ? currentValue : '5000000';
+            const formattedValue = parseInt(defaultValue).toLocaleString('vi-VN');
+            const message = `Nhập hạn mức rút tiền tối đa (VNĐ):\n\nGiá trị hiện tại: ${formattedValue} VNĐ`;
+
+            const newValue = prompt(message, defaultValue);
+
+            if (newValue !== null && newValue.trim() !== '' && !isNaN(newValue) && parseInt(newValue) > 0) {
                 const reason = prompt('Lý do thay đổi (tùy chọn):', 'Điều chỉnh hạn mức theo yêu cầu');
-                await updateSetting('max_withdrawal_amount', parseInt(newValue), reason);
-                await loadPaymentSettings();
+                if (reason !== null) {
+                    await updateSetting('max_withdrawal_amount', parseInt(newValue), reason || 'Cập nhật hạn mức');
+                    await loadPaymentSettings();
+                    showToast('✅ Đã cập nhật hạn mức rút tiền tối đa', 'success');
+                }
             }
         }
 
         // Edit processing days
         async function editProcessingDays() {
+            console.log('[Payment] Editing processing days...');
             const currentValue = await getSetting('withdrawal_processing_days');
-            const newValue = prompt('Nhập số ngày xử lý thanh toán:', currentValue);
+            console.log('[Payment] Current value:', currentValue);
 
-            if (newValue !== null && !isNaN(newValue) && parseInt(newValue) > 0) {
+            // Format default value with fallback
+            const defaultValue = currentValue ? currentValue : '7';
+            const message = `Nhập số ngày xử lý thanh toán:\n\nGiá trị hiện tại: ${defaultValue} ngày`;
+
+            const newValue = prompt(message, defaultValue);
+
+            if (newValue !== null && newValue.trim() !== '' && !isNaN(newValue) && parseInt(newValue) > 0) {
                 const reason = prompt('Lý do thay đổi (tùy chọn):', 'Điều chỉnh thời gian xử lý');
-                await updateSetting('withdrawal_processing_days', parseInt(newValue), reason);
-                await loadPaymentSettings();
+                if (reason !== null) {
+                    await updateSetting('withdrawal_processing_days', parseInt(newValue), reason || 'Cập nhật thời gian');
+                    await loadPaymentSettings();
+                    showToast('✅ Đã cập nhật thời gian xử lý thanh toán', 'success');
+                }
             }
         }
 
@@ -1850,10 +1968,15 @@
 
         // ============ PHASE 4: SYNC HISTORY FUNCTIONS ============
 
+        // Pagination state
+        let currentSyncHistoryPage = 1;
+        const syncHistoryPageSize = 20;
+
         /**
-         * Load sync history and display in table
+         * Load sync history and display in table with pagination
+         * @param {number} page - Page number (default 1)
          */
-        async function loadSyncHistory() {
+        async function loadSyncHistory(page = 1) {
             try {
                 const tbody = document.getElementById('syncHistoryTableBody');
 
@@ -1867,7 +1990,9 @@
                 const token = localStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN);
                 console.log('Loading sync history, token exists:', !!token);
 
-                const response = await apiRequest('/admin/auto-sync/history?limit=20');
+                currentSyncHistoryPage = page;
+
+                const response = await apiRequest(`/admin/auto-sync/history?page=${page}&limit=${syncHistoryPageSize}`);
                 console.log('Sync history response:', response);
 
                 if (!response.success) {
@@ -1876,9 +2001,11 @@
                 }
 
                 const history = response.data || [];
+                const pagination = response.pagination || {};
 
                 if (history.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px;">Chưa có lịch sử sync</td></tr>';
+                    renderSyncHistoryPagination(pagination);
                     return;
                 }
 
@@ -1890,28 +2017,28 @@
 
                     return `
                         <tr>
-                            <td>
+                            <td style="text-align: left;">
                                 <div>${formatDateTime(startedAt)}</div>
                                 <small style="color: var(--text-secondary);">
                                     ${duration !== '-' ? `${duration}s` : 'Running...'}
                                 </small>
                             </td>
-                            <td>
+                            <td style="text-align: left;">
                                 <span class="badge ${getSyncTypeBadgeClass(session.sync_type)}">
                                     ${getSyncTypeLabel(session.sync_type)}
                                 </span>
                             </td>
-                            <td>
+                            <td style="text-align: center;">
                                 <span class="badge ${getStatusBadgeClass(session.sync_status)}">
                                     ${getStatusLabel(session.sync_status)}
                                 </span>
                             </td>
-                            <td>${session.total_fetched || 0}</td>
-                            <td style="color: var(--success-color);">${session.total_created || 0}</td>
-                            <td style="color: var(--warning-color);">${session.total_updated || 0}</td>
-                            <td style="color: var(--text-secondary);">${session.total_skipped || 0}</td>
-                            <td style="color: var(--error-color);">${session.total_errors || 0}</td>
-                            <td>
+                            <td style="text-align: right;">${session.total_fetched || 0}</td>
+                            <td style="text-align: right; color: var(--success-color);">${session.total_created || 0}</td>
+                            <td style="text-align: right; color: var(--warning-color);">${session.total_updated || 0}</td>
+                            <td style="text-align: right; color: var(--text-secondary);">${session.total_skipped || 0}</td>
+                            <td style="text-align: right; color: var(--error-color);">${session.total_errors || 0}</td>
+                            <td style="text-align: center;">
                                 <button class="btn-secondary view-sync-detail" data-session-id="${session.id}" style="padding: 4px 8px; font-size: 12px;">
                                     Chi tiết
                                 </button>
@@ -1919,6 +2046,9 @@
                         </tr>
                     `;
                 }).join('');
+
+                // Render pagination
+                renderSyncHistoryPagination(pagination);
 
                 // Also load stats
                 await loadSyncStats();
@@ -1931,6 +2061,107 @@
                 }
                 showToast('Lỗi tải lịch sử sync: ' + error.message, 'error');
             }
+        }
+
+        /**
+         * Render pagination controls for sync history
+         * @param {Object} pagination - { total, page, limit, totalPages, hasNext, hasPrev }
+         */
+        function renderSyncHistoryPagination(pagination) {
+            const container = document.getElementById('syncHistoryPagination');
+            if (!container) return;
+
+            if (!pagination || pagination.total === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            const { total, page, totalPages, hasNext, hasPrev } = pagination;
+            const startItem = ((page - 1) * syncHistoryPageSize) + 1;
+            const endItem = Math.min(page * syncHistoryPageSize, total);
+
+            // Generate page numbers to show
+            let pageNumbers = [];
+            const maxPagesToShow = 5;
+
+            if (totalPages <= maxPagesToShow) {
+                // Show all pages
+                for (let i = 1; i <= totalPages; i++) {
+                    pageNumbers.push(i);
+                }
+            } else {
+                // Show current page and surrounding pages
+                let startPage = Math.max(1, page - 2);
+                let endPage = Math.min(totalPages, page + 2);
+
+                // Adjust if we're near the beginning or end
+                if (page <= 3) {
+                    endPage = Math.min(totalPages, maxPagesToShow);
+                } else if (page >= totalPages - 2) {
+                    startPage = Math.max(1, totalPages - maxPagesToShow + 1);
+                }
+
+                for (let i = startPage; i <= endPage; i++) {
+                    pageNumbers.push(i);
+                }
+            }
+
+            container.innerHTML = `
+                <div class="pagination-container">
+                    <div class="pagination-info">
+                        Hiển thị <strong>${startItem}-${endItem}</strong> / <strong>${total}</strong> kết quả
+                    </div>
+                    <div class="pagination-controls">
+                        <button
+                            class="pagination-btn"
+                            ${!hasPrev ? 'disabled' : ''}
+                            data-action="sync-history-page"
+                            data-page="1"
+                            title="Trang đầu"
+                        >
+                            <i class="fas fa-angle-double-left"></i>
+                        </button>
+                        <button
+                            class="pagination-btn"
+                            ${!hasPrev ? 'disabled' : ''}
+                            data-action="sync-history-page"
+                            data-page="${page - 1}"
+                            title="Trang trước"
+                        >
+                            <i class="fas fa-angle-left"></i>
+                        </button>
+
+                        ${pageNumbers.map(p => `
+                            <button
+                                class="pagination-btn page-number-btn ${p === page ? 'active' : ''}"
+                                data-action="sync-history-page"
+                                data-page="${p}"
+                            >
+                                ${p}
+                            </button>
+                        `).join('')}
+
+                        <button
+                            class="pagination-btn"
+                            ${!hasNext ? 'disabled' : ''}
+                            data-action="sync-history-page"
+                            data-page="${page + 1}"
+                            title="Trang sau"
+                        >
+                            <i class="fas fa-angle-right"></i>
+                        </button>
+                        <button
+                            class="pagination-btn"
+                            ${!hasNext ? 'disabled' : ''}
+                            data-action="sync-history-page"
+                            data-page="${totalPages}"
+                            title="Trang cuối"
+                        >
+                            <i class="fas fa-angle-double-right"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
         }
 
         /**
@@ -1983,50 +2214,67 @@
                 modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;';
 
                 modal.innerHTML = `
-                    <div style="background: white; padding: 24px; border-radius: 12px; max-width: 900px; max-height: 80vh; overflow: auto; width: 90%;">
+                    <div style="background: white; padding: 24px; border-radius: 12px; max-width: 1200px; max-height: 80vh; overflow: auto; width: 95%;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                            <h2>Chi Tiết Sync Session</h2>
+                            <h2>Chi Tiết: ${changes.length > 0 && changes[0].created_at ? new Date(changes[0].created_at).toLocaleDateString('vi-VN') : 'Sync Session'}</h2>
                             <button class="close-sync-detail-modal" style="border: none; background: none; font-size: 24px; cursor: pointer;">&times;</button>
                         </div>
 
                         ${changes.length === 0 ?
                             '<p style="text-align: center; padding: 40px;">Không có thay đổi nào</p>' :
-                            `<table class="data-table" style="width: 100%;">
-                                <thead>
-                                    <tr>
-                                        <th>Mã Đơn</th>
-                                        <th>Loại Thay Đổi</th>
-                                        <th>Trạng Thái</th>
-                                        <th>Balance</th>
-                                        <th>Lý Do</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${changes.map(change => `
+                            `<div style="overflow-x: auto;">
+                                <table class="data-table" style="width: 100%; font-size: 0.9rem;">
+                                    <thead>
                                         <tr>
-                                            <td>${change.order_code || '-'}</td>
-                                            <td>
-                                                <span class="badge ${getChangeTypeBadgeClass(change.change_type)}">
-                                                    ${getChangeTypeLabel(change.change_type)}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                ${change.old_status && change.new_status ?
-                                                    `${change.old_status} → ${change.new_status}` :
-                                                    '-'
-                                                }
-                                            </td>
-                                            <td>
-                                                ${change.balance_change ?
-                                                    `${formatCurrency(change.balance_change)} (${change.balance_operation})` :
-                                                    '-'
-                                                }
-                                            </td>
-                                            <td>${change.reason || '-'}</td>
+                                            <th style="padding: 10px;">Thời gian</th>
+                                            <th style="padding: 10px;">User</th>
+                                            <th style="padding: 10px;">Merchant</th>
+                                            <th style="padding: 10px;">Mã đơn</th>
+                                            <th style="padding: 10px; text-align: right;">Cashback</th>
+                                            <th style="padding: 10px; text-align: center;">Trạng thái API</th>
                                         </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>`
+                                    </thead>
+                                    <tbody>
+                                        ${changes.map(change => `
+                                            <tr>
+                                                <td style="padding: 10px; white-space: nowrap;">
+                                                    ${change.created_at ? new Date(change.created_at).toLocaleString('vi-VN', {
+                                                        hour: '2-digit',
+                                                        minute: '2-digit',
+                                                        day: '2-digit',
+                                                        month: '2-digit'
+                                                    }) : '-'}
+                                                </td>
+                                                <td style="padding: 10px;">
+                                                    <div style="font-weight: 600; color: #2563eb;">
+                                                        ${change.user_name || change.user_email || 'N/A'}
+                                                    </div>
+                                                    ${change.user_email && change.user_name ?
+                                                        `<div style="font-size: 0.8rem; color: #64748b;">${change.user_email}</div>` :
+                                                        ''
+                                                    }
+                                                </td>
+                                                <td style="padding: 10px;">${change.merchant_name || change.merchant_id || '-'}</td>
+                                                <td style="padding: 10px; font-family: monospace; font-size: 0.85rem;">${change.order_code || '-'}</td>
+                                                <td style="padding: 10px; text-align: right; font-weight: 600; color: #16a34a;">
+                                                    ${change.cashback_amount ?
+                                                        new Intl.NumberFormat('vi-VN').format(change.cashback_amount) + ' đ' :
+                                                        '-'
+                                                    }
+                                                </td>
+                                                <td style="padding: 10px; text-align: center;">
+                                                    ${change.api_confirmed === true ?
+                                                        '<span class="badge badge-success"><i class="fas fa-check-circle"></i> Đã xác nhận</span>' :
+                                                        change.api_confirmed === false ?
+                                                        '<span class="badge badge-danger"><i class="fas fa-times-circle"></i> Chưa xác nhận</span>' :
+                                                        '<span class="badge badge-secondary">-</span>'
+                                                    }
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>`
                         }
                     </div>
                 `;
@@ -2219,7 +2467,7 @@
         });
 
         // Logout
-        document.getElementById('logoutBtn').addEventListener('click', (e) => {
+        document.getElementById('logoutBtn')?.addEventListener('click', (e) => {
             e.preventDefault();
             logout();
         });
@@ -2230,6 +2478,7 @@
             if (!button) return;
 
             const action = button.dataset.action;
+            console.log('[Settings] Button clicked:', action);
 
             switch (action) {
                 case 'switch-tab':
@@ -2279,6 +2528,12 @@
                     break;
                 case 'load-sync-history':
                     loadSyncHistory();
+                    break;
+                case 'sync-history-page':
+                    const pageNum = parseInt(button.dataset.page);
+                    if (!isNaN(pageNum) && pageNum > 0) {
+                        loadSyncHistory(pageNum);
+                    }
                     break;
                 case 'close-modal':
                     closeEditModal();

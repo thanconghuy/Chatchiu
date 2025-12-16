@@ -113,16 +113,17 @@ router.get('/preview', async (req, res) => {
     // Build aff_sid filter
     let affSidCondition = '';
     if (affSid && affSid !== 'all') {
-      affSidCondition = ` AND c.aff_sid = '${affSid}'`;
+      affSidCondition = ` AND cl.aff_sid = '${affSid}'`;
     }
 
     // Count total eligible orders
     const countQuery = `
       SELECT COUNT(*) as total
-      FROM conversions c
-      WHERE c.status = 'approved'
-        AND c.order_time >= $1
-        AND c.order_time <= $2
+      FROM system_conversions sc
+      LEFT JOIN clicks cl ON sc.click_id = cl.id
+      WHERE sc.status = 'approved'
+        AND sc.order_time >= $1
+        AND sc.order_time <= $2
         ${affSidCondition}
     `;
     const countResult = await pool.query(countQuery, [periodStart, periodEnd]);
@@ -132,14 +133,15 @@ router.get('/preview', async (req, res) => {
     const summaryQuery = `
       SELECT
         COUNT(*) as total_orders,
-        COUNT(DISTINCT user_id) as total_users,
-        COALESCE(SUM(cashback_amount), 0) as total_cashback,
-        COALESCE(SUM(commission), 0) as total_commission,
-        COALESCE(SUM(order_amount), 0) as total_order_amount
-      FROM conversions c
-      WHERE c.status = 'approved'
-        AND c.order_time >= $1
-        AND c.order_time <= $2
+        COUNT(DISTINCT sc.user_id) as total_users,
+        COALESCE(SUM(sc.cashback_amount), 0) as total_cashback,
+        COALESCE(SUM(sc.commission), 0) as total_commission,
+        COALESCE(SUM(sc.order_amount), 0) as total_order_amount
+      FROM system_conversions sc
+      LEFT JOIN clicks cl ON sc.click_id = cl.id
+      WHERE sc.status = 'approved'
+        AND sc.order_time >= $1
+        AND sc.order_time <= $2
         ${affSidCondition}
     `;
     const summaryResult = await pool.query(summaryQuery, [periodStart, periodEnd]);
@@ -152,33 +154,32 @@ router.get('/preview', async (req, res) => {
 
     const query = `
       SELECT
-        c.id,
-        c.user_id,
+        sc.id,
+        sc.user_id,
         COALESCE(u.full_name, u.username, 'N/A') as user_name,
         COALESCE(u.email, 'N/A') as user_email,
-        c.merchant_id,
-        COALESCE(c.merchant_name, 'Unknown') as merchant_name,
-        COALESCE(c.order_code, 'N/A') as order_code,
-        COALESCE(c.order_amount, 0) as order_amount,
-        COALESCE(c.commission, 0) as commission,
-        COALESCE(c.cashback_amount, 0) as cashback,
-        c.status as conversion_status,
-        c.order_time,
-        c.created_at,
+        COALESCE(cl.aff_sid, 'N/A') as aff_sid,
+        sc.merchant_id,
+        COALESCE(sc.merchant_name, 'Unknown') as merchant_name,
+        COALESCE(sc.order_code, 'N/A') as order_code,
+        COALESCE(sc.order_amount, 0) as order_amount,
+        COALESCE(sc.commission, 0) as commission,
+        COALESCE(sc.cashback_amount, 0) as cashback,
+        sc.status as conversion_status,
+        sc.order_time,
+        sc.created_at,
         CASE
-          WHEN EXISTS (
-            SELECT 1 FROM system_reconciliation_items sri
-            WHERE sri.conversion_id = c.id
-          ) THEN true
+          WHEN sc.system_reconciliation_id IS NOT NULL THEN true
           ELSE false
         END as is_reconciled
-      FROM conversions c
-      LEFT JOIN users u ON c.user_id = u.id
-      WHERE c.status = 'approved'
-        AND c.order_time >= $1
-        AND c.order_time <= $2
+      FROM system_conversions sc
+      LEFT JOIN users u ON sc.user_id = u.id
+      LEFT JOIN clicks cl ON sc.click_id = cl.id
+      WHERE sc.status = 'approved'
+        AND sc.order_time >= $1
+        AND sc.order_time <= $2
         ${affSidCondition}
-      ORDER BY c.order_time DESC
+      ORDER BY sc.order_time DESC
       LIMIT $3 OFFSET $4
     `;
 
@@ -728,6 +729,9 @@ router.get('/auto-sync/preview', async (req, res) => {
       SELECT
         conversion_id,
         user_id,
+        user_email,
+        user_full_name,
+        aff_sid,
         merchant_id,
         merchant_name,
         order_code,
@@ -929,12 +933,70 @@ router.get('/auto-sync/waiting-list', async (req, res) => {
 });
 
 /**
+ * GET /api/admin/system-reconciliation/auto-sync/check-draft-reconciliation
+ * Check if there's an existing draft reconciliation for a given month
+ */
+router.get('/auto-sync/check-draft-reconciliation', async (req, res) => {
+  try {
+    const { month } = req.query;
+
+    if (!month) {
+      return res.status(400).json({
+        success: false,
+        message: 'month parameter is required'
+      });
+    }
+
+    // Calculate period dates from month
+    const monthDate = new Date(month);
+    const periodStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+    const periodEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+
+    // Check for draft reconciliations overlapping with this period
+    const query = `
+      SELECT
+        id,
+        period_label,
+        period_start,
+        period_end,
+        total_orders,
+        total_cashback,
+        status,
+        created_at
+      FROM system_reconciliations
+      WHERE status = 'draft'
+        AND period_start <= $2
+        AND period_end >= $1
+      ORDER BY created_at DESC
+      LIMIT 5
+    `;
+
+    const result = await pool.query(query, [periodStart, periodEnd]);
+
+    res.json({
+      success: true,
+      data: {
+        has_draft: result.rows.length > 0,
+        draft_reconciliations: result.rows
+      }
+    });
+
+  } catch (error) {
+    console.error('Error checking draft reconciliation:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
  * POST /api/admin/system-reconciliation/auto-sync/create-from-waiting
  * Create reconciliation from waiting list orders
  */
 router.post('/auto-sync/create-from-waiting', async (req, res) => {
   try {
-    const { month, periodLabel } = req.body;
+    const { month, periodLabel, reconciliationId } = req.body;
 
     if (!month || !periodLabel) {
       return res.status(400).json({
@@ -961,20 +1023,59 @@ router.post('/auto-sync/create-from-waiting', async (req, res) => {
     const selectedOrderIds = waitingOrdersResult.rows.map(o => o.conversion_id);
     const totalCashback = waitingOrdersResult.rows.reduce((sum, o) => sum + parseFloat(o.cashback_amount || 0), 0);
 
-    // Calculate period dates from month
-    const monthDate = new Date(month);
-    const periodStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
-    const periodEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
-    periodEnd.setHours(23, 59, 59, 999);
+    let reconciliation;
+    let action = 'created'; // 'created' or 'added'
 
-    // Create reconciliation using existing service
-    const reconciliation = await SystemReconciliationService.createReconciliation({
-      periodStart,
-      periodEnd,
-      periodLabel,
-      selectedOrderIds,
-      createdBy: req.userId
-    });
+    // Check if reconciliationId provided (add to existing draft)
+    if (reconciliationId) {
+      // Verify reconciliation exists and is draft
+      const reconCheck = await pool.query(
+        'SELECT id, status, period_label FROM system_reconciliations WHERE id = $1',
+        [reconciliationId]
+      );
+
+      if (reconCheck.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Kỳ đối soát không tồn tại'
+        });
+      }
+
+      if (reconCheck.rows[0].status !== 'draft') {
+        return res.status(400).json({
+          success: false,
+          message: 'Chỉ có thể thêm đơn hàng vào kỳ đối soát ở trạng thái Nháp'
+        });
+      }
+
+      // Add orders to existing draft
+      await SystemReconciliationService.addOrdersToReconciliation(
+        reconciliationId,
+        selectedOrderIds,
+        req.userId
+      );
+
+      reconciliation = { id: reconciliationId };
+      action = 'added';
+
+    } else {
+      // Calculate period dates from month
+      const monthDate = new Date(month);
+      const periodStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+      const periodEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+      periodEnd.setHours(23, 59, 59, 999);
+
+      // Create new reconciliation using existing service
+      reconciliation = await SystemReconciliationService.createReconciliation({
+        periodStart,
+        periodEnd,
+        periodLabel,
+        selectedOrderIds,
+        createdBy: req.userId
+      });
+
+      action = 'created';
+    }
 
     // Move orders from waiting list to reconciled status
     const movedResult = await pool.query(
@@ -991,20 +1092,25 @@ router.post('/auto-sync/create-from-waiting', async (req, res) => {
     );
     const remaining = parseInt(remainingResult.rows[0].remaining);
 
+    const message = action === 'created'
+      ? `Đã tạo kỳ đối soát "${periodLabel}" với ${selectedOrderIds.length} đơn hàng`
+      : `Đã thêm ${selectedOrderIds.length} đơn hàng vào kỳ đối soát "${periodLabel}"`;
+
     res.json({
       success: true,
-      message: `Đã tạo kỳ đối soát "${periodLabel}" với ${selectedOrderIds.length} đơn hàng`,
+      message,
       data: {
         reconciliation_id: reconciliation.id,
         order_count: selectedOrderIds.length,
         total_cashback: totalCashback,
         moved_count: movedCount,
-        remaining_in_waiting: remaining
+        remaining_in_waiting: remaining,
+        action // 'created' or 'added'
       }
     });
 
   } catch (error) {
-    console.error('Error creating reconciliation from waiting list:', error);
+    console.error('Error creating/adding to reconciliation from waiting list:', error);
     res.status(500).json({
       success: false,
       message: error.message

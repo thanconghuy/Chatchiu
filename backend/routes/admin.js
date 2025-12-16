@@ -5380,15 +5380,20 @@ router.delete('/payment-history/:id', authenticateAdmin, async (req, res) => {
 /**
  * GET /api/admin/auto-sync/history
  * Get recent sync history with pagination
+ * Query params: page (default 1), limit (default 20)
  */
 router.get('/auto-sync/history', authenticateAdmin, async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
-    const history = await AutoSyncHistory.getRecent(limit);
+    const offset = (page - 1) * limit;
+
+    const result = await AutoSyncHistory.getRecent(limit, offset);
 
     res.json({
       success: true,
-      data: history
+      data: result.data,
+      pagination: result.pagination
     });
   } catch (error) {
     logger.error('Error fetching sync history', { error: error.message });

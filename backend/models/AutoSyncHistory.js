@@ -159,11 +159,18 @@ class AutoSyncHistory {
   }
 
   /**
-   * Get recent sync history
+   * Get recent sync history with pagination
    * @param {number} limit
-   * @returns {Promise<Array>}
+   * @param {number} offset
+   * @returns {Promise<Object>} { data: Array, total: number, page: number, totalPages: number }
    */
-  static async getRecent(limit = 20) {
+  static async getRecent(limit = 20, offset = 0) {
+    // Get total count
+    const countQuery = `SELECT COUNT(*) as total FROM auto_sync_history`;
+    const countResult = await pool.query(countQuery);
+    const total = parseInt(countResult.rows[0].total);
+
+    // Get paginated data
     const query = `
       SELECT
         id,
@@ -183,15 +190,29 @@ class AutoSyncHistory {
         created_at
       FROM auto_sync_history
       ORDER BY sync_started_at DESC
-      LIMIT $1
+      LIMIT $1 OFFSET $2
     `;
 
-    const result = await pool.query(query, [limit]);
-    return result.rows;
+    const result = await pool.query(query, [limit, offset]);
+
+    const page = Math.floor(offset / limit) + 1;
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: result.rows,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1
+      }
+    };
   }
 
   /**
-   * Get changes for a sync session
+   * Get changes for a sync session with user and conversion details
    * @param {string} sessionId
    * @param {number} limit
    * @returns {Promise<Array>}
@@ -201,9 +222,14 @@ class AutoSyncHistory {
       SELECT
         cl.*,
         u.email as user_email,
-        u.full_name as user_name
+        u.full_name as user_name,
+        c.merchant_name,
+        c.merchant_id,
+        c.cashback_amount,
+        c.api_confirmed
       FROM auto_sync_change_log cl
       LEFT JOIN users u ON cl.user_id = u.id
+      LEFT JOIN conversions c ON cl.conversion_id = c.id
       WHERE cl.sync_history_id = $1
       ORDER BY cl.created_at DESC
       LIMIT $2
