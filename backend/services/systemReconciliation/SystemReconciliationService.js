@@ -280,26 +280,27 @@ class SystemReconciliationService {
         ]);
 
         // Log transaction for each user
+        // Get current balance first
+        const balanceResult = await client.query(
+          'SELECT available_balance FROM user_system_balance WHERE user_id = $1',
+          [userBalance.user_id]
+        );
+
+        const currentBalance = balanceResult.rows[0]?.available_balance || 0;
+
         await client.query(`
           INSERT INTO user_balance_transactions (
             user_id, transaction_type, amount,
             balance_before, balance_after,
             description, created_at
-          )
-          SELECT
-            $1,
-            'reconciliation_credit',
-            $2,
-            COALESCE(usb.available_balance, 0) - $2,
-            COALESCE(usb.available_balance, 0),
-            'Đối soát nội bộ: ' || $3,
-            CURRENT_TIMESTAMP
-          FROM user_system_balance usb
-          WHERE usb.user_id = $1
+          ) VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
         `, [
           userBalance.user_id,
+          'reconciliation_finalized',
           totalCashback,
-          recon.period_label
+          parseFloat(currentBalance) - totalCashback,
+          parseFloat(currentBalance),
+          'Đối soát nội bộ: ' + recon.period_label
         ]);
       }
 
@@ -461,7 +462,7 @@ class SystemReconciliationService {
 
     // Build search condition
     let searchCondition = '';
-    const queryParams = [recon.period_start, recon.period_end, reconciliationId];
+    const queryParams = [recon.period_start, recon.period_end];
 
     if (search) {
       queryParams.push(`%${search}%`);
@@ -476,7 +477,7 @@ class SystemReconciliationService {
       `;
     }
 
-    // Count total available orders - exclude orders already in THIS reconciliation
+    // Count total available orders - include ALL approved orders in period (even those in other reconciliations)
     const countQuery = `
       SELECT COUNT(*) as total
       FROM system_conversions sc
@@ -485,16 +486,13 @@ class SystemReconciliationService {
       WHERE sc.status = 'approved'
         AND sc.order_time >= $1
         AND sc.order_time <= $2
-        AND (sc.system_reconciliation_id IS NULL OR sc.system_reconciliation_id != $3)
-        AND (sc.system_reconciliation_status IS NULL
-             OR sc.system_reconciliation_status NOT IN ('reconciled', 'paid'))
         ${searchCondition}
     `;
 
     const countResult = await pool.query(countQuery, queryParams);
     const total = parseInt(countResult.rows[0].total);
 
-    // Get paginated orders - exclude orders already in THIS reconciliation
+    // Get paginated orders - include ALL approved orders with reconciliation info
     queryParams.push(limit, offset);
     const ordersQuery = `
       SELECT
@@ -503,26 +501,27 @@ class SystemReconciliationService {
         COALESCE(sc.order_code, sc.id::text) as order_id,
         sc.order_time,
         COALESCE(sc.approval_time, sc.order_time) as confirmed_time,
-        COALESCE(sc.order_amount, 0) as order_value,
-        COALESCE(sc.commission, 0) as commission,
         COALESCE(sc.cashback_amount, 0) as cashback_amount,
         sc.status,
+        sc.system_reconciliation_id,
+        sc.system_reconciliation_status,
         COALESCE(
           NULLIF(TRIM(u.full_name), ''),
           NULLIF(TRIM(u.username), ''),
           u.email,
           'Order ' || COALESCE(sc.order_code, sc.id::text)
         ) as user_name,
-        COALESCE(u.email, '') as user_email
+        COALESCE(u.email, '') as user_email,
+        CASE
+          WHEN sc.system_reconciliation_id IS NOT NULL THEN true
+          ELSE false
+        END as is_in_reconciliation
       FROM system_conversions sc
       LEFT JOIN clicks cl ON sc.click_id = cl.id
       LEFT JOIN users u ON COALESCE(sc.user_id, cl.user_id) = u.id
       WHERE sc.status = 'approved'
         AND sc.order_time >= $1
         AND sc.order_time <= $2
-        AND (sc.system_reconciliation_id IS NULL OR sc.system_reconciliation_id != $3)
-        AND (sc.system_reconciliation_status IS NULL
-             OR sc.system_reconciliation_status NOT IN ('reconciled', 'paid'))
         ${searchCondition}
       ORDER BY sc.approval_time DESC NULLS LAST, sc.order_time DESC
       LIMIT $${queryParams.length - 1} OFFSET $${queryParams.length}
