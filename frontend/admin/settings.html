@@ -1968,7 +1968,16 @@ ChatChiu Cashback System</textarea>
                 `;
 
                 // Set textarea value after creating the HTML to avoid escaping issues
-                document.getElementById('templateContent').value = content;
+                // Use setTimeout to ensure DOM is fully rendered
+                setTimeout(() => {
+                    const textarea = document.getElementById('templateContent');
+                    if (textarea) {
+                        textarea.value = content;
+                        console.log('Template content set successfully, length:', content.length);
+                    } else {
+                        console.error('Textarea not found!');
+                    }
+                }, 0);
 
             } catch (error) {
                 console.error('Error loading template:', error);
