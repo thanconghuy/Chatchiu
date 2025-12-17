@@ -1812,7 +1812,7 @@ ChatChiu Cashback System</textarea>
                 </div>
 
                 <div class="modal-footer">
-                    <button class="btn btn-secondary" onclick="closeEditModal()">
+                    <button class="btn btn-secondary" data-action="close-modal">
                         <i class="fas fa-times"></i>
                         Hủy
                     </button>
@@ -1886,38 +1886,32 @@ ChatChiu Cashback System</textarea>
             const templatePath = element.dataset.template;
             const templateName = element.dataset.name;
 
-            const modalTitle = document.getElementById('modalTitle');
-            const modalBody = document.getElementById('modalBody');
-
-            modalTitle.textContent = `✏️ Chỉnh Sửa Template: ${templateName}`;
-
-            // Show loading state
-            modalBody.innerHTML = `
-                <div style="text-align: center; padding: 40px;">
-                    <i class="fas fa-spinner fa-spin" style="font-size: 32px; color: var(--primary-color);"></i>
-                    <p style="margin-top: 16px; color: var(--gray-600);">Đang tải template...</p>
-                </div>
-            `;
-
-            document.getElementById('editModal').classList.add('show');
+            // Close modal first if it's open
+            const modal = document.getElementById('editModal');
+            modal.classList.remove('show');
+            modal.style.display = 'none';
 
             try {
-                // Load template content from backend
+                // Load template content from backend FIRST before opening modal
                 // Add timestamp to prevent caching
                 const response = await apiRequest(`/admin/email-template?path=${encodeURIComponent(templatePath)}&t=${Date.now()}`);
-
-                console.log('Template response:', response);
 
                 if (!response.success) {
                     throw new Error(response.message || 'Failed to load template');
                 }
 
                 if (!response.data || typeof response.data.content === 'undefined') {
-                    console.error('Invalid response data:', response);
                     throw new Error('Template content is empty or invalid');
                 }
 
                 const content = response.data.content;
+
+                // NOW open modal and set content
+                const modalTitle = document.getElementById('modalTitle');
+                const modalBody = document.getElementById('modalBody');
+
+                modalTitle.textContent = `✏️ Chỉnh Sửa Template: ${templateName}`;
+
                 currentTemplateData = {
                     path: templatePath,
                     name: templateName,
@@ -1969,14 +1963,21 @@ ChatChiu Cashback System</textarea>
                     const textarea = document.getElementById('templateContent');
                     if (textarea) {
                         textarea.value = content;
-                        console.log('Template content set successfully, length:', content.length);
-                    } else {
-                        console.error('Textarea not found!');
                     }
-                }, 0);
+
+                    // FINALLY show the modal after everything is ready
+                    const modal = document.getElementById('editModal');
+                    modal.style.display = ''; // Reset inline style
+                    modal.classList.add('show');
+                }, 10); // 10ms to ensure DOM is fully rendered
 
             } catch (error) {
                 console.error('Error loading template:', error);
+
+                const modalTitle = document.getElementById('modalTitle');
+                const modalBody = document.getElementById('modalBody');
+
+                modalTitle.textContent = '❌ Lỗi';
                 modalBody.innerHTML = `
                     <div class="alert-box" style="background: #FEE; border-left: 4px solid #F44336;">
                         <div class="alert-title" style="color: #C62828;">❌ Lỗi Tải Template</div>
@@ -1989,6 +1990,10 @@ ChatChiu Cashback System</textarea>
                         </button>
                     </div>
                 `;
+
+                const modal = document.getElementById('editModal');
+                modal.style.display = ''; // Reset inline style
+                modal.classList.add('show');
             }
         }
 
@@ -2284,7 +2289,6 @@ ChatChiu Cashback System</textarea>
 
         // Close edit modal
         function closeEditModal() {
-            console.log('closeEditModal called, stack:', new Error().stack);
             const modal = document.getElementById('editModal');
             modal.classList.remove('show');
             modal.style.display = 'none'; // Also reset inline style if set
@@ -3387,9 +3391,13 @@ ChatChiu Cashback System</textarea>
                     sendTestEmail();
                     break;
                 case 'edit-email-template':
+                    e.preventDefault();
+                    e.stopPropagation();
                     editEmailTemplate(e.target.closest('[data-template]'));
                     break;
                 case 'save-email-template':
+                    e.preventDefault();
+                    e.stopPropagation();
                     saveEmailTemplate();
                     break;
             }

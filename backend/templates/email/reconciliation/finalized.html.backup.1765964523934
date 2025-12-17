@@ -1,6 +1,6 @@
 <p>Xin chào <strong>{{userName}}</strong>,</p>
 
-<p>Chatchiu.Online vui mừng thông báo rằng kỳ đối soát <strong>{{periodLabel}}</strong> đã được duyệt!</p>
+<p>Chúng tôi vui mừng thông báo rằng kỳ đối soát <strong>{{periodLabel}}</strong> đã được hoàn tất!</p>
 
 <!-- Amount Highlight -->
 <div class="amount-highlight">
@@ -29,12 +29,12 @@
 <!-- Next Steps -->
 <div class="success-box">
   <p><strong>✅ Bạn có thể rút tiền ngay!</strong></p>
-  <p>Số tiền tối thiểu để tạo yêu cầu rút tiền là <strong>50.000 ₫</strong></p>
+  <p>Số tiền tối thiểu để tạo yêu cầu rút tiền là <strong>100.000 ₫</strong></p>
   <p>Thời gian xử lý: 1-3 ngày làm việc</p>
 </div>
 
-<p>Cảm ơn bạn đã tin tưởng và sử dụng ChatChiu.Online!</p>
+<p>Cảm ơn bạn đã tin tưởng và sử dụng dịch vụ ChatChiu Cashback!</p>
 
-<p>Nếu có bất kỳ thắc mắc nào, vui lòng liên hệ với chúng tôi qua <a href="https://zalo.me/g/ptmqpk507">Hỗ trợ</a>.</p>
+<p>Nếu có bất kỳ thắc mắc nào, vui lòng liên hệ với chúng tôi qua <a href="{{supportUrl}}">Hỗ trợ</a>.</p>
 
 <p>Trân trọng,<br><strong>ChatChiu Team</strong></p>
