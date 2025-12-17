@@ -1916,17 +1916,24 @@ ChatChiu Cashback System</textarea>
                     originalContent: content
                 };
 
+                // Escape HTML for safe display in textarea
+                const escapeHtml = (text) => {
+                    const div = document.createElement('div');
+                    div.textContent = text;
+                    return div.innerHTML;
+                };
+
                 // Show editor
                 modalBody.innerHTML = `
                     <div class="form-group">
                         <label for="templatePath">📁 Template Path</label>
-                        <input type="text" id="templatePath" value="${templatePath}" disabled style="background: var(--gray-100); cursor: not-allowed;">
+                        <input type="text" id="templatePath" value="${escapeHtml(templatePath)}" disabled style="background: var(--gray-100); cursor: not-allowed;">
                         <small>Đường dẫn file template trong backend/templates/email/</small>
                     </div>
 
                     <div class="form-group">
                         <label for="templateContent">📝 Nội Dung HTML Template *</label>
-                        <textarea id="templateContent" rows="20" style="font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.6;" required>${content}</textarea>
+                        <textarea id="templateContent" rows="20" style="font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.6;" required></textarea>
                         <small>Chỉnh sửa HTML template. Hỗ trợ variables: {{userName}}, {{amount}}, {{date}}, etc.</small>
                     </div>
 
@@ -1951,6 +1958,9 @@ ChatChiu Cashback System</textarea>
                         </button>
                     </div>
                 `;
+
+                // Set textarea value after creating the HTML to avoid escaping issues
+                document.getElementById('templateContent').value = content;
 
             } catch (error) {
                 console.error('Error loading template:', error);
