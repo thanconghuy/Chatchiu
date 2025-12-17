@@ -1924,18 +1924,14 @@ ChatChiu Cashback System</textarea>
                     originalContent: content
                 };
 
-                // Escape HTML for safe display in textarea
-                const escapeHtml = (text) => {
-                    const div = document.createElement('div');
-                    div.textContent = text;
-                    return div.innerHTML;
-                };
+                // Escape HTML for safe display
+                const escapedPath = templatePath.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
                 // Show editor
                 modalBody.innerHTML = `
                     <div class="form-group">
                         <label for="templatePath">📁 Template Path</label>
-                        <input type="text" id="templatePath" value="${escapeHtml(templatePath)}" disabled style="background: var(--gray-100); cursor: not-allowed;">
+                        <input type="text" id="templatePath" value="${escapedPath}" disabled style="background: var(--gray-100); cursor: not-allowed;">
                         <small>Đường dẫn file template trong backend/templates/email/</small>
                     </div>
 
