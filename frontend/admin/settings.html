@@ -2284,6 +2284,7 @@ ChatChiu Cashback System</textarea>
 
         // Close edit modal
         function closeEditModal() {
+            console.log('closeEditModal called, stack:', new Error().stack);
             const modal = document.getElementById('editModal');
             modal.classList.remove('show');
             modal.style.display = 'none'; // Also reset inline style if set
