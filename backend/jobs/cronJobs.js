@@ -29,36 +29,66 @@ class CronJobsService {
    * @param {boolean} forceReload - Force reload even if already initialized
    */
   async initialize(forceReload = false) {
-    // Check database setting first (overrides env variable)
-    let autoCronEnabled = process.env.AUTO_CRON_ENABLED === 'true';
+    // Production: Always use database setting (default: true)
+    // Local: Use .env variable for development control
+    const isProduction = process.env.NODE_ENV === 'production' || !process.env.NODE_ENV;
+    let autoCronEnabled = true; // Default: enabled
 
     try {
       const SystemSettings = require('../services/systemSettings');
       const dbSetting = await SystemSettings.get('auto_cron_enabled', true);
-      autoCronEnabled = dbSetting === true || dbSetting === 'true';
 
-      // Update env variable to match database
+      if (isProduction) {
+        // Production: Database is source of truth
+        autoCronEnabled = dbSetting === true || dbSetting === 'true';
+        logger.info(`[Production] Cron setting from database: ${autoCronEnabled}`);
+      } else {
+        // Local development: .env can override database for dev convenience
+        if (process.env.AUTO_CRON_ENABLED !== undefined) {
+          autoCronEnabled = process.env.AUTO_CRON_ENABLED === 'true';
+          logger.info(`[Local Dev] Cron setting from .env: ${autoCronEnabled}`);
+        } else {
+          autoCronEnabled = dbSetting === true || dbSetting === 'true';
+          logger.info(`[Local Dev] Cron setting from database: ${autoCronEnabled}`);
+        }
+      }
+
+      // Update env variable to match final decision
       process.env.AUTO_CRON_ENABLED = autoCronEnabled ? 'true' : 'false';
 
-      logger.info(`Cron setting from database: ${autoCronEnabled}`);
     } catch (error) {
-      logger.warn('Failed to load cron setting from database, using env variable', {
+      logger.warn('Failed to load cron setting from database, using default (enabled)', {
         error: error.message
       });
+      // Default to enabled if database query fails
+      autoCronEnabled = true;
+      process.env.AUTO_CRON_ENABLED = 'true';
     }
 
-    // If already initialized and jobs are running, don't reinitialize unless forced
-    if (this.isInitialized && this.jobs.length > 0 && !forceReload) {
-      logger.warn('Cron jobs already initialized and running (use forceReload=true to reload)');
-      return;
-    }
-
-    // If not enabled, stop all jobs and mark as disabled
+    // If not enabled, stop all jobs and mark as NOT initialized
     if (!autoCronEnabled) {
-      logger.info('Auto cron jobs DISABLED (set auto_cron_enabled=true in database to enable)');
+      logger.info('Auto cron jobs DISABLED');
       this.stopAll();
-      this.isInitialized = true;
+      this.isInitialized = false;
       return;
+    }
+
+    // If already initialized with running jobs, check if reload is needed
+    if (this.isInitialized && this.jobs.length > 0 && !forceReload) {
+      // Verify jobs are actually running
+      const allJobsRunning = this.jobs.every(({ job }) => {
+        // node-cron doesn't expose running state directly,
+        // but if job exists in array, it should be running
+        return job !== null;
+      });
+
+      if (allJobsRunning) {
+        logger.info(`Cron jobs already running (${this.jobs.length} jobs active)`);
+        return;
+      } else {
+        logger.warn('Some cron jobs not running, forcing reload...');
+        forceReload = true;
+      }
     }
 
     // Force reload: Reset initialization state to allow recreation
@@ -85,7 +115,7 @@ class CronJobsService {
     this.scheduleActivityLogsCleanup();
 
     this.isInitialized = true;
-    logger.success(`Initialized ${this.jobs.length} cron jobs`);
+    logger.success(`✅ Initialized ${this.jobs.length} cron jobs (auto-start enabled)`);
   }
 
   /**
@@ -139,13 +169,16 @@ class CronJobsService {
       timezone: "Asia/Ho_Chi_Minh"
     });
 
+    // Ensure job is started
+    job.start();
+
     this.jobs.push({
       name: 'retry-unmatched',
       schedule,
       job
     });
 
-    logger.info(`✅ Scheduled: Retry unmatched clicks (${schedule})`);
+    logger.info(`✅ Scheduled & Started: Retry unmatched clicks (${schedule})`);
   }
 
   /**
@@ -190,13 +223,16 @@ class CronJobsService {
       timezone: "Asia/Ho_Chi_Minh"
     });
 
+    // Ensure job is started
+    job.start();
+
     this.jobs.push({
       name: 'cleanup-expired',
       schedule,
       job
     });
 
-    logger.info(`✅ Scheduled: Cleanup expired clicks (${schedule})`);
+    logger.info(`✅ Scheduled & Started: Cleanup expired clicks (${schedule})`);
   }
 
   /**
@@ -235,13 +271,16 @@ class CronJobsService {
       timezone: "Asia/Ho_Chi_Minh"
     });
 
+    // Ensure job is started
+    job.start();
+
     this.jobs.push({
       name: 'expiring-alert',
       schedule,
       job
     });
 
-    logger.info(`✅ Scheduled: Expiring clicks alert (${schedule})`);
+    logger.info(`✅ Scheduled & Started: Expiring clicks alert (${schedule})`);
   }
 
   /**
@@ -287,19 +326,27 @@ class CronJobsService {
       timezone: "Asia/Ho_Chi_Minh"
     });
 
+    // Ensure job is started
+    job.start();
+
     this.jobs.push({
       name: 'cleanup-activity-logs',
       schedule,
       job
     });
 
-    logger.info(`✅ Scheduled: Activity logs cleanup (${schedule})`);
+    logger.info(`✅ Scheduled & Started: Activity logs cleanup (${schedule})`);
   }
 
   /**
    * Stop all cron jobs
    */
   stopAll() {
+    if (this.jobs.length === 0) {
+      logger.info('No cron jobs to stop');
+      return;
+    }
+
     logger.info('Stopping all cron jobs...');
 
     this.jobs.forEach(({ name, job }) => {
@@ -307,8 +354,8 @@ class CronJobsService {
       logger.info(`Stopped: ${name}`);
     });
 
-    this.isInitialized = false;
     this.jobs = [];
+    // Note: isInitialized flag is managed by initialize() method
   }
 
   /**

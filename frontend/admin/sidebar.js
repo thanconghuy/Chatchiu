@@ -49,7 +49,8 @@ const SIDEBAR_MENU_STRUCTURE = {
             icon: 'fa-solid fa-display',
             items: [
                 { href: '/admin/monitoring', icon: 'fa-solid fa-heart-pulse', text: 'Monitoring', id: 'monitoring' },
-                { href: '/admin/activity-logs', icon: 'fa-solid fa-file-lines', text: 'Activity Logs', id: 'activity-logs' }
+                { href: '/admin/activity-logs', icon: 'fa-solid fa-file-lines', text: 'Activity Logs', id: 'activity-logs' },
+                { href: '/admin/email-logs', icon: 'fa-solid fa-envelope', text: 'Email Logs', id: 'email-logs' }
             ]
         }
     ]

@@ -343,6 +343,23 @@ class SystemReconciliationService {
 
       await client.query('COMMIT');
 
+      // Send email notifications to users (async, don't block)
+      // Import dynamically to avoid circular dependencies
+      setImmediate(async () => {
+        try {
+          const { sendReconciliationFinalizedEmails } = require('../emailHelpers/reconciliationEmailHelper');
+
+          await sendReconciliationFinalizedEmails({
+            reconciliationId,
+            periodLabel: recon.period_label,
+            userBalances: userBalances
+          });
+        } catch (emailError) {
+          // Log but don't throw - email failures should not break finalization
+          console.error('[SystemReconciliation] Failed to send finalization emails:', emailError.message);
+        }
+      });
+
       return await this.getReconciliationById(reconciliationId);
 
     } catch (error) {

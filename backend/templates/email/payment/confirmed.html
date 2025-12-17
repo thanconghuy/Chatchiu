@@ -1,0 +1,67 @@
+<p>Xin chào <strong>{{userName}}</strong>,</p>
+
+<p>Yêu cầu rút tiền của bạn đã được <strong style="color: #10b981;">xác nhận</strong> và đang được xử lý!</p>
+
+<!-- Success Icon -->
+<div style="text-align: center; margin: 30px 0;">
+  <div style="font-size: 64px; color: #10b981;">✅</div>
+  <p style="font-size: 20px; font-weight: 600; color: #10b981; margin: 10px 0;">Đã Xác Nhận</p>
+</div>
+
+<!-- Details -->
+<div class="info-box">
+  <h3>💳 Thông tin yêu cầu rút tiền</h3>
+  <p><strong>Mã yêu cầu:</strong> <code style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px;">{{requestId}}</code></p>
+  <p><strong>Số tiền:</strong> <span style="color: #667eea; font-weight: 700; font-size: 20px;">{{requestedAmount}}</span></p>
+  <p><strong>Ngân hàng:</strong> {{bankName}}</p>
+  <p><strong>Số tài khoản:</strong> {{bankAccountNumber}}</p>
+  <p><strong>Trạng thái:</strong> <span style="color: #10b981; font-weight: 600;">Đã xác nhận - Đang xử lý</span></p>
+  <p><strong>Xác nhận lúc:</strong> {{confirmedAt}}</p>
+</div>
+
+<!-- Timeline -->
+<div class="timeline">
+  <div class="timeline-item">
+    <div class="timeline-icon completed">✓</div>
+    <div class="timeline-text completed">Yêu cầu đã gửi</div>
+  </div>
+  <div class="timeline-item">
+    <div class="timeline-icon completed">✓</div>
+    <div class="timeline-text completed">Đã xác nhận</div>
+  </div>
+  <div class="timeline-item">
+    <div class="timeline-icon current">⏳</div>
+    <div class="timeline-text" style="font-weight: 600; color: #667eea;">Đang xử lý chuyển tiền</div>
+  </div>
+  <div class="timeline-item">
+    <div class="timeline-icon">○</div>
+    <div class="timeline-text">Hoàn tất</div>
+  </div>
+</div>
+
+<!-- Admin Notes (if any) -->
+{{#if adminNotes}}
+<div class="info-box" style="background: #fef3c7; border-left-color: #f59e0b;">
+  <p><strong>📝 Ghi chú từ admin:</strong></p>
+  <p>{{adminNotes}}</p>
+</div>
+{{/if}}
+
+<!-- Next Steps -->
+<div class="success-box">
+  <p><strong>📅 Thời gian dự kiến:</strong></p>
+  <p>Chúng tôi sẽ chuyển tiền vào tài khoản của bạn trong <strong>1-3 ngày làm việc</strong>.</p>
+  <p>Bạn sẽ nhận được email thông báo khi việc chuyển tiền hoàn tất.</p>
+</div>
+
+<p>Cảm ơn bạn đã kiên nhẫn chờ đợi. Chúng tôi đang xử lý yêu cầu của bạn một cách nhanh chóng!</p>
+
+<div class="button-container">
+  <a href="{{paymentHistoryUrl}}" class="button">
+    Xem Lịch Sử Rút Tiền
+  </a>
+</div>
+
+<p>Nếu có thắc mắc, vui lòng liên hệ <a href="{{supportUrl}}">Hỗ trợ</a> với mã yêu cầu: <code>{{requestId}}</code></p>
+
+<p>Trân trọng,<br><strong>ChatChiu Team</strong></p>

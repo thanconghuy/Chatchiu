@@ -595,6 +595,10 @@
                             <i class="fas fa-sync"></i>
                             <span>Auto-Sync</span>
                         </button>
+                        <button class="tab-button" data-action="switch-tab" data-tab="email">
+                            <i class="fas fa-envelope"></i>
+                            <span>Email/SMTP</span>
+                        </button>
                         <button class="tab-button" data-action="switch-tab" data-tab="ai">
                             <i class="fas fa-robot"></i>
                             <span>AI/ML</span>
@@ -970,6 +974,316 @@
                     </div>
                     <!-- End Auto-Sync Tab -->
 
+                    <!-- Email/SMTP Tab Content -->
+                    <div class="settings-tab-content" id="tab-email">
+                    <div class="settings-section">
+                        <h2>📧 Cấu Hình Email & SMTP</h2>
+
+                        <div class="alert-box" style="margin-bottom: 20px; background: #E3F2FD; border-left: 4px solid #2196F3;">
+                            <div class="alert-title" style="color: #1565C0;">ℹ️ Thông Tin Email Module</div>
+                            <p style="color: #424242;">
+                                Email module được sử dụng để gửi thông báo tự động cho users về:
+                            </p>
+                            <ul style="margin: 10px 0 0 20px; color: var(--gray-700);">
+                                <li><strong>Reconciliation Finalized:</strong> Thông báo khi đối soát được finalize với số dư của user</li>
+                                <li><strong>Payment Confirmed:</strong> Thông báo khi yêu cầu thanh toán được duyệt</li>
+                                <li><strong>Payment Rejected:</strong> Thông báo khi yêu cầu thanh toán bị từ chối</li>
+                                <li><strong>Payment Paid:</strong> Thông báo khi thanh toán đã hoàn tất</li>
+                            </ul>
+                        </div>
+
+                        <h3>🔧 SMTP Configuration</h3>
+
+                        <div class="alert-box" style="margin-bottom: 20px; background: #FFF3E0; border-left: 4px solid #FF9800;">
+                            <div class="alert-title" style="color: #E65100;">⚠️ Production Setup</div>
+                            <p style="color: #424242;">
+                                <strong>Development Mode:</strong> Khi SMTP chưa được cấu hình, email sẽ được log ra console thay vì gửi thật.
+                                <br><br>
+                                <strong>Production Mode:</strong> Cấu hình SMTP trong Neon database settings để gửi email thật:
+                            </p>
+                            <div style="background: #FFF; padding: 12px; border-radius: 6px; margin-top: 10px; font-family: monospace; font-size: 0.9rem;">
+                                SMTP_HOST=smtp.gmail.com<br>
+                                SMTP_PORT=587<br>
+                                SMTP_USER=your-email@gmail.com<br>
+                                SMTP_PASS=your-app-password<br>
+                                SMTP_FROM=ChatChiu Cashback &lt;noreply@chatchiu.com&gt;
+                            </div>
+                        </div>
+
+                        <!-- SMTP Config Summary -->
+                        <div class="settings-grid">
+                            <div class="setting-item" style="border-left-color: #4CAF50;">
+                                <div class="setting-info">
+                                    <div class="setting-label">⚙️ Cấu Hình SMTP</div>
+                                    <div class="setting-description">
+                                        Cấu hình SMTP server để gửi email. Click "Chỉnh Sửa" để update settings.
+                                    </div>
+                                </div>
+                                <div class="setting-value">
+                                    <button class="btn btn-secondary" data-action="edit-smtp-config">
+                                        <i class="fas fa-edit"></i>
+                                        Chỉnh Sửa SMTP
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SMTP Config Display (Read-only) -->
+                        <div class="settings-grid" id="smtpConfigDisplay">
+                            <!-- SMTP Host -->
+                            <div class="setting-item" style="border-left-color: #2196F3;">
+                                <div class="setting-info">
+                                    <div class="setting-label">🌐 SMTP Host</div>
+                                    <div class="setting-description">
+                                        SMTP server hostname
+                                    </div>
+                                </div>
+                                <div class="setting-value">
+                                    <span id="smtpHost" class="value-text">Chưa cấu hình</span>
+                                </div>
+                            </div>
+
+                            <!-- SMTP Port -->
+                            <div class="setting-item" style="border-left-color: #2196F3;">
+                                <div class="setting-info">
+                                    <div class="setting-label">🔌 SMTP Port</div>
+                                    <div class="setting-description">
+                                        SMTP port (587=TLS, 465=SSL)
+                                    </div>
+                                </div>
+                                <div class="setting-value">
+                                    <span id="smtpPort" class="value-text">587</span>
+                                </div>
+                            </div>
+
+                            <!-- SMTP User -->
+                            <div class="setting-item" style="border-left-color: #2196F3;">
+                                <div class="setting-info">
+                                    <div class="setting-label">👤 SMTP User</div>
+                                    <div class="setting-description">
+                                        Email account để gửi
+                                    </div>
+                                </div>
+                                <div class="setting-value">
+                                    <span id="smtpUser" class="value-text">Chưa cấu hình</span>
+                                </div>
+                            </div>
+
+                            <!-- SMTP Password -->
+                            <div class="setting-item" style="border-left-color: #2196F3;">
+                                <div class="setting-info">
+                                    <div class="setting-label">🔐 SMTP Password</div>
+                                    <div class="setting-description">
+                                        Encrypted app password
+                                    </div>
+                                </div>
+                                <div class="setting-value">
+                                    <span id="smtpPasswordStatus" class="value-text">********</span>
+                                </div>
+                            </div>
+
+                            <!-- SMTP From -->
+                            <div class="setting-item" style="border-left-color: #2196F3;">
+                                <div class="setting-info">
+                                    <div class="setting-label">📤 SMTP From</div>
+                                    <div class="setting-description">
+                                        Sender email display name
+                                    </div>
+                                </div>
+                                <div class="setting-value">
+                                    <span id="smtpFrom" class="value-text">ChatChiu Cashback &lt;noreply@chatchiu.com&gt;</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h3>📊 Email Logs & Statistics</h3>
+
+                        <div class="alert-box" style="margin-bottom: 20px;">
+                            <div class="alert-title">📈 Xem Chi Tiết Email Logs</div>
+                            <p style="color: var(--gray-700);">
+                                Để xem logs chi tiết của tất cả emails đã gửi, vui lòng truy cập:
+                            </p>
+                            <div style="margin-top: 12px;">
+                                <a href="/admin/email-logs" class="btn btn-primary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+                                    <i class="fas fa-envelope-open-text"></i>
+                                    <span>Mở Email Logs Dashboard</span>
+                                </a>
+                            </div>
+                            <p style="margin-top: 12px; color: var(--gray-600); font-size: 0.9rem;">
+                                Dashboard cung cấp: statistics, filter theo status, search, export CSV, retry failed emails
+                            </p>
+                        </div>
+
+                        <h3>🧪 Test Email Configuration</h3>
+
+                        <div class="settings-grid">
+                            <div class="setting-item" style="border-left-color: #4CAF50;">
+                                <div class="setting-info">
+                                    <div class="setting-label">📨 Gửi Test Email</div>
+                                    <div class="setting-description">
+                                        Gửi email test để kiểm tra cấu hình SMTP có hoạt động không
+                                    </div>
+                                </div>
+                                <div class="setting-value">
+                                    <button class="btn btn-secondary" data-action="test-email">
+                                        <i class="fas fa-paper-plane"></i>
+                                        Gửi Test Email
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h3>📧 Email Templates</h3>
+
+                        <div class="alert-box" style="margin-bottom: 20px;">
+                            <div class="alert-title">📝 Quản Lý Email Templates</div>
+                            <p style="color: var(--gray-700);">
+                                Customize email templates cho các notification khác nhau trong hệ thống.
+                                Templates hỗ trợ HTML và có thể sử dụng variables động.
+                            </p>
+                        </div>
+
+                        <div class="settings-grid">
+                            <!-- Base Layout Template -->
+                            <div class="setting-item" style="border-left-color: #9C27B0;">
+                                <div class="setting-info">
+                                    <div class="setting-label">🎨 Layout Chính (Master Template)</div>
+                                    <div class="setting-description">
+                                        Template layout cơ bản chứa header, footer và khung chung cho tất cả emails
+                                        <br><small style="color: var(--gray-500); font-family: monospace;">base/layout.html</small>
+                                    </div>
+                                </div>
+                                <div class="setting-value">
+                                    <button class="btn btn-secondary" data-action="edit-email-template" data-template="base/layout.html" data-name="Layout Chính">
+                                        <i class="fas fa-edit"></i>
+                                        Chỉnh Sửa
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Header Component -->
+                            <div class="setting-item" style="border-left-color: #9C27B0;">
+                                <div class="setting-info">
+                                    <div class="setting-label">📮 Email Header</div>
+                                    <div class="setting-description">
+                                        Phần header xuất hiện ở đầu mỗi email (logo, tiêu đề)
+                                        <br><small style="color: var(--gray-500); font-family: monospace;">base/components/header.html</small>
+                                    </div>
+                                </div>
+                                <div class="setting-value">
+                                    <button class="btn btn-secondary" data-action="edit-email-template" data-template="base/components/header.html" data-name="Email Header">
+                                        <i class="fas fa-edit"></i>
+                                        Chỉnh Sửa
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Footer Component -->
+                            <div class="setting-item" style="border-left-color: #9C27B0;">
+                                <div class="setting-info">
+                                    <div class="setting-label">🔗 Email Footer</div>
+                                    <div class="setting-description">
+                                        Phần footer xuất hiện ở cuối mỗi email (thông tin liên hệ, unsubscribe)
+                                        <br><small style="color: var(--gray-500); font-family: monospace;">base/components/footer.html</small>
+                                    </div>
+                                </div>
+                                <div class="setting-value">
+                                    <button class="btn btn-secondary" data-action="edit-email-template" data-template="base/components/footer.html" data-name="Email Footer">
+                                        <i class="fas fa-edit"></i>
+                                        Chỉnh Sửa
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Reconciliation Finalized -->
+                            <div class="setting-item" style="border-left-color: #FF9800;">
+                                <div class="setting-info">
+                                    <div class="setting-label">✅ Đối Soát Hoàn Thành</div>
+                                    <div class="setting-description">
+                                        Email gửi khi đối soát được finalized - thông báo cho admin và users
+                                        <br><small style="color: var(--gray-500); font-family: monospace;">reconciliation/finalized.html</small>
+                                    </div>
+                                </div>
+                                <div class="setting-value">
+                                    <button class="btn btn-secondary" data-action="edit-email-template" data-template="reconciliation/finalized.html" data-name="Đối Soát Hoàn Thành">
+                                        <i class="fas fa-edit"></i>
+                                        Chỉnh Sửa
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Payment Confirmed -->
+                            <div class="setting-item" style="border-left-color: #4CAF50;">
+                                <div class="setting-info">
+                                    <div class="setting-label">✔️ Thanh Toán Đã Duyệt</div>
+                                    <div class="setting-description">
+                                        Email thông báo khi payment request được admin approve
+                                        <br><small style="color: var(--gray-500); font-family: monospace;">payment/confirmed.html</small>
+                                    </div>
+                                </div>
+                                <div class="setting-value">
+                                    <button class="btn btn-secondary" data-action="edit-email-template" data-template="payment/confirmed.html" data-name="Thanh Toán Đã Duyệt">
+                                        <i class="fas fa-edit"></i>
+                                        Chỉnh Sửa
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Payment Rejected -->
+                            <div class="setting-item" style="border-left-color: #F44336;">
+                                <div class="setting-info">
+                                    <div class="setting-label">❌ Thanh Toán Bị Từ Chối</div>
+                                    <div class="setting-description">
+                                        Email thông báo khi payment request bị admin reject
+                                        <br><small style="color: var(--gray-500); font-family: monospace;">payment/rejected.html</small>
+                                    </div>
+                                </div>
+                                <div class="setting-value">
+                                    <button class="btn btn-secondary" data-action="edit-email-template" data-template="payment/rejected.html" data-name="Thanh Toán Bị Từ Chối">
+                                        <i class="fas fa-edit"></i>
+                                        Chỉnh Sửa
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Payment Paid -->
+                            <div class="setting-item" style="border-left-color: #2196F3;">
+                                <div class="setting-info">
+                                    <div class="setting-label">💰 Thanh Toán Đã Chuyển</div>
+                                    <div class="setting-description">
+                                        Email thông báo khi payment đã được chuyển khoản thành công
+                                        <br><small style="color: var(--gray-500); font-family: monospace;">payment/paid.html</small>
+                                    </div>
+                                </div>
+                                <div class="setting-value">
+                                    <button class="btn btn-secondary" data-action="edit-email-template" data-template="payment/paid.html" data-name="Thanh Toán Đã Chuyển">
+                                        <i class="fas fa-edit"></i>
+                                        Chỉnh Sửa
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert-box" style="margin-top: 20px; background: #E3F2FD; border-left: 4px solid #2196F3;">
+                            <div class="alert-title" style="color: #1565C0;">💡 Hướng Dẫn Sử Dụng Variables</div>
+                            <p style="color: #424242;">
+                                Trong email templates, bạn có thể sử dụng các biến động sau:
+                            </p>
+                            <ul style="margin: 10px 0 0 20px; color: var(--gray-700); font-size: 0.9rem; line-height: 1.6;">
+                                <li><code>{{userName}}</code> - Tên người dùng</li>
+                                <li><code>{{userEmail}}</code> - Email người dùng</li>
+                                <li><code>{{amount}}</code> - Số tiền (cho payment/reconciliation)</li>
+                                <li><code>{{paymentId}}</code> - Mã payment request</li>
+                                <li><code>{{reconciliationId}}</code> - Mã đối soát</li>
+                                <li><code>{{date}}</code> - Ngày gửi email</li>
+                                <li><code>{{reason}}</code> - Lý do (cho rejected emails)</li>
+                            </ul>
+                        </div>
+
+                    </div>
+                    </div>
+                    <!-- End Email/SMTP Tab -->
+
                     <!-- AI/ML Tab Content -->
                     <div class="settings-tab-content" id="tab-ai">
                     <!-- Future AI/ML Configuration -->
@@ -1035,7 +1349,8 @@
             await Promise.all([
                 loadSettings(),
                 loadPaymentSettings(),
-                loadCronJobsStatus()
+                loadCronJobsStatus(),
+                loadSmtpConfig()
             ]);
 
             console.log('✅ All settings loaded successfully');
@@ -1110,9 +1425,28 @@
                     : 'Chưa được khởi tạo';
                 document.getElementById('cronJobsInfo').textContent = infoText;
 
-                // Update jobs list
+                // **AUTO-FIX**: If enabled but no jobs running, show reload button
                 const jobsList = document.getElementById('cronJobsList');
-                if (status.jobsCount > 0) {
+                if (status.autoCronEnabled && status.jobsCount === 0) {
+                    jobsList.innerHTML = `
+                        <div style="text-align: center; padding: 30px; background: #FFF3CD; border-radius: 8px; border: 1px solid #FFC107;">
+                            <div style="font-size: 2rem; margin-bottom: 10px;">⚠️</div>
+                            <div style="font-size: 1.1rem; font-weight: 600; color: #856404; margin-bottom: 8px;">
+                                Không có cron jobs nào đang chạy
+                            </div>
+                            <div style="color: #856404; margin-bottom: 16px;">
+                                Auto Cron đã được bật nhưng jobs chưa start. Hãy click "Reload Jobs" để khởi động.
+                            </div>
+                            <button
+                                onclick="document.getElementById('reloadCronBtn').click()"
+                                style="background: #FFC107; color: #000; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                🔄 Reload Jobs Ngay
+                            </button>
+                        </div>
+                    `;
+                    console.warn('⚠️ Auto Cron enabled but no jobs running!');
+                } else if (status.jobsCount > 0) {
+                    // Jobs are running - show normal list
                     jobsList.innerHTML = `
                         <table style="width: 100%; border-collapse: collapse;">
                             <thead>
@@ -1139,12 +1473,13 @@
                     `;
                     console.log('✅ Cron jobs list rendered successfully');
                 } else {
+                    // Auto Cron is disabled
                     jobsList.innerHTML = `
                         <div style="text-align: center; color: var(--gray-500); padding: 20px;">
-                            ⚠️ Không có cron jobs nào đang chạy. Hãy bật "Auto Cron Jobs" ở trên.
+                            ⚠️ Auto Cron Jobs đã được tắt. Bật toggle ở trên để kích hoạt.
                         </div>
                     `;
-                    console.log('ℹ️ No cron jobs running');
+                    console.log('ℹ️ Auto Cron disabled');
                 }
             } catch (error) {
                 console.error('❌ Error loading cron jobs status:', error);
@@ -1210,7 +1545,13 @@
         // Toggle auto cron
         document.getElementById('autoCronToggle')?.addEventListener('change', async (e) => {
             const enabled = e.target.checked;
+            const toggle = e.target;
+
+            // Disable toggle during operation
+            toggle.disabled = true;
+
             try {
+                // Step 1: Update setting in database (this will also call reload on backend)
                 const response = await apiRequest('/admin/settings/auto-cron', {
                     method: 'POST',
                     body: JSON.stringify({ enabled })
@@ -1220,17 +1561,39 @@
                     updateAutoCronStatus(enabled.toString());
                     showToast(enabled ? '✅ Đã BẬT Auto Cron Jobs' : '⚠️ Đã TẮT Auto Cron Jobs', 'success');
 
-                    // Reload cron jobs status after toggle
-                    setTimeout(() => {
-                        loadCronJobsStatus();
-                    }, 1000);
+                    // Step 2: Wait a bit for backend to process
+                    await new Promise(resolve => setTimeout(resolve, 500));
+
+                    // Step 3: Reload cron jobs status to verify
+                    await loadCronJobsStatus();
+
+                    // Step 4: If enabled but no jobs running, force reload
+                    if (enabled && response.data && response.data.jobsCount === 0) {
+                        console.warn('⚠️ Auto Cron enabled but no jobs running, forcing reload...');
+
+                        const reloadResponse = await apiRequest('/admin/settings/cron-reload', {
+                            method: 'POST'
+                        });
+
+                        if (reloadResponse.success) {
+                            showToast('🔄 Jobs đã được reload', 'info');
+
+                            // Reload status again after force reload
+                            await new Promise(resolve => setTimeout(resolve, 500));
+                            await loadCronJobsStatus();
+                        }
+                    }
                 } else {
-                    e.target.checked = !enabled;
+                    toggle.checked = !enabled;
                     showToast(response.message || 'Cập nhật thất bại', 'error');
                 }
             } catch (error) {
-                e.target.checked = !enabled;
+                console.error('Toggle auto cron error:', error);
+                toggle.checked = !enabled;
                 showToast('Không thể cập nhật cấu hình', 'error');
+            } finally {
+                // Re-enable toggle
+                toggle.disabled = false;
             }
         });
 
@@ -1370,6 +1733,426 @@
             } catch (error) {
                 console.error('Test API error:', error);
                 showToast('❌ Không thể kết nối API: ' + error.message, 'error');
+            }
+        }
+
+        // Load SMTP Configuration
+        async function loadSmtpConfig() {
+            try {
+                const response = await apiRequest('/admin/smtp/config');
+
+                if (response.success && response.data) {
+                    const config = response.data;
+
+                    // Update display fields
+                    document.getElementById('smtpHost').textContent = config.host || 'Chưa cấu hình';
+                    document.getElementById('smtpPort').textContent = config.port || '587';
+                    document.getElementById('smtpUser').textContent = config.user || 'Chưa cấu hình';
+                    document.getElementById('smtpFrom').textContent = config.from || 'Chưa cấu hình';
+
+                    // Update password status
+                    if (config.password_set) {
+                        document.getElementById('smtpPasswordStatus').textContent = '******** (Đã cấu hình)';
+                    } else {
+                        document.getElementById('smtpPasswordStatus').textContent = 'Chưa cấu hình';
+                    }
+
+                    console.log('✅ SMTP config loaded successfully');
+                } else {
+                    console.warn('⚠️ No SMTP config found, using defaults');
+                }
+            } catch (error) {
+                console.error('Error loading SMTP config:', error);
+                // Keep default "Chưa cấu hình" values on error
+            }
+        }
+
+        // Test Email Configuration
+        async function testEmail() {
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+
+            modalTitle.textContent = '📧 Gửi Test Email';
+
+            modalBody.innerHTML = `
+                <div class="form-group">
+                    <label for="testEmailTo">📮 Email Người Nhận *</label>
+                    <input type="email" id="testEmailTo" placeholder="recipient@example.com" required>
+                    <small>Nhập địa chỉ email nhận test email</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="testEmailSubject">📋 Tiêu Đề Email *</label>
+                    <input type="text" id="testEmailSubject" placeholder="Test Email từ ChatChiu Cashback" value="Test Email từ ChatChiu Cashback" required>
+                    <small>Tiêu đề của email test</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="testEmailContent">✏️ Nội Dung Email *</label>
+                    <textarea id="testEmailContent" rows="6" placeholder="Nhập nội dung email test..." required>Đây là email test từ hệ thống ChatChiu Cashback.
+
+Nếu bạn nhận được email này, nghĩa là cấu hình SMTP đang hoạt động chính xác.
+
+Thời gian gửi: ${new Date().toLocaleString('vi-VN')}
+
+Trân trọng,
+ChatChiu Cashback System</textarea>
+                    <small>Nội dung email test (hỗ trợ plain text)</small>
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeEditModal()">
+                        <i class="fas fa-times"></i>
+                        Hủy
+                    </button>
+                    <button class="btn btn-primary" data-action="send-test-email">
+                        <i class="fas fa-paper-plane"></i>
+                        Gửi Test Email
+                    </button>
+                </div>
+            `;
+
+            document.getElementById('editModal').classList.add('show');
+        }
+
+        async function sendTestEmail() {
+            const to = document.getElementById('testEmailTo').value.trim();
+            const subject = document.getElementById('testEmailSubject').value.trim();
+            const content = document.getElementById('testEmailContent').value.trim();
+
+            // Validation
+            if (!to) {
+                showToast('❌ Email người nhận không được để trống', 'error');
+                return;
+            }
+
+            // Basic email validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(to)) {
+                showToast('❌ Email người nhận không hợp lệ', 'error');
+                return;
+            }
+
+            if (!subject) {
+                showToast('❌ Tiêu đề email không được để trống', 'error');
+                return;
+            }
+
+            if (!content) {
+                showToast('❌ Nội dung email không được để trống', 'error');
+                return;
+            }
+
+            try {
+                showToast('📧 Đang gửi test email...', 'info');
+
+                const response = await apiRequest('/admin/email-test', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        to: to,
+                        subject: subject,
+                        content: content,
+                        templateType: 'test'
+                    })
+                });
+
+                if (response.success) {
+                    showToast('✅ Test email đã được gửi thành công đến ' + to, 'success');
+                    closeEditModal();
+                } else {
+                    showToast('❌ Gửi email thất bại: ' + response.message, 'error');
+                }
+            } catch (error) {
+                console.error('Test email error:', error);
+                showToast('❌ Không thể gửi test email: ' + error.message, 'error');
+            }
+        }
+
+        // Edit Email Template
+        let currentTemplateData = null; // Store current template being edited
+
+        async function editEmailTemplate(element) {
+            const templatePath = element.dataset.template;
+            const templateName = element.dataset.name;
+
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+
+            modalTitle.textContent = `✏️ Chỉnh Sửa Template: ${templateName}`;
+
+            // Show loading state
+            modalBody.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 32px; color: var(--primary-color);"></i>
+                    <p style="margin-top: 16px; color: var(--gray-600);">Đang tải template...</p>
+                </div>
+            `;
+
+            document.getElementById('editModal').classList.add('show');
+
+            try {
+                // Load template content from backend
+                const response = await apiRequest(`/admin/email-template?path=${encodeURIComponent(templatePath)}`);
+
+                if (!response.success) {
+                    throw new Error(response.message || 'Failed to load template');
+                }
+
+                const content = response.data.content;
+                currentTemplateData = {
+                    path: templatePath,
+                    name: templateName,
+                    originalContent: content
+                };
+
+                // Show editor
+                modalBody.innerHTML = `
+                    <div class="form-group">
+                        <label for="templatePath">📁 Template Path</label>
+                        <input type="text" id="templatePath" value="${templatePath}" disabled style="background: var(--gray-100); cursor: not-allowed;">
+                        <small>Đường dẫn file template trong backend/templates/email/</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="templateContent">📝 Nội Dung HTML Template *</label>
+                        <textarea id="templateContent" rows="20" style="font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.6;" required>${content}</textarea>
+                        <small>Chỉnh sửa HTML template. Hỗ trợ variables: {{userName}}, {{amount}}, {{date}}, etc.</small>
+                    </div>
+
+                    <div class="alert-box" style="margin-top: 16px; background: #FFF3CD; border-left: 4px solid #FFC107;">
+                        <div class="alert-title" style="color: #856404;">⚠️ Lưu Ý Quan Trọng</div>
+                        <ul style="margin: 8px 0 0 20px; color: #856404; font-size: 0.9rem; line-height: 1.6;">
+                            <li>Backup template gốc trước khi chỉnh sửa</li>
+                            <li>Kiểm tra kỹ HTML syntax để tránh lỗi render</li>
+                            <li>Test email sau khi save để xem kết quả thực tế</li>
+                            <li>Variables phải dùng đúng format: <code>{{variableName}}</code></li>
+                        </ul>
+                    </div>
+
+                    <div class="modal-footer" style="margin-top: 24px;">
+                        <button class="btn btn-secondary" onclick="closeEditModal()">
+                            <i class="fas fa-times"></i>
+                            Hủy
+                        </button>
+                        <button class="btn btn-primary" data-action="save-email-template">
+                            <i class="fas fa-save"></i>
+                            Lưu Template
+                        </button>
+                    </div>
+                `;
+
+            } catch (error) {
+                console.error('Error loading template:', error);
+                modalBody.innerHTML = `
+                    <div class="alert-box" style="background: #FEE; border-left: 4px solid #F44336;">
+                        <div class="alert-title" style="color: #C62828;">❌ Lỗi Tải Template</div>
+                        <p style="color: #424242;">
+                            Không thể tải template: ${error.message}
+                        </p>
+                        <button class="btn btn-secondary" onclick="closeEditModal()" style="margin-top: 12px;">
+                            <i class="fas fa-times"></i>
+                            Đóng
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        // Save Email Template
+        async function saveEmailTemplate() {
+            if (!currentTemplateData) {
+                showToast('❌ Không có template nào đang được chỉnh sửa', 'error');
+                return;
+            }
+
+            const content = document.getElementById('templateContent').value;
+
+            // Validation
+            if (!content || content.trim().length === 0) {
+                showToast('❌ Nội dung template không được để trống', 'error');
+                return;
+            }
+
+            // Basic HTML validation - check for balanced tags
+            const openTags = (content.match(/<[^/][^>]*>/g) || []).length;
+            const closeTags = (content.match(/<\/[^>]+>/g) || []).length;
+
+            if (Math.abs(openTags - closeTags) > 5) { // Allow some flexibility for self-closing tags
+                const confirmed = confirm('⚠️ HTML có vẻ không cân bằng (số tag mở/đóng không khớp). Bạn có chắc muốn lưu?');
+                if (!confirmed) {
+                    return;
+                }
+            }
+
+            try {
+                showToast('💾 Đang lưu template...', 'info');
+
+                const response = await apiRequest('/admin/email-template', {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        path: currentTemplateData.path,
+                        content: content
+                    })
+                });
+
+                if (response.success) {
+                    showToast(`✅ Template "${currentTemplateData.name}" đã được lưu thành công!`, 'success');
+                    currentTemplateData = null;
+                    closeEditModal();
+                } else {
+                    showToast('❌ Lưu template thất bại: ' + response.message, 'error');
+                }
+            } catch (error) {
+                console.error('Save template error:', error);
+                showToast('❌ Không thể lưu template: ' + error.message, 'error');
+            }
+        }
+
+        // Edit SMTP Configuration
+        async function editSmtpConfig() {
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+
+            modalTitle.textContent = 'Chỉnh Sửa Cấu Hình SMTP';
+
+            // Load current config
+            try {
+                const response = await apiRequest('/admin/smtp/config');
+                const config = response.data || {};
+
+                modalBody.innerHTML = `
+                    <div class="form-group">
+                        <label for="smtpHostInput">🌐 SMTP Host *</label>
+                        <input type="text" id="smtpHostInput" placeholder="smtp.gmail.com" value="${config.host || ''}" required>
+                        <small>Hostname của SMTP server (e.g., smtp.gmail.com, smtp.sendgrid.net)</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="smtpPortInput">🔌 SMTP Port *</label>
+                        <input type="number" id="smtpPortInput" placeholder="587" value="${config.port || 587}" min="1" max="65535" required>
+                        <small>587 = TLS (recommended), 465 = SSL</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="smtpUserInput">👤 SMTP User *</label>
+                        <input type="email" id="smtpUserInput" placeholder="your-email@gmail.com" value="${config.user || ''}" required>
+                        <small>Email account để gửi (thường giống với From email)</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="smtpPasswordInput">🔐 SMTP Password *</label>
+                        <input type="password" id="smtpPasswordInput" placeholder="${config.password_set ? 'Đã cấu hình (để trống nếu không đổi)' : 'App password'}" ${!config.password_set ? 'required' : ''}>
+                        <small>
+                            ${config.password_set ?
+                                '⚠️ Password hiện tại đã được mã hóa. Để trống nếu không muốn thay đổi.' :
+                                'Sử dụng App Password từ Gmail (không phải password thường)'
+                            }
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="smtpFromInput">📤 SMTP From *</label>
+                        <input type="text" id="smtpFromInput" placeholder='ChatChiu Cashback <noreply@chatchiu.com>' value="${config.from || ''}" required>
+                        <small>Format: "Display Name &lt;email@domain.com&gt;"</small>
+                    </div>
+
+                    <div class="alert-box" style="background: #FFF3E0; border-left: 4px solid #FF9800; margin-top: 20px;">
+                        <div class="alert-title" style="color: #E65100;">🔐 Bảo Mật</div>
+                        <ul style="margin: 10px 0 0 20px; color: #666; font-size: 0.9rem;">
+                            <li>Password sẽ được mã hóa AES-256-GCM trước khi lưu vào database</li>
+                            <li>Sử dụng App Password từ Gmail, KHÔNG dùng password thường</li>
+                            <li>Sau khi lưu, password không thể xem lại (chỉ có thể thay đổi)</li>
+                        </ul>
+                    </div>
+
+                    <div style="margin-top: 24px; display: flex; gap: 10px;">
+                        <button class="btn-save" data-action="save-smtp-config">
+                            <i class="fas fa-save"></i>
+                            Lưu Cấu Hình
+                        </button>
+                        <button class="btn-secondary" data-action="close-modal">
+                            <i class="fas fa-times"></i>
+                            Hủy
+                        </button>
+                    </div>
+                `;
+
+                document.getElementById('editModal').classList.add('show');
+            } catch (error) {
+                console.error('Load SMTP config error:', error);
+                showToast('❌ Không thể tải cấu hình SMTP', 'error');
+            }
+        }
+
+        // Save SMTP Configuration
+        async function saveSmtpConfig() {
+            const host = document.getElementById('smtpHostInput').value.trim();
+            const port = parseInt(document.getElementById('smtpPortInput').value);
+            const user = document.getElementById('smtpUserInput').value.trim();
+            const password = document.getElementById('smtpPasswordInput').value; // Don't trim password
+            const from = document.getElementById('smtpFromInput').value.trim();
+
+            // Validation
+            if (!host) {
+                showToast('❌ SMTP Host không được để trống', 'error');
+                return;
+            }
+
+            if (!port || port < 1 || port > 65535) {
+                showToast('❌ SMTP Port không hợp lệ (1-65535)', 'error');
+                return;
+            }
+
+            if (!user) {
+                showToast('❌ SMTP User không được để trống', 'error');
+                return;
+            }
+
+            if (!from) {
+                showToast('❌ SMTP From không được để trống', 'error');
+                return;
+            }
+
+            // Email format validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(user)) {
+                showToast('❌ SMTP User phải là email hợp lệ', 'error');
+                return;
+            }
+
+            try {
+                showToast('💾 Đang lưu cấu hình SMTP...', 'info');
+
+                const config = {
+                    host,
+                    port,
+                    user,
+                    from
+                };
+
+                // Only include password if it's provided
+                if (password) {
+                    config.password = password;
+                }
+
+                const response = await apiRequest('/admin/smtp/config', {
+                    method: 'PUT',
+                    body: JSON.stringify(config)
+                });
+
+                if (response.success) {
+                    showToast('✅ Cấu hình SMTP đã được lưu thành công!', 'success');
+
+                    // Reload SMTP config from server to ensure consistency
+                    await loadSmtpConfig();
+
+                    closeEditModal();
+                } else {
+                    showToast('❌ Lưu cấu hình thất bại: ' + response.message, 'error');
+                }
+            } catch (error) {
+                console.error('Save SMTP config error:', error);
+                showToast('❌ Không thể lưu cấu hình: ' + error.message, 'error');
             }
         }
 
@@ -2555,6 +3338,24 @@
                     break;
                 case 'save-sync-days':
                     saveSyncDays();
+                    break;
+                case 'test-email':
+                    testEmail();
+                    break;
+                case 'edit-smtp-config':
+                    editSmtpConfig();
+                    break;
+                case 'save-smtp-config':
+                    saveSmtpConfig();
+                    break;
+                case 'send-test-email':
+                    sendTestEmail();
+                    break;
+                case 'edit-email-template':
+                    editEmailTemplate(e.target.closest('[data-template]'));
+                    break;
+                case 'save-email-template':
+                    saveEmailTemplate();
                     break;
             }
         });
