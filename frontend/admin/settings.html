@@ -595,9 +595,13 @@
                             <i class="fas fa-sync"></i>
                             <span>Auto-Sync</span>
                         </button>
-                        <button class="tab-button" data-action="switch-tab" data-tab="email">
+                        <button class="tab-button" data-action="switch-tab" data-tab="email-settings">
                             <i class="fas fa-envelope"></i>
-                            <span>Email/SMTP</span>
+                            <span>Email Settings</span>
+                        </button>
+                        <button class="tab-button" data-action="switch-tab" data-tab="email-templates">
+                            <i class="fas fa-file-code"></i>
+                            <span>Email Templates</span>
                         </button>
                         <button class="tab-button" data-action="switch-tab" data-tab="ai">
                             <i class="fas fa-robot"></i>
@@ -974,8 +978,8 @@
                     </div>
                     <!-- End Auto-Sync Tab -->
 
-                    <!-- Email/SMTP Tab Content -->
-                    <div class="settings-tab-content" id="tab-email">
+                    <!-- Email Settings Tab Content -->
+                    <div class="settings-tab-content" id="tab-email-settings">
                     <div class="settings-section">
                         <h2>📧 Cấu Hình Email & SMTP</h2>
 
@@ -1133,7 +1137,14 @@
                             </div>
                         </div>
 
-                        <h3>📧 Email Templates</h3>
+                    </div>
+                    </div>
+                    <!-- End Email Settings Tab -->
+
+                    <!-- Email Templates Tab Content -->
+                    <div class="settings-tab-content" id="tab-email-templates">
+                    <div class="settings-section">
+                        <h2>📧 Email Templates</h2>
 
                         <div class="alert-box" style="margin-bottom: 20px;">
                             <div class="alert-title">📝 Quản Lý Email Templates</div>
@@ -1282,7 +1293,7 @@
 
                     </div>
                     </div>
-                    <!-- End Email/SMTP Tab -->
+                    <!-- End Email Templates Tab -->
 
                     <!-- AI/ML Tab Content -->
                     <div class="settings-tab-content" id="tab-ai">
