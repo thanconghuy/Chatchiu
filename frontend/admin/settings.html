@@ -1903,10 +1903,18 @@ ChatChiu Cashback System</textarea>
 
             try {
                 // Load template content from backend
-                const response = await apiRequest(`/admin/email-template?path=${encodeURIComponent(templatePath)}`);
+                // Add timestamp to prevent caching
+                const response = await apiRequest(`/admin/email-template?path=${encodeURIComponent(templatePath)}&t=${Date.now()}`);
+
+                console.log('Template response:', response);
 
                 if (!response.success) {
                     throw new Error(response.message || 'Failed to load template');
+                }
+
+                if (!response.data || typeof response.data.content === 'undefined') {
+                    console.error('Invalid response data:', response);
+                    throw new Error('Template content is empty or invalid');
                 }
 
                 const content = response.data.content;
