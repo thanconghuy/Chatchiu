@@ -1270,7 +1270,7 @@ router.get('/conversion/:id/check-at-status', authenticateAdmin, async (req, res
 router.put('/conversion/:id/sync-from-at', authenticateAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { newStatus, newIsConfirmed } = req.body;
+    const { newStatus } = req.body;
 
     // Get conversion details from system_conversions table
     const query = `SELECT * FROM system_conversions WHERE id = $1`;
@@ -1285,7 +1285,6 @@ router.put('/conversion/:id/sync-from-at', authenticateAdmin, async (req, res) =
     }
 
     const oldStatus = conversion.status;
-    const oldIsConfirmed = conversion.is_confirmed;
     let balanceUpdated = false;
 
     // Update status if changed
@@ -1294,7 +1293,7 @@ router.put('/conversion/:id/sync-from-at', authenticateAdmin, async (req, res) =
 
       // Update in system_conversions table
       await pool.query(
-        'UPDATE system_conversions SET status = $1, approval_time = $2 WHERE id = $3',
+        'UPDATE system_conversions SET status = $1, approval_time = $2, updated_at = NOW() WHERE id = $3',
         [newStatus, approvalTime, id]
       );
 
@@ -1310,27 +1309,15 @@ router.put('/conversion/:id/sync-from-at', authenticateAdmin, async (req, res) =
       logger.info(`Updated order ${conversion.at_conversion_id}: ${oldStatus} → ${newStatus}`);
     }
 
-    // Update is_confirmed if changed
-    if (newIsConfirmed !== undefined && newIsConfirmed !== oldIsConfirmed) {
-      const confirmedTime = newIsConfirmed ? new Date() : null;
-      await pool.query(
-        'UPDATE system_conversions SET is_confirmed = $1, confirmed_time = $2 WHERE id = $3',
-        [newIsConfirmed, confirmedTime, id]
-      );
-      logger.info(`Updated order ${conversion.at_conversion_id} confirmation: ${oldIsConfirmed} → ${newIsConfirmed}`);
-    }
-
     res.json({
       success: true,
       message: 'Conversion updated successfully',
       updated: {
         status: newStatus !== oldStatus,
-        isConfirmed: newIsConfirmed !== oldIsConfirmed,
         balanceUpdated
       },
       changes: {
-        status: newStatus !== oldStatus ? { old: oldStatus, new: newStatus } : null,
-        isConfirmed: newIsConfirmed !== oldIsConfirmed ? { old: oldIsConfirmed, new: newIsConfirmed } : null
+        status: newStatus !== oldStatus ? { old: oldStatus, new: newStatus } : null
       }
     });
   } catch (error) {
@@ -5450,6 +5437,1047 @@ router.get('/auto-sync/stats', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Không thể lấy thống kê sync'
+    });
+  }
+});
+
+// ===================================================================
+// EMAIL LOGS MANAGEMENT ENDPOINTS
+// ===================================================================
+
+/**
+ * GET /api/admin/email-logs/stats
+ * Get email logs statistics
+ */
+router.get('/email-logs/stats', authenticateAdmin, async (req, res) => {
+  try {
+    const statsQuery = `
+      SELECT
+        COUNT(*) as total,
+        COUNT(CASE WHEN status = 'sent' THEN 1 END) as sent,
+        COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed,
+        COUNT(CASE WHEN status = 'skipped' THEN 1 END) as skipped,
+        COUNT(DISTINCT user_id) as unique_users
+      FROM email_logs
+      WHERE sent_at >= NOW() - INTERVAL '7 days'
+    `;
+
+    const result = await pool.query(statsQuery);
+    const stats = result.rows[0];
+
+    res.json({
+      total: parseInt(stats.total) || 0,
+      sent: parseInt(stats.sent) || 0,
+      failed: parseInt(stats.failed) || 0,
+      skipped: parseInt(stats.skipped) || 0,
+      uniqueUsers: parseInt(stats.unique_users) || 0
+    });
+
+  } catch (error) {
+    logger.error('Error fetching email stats', { error: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to fetch email stats'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/email-logs
+ * Get email logs with filters and pagination
+ */
+router.get('/email-logs', authenticateAdmin, async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 50,
+      email_type,
+      status,
+      email,
+      date_from,
+      date_to
+    } = req.query;
+
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const queryParams = [];
+    let whereConditions = [];
+    let paramIndex = 1;
+
+    // Build WHERE conditions
+    if (email_type) {
+      whereConditions.push(`email_type = $${paramIndex++}`);
+      queryParams.push(email_type);
+    }
+
+    if (status) {
+      whereConditions.push(`status = $${paramIndex++}`);
+      queryParams.push(status);
+    }
+
+    if (email) {
+      whereConditions.push(`email_to ILIKE $${paramIndex++}`);
+      queryParams.push(`%${email}%`);
+    }
+
+    if (date_from) {
+      whereConditions.push(`sent_at >= $${paramIndex++}`);
+      queryParams.push(date_from);
+    }
+
+    if (date_to) {
+      whereConditions.push(`sent_at <= $${paramIndex++}::date + interval '1 day' - interval '1 second'`);
+      queryParams.push(date_to);
+    }
+
+    const whereClause = whereConditions.length > 0
+      ? 'WHERE ' + whereConditions.join(' AND ')
+      : '';
+
+    // Get total count
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM email_logs
+      ${whereClause}
+    `;
+    const countResult = await pool.query(countQuery, queryParams);
+    const total = parseInt(countResult.rows[0].total);
+
+    // Get paginated data
+    const dataQuery = `
+      SELECT *
+      FROM email_logs
+      ${whereClause}
+      ORDER BY sent_at DESC
+      LIMIT $${paramIndex++}
+      OFFSET $${paramIndex++}
+    `;
+    queryParams.push(parseInt(limit), offset);
+    const dataResult = await pool.query(dataQuery, queryParams);
+
+    res.json({
+      logs: dataResult.rows,
+      totalPages: Math.ceil(total / parseInt(limit)),
+      currentPage: parseInt(page),
+      total
+    });
+
+  } catch (error) {
+    logger.error('Error fetching email logs', { error: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to fetch email logs'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/email-logs/:id
+ * Get single email log by ID
+ */
+router.get('/email-logs/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(`
+      SELECT * FROM email_logs WHERE id = $1
+    `, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Email log not found'
+      });
+    }
+
+    res.json(result.rows[0]);
+
+  } catch (error) {
+    logger.error('Error fetching email log', { error: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to fetch email log'
+    });
+  }
+});
+
+/**
+ * DELETE /api/admin/email-logs/cleanup
+ * Cleanup old email logs (older than specified days)
+ */
+router.delete('/email-logs/cleanup', authenticateAdmin, async (req, res) => {
+  try {
+    const { days = 90 } = req.query;
+
+    const result = await pool.query(`
+      DELETE FROM email_logs
+      WHERE sent_at < NOW() - INTERVAL '${parseInt(days)} days'
+    `);
+
+    logger.info(`Cleaned up ${result.rowCount} email logs older than ${days} days`);
+
+    res.json({
+      success: true,
+      deleted: result.rowCount,
+      message: `Cleaned up ${result.rowCount} email logs`
+    });
+
+  } catch (error) {
+    logger.error('Error cleaning up email logs', { error: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to cleanup email logs'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/email-logs/retry-failed
+ * Retry failed emails from last 24 hours
+ * NOTE: This requires implementing email retry logic
+ */
+router.post('/email-logs/retry-failed', authenticateAdmin, async (req, res) => {
+  try {
+    // Get failed emails from last 24 hours
+    const failedEmailsResult = await pool.query(`
+      SELECT * FROM email_logs
+      WHERE status = 'failed'
+        AND sent_at >= NOW() - INTERVAL '24 hours'
+      ORDER BY sent_at DESC
+    `);
+
+    const failedEmails = failedEmailsResult.rows;
+
+    logger.info(`Found ${failedEmails.length} failed emails to retry`);
+
+    // For now, just return count
+    // TODO: Implement actual retry logic with EmailService
+    res.json({
+      success: true,
+      retried: 0,
+      total: failedEmails.length,
+      message: 'Email retry feature coming soon'
+    });
+
+  } catch (error) {
+    logger.error('Error retrying failed emails', { error: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to retry emails'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/email-logs/export
+ * Export email logs to CSV
+ */
+router.get('/email-logs/export', authenticateAdmin, async (req, res) => {
+  try {
+    const {
+      email_type,
+      status,
+      email,
+      date_from,
+      date_to
+    } = req.query;
+
+    const queryParams = [];
+    let whereConditions = [];
+    let paramIndex = 1;
+
+    // Build WHERE conditions (same as list endpoint)
+    if (email_type) {
+      whereConditions.push(`email_type = $${paramIndex++}`);
+      queryParams.push(email_type);
+    }
+
+    if (status) {
+      whereConditions.push(`status = $${paramIndex++}`);
+      queryParams.push(status);
+    }
+
+    if (email) {
+      whereConditions.push(`email_to ILIKE $${paramIndex++}`);
+      queryParams.push(`%${email}%`);
+    }
+
+    if (date_from) {
+      whereConditions.push(`sent_at >= $${paramIndex++}`);
+      queryParams.push(date_from);
+    }
+
+    if (date_to) {
+      whereConditions.push(`sent_at <= $${paramIndex++}::date + interval '1 day' - interval '1 second'`);
+      queryParams.push(date_to);
+    }
+
+    const whereClause = whereConditions.length > 0
+      ? 'WHERE ' + whereConditions.join(' AND ')
+      : '';
+
+    const dataQuery = `
+      SELECT
+        id,
+        sent_at,
+        email_to,
+        email_type,
+        subject,
+        status,
+        error_message,
+        context_type,
+        context_id
+      FROM email_logs
+      ${whereClause}
+      ORDER BY sent_at DESC
+      LIMIT 5000
+    `;
+    const result = await pool.query(dataQuery, queryParams);
+
+    // Convert to CSV
+    const headers = ['ID', 'Sent At', 'Email To', 'Type', 'Subject', 'Status', 'Error', 'Context Type', 'Context ID'];
+    const csvRows = [headers.join(',')];
+
+    result.rows.forEach(row => {
+      const values = [
+        row.id,
+        row.sent_at,
+        `"${row.email_to}"`,
+        row.email_type,
+        `"${row.subject}"`,
+        row.status,
+        `"${row.error_message || ''}"`,
+        row.context_type || '',
+        row.context_id || ''
+      ];
+      csvRows.push(values.join(','));
+    });
+
+    const csvContent = csvRows.join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="email-logs-${Date.now()}.csv"`);
+    res.send(csvContent);
+
+  } catch (error) {
+    logger.error('Error exporting email logs', { error: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to export email logs'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/smtp/config
+ * Get SMTP configuration (password masked)
+ */
+router.get('/smtp/config', authenticateAdmin, async (req, res) => {
+  try {
+    const SystemSettings = require('../services/systemSettings');
+
+    // Load SMTP settings from database
+    const host = await SystemSettings.get('smtp_host', '');
+    const port = await SystemSettings.get('smtp_port', '587');
+    const user = await SystemSettings.get('smtp_user', '');
+    const passwordEncrypted = await SystemSettings.get('smtp_password_encrypted', '');
+    const from = await SystemSettings.get('smtp_from', 'ChatChiu Cashback <noreply@chatchiu.com>');
+
+    res.json({
+      success: true,
+      data: {
+        host: host || '',
+        port: parseInt(port) || 587,
+        user: user || '',
+        password_set: !!passwordEncrypted, // Don't return actual password
+        from: from || 'ChatChiu Cashback <noreply@chatchiu.com>'
+      }
+    });
+
+  } catch (error) {
+    logger.error('Error loading SMTP config', {
+      error: error.message,
+      adminId: req.userId
+    });
+
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to load SMTP config'
+    });
+  }
+});
+
+/**
+ * PUT /api/admin/smtp/config
+ * Update SMTP configuration
+ */
+router.put('/smtp/config', authenticateAdmin, async (req, res) => {
+  try {
+    const SystemSettings = require('../services/systemSettings');
+    const encryption = require('../utils/encryption');
+    const { host, port, user, password, from } = req.body;
+
+    // Validation
+    if (!host || typeof host !== 'string' || host.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'SMTP host is required'
+      });
+    }
+
+    if (!port || isNaN(port) || port < 1 || port > 65535) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid SMTP port (must be 1-65535)'
+      });
+    }
+
+    if (!user || typeof user !== 'string' || !user.includes('@')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid SMTP user email is required'
+      });
+    }
+
+    if (!from || typeof from !== 'string' || from.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'SMTP from is required'
+      });
+    }
+
+    logger.info('Updating SMTP configuration', {
+      adminId: req.userId,
+      host,
+      port,
+      user,
+      hasPassword: !!password
+    });
+
+    // Save settings to database
+    await SystemSettings.set('smtp_host', host.trim(), req.userId);
+    await SystemSettings.set('smtp_port', port.toString(), req.userId);
+    await SystemSettings.set('smtp_user', user.trim(), req.userId);
+    await SystemSettings.set('smtp_from', from.trim(), req.userId);
+
+    // Encrypt and save password if provided
+    if (password && password.length > 0) {
+      const encryptedPassword = encryption.encrypt(password);
+      await SystemSettings.set('smtp_password_encrypted', encryptedPassword, req.userId);
+      logger.info('SMTP password updated and encrypted');
+    }
+
+    logger.info('SMTP configuration updated successfully', {
+      adminId: req.userId
+    });
+
+    // Reinitialize EmailService with new config
+    const EmailService = require('../services/EmailService');
+    await EmailService.reinitialize();
+
+    res.json({
+      success: true,
+      message: 'SMTP configuration updated successfully',
+      data: {
+        host: host.trim(),
+        port: parseInt(port),
+        user: user.trim(),
+        password_set: !!password,
+        from: from.trim()
+      }
+    });
+
+  } catch (error) {
+    logger.error('Error updating SMTP config', {
+      error: error.message,
+      adminId: req.userId
+    });
+
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to update SMTP config'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/email-test
+ * Send test email to verify SMTP configuration
+ */
+router.post('/email-test', authenticateAdmin, async (req, res) => {
+  try {
+    const EmailService = require('../services/EmailService');
+    const { pool } = require('../config/database');
+    const { to, subject, content } = req.body;
+
+    // Get admin email from database
+    const adminResult = await pool.query(
+      'SELECT email, full_name FROM users WHERE id = $1',
+      [req.userId]
+    );
+
+    if (!adminResult.rows.length) {
+      return res.status(404).json({
+        success: false,
+        message: 'Admin user not found'
+      });
+    }
+
+    const admin = adminResult.rows[0];
+
+    // Use custom recipient if provided, otherwise use admin email
+    const testEmailTo = to && to.trim() ? to.trim() : admin.email;
+
+    // Use custom subject if provided, otherwise use default
+    const emailSubject = subject && subject.trim() ? subject.trim() : '✅ Test Email từ ChatChiu Cashback System';
+
+    // Check if custom content is provided
+    const hasCustomContent = content && content.trim();
+
+    logger.info('Sending test email', {
+      adminId: req.userId,
+      to: testEmailTo,
+      customContent: !!hasCustomContent
+    });
+
+    // If custom content is provided, use simple plain text email
+    let html;
+    if (hasCustomContent) {
+      html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
+          <div style="max-width: 600px; margin: 40px auto; background: white; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <div style="white-space: pre-wrap; color: #333; font-size: 14px; line-height: 1.6;">${content.trim()}</div>
+          </div>
+        </body>
+        </html>
+      `;
+    } else {
+      // Use default template
+      html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
+          <div style="max-width: 600px; margin: 40px auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center;">
+              <h1 style="color: white; margin: 0; font-size: 28px;">ChatChiu Cashback</h1>
+              <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 14px;">Test Email Configuration</p>
+            </div>
+
+            <!-- Body -->
+            <div style="padding: 40px 30px;">
+              <div style="text-align: center; margin-bottom: 30px;">
+                <div style="font-size: 60px; margin-bottom: 20px;">✅</div>
+                <h2 style="color: #333; margin: 0 0 10px 0; font-size: 24px;">Email Configuration Hoạt Động!</h2>
+                <p style="color: #666; margin: 0; font-size: 16px;">SMTP configuration của bạn đã được thiết lập đúng cách.</p>
+              </div>
+
+              <div style="background: #f8f9fa; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
+                <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">📧 Thông Tin Test</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 8px 0; color: #666; font-size: 14px;">Gửi đến:</td>
+                    <td style="padding: 8px 0; color: #333; font-weight: 600; font-size: 14px; text-align: right;">${testEmailTo}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #666; font-size: 14px;">Admin:</td>
+                    <td style="padding: 8px 0; color: #333; font-weight: 600; font-size: 14px; text-align: right;">${admin.full_name || 'Admin'}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #666; font-size: 14px;">Thời gian:</td>
+                    <td style="padding: 8px 0; color: #333; font-weight: 600; font-size: 14px; text-align: right;">${new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
+                  </tr>
+                </table>
+              </div>
+
+              <div style="border-left: 4px solid #4CAF50; padding-left: 16px; margin-bottom: 30px;">
+                <p style="margin: 0; color: #666; font-size: 14px; line-height: 1.6;">
+                  Đây là email test để xác nhận rằng hệ thống email của ChatChiu Cashback đang hoạt động bình thường.
+                  Bạn sẽ nhận được các thông báo tự động về:
+                </p>
+                <ul style="margin: 10px 0 0 0; padding-left: 20px; color: #666; font-size: 14px; line-height: 1.8;">
+                  <li>Reconciliation finalized</li>
+                  <li>Payment confirmed</li>
+                  <li>Payment rejected</li>
+                  <li>Payment paid</li>
+                </ul>
+              </div>
+
+              <div style="text-align: center; margin-top: 30px;">
+                <a href="${process.env.FRONTEND_URL || 'http://localhost:3007'}/admin/email-logs"
+                   style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                  Xem Email Logs Dashboard
+                </a>
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="background: #f8f9fa; padding: 20px 30px; text-align: center; border-top: 1px solid #e9ecef;">
+              <p style="margin: 0; color: #999; font-size: 12px;">
+                © ${new Date().getFullYear()} ChatChiu Cashback. All rights reserved.
+              </p>
+              <p style="margin: 10px 0 0 0; color: #999; font-size: 12px;">
+                Email này được gửi từ hệ thống tự động. Vui lòng không reply.
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+    }
+
+    const result = await EmailService.sendEmail({
+      to: testEmailTo,
+      subject: emailSubject,
+      html: html,
+      context: {
+        emailType: 'system_test',
+        contextType: 'admin',
+        contextId: req.userId
+      }
+    });
+
+    if (result.success) {
+      logger.info('Test email sent successfully', {
+        adminId: req.userId,
+        to: testEmailTo
+      });
+
+      res.json({
+        success: true,
+        message: `Test email đã được gửi đến ${testEmailTo}`,
+        data: {
+          to: testEmailTo,
+          sentAt: new Date().toISOString()
+        }
+      });
+    } else {
+      // Email failed to send
+      logger.error('Test email failed', {
+        adminId: req.userId,
+        to: testEmailTo,
+        error: result.error
+      });
+
+      res.status(500).json({
+        success: false,
+        message: `Không thể gửi email: ${result.error || 'Unknown error'}`
+      });
+    }
+
+  } catch (error) {
+    logger.error('Error sending test email', {
+      error: error.message,
+      adminId: req.userId
+    });
+
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to send test email'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/email-logs/stats
+ * Get email statistics
+ */
+router.get('/email-logs/stats', authenticateAdmin, async (req, res) => {
+  try {
+    const { pool } = require('../config/database');
+
+    // Get total emails count
+    const totalResult = await pool.query('SELECT COUNT(*) as total FROM email_logs');
+    const total = parseInt(totalResult.rows[0].total);
+
+    // Get sent emails count (last 7 days)
+    const sentResult = await pool.query(`
+      SELECT COUNT(*) as sent
+      FROM email_logs
+      WHERE status = 'sent' AND created_at >= NOW() - INTERVAL '7 days'
+    `);
+    const sent = parseInt(sentResult.rows[0].sent);
+
+    // Get failed emails count (last 7 days)
+    const failedResult = await pool.query(`
+      SELECT COUNT(*) as failed
+      FROM email_logs
+      WHERE status = 'failed' AND created_at >= NOW() - INTERVAL '7 days'
+    `);
+    const failed = parseInt(failedResult.rows[0].failed);
+
+    // Get skipped emails count (dev mode, last 7 days)
+    const skippedResult = await pool.query(`
+      SELECT COUNT(*) as skipped
+      FROM email_logs
+      WHERE status = 'skipped' AND created_at >= NOW() - INTERVAL '7 days'
+    `);
+    const skipped = parseInt(skippedResult.rows[0].skipped);
+
+    // Get unique recipients count (last 7 days)
+    const uniqueResult = await pool.query(`
+      SELECT COUNT(DISTINCT email_to) as unique_recipients
+      FROM email_logs
+      WHERE created_at >= NOW() - INTERVAL '7 days'
+    `);
+    const uniqueRecipients = parseInt(uniqueResult.rows[0].unique_recipients);
+
+    res.json({
+      success: true,
+      data: {
+        total,
+        sent_7d: sent,
+        failed_7d: failed,
+        skipped_7d: skipped,
+        unique_recipients_7d: uniqueRecipients
+      }
+    });
+
+  } catch (error) {
+    logger.error('Error loading email stats', {
+      error: error.message,
+      adminId: req.userId
+    });
+
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to load email stats'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/email-logs/:id
+ * Get single email log detail
+ */
+router.get('/email-logs/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { pool } = require('../config/database');
+    const { id } = req.params;
+
+    const result = await pool.query(
+      `SELECT
+        id,
+        user_id,
+        email_to,
+        email_type,
+        subject,
+        status,
+        error_message,
+        context_id,
+        context_type,
+        created_at
+      FROM email_logs
+      WHERE id = $1`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Email log not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+
+  } catch (error) {
+    logger.error('Error loading email log detail', {
+      error: error.message,
+      adminId: req.userId,
+      emailLogId: req.params.id
+    });
+
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to load email log'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/email-logs
+ * Get email logs with pagination and filtering
+ */
+router.get('/email-logs', authenticateAdmin, async (req, res) => {
+  try {
+    const { pool } = require('../config/database');
+    const {
+      page = 1,
+      limit = 50,
+      status,
+      email_type,
+      email_to,
+      date_from,
+      date_to
+    } = req.query;
+
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    // Build WHERE clause
+    const conditions = [];
+    const params = [];
+    let paramIndex = 1;
+
+    if (status) {
+      conditions.push(`status = $${paramIndex++}`);
+      params.push(status);
+    }
+
+    if (email_type) {
+      conditions.push(`email_type = $${paramIndex++}`);
+      params.push(email_type);
+    }
+
+    if (email_to) {
+      conditions.push(`email_to ILIKE $${paramIndex++}`);
+      params.push(`%${email_to}%`);
+    }
+
+    if (date_from) {
+      conditions.push(`created_at >= $${paramIndex++}`);
+      params.push(date_from);
+    }
+
+    if (date_to) {
+      conditions.push(`created_at <= $${paramIndex++}`);
+      params.push(date_to);
+    }
+
+    const whereClause = conditions.length > 0
+      ? `WHERE ${conditions.join(' AND ')}`
+      : '';
+
+    // Get total count
+    const countQuery = `SELECT COUNT(*) as total FROM email_logs ${whereClause}`;
+    const countResult = await pool.query(countQuery, params);
+    const total = parseInt(countResult.rows[0].total);
+
+    // Get logs
+    params.push(parseInt(limit));
+    params.push(offset);
+    const logsQuery = `
+      SELECT
+        id,
+        user_id,
+        email_to,
+        email_type,
+        subject,
+        status,
+        error_message,
+        context_id,
+        context_type,
+        created_at
+      FROM email_logs
+      ${whereClause}
+      ORDER BY created_at DESC
+      LIMIT $${paramIndex++}
+      OFFSET $${paramIndex++}
+    `;
+
+    const logsResult = await pool.query(logsQuery, params);
+
+    res.json({
+      success: true,
+      data: {
+        logs: logsResult.rows,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          totalPages: Math.ceil(total / parseInt(limit))
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error('Error loading email logs', {
+      error: error.message,
+      adminId: req.userId
+    });
+
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to load email logs'
+    });
+  }
+});
+
+// ============================================================================
+// EMAIL TEMPLATE MANAGEMENT ENDPOINTS
+// ============================================================================
+
+/**
+ * GET /api/admin/email-template
+ * Load email template content for editing
+ */
+router.get('/email-template', authenticateAdmin, async (req, res) => {
+  try {
+    const fs = require('fs').promises;
+    const path = require('path');
+    const { path: templatePath } = req.query;
+
+    if (!templatePath) {
+      return res.status(400).json({
+        success: false,
+        message: 'Template path is required'
+      });
+    }
+
+    // Validate path to prevent directory traversal
+    if (templatePath.includes('..') || templatePath.startsWith('/') || templatePath.startsWith('\\')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid template path'
+      });
+    }
+
+    // Construct full path
+    const fullPath = path.join(__dirname, '..', 'templates', 'email', templatePath);
+
+    // Check if file exists
+    try {
+      await fs.access(fullPath);
+    } catch (err) {
+      return res.status(404).json({
+        success: false,
+        message: 'Template file not found'
+      });
+    }
+
+    // Read file content
+    const content = await fs.readFile(fullPath, 'utf-8');
+
+    logger.info('Email template loaded', {
+      adminId: req.userId,
+      templatePath
+    });
+
+    res.json({
+      success: true,
+      data: {
+        path: templatePath,
+        content: content
+      }
+    });
+
+  } catch (error) {
+    logger.error('Error loading email template', {
+      error: error.message,
+      adminId: req.userId,
+      templatePath: req.query.path
+    });
+
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to load email template'
+    });
+  }
+});
+
+/**
+ * PUT /api/admin/email-template
+ * Save email template content
+ */
+router.put('/email-template', authenticateAdmin, async (req, res) => {
+  try {
+    const fs = require('fs').promises;
+    const path = require('path');
+    const { path: templatePath, content } = req.body;
+
+    // Validation
+    if (!templatePath) {
+      return res.status(400).json({
+        success: false,
+        message: 'Template path is required'
+      });
+    }
+
+    if (!content || typeof content !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'Template content is required'
+      });
+    }
+
+    // Validate path to prevent directory traversal
+    if (templatePath.includes('..') || templatePath.startsWith('/') || templatePath.startsWith('\\')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid template path'
+      });
+    }
+
+    // Construct full path
+    const fullPath = path.join(__dirname, '..', 'templates', 'email', templatePath);
+
+    // Check if file exists
+    try {
+      await fs.access(fullPath);
+    } catch (err) {
+      return res.status(404).json({
+        success: false,
+        message: 'Template file not found'
+      });
+    }
+
+    // Create backup before saving
+    const backupPath = fullPath + '.backup.' + Date.now();
+    try {
+      const originalContent = await fs.readFile(fullPath, 'utf-8');
+      await fs.writeFile(backupPath, originalContent, 'utf-8');
+      logger.info('Template backup created', {
+        adminId: req.userId,
+        templatePath,
+        backupPath
+      });
+    } catch (backupError) {
+      logger.warn('Failed to create backup', {
+        error: backupError.message,
+        templatePath
+      });
+    }
+
+    // Save new content
+    await fs.writeFile(fullPath, content, 'utf-8');
+
+    logger.info('Email template saved', {
+      adminId: req.userId,
+      templatePath,
+      contentLength: content.length
+    });
+
+    res.json({
+      success: true,
+      message: 'Email template saved successfully',
+      data: {
+        path: templatePath,
+        savedAt: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    logger.error('Error saving email template', {
+      error: error.message,
+      adminId: req.userId,
+      templatePath: req.body.path
+    });
+
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to save email template'
     });
   }
 });

@@ -1,0 +1,83 @@
+<p>Xin chào <strong>{{userName}}</strong>,</p>
+
+<p>Chúc mừng! Chúng tôi đã <strong style="color: #10b981;">hoàn tất việc chuyển tiền</strong> vào tài khoản ngân hàng của bạn!</p>
+
+<!-- Success Icon -->
+<div style="text-align: center; margin: 30px 0;">
+  <div style="font-size: 64px;">🎉</div>
+  <p style="font-size: 24px; font-weight: 700; color: #10b981; margin: 10px 0;">Đã Chuyển Tiền Thành Công!</p>
+</div>
+
+<!-- Amount Highlight -->
+<div class="amount-highlight">
+  <div class="label">💰 Số tiền đã chuyển</div>
+  <div class="amount">{{requestedAmount}}</div>
+</div>
+
+<!-- Payment Details -->
+<div class="success-box" style="background: #ecfdf5; border-left-color: #10b981;">
+  <p><strong>💳 Thông tin chi tiết</strong></p>
+  <p style="margin-top: 12px;"><strong>Ngân hàng:</strong> {{bankName}}</p>
+  <p><strong>Số tài khoản:</strong> {{bankAccountNumber}}</p>
+  <p><strong>Mã giao dịch:</strong> <code style="background: #d1fae5; padding: 4px 8px; border-radius: 4px; color: #065f46;">{{transactionReference}}</code></p>
+  <p><strong>Thời gian chuyển:</strong> {{paidAt}}</p>
+</div>
+
+<!-- Timeline Completed -->
+<div class="timeline">
+  <div class="timeline-item">
+    <div class="timeline-icon completed">✓</div>
+    <div class="timeline-text completed">Yêu cầu đã gửi</div>
+  </div>
+  <div class="timeline-item">
+    <div class="timeline-icon completed">✓</div>
+    <div class="timeline-text completed">Đã xác nhận</div>
+  </div>
+  <div class="timeline-item">
+    <div class="timeline-icon completed">✓</div>
+    <div class="timeline-text completed">Đã chuyển tiền</div>
+  </div>
+  <div class="timeline-item">
+    <div class="timeline-icon completed">✓</div>
+    <div class="timeline-text completed" style="font-weight: 700; color: #10b981;">Hoàn tất</div>
+  </div>
+</div>
+
+<!-- Admin Notes (if any) -->
+{{#if adminNotes}}
+<div class="info-box">
+  <p><strong>📝 Ghi chú từ admin:</strong></p>
+  <p>{{adminNotes}}</p>
+</div>
+{{/if}}
+
+<!-- What to Check -->
+<div class="info-box" style="background: #f0f9ff; border-left-color: #3b82f6;">
+  <h3>📌 Vui lòng kiểm tra tài khoản ngân hàng</h3>
+  <p>• Số tiền sẽ có trong tài khoản của bạn trong vòng <strong>vài phút đến vài giờ</strong> tùy thuộc vào ngân hàng.</p>
+  <p>• Kiểm tra SMS hoặc ứng dụng ngân hàng để xác nhận giao dịch.</p>
+  <p>• Nếu sau <strong>24 giờ</strong> bạn vẫn chưa nhận được tiền, vui lòng liên hệ hỗ trợ với mã giao dịch: <code>{{transactionReference}}</code></p>
+</div>
+
+<p>Cảm ơn bạn đã sử dụng dịch vụ ChatChiu Cashback!</p>
+
+<!-- CTA Buttons -->
+<div class="button-container">
+  <a href="{{dashboardUrl}}" class="button button-success">
+    Xem Số Dư
+  </a>
+  <a href="{{frontendUrl}}" class="button" style="margin-left: 10px; background: #667eea;">
+    Tiếp Tục Mua Sắm
+  </a>
+</div>
+
+<div class="success-box">
+  <p><strong>💡 Mẹo:</strong> Bạn có thể tiếp tục mua sắm và nhận cashback!</p>
+  <p>Mỗi đơn hàng đủ điều kiện sẽ được tự động cộng vào số dư của bạn sau mỗi kỳ đối soát.</p>
+</div>
+
+<p>Nếu có bất kỳ thắc mắc nào, đừng ngần ngại liên hệ với chúng tôi qua <a href="{{supportUrl}}">Hỗ trợ</a>.</p>
+
+<p>Chúc bạn có trải nghiệm mua sắm vui vẻ và tiết kiệm cùng ChatChiu!</p>
+
+<p>Trân trọng,<br><strong>ChatChiu Team</strong></p>

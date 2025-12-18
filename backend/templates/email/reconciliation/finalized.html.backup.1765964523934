@@ -1,0 +1,40 @@
+<p>Xin chào <strong>{{userName}}</strong>,</p>
+
+<p>Chúng tôi vui mừng thông báo rằng kỳ đối soát <strong>{{periodLabel}}</strong> đã được hoàn tất!</p>
+
+<!-- Amount Highlight -->
+<div class="amount-highlight">
+  <div class="label">💰 Cashback đã nhận</div>
+  <div class="amount">{{cashbackAmount}}</div>
+</div>
+
+<!-- Details -->
+<div class="info-box">
+  <h3>📋 Chi tiết kỳ đối soát</h3>
+  <p><strong>Kỳ đối soát:</strong> {{periodLabel}}</p>
+  <p><strong>Số đơn hàng:</strong> {{orderCount}} đơn</p>
+  <p><strong>Tổng cashback:</strong> {{cashbackAmount}}</p>
+  <p><strong>Số dư khả dụng mới:</strong> <span style="color: #10b981; font-weight: 700;">{{newBalance}}</span></p>
+</div>
+
+<p>Số tiền cashback đã được cộng vào <strong>số dư khả dụng</strong> của bạn và sẵn sàng để rút.</p>
+
+<!-- CTA Button -->
+<div class="button-container">
+  <a href="{{dashboardUrl}}" class="button button-success">
+    Xem Số Dư
+  </a>
+</div>
+
+<!-- Next Steps -->
+<div class="success-box">
+  <p><strong>✅ Bạn có thể rút tiền ngay!</strong></p>
+  <p>Số tiền tối thiểu để tạo yêu cầu rút tiền là <strong>100.000 ₫</strong></p>
+  <p>Thời gian xử lý: 1-3 ngày làm việc</p>
+</div>
+
+<p>Cảm ơn bạn đã tin tưởng và sử dụng dịch vụ ChatChiu Cashback!</p>
+
+<p>Nếu có bất kỳ thắc mắc nào, vui lòng liên hệ với chúng tôi qua <a href="{{supportUrl}}">Hỗ trợ</a>.</p>
+
+<p>Trân trọng,<br><strong>ChatChiu Team</strong></p>

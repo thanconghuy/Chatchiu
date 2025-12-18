@@ -380,6 +380,21 @@ class PaymentRequestService {
       });
 
       logger.success('Payment request confirmed', { id: paymentRequestId });
+
+      // Send email notification (async, don't block)
+      setImmediate(async () => {
+        try {
+          const { sendPaymentConfirmedEmail } = require('./emailHelpers/paymentEmailHelper');
+          await sendPaymentConfirmedEmail(updated);
+          logger.info('Payment confirmed email sent', { paymentRequestId });
+        } catch (emailError) {
+          logger.error('Failed to send payment confirmed email', {
+            error: emailError.message,
+            paymentRequestId
+          });
+        }
+      });
+
       return updated;
 
     } catch (error) {
@@ -410,6 +425,21 @@ class PaymentRequestService {
       });
 
       logger.success('Payment request rejected', { id: paymentRequestId });
+
+      // Send email notification (async, don't block)
+      setImmediate(async () => {
+        try {
+          const { sendPaymentRejectedEmail } = require('./emailHelpers/paymentEmailHelper');
+          await sendPaymentRejectedEmail(updated);
+          logger.info('Payment rejected email sent', { paymentRequestId });
+        } catch (emailError) {
+          logger.error('Failed to send payment rejected email', {
+            error: emailError.message,
+            paymentRequestId
+          });
+        }
+      });
+
       return updated;
 
     } catch (error) {
@@ -444,6 +474,20 @@ class PaymentRequestService {
       logger.success('Payment request marked as paid', {
         id: paymentRequestId,
         transactionReference
+      });
+
+      // Send email notification (async, don't block)
+      setImmediate(async () => {
+        try {
+          const { sendPaymentPaidEmail } = require('./emailHelpers/paymentEmailHelper');
+          await sendPaymentPaidEmail(updated);
+          logger.info('Payment paid email sent', { paymentRequestId });
+        } catch (emailError) {
+          logger.error('Failed to send payment paid email', {
+            error: emailError.message,
+            paymentRequestId
+          });
+        }
       });
 
       return updated;

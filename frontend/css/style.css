@@ -2290,7 +2290,7 @@ button:disabled {
 }
 
 .quick-stat-value {
-    font-size: 1rem;
+    font-size: 18pt;
     font-weight: 700;
     color: #111827;
 }

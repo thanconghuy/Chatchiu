@@ -1,0 +1,67 @@
+<p>Xin chào <strong>{{userName}}</strong>,</p>
+
+<p>Chúng tôi rất tiếc phải thông báo rằng yêu cầu rút tiền của bạn đã <strong style="color: #ef4444;">bị từ chối</strong>.</p>
+
+<!-- Warning Icon -->
+<div style="text-align: center; margin: 30px 0;">
+  <div style="font-size: 64px; color: #f59e0b;">⚠️</div>
+  <p style="font-size: 20px; font-weight: 600; color: #ef4444; margin: 10px 0;">Yêu Cầu Bị Từ Chối</p>
+</div>
+
+<!-- Reason Box -->
+<div class="danger-box">
+  <p><strong>📋 Lý do từ chối:</strong></p>
+  <p style="font-size: 16px; margin-top: 10px;">{{rejectionReason}}</p>
+</div>
+
+<!-- Details -->
+<div class="info-box">
+  <h3>💳 Thông tin yêu cầu</h3>
+  <p><strong>Mã yêu cầu:</strong> <code style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px;">{{requestId}}</code></p>
+  <p><strong>Số tiền:</strong> <span style="font-weight: 700; font-size: 18px;">{{requestedAmount}}</span></p>
+  <p><strong>Ngân hàng:</strong> {{bankName}}</p>
+  <p><strong>Số tài khoản:</strong> {{bankAccountNumber}}</p>
+  <p><strong>Từ chối lúc:</strong> {{rejectedAt}}</p>
+</div>
+
+<!-- What Happens Now -->
+<div class="warning-box">
+  <p><strong>💡 Điều gì sẽ xảy ra tiếp theo?</strong></p>
+  <p style="margin-top: 10px;">• Số tiền <strong>{{requestedAmount}}</strong> đã được trả về <strong>số dư khả dụng</strong> của bạn.</p>
+  <p>• Bạn có thể tạo yêu cầu rút tiền mới sau khi khắc phục vấn đề.</p>
+</div>
+
+<!-- Common Reasons -->
+<div class="info-box">
+  <h3>🔍 Các lý do thường gặp và cách giải quyết</h3>
+  <p><strong>1. Thông tin tài khoản không chính xác:</strong></p>
+  <p style="margin-left: 20px; color: #64748b;">→ Kiểm tra lại số tài khoản, tên chủ tài khoản và ngân hàng</p>
+
+  <p style="margin-top: 10px;"><strong>2. Tên tài khoản không khớp với tên đăng ký:</strong></p>
+  <p style="margin-left: 20px; color: #64748b;">→ Tên chủ tài khoản ngân hàng phải giống tên trong tài khoản ChatChiu</p>
+
+  <p style="margin-top: 10px;"><strong>3. Tài khoản ngân hàng bị khóa hoặc không hoạt động:</strong></p>
+  <p style="margin-left: 20px; color: #64748b;">→ Liên hệ ngân hàng để kiểm tra tình trạng tài khoản</p>
+
+  <p style="margin-top: 10px;"><strong>4. Thông tin không rõ ràng:</strong></p>
+  <p style="margin-left: 20px; color: #64748b;">→ Cung cấp đầy đủ thông tin: Tên ngân hàng, chi nhánh, số tài khoản</p>
+</div>
+
+<!-- CTA Button -->
+<div class="button-container">
+  <a href="{{createPaymentUrl}}" class="button">
+    Tạo Yêu Cầu Mới
+  </a>
+</div>
+
+<p>Nếu bạn không hiểu rõ lý do từ chối hoặc cần hỗ trợ, vui lòng liên hệ với chúng tôi:</p>
+
+<div class="info-box" style="background: #f0f9ff; border-left-color: #3b82f6;">
+  <p><strong>📧 Hỗ trợ:</strong> <a href="{{supportUrl}}">{{supportUrl}}</a></p>
+  <p><strong>📝 Mã yêu cầu:</strong> <code>{{requestId}}</code></p>
+  <p style="margin-top: 10px; color: #64748b;">Đội ngũ hỗ trợ của chúng tôi sẵn sàng giúp bạn giải quyết vấn đề!</p>
+</div>
+
+<p>Chúng tôi xin lỗi vì sự bất tiện này và mong bạn thông cảm.</p>
+
+<p>Trân trọng,<br><strong>ChatChiu Team</strong></p>
