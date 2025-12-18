@@ -688,7 +688,7 @@
                                     <div class="setting-label">Chế Độ Tạo Link</div>
                                     <div class="setting-description">
                                         API Mode: Dùng API chính thức (tỷ lệ match cao hơn)<br>
-                                        DIY Mode: Tạo link thủ công (backup)
+                                        Deeplink Mode: Tạo link deeplink thủ công (backup)
                                     </div>
                                     <div class="setting-value" id="apiModeStatus">Loading...</div>
                                 </div>
@@ -1404,7 +1404,7 @@
         function updateApiModeStatus(enabled) {
             const statusEl = document.getElementById('apiModeStatus');
             const isEnabled = enabled === 'true';
-            statusEl.innerHTML = `<span class="status-badge ${isEnabled ? 'enabled' : 'disabled'}">${isEnabled ? 'API Mode' : 'DIY Mode'}</span>`;
+            statusEl.innerHTML = `<span class="status-badge ${isEnabled ? 'enabled' : 'disabled'}">${isEnabled ? 'API Mode' : 'Deeplink Mode'}</span>`;
         }
 
         // ============ CRON JOBS FUNCTIONS ============

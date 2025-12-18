@@ -191,6 +191,24 @@
             background: #38a169;
         }
 
+        .breakdown-badge.tiktok-api {
+            background: #2563eb;
+        }
+
+        .breakdown-badge.deeplink {
+            background: #ed8936;
+        }
+
+        .breakdown-badge.api-fallback {
+            background: #10b981;
+            opacity: 0.8;
+        }
+
+        .breakdown-badge.deeplink-fallback {
+            background: #f59e0b;
+            opacity: 0.8;
+        }
+
         .breakdown-badge.diy {
             background: #ed8936;
         }
@@ -426,12 +444,24 @@
                             <h3>Chế Độ Tạo Link</h3>
                             <div id="linkModeBreakdown">
                                 <div class="breakdown-item">
-                                    <span class="breakdown-label">API Mode</span>
+                                    <span class="breakdown-label">AccessTrade API</span>
                                     <span class="breakdown-badge api" id="apiCount">0</span>
                                 </div>
                                 <div class="breakdown-item">
-                                    <span class="breakdown-label">DIY Mode</span>
-                                    <span class="breakdown-badge diy" id="diyCount">0</span>
+                                    <span class="breakdown-label">TikTok Shop API</span>
+                                    <span class="breakdown-badge tiktok-api" id="tiktokApiCount">0</span>
+                                </div>
+                                <div class="breakdown-item">
+                                    <span class="breakdown-label">Deeplink (DIY)</span>
+                                    <span class="breakdown-badge deeplink" id="deeplinkCount">0</span>
+                                </div>
+                                <div class="breakdown-item">
+                                    <span class="breakdown-label">API Fallback</span>
+                                    <span class="breakdown-badge api-fallback" id="apiFallbackCount">0</span>
+                                </div>
+                                <div class="breakdown-item">
+                                    <span class="breakdown-label">Deeplink Fallback</span>
+                                    <span class="breakdown-badge deeplink-fallback" id="deeplinkFallbackCount">0</span>
                                 </div>
                             </div>
                         </div>
@@ -612,10 +642,27 @@
 
                 // Update link mode breakdown
                 const linkModes = data.linkModeDistribution;
-                document.getElementById('apiCount').textContent =
-                    (linkModes.find(m => m.mode === 'api')?.count || 0).toLocaleString();
-                document.getElementById('diyCount').textContent =
-                    (linkModes.find(m => m.mode === 'diy')?.count || 0).toLocaleString();
+
+                // API modes
+                const apiCount = (linkModes.find(m => m.mode === 'api')?.count || 0);
+                const tiktokApiCount = (linkModes.find(m => m.mode === 'tiktok-api')?.count || 0);
+
+                // Deeplink modes (including legacy 'diy')
+                const deeplinkCount = (linkModes.find(m => m.mode === 'deeplink')?.count || 0) +
+                                      (linkModes.find(m => m.mode === 'diy')?.count || 0);
+
+                // Fallback modes
+                const apiFallbackCount = (linkModes.find(m => m.mode === 'api-fallback')?.count || 0) +
+                                         (linkModes.find(m => m.mode === 'tiktok-api-fallback')?.count || 0);
+                const deeplinkFallbackCount = (linkModes.find(m => m.mode === 'deeplink-fallback')?.count || 0) +
+                                              (linkModes.find(m => m.mode === 'diy-fallback')?.count || 0);
+
+                // Update UI
+                document.getElementById('apiCount').textContent = apiCount.toLocaleString();
+                document.getElementById('tiktokApiCount').textContent = tiktokApiCount.toLocaleString();
+                document.getElementById('deeplinkCount').textContent = deeplinkCount.toLocaleString();
+                document.getElementById('apiFallbackCount').textContent = apiFallbackCount.toLocaleString();
+                document.getElementById('deeplinkFallbackCount').textContent = deeplinkFallbackCount.toLocaleString();
 
                 // Show alerts if needed
                 updateAlerts(data.overview);

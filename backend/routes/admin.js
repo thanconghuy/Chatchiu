@@ -3360,12 +3360,31 @@ router.get('/monitoring/metrics', authenticateAdmin, async (req, res) => {
     `;
 
     // Get match method breakdown
+    // Match priority (from trackingService.js:218-265):
+    // Conversion from AccessTrade has: utm_content, sub2 (via aff_sid), aff_sid
+    // Click has: utm_content (=click.id), sub2 (=click.id), aff_sid
+    // Match method = which parameter linked conversion to click
     const matchMethodQuery = `
       SELECT
         CASE
-          WHEN co.utm_content IS NOT NULL AND c.utm_content = co.utm_content THEN 'utm_content'
-          WHEN c.sub2 IS NOT NULL AND co.aff_sid = c.sub2 THEN 'sub2'
-          WHEN co.aff_sid IS NOT NULL AND c.aff_sid = co.aff_sid THEN 'aff_sid'
+          -- Priority 1: Matched by utm_content
+          -- Both conversion and click have utm_content, and they match
+          WHEN co.utm_content IS NOT NULL
+               AND c.utm_content IS NOT NULL
+               AND co.utm_content = c.utm_content THEN 'utm_content'
+          -- Priority 2: Matched by sub2
+          -- Conversion came via sub2/aff_sid that matches click's sub2
+          WHEN c.sub2 IS NOT NULL
+               AND c.sub2 = c.id::text
+               AND (co.utm_content IS NULL OR co.utm_content != c.utm_content)
+               THEN 'sub2'
+          -- Priority 3: Matched by aff_sid (fallback)
+          WHEN co.aff_sid IS NOT NULL
+               AND c.aff_sid IS NOT NULL
+               AND co.aff_sid = c.aff_sid
+               AND (co.utm_content IS NULL OR co.utm_content != c.utm_content)
+               AND (c.sub2 IS NULL OR c.sub2 != c.id::text)
+               THEN 'aff_sid'
           ELSE 'unknown'
         END as match_method,
         COUNT(*) as count
@@ -3379,9 +3398,16 @@ router.get('/monitoring/metrics', authenticateAdmin, async (req, res) => {
     const linkModeQuery = `
       SELECT
         CASE
-          WHEN link_source IN ('api', 'diy', 'diy-fallback') THEN link_source
+          WHEN link_source = 'api' THEN 'api'
+          WHEN link_source = 'api-fallback' THEN 'api-fallback'
+          WHEN link_source = 'tiktok-api' THEN 'tiktok-api'
+          WHEN link_source = 'tiktok-api-fallback' THEN 'tiktok-api-fallback'
+          WHEN link_source = 'deeplink' THEN 'deeplink'
+          WHEN link_source = 'deeplink-fallback' THEN 'deeplink-fallback'
+          WHEN link_source IN ('diy', 'diy-fallback') THEN link_source
+          WHEN affiliate_url LIKE '%go.isclix.com%' THEN 'deeplink'
           WHEN affiliate_url LIKE '%click.accesstrade.vn%' THEN 'api'
-          ELSE 'diy'
+          ELSE 'deeplink'
         END as link_mode,
         COUNT(*) as count
       FROM clicks
