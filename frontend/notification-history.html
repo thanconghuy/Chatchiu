@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lịch Sử Thông Báo - Dashboard</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/user-layout.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --info-color: #3b82f6;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+        }
+
+        .main-content {
+            padding: 24px;
+            max-width: 1200px;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--gray-900);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .page-title i {
+            color: var(--primary-color);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .history-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table thead th {
+            background: var(--gray-50);
+            padding: 16px;
+            text-align: left;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--gray-600);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid var(--gray-200);
+            white-space: nowrap;
+        }
+
+        .data-table tbody td {
+            padding: 16px;
+            font-size: 14px;
+            color: var(--gray-700);
+            border-bottom: 1px solid var(--gray-100);
+        }
+
+        .data-table tbody tr:hover {
+            background: var(--gray-50);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .badge-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .badge-primary {
+            background: rgba(102, 126, 234, 0.1);
+            color: var(--primary-color);
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--gray-200);
+            color: var(--gray-700);
+        }
+
+        .btn-secondary:hover {
+            background: var(--gray-300);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--gray-500);
+        }
+
+        .empty-state i {
+            font-size: 64px;
+            color: var(--gray-300);
+            margin-bottom: 20px;
+        }
+
+        .empty-state h3 {
+            font-size: 20px;
+            color: var(--gray-700);
+            margin-bottom: 8px;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .loading-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .spinner {
+            border: 3px solid var(--gray-200);
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            padding: 24px;
+            border-top: 1px solid var(--gray-200);
+        }
+
+        .page-btn {
+            padding: 8px 16px;
+            border: 1px solid var(--gray-300);
+            background: white;
+            color: var(--gray-700);
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .page-btn:hover:not(:disabled) {
+            background: var(--gray-50);
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .page-btn.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .notification-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .icon-instant {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+        }
+
+        .icon-periodic {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--info-color);
+        }
+
+        .icon-urgent {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning-color);
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 16px;
+            }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .data-table {
+                font-size: 13px;
+            }
+
+            .data-table thead th,
+            .data-table tbody td {
+                padding: 12px 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div id="sidebar-container"></div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">
+                <i class="fas fa-history"></i>
+                Lịch Sử Thông Báo
+            </h1>
+            <div class="header-actions">
+                <button class="btn btn-secondary" onclick="loadHistory()">
+                    <i class="fas fa-sync"></i>
+                    Làm Mới
+                </button>
+                <button class="btn btn-primary" onclick="window.location.href='/notification-preferences.html'">
+                    <i class="fas fa-cog"></i>
+                    Cấu Hình
+                </button>
+            </div>
+        </div>
+
+        <!-- History Card -->
+        <div class="history-card">
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Thời Gian</th>
+                            <th>Loại Thông Báo</th>
+                            <th>Số Tiền</th>
+                            <th>Trạng Thái</th>
+                            <th>Template</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody">
+                        <!-- Loading state -->
+                        <tr>
+                            <td colspan="5">
+                                <div class="loading-state">
+                                    <div class="spinner"></div>
+                                    <p>Đang tải lịch sử...</p>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pagination" id="pagination" style="display: none;">
+                <!-- Pagination buttons will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/user-sidebar-v2.js"></script>
+    <script>
+        const API_BASE = window.location.origin;
+        const STORAGE_KEYS = window.CONFIG?.STORAGE_KEYS || {
+            TOKEN: 'cashback_token',
+            USER: 'cashback_user'
+        };
+        let authToken = localStorage.getItem(STORAGE_KEYS.TOKEN);
+        let currentPage = 1;
+        const itemsPerPage = 20;
+        let totalItems = 0;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!authToken) {
+                window.location.href = '/login';
+                return;
+            }
+            loadHistory();
+        });
+
+        /**
+         * Load notification history
+         */
+        async function loadHistory() {
+            try {
+                const offset = (currentPage - 1) * itemsPerPage;
+                const response = await fetch(
+                    `${API_BASE}/api/notifications/history?limit=${itemsPerPage}&offset=${offset}`,
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`
+                        }
+                    }
+                );
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.message || 'Không thể tải lịch sử');
+                }
+
+                totalItems = data.data.total;
+                renderHistory(data.data.notifications);
+                renderPagination();
+
+            } catch (error) {
+                console.error('Load history error:', error);
+                renderError(error.message);
+            }
+        }
+
+        /**
+         * Render history table
+         */
+        function renderHistory(notifications) {
+            const tbody = document.getElementById('historyTableBody');
+
+            if (notifications.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5">
+                            <div class="empty-state">
+                                <i class="fas fa-inbox"></i>
+                                <h3>Chưa có thông báo nào</h3>
+                                <p>Bạn chưa nhận được email thông báo nào về cashback.</p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = notifications.map(n => `
+                <tr>
+                    <td>
+                        <div style="font-weight: 500;">${formatDate(n.email_sent_at)}</div>
+                        <div style="font-size: 12px; color: var(--gray-500);">${formatTime(n.email_sent_at)}</div>
+                    </td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div class="notification-icon icon-${n.notification_type}">
+                                ${getTypeIcon(n.notification_type)}
+                            </div>
+                            <span class="badge ${getTypeBadgeClass(n.notification_type)}">
+                                ${formatNotificationType(n.notification_type)}
+                            </span>
+                        </div>
+                    </td>
+                    <td style="font-weight: 500;">${formatCurrency(n.available_balance)}</td>
+                    <td>
+                        <span class="badge ${getStatusBadgeClass(n.email_status)}">
+                            ${formatStatus(n.email_status)}
+                        </span>
+                    </td>
+                    <td style="font-size: 13px; color: var(--gray-500);">
+                        ${n.email_template || 'N/A'}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        /**
+         * Render pagination
+         */
+        function renderPagination() {
+            const pagination = document.getElementById('pagination');
+            const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+            if (totalPages <= 1) {
+                pagination.style.display = 'none';
+                return;
+            }
+
+            pagination.style.display = 'flex';
+
+            let buttons = '';
+
+            // Previous button
+            buttons += `
+                <button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="changePage(${currentPage - 1})">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+            `;
+
+            // Page numbers
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+                    buttons += `
+                        <button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">
+                            ${i}
+                        </button>
+                    `;
+                } else if (i === currentPage - 2 || i === currentPage + 2) {
+                    buttons += '<span style="padding: 8px;">...</span>';
+                }
+            }
+
+            // Next button
+            buttons += `
+                <button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="changePage(${currentPage + 1})">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            `;
+
+            pagination.innerHTML = buttons;
+        }
+
+        /**
+         * Change page
+         */
+        function changePage(page) {
+            currentPage = page;
+            loadHistory();
+        }
+
+        /**
+         * Render error state
+         */
+        function renderError(message) {
+            const tbody = document.getElementById('historyTableBody');
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5">
+                        <div class="empty-state">
+                            <i class="fas fa-exclamation-triangle" style="color: var(--danger-color);"></i>
+                            <h3>Lỗi</h3>
+                            <p>${message}</p>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+
+        /**
+         * Utility functions
+         */
+        function formatDate(datetime) {
+            const date = new Date(datetime);
+            return date.toLocaleDateString('vi-VN');
+        }
+
+        function formatTime(datetime) {
+            const date = new Date(datetime);
+            return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function formatCurrency(amount) {
+            if (!amount) return '0 VND';
+            return new Intl.NumberFormat('vi-VN', {
+                style: 'currency',
+                currency: 'VND'
+            }).format(amount);
+        }
+
+        function formatNotificationType(type) {
+            const types = {
+                'instant': 'Instant',
+                'periodic': 'Nhắc Nhở',
+                'urgent': 'Khẩn Cấp'
+            };
+            return types[type] || type;
+        }
+
+        function formatStatus(status) {
+            const statuses = {
+                'sent': 'Đã Gửi',
+                'failed': 'Thất Bại',
+                'pending': 'Chờ Gửi'
+            };
+            return statuses[status] || status;
+        }
+
+        function getTypeIcon(type) {
+            const icons = {
+                'instant': '<i class="fas fa-bolt"></i>',
+                'periodic': '<i class="fas fa-calendar-check"></i>',
+                'urgent': '<i class="fas fa-exclamation-triangle"></i>'
+            };
+            return icons[type] || '<i class="fas fa-envelope"></i>';
+        }
+
+        function getTypeBadgeClass(type) {
+            const classes = {
+                'instant': 'badge-success',
+                'periodic': 'badge-info',
+                'urgent': 'badge-warning'
+            };
+            return classes[type] || 'badge-primary';
+        }
+
+        function getStatusBadgeClass(status) {
+            const classes = {
+                'sent': 'badge-success',
+                'failed': 'badge-danger',
+                'pending': 'badge-warning'
+            };
+            return classes[status] || 'badge-info';
+        }
+    </script>
+</body>
+</html>

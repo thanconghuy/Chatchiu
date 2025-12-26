@@ -114,6 +114,9 @@ class CronJobsService {
     // Job 4: Cleanup old activity logs (daily at 2 AM)
     this.scheduleActivityLogsCleanup();
 
+    // Job 5: Cashback reminder emails (configurable time, default: daily at 10 AM)
+    await this.scheduleCashbackReminders();
+
     this.isInitialized = true;
     logger.success(`✅ Initialized ${this.jobs.length} cron jobs (auto-start enabled)`);
   }
@@ -339,6 +342,90 @@ class CronJobsService {
   }
 
   /**
+   * Job 5: Cashback reminder emails
+   * Schedule: Configurable via system_settings (default: daily at 10:00 AM)
+   * Purpose: Send periodic reminders to users with available cashback
+   */
+  async scheduleCashbackReminders() {
+    try {
+      const SystemSettings = require('../services/systemSettings');
+
+      // Check if reminders are enabled
+      const enabled = await SystemSettings.get('cashback_reminder_enabled', true);
+
+      if (!enabled || enabled === 'false') {
+        logger.info('📧 Cashback reminders DISABLED via system settings');
+        return;
+      }
+
+      // Get configured time (format: HH:MM)
+      const reminderTime = await SystemSettings.get('cashback_reminder_time', '10:00');
+      const [hour, minute] = reminderTime.split(':');
+
+      // Build cron schedule: "minute hour * * *" (daily at specified time)
+      const schedule = `${minute} ${hour} * * *`;
+
+      const job = cron.schedule(schedule, async () => {
+        logger.info('📧 Cron: Cashback reminder emails started');
+
+        try {
+          // Check if still enabled before running
+          const stillEnabled = await SystemSettings.get('cashback_reminder_enabled', true);
+
+          if (!stillEnabled || stillEnabled === 'false') {
+            logger.info('📧 Cashback reminders disabled, skipping this run');
+            return;
+          }
+
+          const CashbackNotificationService = require('../services/notifications/CashbackNotificationService');
+          const results = await CashbackNotificationService.sendPeriodicReminders();
+
+          logger.success('📧 Cron: Cashback reminder emails completed', {
+            total: results.total,
+            sent: results.sent,
+            skipped: results.skipped,
+            failed: results.failed
+          });
+
+          // Alert if high failure rate
+          if (results.failed > 0 && results.failed / results.total > 0.2) {
+            logger.warn('⚠️  High failure rate for cashback reminders', {
+              failureRate: `${((results.failed / results.total) * 100).toFixed(1)}%`,
+              failed: results.failed,
+              total: results.total
+            });
+          }
+
+        } catch (error) {
+          logger.error('📧 Cron: Cashback reminder emails failed', {
+            error: error.message,
+            stack: error.stack
+          });
+        }
+      }, {
+        scheduled: true,
+        timezone: "Asia/Ho_Chi_Minh"
+      });
+
+      // Ensure job is started
+      job.start();
+
+      this.jobs.push({
+        name: 'cashback-reminders',
+        schedule,
+        job
+      });
+
+      logger.info(`✅ Scheduled & Started: Cashback reminder emails (${schedule} = ${reminderTime} daily)`);
+
+    } catch (error) {
+      logger.error('Failed to schedule cashback reminders', {
+        error: error.message
+      });
+    }
+  }
+
+  /**
    * Stop all cron jobs
    */
   stopAll() {
@@ -406,6 +493,10 @@ class CronJobsService {
           WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '90 days'
         `);
         return { deletedCount: cleanupResult.rowCount };
+
+      case 'cashback-reminders':
+        const CashbackNotificationService = require('../services/notifications/CashbackNotificationService');
+        return await CashbackNotificationService.sendPeriodicReminders();
 
       default:
         throw new Error(`Unknown job: ${jobName}`);

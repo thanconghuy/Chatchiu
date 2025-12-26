@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cấu Hình Thông Báo - Dashboard</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/user-layout.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --info-color: #3b82f6;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+        }
+
+        .main-content {
+            padding: 24px;
+            max-width: 900px;
+        }
+
+        .page-header {
+            margin-bottom: 24px;
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--gray-900);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .page-title i {
+            color: var(--primary-color);
+        }
+
+        .page-description {
+            font-size: 15px;
+            color: var(--gray-600);
+            line-height: 1.6;
+        }
+
+        .settings-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--gray-200);
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--gray-900);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+
+        .card-description {
+            font-size: 14px;
+            color: var(--gray-600);
+            line-height: 1.5;
+        }
+
+        .card-body {
+            padding: 24px;
+        }
+
+        .preference-item {
+            padding: 20px 0;
+            border-bottom: 1px solid var(--gray-100);
+        }
+
+        .preference-item:last-child {
+            border-bottom: none;
+        }
+
+        .preference-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .preference-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--gray-900);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .preference-title i {
+            font-size: 18px;
+            color: var(--primary-color);
+        }
+
+        .preference-description {
+            font-size: 14px;
+            color: var(--gray-600);
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+
+        .preference-control {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 52px;
+            height: 28px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--gray-300);
+            transition: .3s;
+            border-radius: 28px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: var(--success-color);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(24px);
+        }
+
+        .toggle-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--gray-700);
+        }
+
+        /* Form Input */
+        .form-group {
+            margin-top: 16px;
+        }
+
+        .form-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--gray-700);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .form-input {
+            width: 100%;
+            max-width: 200px;
+            padding: 10px 14px;
+            border: 1px solid var(--gray-300);
+            border-radius: 8px;
+            font-size: 14px;
+            color: var(--gray-900);
+            transition: all 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .input-suffix {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--gray-600);
+            margin-left: 8px;
+        }
+
+        /* Alert */
+        .alert {
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .alert i {
+            font-size: 18px;
+            margin-top: 2px;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            border-left: 4px solid var(--success-color);
+            color: #065f46;
+        }
+
+        .alert-info {
+            background: #dbeafe;
+            border-left: 4px solid var(--info-color);
+            color: #1e40af;
+        }
+
+        .alert-warning {
+            background: #fef3c7;
+            border-left: 4px solid var(--warning-color);
+            color: #92400e;
+        }
+
+        .alert-danger {
+            background: #fee2e2;
+            border-left: 4px solid var(--danger-color);
+            color: #991b1b;
+        }
+
+        .alert-content {
+            flex: 1;
+        }
+
+        .alert-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        /* Button */
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            padding: 24px;
+            background: var(--gray-50);
+            border-top: 1px solid var(--gray-200);
+            border-radius: 0 0 16px 16px;
+        }
+
+        /* Info Box */
+        .info-box {
+            padding: 16px 20px;
+            background: rgba(59, 130, 246, 0.05);
+            border-left: 4px solid var(--info-color);
+            border-radius: 8px;
+            font-size: 14px;
+            color: var(--gray-700);
+            line-height: 1.6;
+        }
+
+        .info-box strong {
+            color: var(--info-color);
+        }
+
+        .disabled-overlay {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 16px;
+            }
+
+            .page-title {
+                font-size: 24px;
+            }
+
+            .preference-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .card-body {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div id="sidebar-container"></div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">
+                <i class="fas fa-bell"></i>
+                Cấu Hình Thông Báo
+            </h1>
+            <p class="page-description">
+                Quản lý cách bạn nhận thông báo về cashback và các giao dịch quan trọng.
+            </p>
+        </div>
+
+        <!-- Alert Container -->
+        <div id="alertContainer"></div>
+
+        <!-- Email Notifications -->
+        <div class="settings-card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-envelope"></i>
+                    Thông Báo Email
+                </h2>
+                <p class="card-description">
+                    Nhận email khi có cập nhật về cashback và số dư khả dụng của bạn
+                </p>
+            </div>
+
+            <div class="card-body">
+                <!-- Instant Notifications -->
+                <div class="preference-item">
+                    <div class="preference-header">
+                        <div class="preference-title">
+                            <i class="fas fa-bolt"></i>
+                            Thông Báo Instant
+                        </div>
+                        <div class="preference-control">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="instantEmail">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span class="toggle-label" id="instantEmailLabel">...</span>
+                        </div>
+                    </div>
+                    <div class="preference-description">
+                        Nhận email ngay lập tức khi cashback của bạn được duyệt và đủ điều kiện rút tiền.
+                        Email sẽ được gửi trong vòng vài giây sau khi có cashback mới.
+                    </div>
+                </div>
+
+                <!-- Reminder Emails -->
+                <div class="preference-item">
+                    <div class="preference-header">
+                        <div class="preference-title">
+                            <i class="fas fa-calendar-check"></i>
+                            Email Nhắc Nhở Định Kỳ
+                        </div>
+                        <div class="preference-control">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="reminderEmail">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span class="toggle-label" id="reminderEmailLabel">...</span>
+                        </div>
+                    </div>
+                    <div class="preference-description">
+                        Nhận email nhắc nhở định kỳ khi bạn có số dư cashback chờ rút nhưng chưa tạo yêu cầu thanh toán.
+                        Giúp bạn không bỏ lỡ tiền cashback.
+                    </div>
+
+                    <div class="form-group" id="frequencyControl" style="display: none;">
+                        <label class="form-label">Tần suất nhắc nhở (ngày):</label>
+                        <div>
+                            <input type="number" id="reminderFrequency" class="form-input" min="1" max="30" value="7">
+                            <span class="input-suffix">ngày</span>
+                        </div>
+                        <p class="preference-description" style="margin-top: 8px; margin-bottom: 0;">
+                            Số ngày giữa các lần nhắc nhở. Ví dụ: 7 ngày = bạn sẽ nhận email mỗi tuần.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Urgent Emails -->
+                <div class="preference-item">
+                    <div class="preference-header">
+                        <div class="preference-title">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Email Khẩn Cấp
+                        </div>
+                        <div class="preference-control">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="urgentEmail">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span class="toggle-label" id="urgentEmailLabel">...</span>
+                        </div>
+                    </div>
+                    <div class="preference-description">
+                        Nhận email thông báo trước hạn cuối đối soát để bạn kịp rút tiền.
+                        Tính năng này sẽ giúp bạn không bỏ lỡ kỳ thanh toán.
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-primary" id="saveBtn" onclick="savePreferences()">
+                    <i class="fas fa-save"></i>
+                    Lưu Cấu Hình
+                </button>
+            </div>
+        </div>
+
+        <!-- Info Box -->
+        <div class="info-box">
+            <i class="fas fa-info-circle"></i>
+            <strong>Lưu ý:</strong> Bạn có thể bật/tắt từng loại email theo nhu cầu.
+            Nếu bạn tắt tất cả, bạn sẽ không nhận được bất kỳ email thông báo nào về cashback.
+            Bạn luôn có thể kiểm tra số dư và tạo yêu cầu thanh toán trực tiếp trên Dashboard.
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/user-sidebar-v2.js"></script>
+    <script src="/js/notification-preferences.js"></script>
+</body>
+</html>

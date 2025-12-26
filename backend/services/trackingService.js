@@ -3,6 +3,7 @@ const Click = require('../models/Click');
 const User = require('../models/User');
 const SystemConversion = require('../models/SystemConversion');
 const logger = require('../utils/logger');
+const CashbackNotificationService = require('./notifications/CashbackNotificationService');
 
 /**
  * Tracking Service
@@ -378,6 +379,22 @@ class TrackingService {
         userId: click.user_id,
         amount: userCashback
       });
+
+      // PHASE 1: Send instant notification for approved conversions
+      try {
+        const user = await User.findById(click.user_id);
+        if (user && user.available_balance > 0) {
+          await CashbackNotificationService.sendInstantNotification(
+            click.user_id,
+            user.available_balance
+          );
+        }
+      } catch (notifError) {
+        logger.warn('Failed to send instant notification (non-fatal)', {
+          userId: click.user_id,
+          error: notifError.message
+        });
+      }
     } else if (status === 'pending') {
       // Add to pending balance
       await User.updateBalance(click.user_id, 'add_pending', userCashback);
@@ -425,6 +442,24 @@ class TrackingService {
       userId: conversion.user_id,
       cashbackAmount: conversion.cashback_amount
     });
+
+    // PHASE 1: Send instant cashback notification
+    try {
+      // Get updated user balance
+      const user = await User.findById(conversion.user_id);
+      if (user && user.available_balance > 0) {
+        await CashbackNotificationService.sendInstantNotification(
+          conversion.user_id,
+          user.available_balance
+        );
+      }
+    } catch (notifError) {
+      // Don't fail the conversion approval if notification fails
+      logger.warn('Failed to send instant notification (non-fatal)', {
+        userId: conversion.user_id,
+        error: notifError.message
+      });
+    }
   }
 
   /**

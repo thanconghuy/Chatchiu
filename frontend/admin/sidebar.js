@@ -39,6 +39,7 @@ const SIDEBAR_MENU_STRUCTURE = {
             items: [
                 { href: '/admin/users', icon: 'fa-solid fa-user', text: 'Users', id: 'users' },
                 { href: '/admin/merchants', icon: 'fa-solid fa-store', text: 'Merchants', id: 'merchants' },
+                { href: '/admin/notification-settings', icon: 'fa-solid fa-bell', text: 'Email Notifications', id: 'notification-settings' },
                 { href: '/admin/tools', icon: 'fa-solid fa-wrench', text: 'Tools', id: 'tools' },
                 { href: '/admin/settings', icon: 'fa-solid fa-gear', text: 'Settings', id: 'settings' }
             ]
