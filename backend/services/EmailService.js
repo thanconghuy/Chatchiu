@@ -423,6 +423,65 @@ class EmailService {
       console.log('[EmailService] SMTP connection closed');
     }
   }
+
+  /**
+   * Load and render HTML email template
+   *
+   * @param {string} templateName - Template file name (without .html extension)
+   * @param {Object} context - Variables to replace in template
+   * @returns {Promise<string>} Rendered HTML
+   */
+  async loadTemplate(templateName, context = {}) {
+    const fs = require('fs').promises;
+    const path = require('path');
+
+    try {
+      // Load template file
+      const templatePath = path.join(__dirname, 'emailTemplates', `${templateName}.html`);
+      let html = await fs.readFile(templatePath, 'utf8');
+
+      // Replace placeholders with context values
+      // {{variableName}} -> context.variableName
+      Object.keys(context).forEach(key => {
+        const placeholder = new RegExp(`{{${key}}}`, 'g');
+        html = html.replace(placeholder, context[key] || '');
+      });
+
+      return html;
+
+    } catch (error) {
+      console.error(`[EmailService] Failed to load template "${templateName}":`, error.message);
+      throw new Error(`Template not found: ${templateName}`);
+    }
+  }
+
+  /**
+   * Send email using template
+   *
+   * @param {Object} options
+   * @param {string} options.to - Recipient email
+   * @param {string} options.subject - Email subject
+   * @param {string} options.template - Template name
+   * @param {Object} options.context - Template variables + logging context
+   * @returns {Promise<Object>}
+   */
+  async sendEmailWithTemplate({ to, subject, template, context = {} }) {
+    // Load and render template
+    const html = await this.loadTemplate(template, context);
+
+    // Send email using existing method
+    return this.sendEmail({
+      to,
+      subject,
+      html,
+      context: {
+        userId: context.userId,
+        emailType: template,
+        contextId: context.contextId,
+        contextType: context.contextType
+      }
+    });
+  }
 }
 
 // Export singleton instance

@@ -49,10 +49,10 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net", "https://fonts.googleapis.com"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
-      fontSrc: ["'self'", "https://cdnjs.cloudflare.com", "https://fonts.gstatic.com"],
-      connectSrc: ["'self'", "https://api.accesstrade.vn"],
+      fontSrc: ["'self'", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net", "https://fonts.gstatic.com"],
+      connectSrc: ["'self'", "https://api.accesstrade.vn", "https://cdn.jsdelivr.net"],
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],
       upgradeInsecureRequests: []
@@ -109,6 +109,7 @@ const systemSettingsRoutes = require('./backend/routes/systemSettings');
 const userPaymentHistoryRoutes = require('./backend/routes/userPaymentHistory');
 const userProfileRoutes = require('./backend/routes/userProfile');
 const paymentAccountRoutes = require('./backend/routes/paymentAccount');
+const notificationsRoutes = require('./backend/routes/notifications');
 
 // Mount API routes (BEFORE static files)
 app.use('/api/auth', authRoutes); // Keep old auth for backward compatibility
@@ -124,6 +125,7 @@ app.use('/api/system-settings', systemSettingsRoutes); // System settings (admin
 app.use('/api/user', userProfileRoutes); // User profile module (must be before userPaymentHistoryRoutes)
 app.use('/api/user', userPaymentHistoryRoutes); // User payment history module
 app.use('/api/user/payment-accounts', paymentAccountRoutes); // Payment account management
+app.use('/api/notifications', notificationsRoutes); // Cashback notification system (Phase 1)
 
 // Health check endpoint with database check
 app.get('/health', async (req, res) => {
@@ -399,3 +401,4 @@ if (process.env.VERCEL !== '1') {
 
 // Export for Vercel
 module.exports = app;
+

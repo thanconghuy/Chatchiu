@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nhắc nhở: Bạn có tiền cashback chờ rút</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7fa;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f4f7fa;">
+        <tr>
+            <td style="padding: 40px 20px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 40px 30px; text-align: center; border-radius: 12px 12px 0 0;">
+                            <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">💰 Nhắc Nhở</h1>
+                        </td>
+                    </tr>
+
+                    <!-- Main content -->
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <p style="margin: 0 0 20px; color: #333333; font-size: 16px; line-height: 1.6;">
+                                Xin chào <strong>{{userName}}</strong>,
+                            </p>
+
+                            <p style="margin: 0 0 30px; color: #555555; font-size: 16px; line-height: 1.6;">
+                                Chúng tôi nhận thấy bạn có <strong style="color: #f5576c;">{{amount}}</strong> cashback đủ điều kiện rút tiền nhưng chưa tạo yêu cầu thanh toán.
+                            </p>
+
+                            <!-- Amount box -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0 0 30px;">
+                                <tr>
+                                    <td style="background: linear-gradient(135deg, #FA709A 0%, #FEE140 100%); padding: 30px; border-radius: 8px; text-align: center;">
+                                        <p style="margin: 0 0 10px; color: #ffffff; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Cashback chờ rút</p>
+                                        <p style="margin: 0; color: #ffffff; font-size: 36px; font-weight: 700;">{{amount}}</p>
+                                        <p style="margin: 10px 0 0; color: #ffffff; font-size: 12px; opacity: 0.9;">Đã đủ điều kiện từ {{daysSinceEligible}} ngày trước</p>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <p style="margin: 0 0 30px; color: #555555; font-size: 16px; line-height: 1.6;">
+                                Đừng để tiền của bạn chờ đợi quá lâu! Hãy tạo yêu cầu thanh toán ngay để nhận tiền sớm nhất.
+                            </p>
+
+                            <!-- CTA Button -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0 0 30px;">
+                                <tr>
+                                    <td style="text-align: center;">
+                                        <a href="{{createRequestUrl}}" style="display: inline-block; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4);">
+                                            💳 Tạo Yêu Cầu Ngay
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Benefits box -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0 0 30px;">
+                                <tr>
+                                    <td style="background-color: #fff8e1; padding: 20px; border-left: 4px solid #ffc107; border-radius: 4px;">
+                                        <p style="margin: 0 0 10px; color: #333333; font-size: 14px; font-weight: 600;">
+                                            ✨ Lợi ích khi rút tiền sớm:
+                                        </p>
+                                        <ul style="margin: 0; padding-left: 20px; color: #555555; font-size: 14px; line-height: 1.8;">
+                                            <li>Nhận tiền nhanh chóng (3-7 ngày làm việc)</li>
+                                            <li>Tránh quên và bỏ lỡ kỳ thanh toán</li>
+                                            <li>Quản lý tài chính cá nhân hiệu quả hơn</li>
+                                        </ul>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <p style="margin: 0 0 10px; color: #999999; font-size: 13px; line-height: 1.6; text-align: center;">
+                                Bạn không muốn nhận email nhắc nhở này nữa?<br>
+                                <a href="{{unsubscribeUrl}}" style="color: #999999; text-decoration: underline;">Hủy đăng ký</a>
+                            </p>
+
+                            <p style="margin: 30px 0 0; color: #555555; font-size: 14px; line-height: 1.6;">
+                                Trân trọng,<br>
+                                <strong>Đội ngũ ChatChiu Cashback</strong>
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f8f9fa; padding: 30px; text-align: center; border-radius: 0 0 12px 12px;">
+                            <p style="margin: 0 0 10px; color: #999999; font-size: 12px;">
+                                Email nhắc nhở tự động được gửi mỗi {{reminderFrequency}} ngày.
+                            </p>
+                            <p style="margin: 0; color: #999999; font-size: 12px;">
+                                © 2025 ChatChiu Cashback. All rights reserved.
+                            </p>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

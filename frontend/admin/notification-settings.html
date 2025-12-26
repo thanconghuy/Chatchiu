@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notification Settings - Admin Dashboard</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/admin/admin.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.css">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --primary-dark: #5568d3;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --info-color: #3b82f6;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+        }
+
+        body {
+            background: var(--gray-50);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* App Container & Main Content Layout */
+        .app-container {
+            display: flex;
+            width: 100%;
+            max-width: 100vw;
+            overflow-x: hidden;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 24px;
+            box-sizing: border-box;
+            min-width: 0;
+            margin-left: var(--sidebar-width);
+        }
+
+        .content-wrapper {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .content-header {
+            margin-bottom: 24px;
+        }
+
+        .content-header h1 {
+            font-size: 28px;
+            color: var(--gray-900);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* Header */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--gray-900);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .page-title i {
+            color: var(--primary-color);
+        }
+
+        /* Status Cards - Modern Design */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--gray-200);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--primary-color);
+        }
+
+        .stat-card.primary::before { background: var(--primary-color); }
+        .stat-card.success::before { background: var(--success-color); }
+        .stat-card.warning::before { background: var(--warning-color); }
+        .stat-card.info::before { background: var(--info-color); }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .stat-icon.primary {
+            background: var(--primary-color);
+            color: white;
+        }
+        .stat-icon.success {
+            background: var(--success-color);
+            color: white;
+        }
+        .stat-icon.warning {
+            background: var(--warning-color);
+            color: white;
+        }
+        .stat-icon.info {
+            background: var(--info-color);
+            color: white;
+        }
+
+        .stat-content {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex: 1;
+        }
+
+        .stat-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin: 0;
+            line-height: 1.2;
+        }
+
+        .stat-value {
+            font-size: 16px !important;
+            font-weight: 700 !important;
+            color: var(--primary-color) !important;
+            line-height: 1;
+        }
+
+        .stat-description {
+            font-size: 13px;
+            color: var(--gray-500);
+            line-height: 1.4;
+        }
+
+        /* Settings Panel - Modern Design */
+        .settings-panel {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 24px;
+            border: 1px solid var(--gray-200);
+            overflow: hidden;
+        }
+
+        .settings-panel-header {
+            padding: 24px 28px;
+            background: var(--primary-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .panel-title i {
+            font-size: 24px;
+        }
+
+        .settings-panel-body {
+            padding: 28px;
+        }
+
+        /* Setting Row - Modern Design */
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px;
+            background: var(--gray-50);
+            border-radius: 12px;
+            margin-bottom: 16px;
+            transition: all 0.2s;
+        }
+
+        .setting-row:hover {
+            background: var(--gray-100);
+            transform: translateX(4px);
+        }
+
+        .setting-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .setting-info {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+        }
+
+        .setting-label {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--gray-900);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .setting-label i {
+            color: var(--primary-color);
+            font-size: 18px;
+        }
+
+        .setting-description {
+            font-size: 13px;
+            color: var(--gray-600);
+            line-height: 1.6;
+            max-width: 600px;
+        }
+
+        .setting-control {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-shrink: 0;
+        }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 52px;
+            height: 28px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--gray-300);
+            transition: all 0.3s;
+            border-radius: 28px;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 3px;
+            bottom: 3px;
+            background: white;
+            transition: all 0.3s;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        input:checked + .toggle-slider {
+            background: var(--success-color);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(24px);
+        }
+
+        .toggle-switch:hover .toggle-slider {
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+
+        .toggle-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--gray-700);
+            padding: 6px 12px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid var(--gray-200);
+        }
+
+        /* Input Fields - Modern Design */
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-input {
+            padding: 12px 16px;
+            border: 2px solid var(--gray-300);
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--gray-900);
+            transition: all 0.3s;
+            width: 100%;
+            max-width: 200px;
+            background: white;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+            transform: scale(1.02);
+        }
+
+        .form-input:hover {
+            border-color: var(--gray-400);
+        }
+
+        .form-select {
+            padding: 12px 16px;
+            border: 2px solid var(--gray-300);
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--gray-900);
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+        }
+
+        .form-select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+            transform: scale(1.02);
+        }
+
+        .form-select:hover {
+            border-color: var(--gray-400);
+        }
+
+        .form-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--gray-700);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .form-hint {
+            font-size: 12px;
+            color: var(--gray-500);
+            margin-top: 4px;
+            display: block;
+        }
+
+        /* Template Editor Styles */
+        .template-selector {
+            margin-bottom: 24px;
+        }
+
+        .template-editor {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .editor-section {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .template-preview {
+            background: var(--gray-50);
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 300px;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .variables-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+            background: var(--gray-50);
+            padding: 16px;
+            border-radius: 8px;
+        }
+
+        .variable-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .variable-item code {
+            background: white;
+            color: var(--primary-color);
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 600;
+            border: 1px solid var(--gray-200);
+        }
+
+        .variable-item span {
+            font-size: 12px;
+            color: var(--gray-600);
+        }
+
+        .template-actions {
+            display: flex;
+            gap: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--gray-200);
+        }
+
+        .input-suffix {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--gray-700);
+            padding: 6px 12px;
+            background: var(--gray-100);
+            border-radius: 8px;
+        }
+
+        /* Buttons - Solid Colors */
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+            box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:active {
+            background: #4557c2;
+            box-shadow: 0 1px 2px rgba(102, 126, 234, 0.2);
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+            box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+        }
+
+        .btn-success:hover {
+            background: #059669;
+            box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-success:active {
+            background: #047857;
+            box-shadow: 0 1px 2px rgba(16, 185, 129, 0.2);
+        }
+
+        .btn-warning {
+            background: var(--warning-color);
+            color: white;
+            box-shadow: 0 2px 4px rgba(245, 158, 11, 0.2);
+        }
+
+        .btn-warning:hover {
+            background: #d97706;
+            box-shadow: 0 4px 8px rgba(245, 158, 11, 0.3);
+        }
+
+        .btn-warning:active {
+            background: #b45309;
+            box-shadow: 0 1px 2px rgba(245, 158, 11, 0.2);
+        }
+
+        .btn-info {
+            background: var(--info-color);
+            color: white;
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+        }
+
+        .btn-info:hover {
+            background: #2563eb;
+            box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-info:active {
+            background: #1d4ed8;
+            box-shadow: 0 1px 2px rgba(59, 130, 246, 0.2);
+        }
+
+        .btn-secondary {
+            background: var(--gray-300);
+            color: var(--gray-700);
+            box-shadow: 0 2px 4px rgba(107, 114, 128, 0.1);
+        }
+
+        .btn-secondary:hover {
+            background: var(--gray-400);
+            box-shadow: 0 4px 8px rgba(107, 114, 128, 0.2);
+        }
+
+        .btn-secondary:active {
+            background: var(--gray-500);
+            box-shadow: 0 1px 2px rgba(107, 114, 128, 0.1);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            padding: 24px;
+            background: var(--gray-50);
+            border-top: 1px solid var(--gray-200);
+            border-radius: 0 0 12px 12px;
+        }
+
+        /* Alert Messages */
+        .alert {
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .alert i {
+            font-size: 18px;
+            margin-top: 2px;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            border-left: 4px solid var(--success-color);
+            color: #065f46;
+        }
+
+        .alert-info {
+            background: #dbeafe;
+            border-left: 4px solid var(--info-color);
+            color: #1e40af;
+        }
+
+        .alert-warning {
+            background: #fef3c7;
+            border-left: 4px solid var(--warning-color);
+            color: #92400e;
+        }
+
+        .alert-danger {
+            background: #fee2e2;
+            border-left: 4px solid var(--danger-color);
+            color: #991b1b;
+        }
+
+        .alert-content {
+            flex: 1;
+        }
+
+        .alert-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            border: 2px solid var(--gray-200);
+            border-top: 2px solid var(--primary-color);
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Charts Container */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 24px;
+            margin-bottom: 30px;
+        }
+
+        .chart-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--gray-900);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Recent Notifications Table */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table thead th {
+            background: var(--gray-50);
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--gray-600);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid var(--gray-200);
+        }
+
+        .data-table tbody td {
+            padding: 14px 16px;
+            font-size: 14px;
+            color: var(--gray-700);
+            border-bottom: 1px solid var(--gray-100);
+        }
+
+        .data-table tbody tr:hover {
+            background: var(--gray-50);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .badge-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        /* Mobile Menu Toggle */
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1001;
+            background: white;
+            border: none;
+            border-radius: 8px;
+            width: 44px;
+            height: 44px;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Modal Styles */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            padding: 24px 28px;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--gray-50);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 32px;
+            color: var(--gray-500);
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: var(--gray-200);
+            color: var(--gray-900);
+        }
+
+        .modal-body {
+            padding: 28px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .modal-footer {
+            padding: 20px 28px;
+            border-top: 1px solid var(--gray-200);
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            background: var(--gray-50);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .mobile-menu-toggle {
+                display: block;
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 80px 16px 16px 16px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .setting-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 16px;
+            }
+
+            .setting-control {
+                width: 100%;
+                justify-content: flex-end;
+            }
+
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .content-header h1 {
+                font-size: 22px;
+            }
+
+            .panel-title {
+                font-size: 18px;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .action-buttons .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
+
+    <div class="app-container">
+        <!-- Sidebar - Rendered by sidebar.js -->
+        <div id="sidebarContainer"></div>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-wrapper">
+                <!-- Page Header -->
+                <div class="content-header">
+                    <div>
+                        <h1>
+                            <i class="fas fa-bell"></i>
+                            Cấu Hình Thông Báo Email
+                        </h1>
+                        <p style="color: #6b7280; margin-top: 4px;">Quản lý và cấu hình hệ thống email thông báo cashback</p>
+                    </div>
+                </div>
+
+                <!-- Alert Messages (Hidden by default) -->
+                <div id="alertContainer"></div>
+
+        <!-- Statistics Cards -->
+        <div class="stats-grid">
+            <div class="stat-card primary">
+                <div class="stat-icon primary">
+                    <i class="fas fa-toggle-on"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-title">Trạng Thái Reminders</div>
+                    <div class="stat-value" id="reminderStatus">...</div>
+                    <div class="stat-description">Tự động gửi nhắc nhở định kỳ</div>
+                </div>
+            </div>
+
+            <div class="stat-card success">
+                <div class="stat-icon success">
+                    <i class="fas fa-calendar-check"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-title">Tần Suất Gửi</div>
+                    <div class="stat-value" id="frequencyDisplay">...</div>
+                    <div class="stat-description">Số ngày giữa các lần nhắc nhở</div>
+                </div>
+            </div>
+
+            <div class="stat-card warning">
+                <div class="stat-icon warning">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-title">Thời Gian Gửi</div>
+                    <div class="stat-value" id="timeDisplay">...</div>
+                    <div class="stat-description">Giờ gửi email hàng ngày</div>
+                </div>
+            </div>
+
+            <div class="stat-card info">
+                <div class="stat-icon info">
+                    <i class="fas fa-bolt"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-title">Instant Notifications</div>
+                    <div class="stat-value" id="instantStatus">...</div>
+                    <div class="stat-description">Thông báo ngay khi đủ rút</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Panel -->
+        <div class="settings-panel">
+            <div class="settings-panel-header">
+                <h2 class="panel-title">
+                    <i class="fas fa-cog"></i>
+                    Cấu Hình Chi Tiết
+                </h2>
+            </div>
+
+            <div class="settings-panel-body">
+                <!-- Reminder Enabled -->
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">
+                            <i class="fas fa-envelope"></i>
+                            Email Nhắc Nhở Tự Động
+                        </div>
+                        <div class="setting-description">
+                            Bật/tắt tính năng gửi email nhắc nhở cashback định kỳ cho users có số dư khả dụng.
+                            Khi tắt, hệ thống sẽ không gửi email nhắc nhở tự động.
+                        </div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="reminderEnabled">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="toggle-label" id="reminderEnabledLabel">...</span>
+                    </div>
+                </div>
+
+                <!-- Reminder Frequency -->
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">
+                            <i class="fas fa-calendar-alt"></i>
+                            Tần Suất Gửi Nhắc Nhở
+                        </div>
+                        <div class="setting-description">
+                            Số ngày giữa các lần gửi email nhắc nhở. Ví dụ: 7 ngày = mỗi user sẽ nhận nhắc nhở cách nhau ít nhất 7 ngày.
+                            Giá trị từ 1-30 ngày.
+                        </div>
+                    </div>
+                    <div class="setting-control">
+                        <div class="input-group">
+                            <input type="number" id="reminderFrequency" class="form-input" min="1" max="30" value="7">
+                            <span class="input-suffix">ngày</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reminder Time -->
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">
+                            <i class="fas fa-clock"></i>
+                            Thời Gian Gửi Email
+                        </div>
+                        <div class="setting-description">
+                            Thời gian trong ngày để gửi email nhắc nhở (múi giờ Asia/Ho_Chi_Minh).
+                            Định dạng: HH:MM (ví dụ: 10:00 cho 10 giờ sáng).
+                        </div>
+                    </div>
+                    <div class="setting-control">
+                        <div class="input-group">
+                            <input type="time" id="reminderTime" class="form-input" value="10:00">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Instant Notifications -->
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">
+                            <i class="fas fa-bolt"></i>
+                            Instant Notifications
+                        </div>
+                        <div class="setting-description">
+                            Gửi email thông báo ngay lập tức khi conversion được approve và user đủ điều kiện rút tiền.
+                            Email sẽ được gửi trong vòng vài giây sau khi cashback được duyệt.
+                        </div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="instantEnabled">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="toggle-label" id="instantEnabledLabel">...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <button class="btn btn-primary" id="saveBtn" onclick="saveSettings()">
+                    <i class="fas fa-save"></i>
+                    Lưu Cấu Hình
+                </button>
+                <button class="btn btn-warning" id="testBtn" onclick="sendTestReminders()">
+                    <i class="fas fa-paper-plane"></i>
+                    Test Gửi Ngay
+                </button>
+                <button class="btn btn-secondary" onclick="loadSettings()">
+                    <i class="fas fa-sync"></i>
+                    Làm Mới
+                </button>
+            </div>
+        </div>
+
+        <!-- Email Templates Management -->
+        <div class="settings-panel">
+            <div class="settings-panel-header">
+                <h2 class="panel-title">
+                    <i class="fas fa-envelope"></i>
+                    Quản Lý Email Templates
+                </h2>
+            </div>
+            <div class="settings-panel-body">
+                <!-- Template Selector -->
+                <div class="template-selector">
+                    <label class="form-label">
+                        <i class="fas fa-list"></i>
+                        Chọn Template
+                    </label>
+                    <select id="templateSelect" class="form-select">
+                        <option value="instant">Instant Notification - Email gửi ngay</option>
+                        <option value="reminder">Periodic Reminder - Email nhắc nhở định kỳ</option>
+                        <option value="urgent">Urgent Reminder - Email khẩn trước deadline</option>
+                    </select>
+                </div>
+
+                <!-- Template Preview & Edit -->
+                <div class="template-editor">
+                    <div class="editor-section">
+                        <label class="form-label">
+                            <i class="fas fa-heading"></i>
+                            Subject Line
+                        </label>
+                        <input type="text" id="templateSubject" class="form-input" readonly
+                               placeholder="Email subject...">
+                        <small class="form-hint">Subject line của email (chỉ xem, không chỉnh sửa)</small>
+                    </div>
+
+                    <div class="editor-section">
+                        <label class="form-label">
+                            <i class="fas fa-code"></i>
+                            Email Content
+                        </label>
+                        <div class="template-preview" id="templatePreview">
+                            <div style="text-align: center; padding: 40px; color: #9ca3af;">
+                                <i class="fas fa-inbox" style="font-size: 48px; margin-bottom: 16px;"></i>
+                                <p>Chọn template để xem nội dung</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="editor-section">
+                        <label class="form-label">
+                            <i class="fas fa-info-circle"></i>
+                            Template Variables
+                        </label>
+                        <div class="variables-list">
+                            <div class="variable-item">
+                                <code>{{userName}}</code>
+                                <span>Tên người dùng</span>
+                            </div>
+                            <div class="variable-item">
+                                <code>{{amount}}</code>
+                                <span>Số tiền cashback (VND)</span>
+                            </div>
+                            <div class="variable-item">
+                                <code>{{totalAvailable}}</code>
+                                <span>Tổng số dư khả dụng</span>
+                            </div>
+                            <div class="variable-item">
+                                <code>{{unsubscribeUrl}}</code>
+                                <span>Link hủy đăng ký</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="template-actions">
+                        <button class="btn btn-info" data-action="sendTestEmail">
+                            <i class="fas fa-paper-plane"></i>
+                            Gửi Test Email
+                        </button>
+                        <button class="btn btn-primary" data-action="openTemplateEditor">
+                            <i class="fas fa-edit"></i>
+                            Mở Editor Template
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Charts -->
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h3 class="chart-title">
+                    <i class="fas fa-chart-line"></i>
+                    Thống Kê Gửi Email (30 Ngày)
+                </h3>
+                <canvas id="notificationChart"></canvas>
+            </div>
+
+            <div class="chart-card">
+                <h3 class="chart-title">
+                    <i class="fas fa-chart-pie"></i>
+                    Tỷ Lệ Thành Công
+                </h3>
+                <canvas id="successRateChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Recent Notifications -->
+        <div class="settings-panel">
+            <div class="settings-panel-header">
+                <h2 class="panel-title">
+                    <i class="fas fa-history"></i>
+                    Email Gần Đây
+                </h2>
+                <button class="btn btn-secondary btn-sm" onclick="loadRecentNotifications()">
+                    <i class="fas fa-sync"></i>
+                    Làm Mới
+                </button>
+            </div>
+
+            <div class="table-container">
+                <table class="data-table" id="recentNotificationsTable">
+                    <thead>
+                        <tr>
+                            <th>Thời Gian</th>
+                            <th>User</th>
+                            <th>Loại</th>
+                            <th>Số Tiền</th>
+                            <th>Trạng Thái</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recentNotificationsBody">
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 40px;">
+                                <i class="fas fa-spinner fa-spin"></i> Đang tải...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Template Editor Modal -->
+    <div id="templateEditorModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2 style="margin: 0; display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-edit"></i>
+                    Chỉnh Sửa Email Template
+                </h2>
+                <button class="modal-close" data-action="closeTemplateEditor">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 20px;">
+                    <label class="form-label">Template Type</label>
+                    <input type="text" id="editorTemplateType" class="form-input" readonly>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label class="form-label">Subject Line</label>
+                    <input type="text" id="editorSubject" class="form-input" style="width: 100%; max-width: none;">
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label class="form-label">Email Content (HTML)</label>
+                    <textarea id="editorContent" class="form-input" style="max-width: 100%; min-height: 400px; font-family: 'Courier New', monospace; font-size: 13px;"></textarea>
+                </div>
+
+                <div class="alert alert-info" style="margin-bottom: 0;">
+                    <i class="fas fa-info-circle"></i>
+                    <div class="alert-content">
+                        <strong>Lưu ý:</strong> Template sử dụng biến động với cú pháp <code>{{'{'}variableName{'}'}}</code>.
+                        Các biến có sẵn: <code>{{'{'}userName{'}'}}</code>, <code>{{'{'}amount{'}'}}</code>,
+                        <code>{{'{'}totalAvailable{'}'}}</code>, <code>{{'{'}unsubscribeUrl{'}'}}</code>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-action="closeTemplateEditor">
+                    <i class="fas fa-times"></i>
+                    Đóng
+                </button>
+                <button class="btn btn-primary" data-action="saveTemplateChanges">
+                    <i class="fas fa-save"></i>
+                    Lưu Thay Đổi
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Send Test Email Modal -->
+    <div id="testEmailModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 style="margin: 0; display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-paper-plane"></i>
+                    Gửi Test Email
+                </h2>
+                <button class="modal-close" data-action="closeTestEmailModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 20px;">
+                    <label class="form-label">Chọn Template</label>
+                    <select id="testEmailTemplate" class="form-select" style="width: 100%;">
+                        <option value="instant">Instant - Thông báo cashback mới</option>
+                        <option value="reminder">Reminder - Email nhắc nhở định kỳ</option>
+                        <option value="urgent">Urgent - Email khẩn cấp</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label class="form-label">Email Nhận Test</label>
+                    <input type="email" id="testEmailRecipient" class="form-input"
+                           style="width: 100%; max-width: none;"
+                           placeholder="example@gmail.com">
+                    <p style="font-size: 13px; color: var(--gray-600); margin-top: 8px;">
+                        Nhập địa chỉ email muốn nhận test email
+                    </p>
+                </div>
+
+                <div class="alert alert-info" style="margin-bottom: 0;">
+                    <i class="fas fa-info-circle"></i>
+                    <div class="alert-content">
+                        <strong>Lưu ý:</strong> Email test sẽ sử dụng dữ liệu mẫu để hiển thị template.
+                        Kiểm tra hộp thư sau khi gửi.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-action="closeTestEmailModal">
+                    <i class="fas fa-times"></i>
+                    Hủy
+                </button>
+                <button class="btn btn-primary" data-action="sendTestEmailSubmit">
+                    <i class="fas fa-paper-plane"></i>
+                    Gửi Test Email
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Config -->
+    <script src="/js/config.js"></script>
+
+    <!-- Sidebar -->
+    <script src="/admin/sidebar.js"></script>
+    <script>
+        // Initialize sidebar with active page
+        renderSidebar('notification-settings');
+    </script>
+
+    <script src="/admin/js/notification-settings.js"></script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KHẨN: Deadline đối soát sắp hết!</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7fa;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f4f7fa;">
+        <tr>
+            <td style="padding: 40px 20px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+
+                    <!-- Header with gradient -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 40px 30px; text-align: center; border-radius: 12px 12px 0 0;">
+                            <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">⚠️ THÔNG BÁO KHẨN!</h1>
+                        </td>
+                    </tr>
+
+                    <!-- Alert banner -->
+                    <tr>
+                        <td style="background-color: #fee2e2; padding: 20px 30px; border-left: 4px solid #ef4444;">
+                            <p style="margin: 0; color: #991b1b; font-size: 16px; font-weight: 600; text-align: center;">
+                                🚨 Deadline đối soát sắp hết! Rút tiền ngay để không bị mất cashback!
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Main content -->
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <p style="margin: 0 0 20px; color: #333333; font-size: 16px; line-height: 1.6;">
+                                Xin chào <strong>{{userName}}</strong>,
+                            </p>
+
+                            <p style="margin: 0 0 30px; color: #555555; font-size: 16px; line-height: 1.6;">
+                                <strong style="color: #ef4444;">Deadline đối soát sắp hết!</strong> Nếu không rút tiền trước deadline, cashback của bạn sẽ bị khóa và không thể rút được nữa.
+                            </p>
+
+                            <!-- Amount highlight box -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0 0 30px;">
+                                <tr>
+                                    <td style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); padding: 30px; border-radius: 8px; text-align: center; border: 2px solid #ef4444;">
+                                        <p style="margin: 0 0 10px; color: #991b1b; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">⚠️ Số tiền sắp bị khóa</p>
+                                        <p style="margin: 0; color: #ef4444; font-size: 36px; font-weight: 700;">{{totalAvailable}}</p>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Deadline info box -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0 0 30px;">
+                                <tr>
+                                    <td style="background-color: #fff7ed; padding: 20px; border-left: 4px solid #f59e0b; border-radius: 4px;">
+                                        <p style="margin: 0 0 10px; color: #92400e; font-size: 14px; font-weight: 600;">
+                                            ⏰ Thông tin deadline:
+                                        </p>
+                                        <ul style="margin: 0; padding-left: 20px; color: #92400e; font-size: 14px; line-height: 1.8;">
+                                            <li><strong>Deadline:</strong> {{deadlineDate}}</li>
+                                            <li><strong>Hành động:</strong> Tạo yêu cầu rút tiền ngay</li>
+                                            <li><strong>Hậu quả:</strong> Mất toàn bộ cashback nếu không rút đúng hạn</li>
+                                        </ul>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <p style="margin: 0 0 30px; color: #991b1b; font-size: 18px; font-weight: 600; text-align: center;">
+                                ⏰ Hành động ngay để không mất tiền!
+                            </p>
+
+                            <!-- CTA Button -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0 0 30px;">
+                                <tr>
+                                    <td style="text-align: center;">
+                                        <a href="{{createRequestUrl}}" style="display: inline-block; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: #ffffff; text-decoration: none; padding: 18px 50px; border-radius: 8px; font-size: 18px; font-weight: 700; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4); text-transform: uppercase;">
+                                            🚨 TẠO YÊU CẦU RÚT TIỀN NGAY
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <p style="margin: 0 0 10px; color: #555555; font-size: 14px; line-height: 1.6;">
+                                Đây là email quan trọng để bảo vệ quyền lợi của bạn. Vui lòng hành động ngay!
+                            </p>
+
+                            <p style="margin: 30px 0 0; color: #555555; font-size: 14px; line-height: 1.6;">
+                                Trân trọng,<br>
+                                <strong>Đội ngũ ChatChiu Cashback</strong>
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f8f9fa; padding: 30px; text-align: center; border-radius: 0 0 12px 12px;">
+                            <p style="margin: 0 0 10px; color: #999999; font-size: 12px;">
+                                Email này được gửi tự động. Vui lòng không trả lời email này.
+                            </p>
+                            <p style="margin: 0 0 15px; color: #999999; font-size: 12px;">
+                                Email này rất quan trọng. <a href="{{unsubscribeUrl}}" style="color: #ef4444; text-decoration: none;">Hủy đăng ký</a> nếu bạn không muốn nhận nữa.
+                            </p>
+                            <p style="margin: 0; color: #999999; font-size: 12px;">
+                                © 2025 ChatChiu Cashback. All rights reserved.
+                            </p>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

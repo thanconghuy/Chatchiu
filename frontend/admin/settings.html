@@ -1436,26 +1436,63 @@
                     : 'Chưa được khởi tạo';
                 document.getElementById('cronJobsInfo').textContent = infoText;
 
-                // **AUTO-FIX**: If enabled but no jobs running, show reload button
+                // **AUTO-FIX**: If enabled but no jobs running, auto-reload on page load
                 const jobsList = document.getElementById('cronJobsList');
                 if (status.autoCronEnabled && status.jobsCount === 0) {
+                    console.warn('⚠️ Auto Cron enabled but no jobs running! Auto-reloading...');
+
+                    // Show loading state
                     jobsList.innerHTML = `
-                        <div style="text-align: center; padding: 30px; background: #FFF3CD; border-radius: 8px; border: 1px solid #FFC107;">
-                            <div style="font-size: 2rem; margin-bottom: 10px;">⚠️</div>
-                            <div style="font-size: 1.1rem; font-weight: 600; color: #856404; margin-bottom: 8px;">
-                                Không có cron jobs nào đang chạy
+                        <div style="text-align: center; padding: 30px; background: #E3F2FD; border-radius: 8px; border: 1px solid #2196F3;">
+                            <div style="font-size: 2rem; margin-bottom: 10px;">🔄</div>
+                            <div style="font-size: 1.1rem; font-weight: 600; color: #1565C0; margin-bottom: 8px;">
+                                Đang khởi động Cron Jobs...
                             </div>
-                            <div style="color: #856404; margin-bottom: 16px;">
-                                Auto Cron đã được bật nhưng jobs chưa start. Hãy click "Reload Jobs" để khởi động.
+                            <div style="color: #1976D2;">
+                                Vui lòng đợi...
                             </div>
-                            <button
-                                onclick="document.getElementById('reloadCronBtn').click()"
-                                style="background: #FFC107; color: #000; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600;">
-                                🔄 Reload Jobs Ngay
-                            </button>
                         </div>
                     `;
-                    console.warn('⚠️ Auto Cron enabled but no jobs running!');
+
+                    // Auto-reload jobs after 1 second
+                    setTimeout(async () => {
+                        try {
+                            const reloadResponse = await apiRequest('/admin/settings/cron-reload', {
+                                method: 'POST'
+                            });
+
+                            if (reloadResponse.success) {
+                                console.log('✅ Auto-reload successful');
+                                showToast('🔄 Cron Jobs đã được khởi động tự động', 'success');
+
+                                // Reload status to show running jobs
+                                setTimeout(() => {
+                                    loadCronJobsStatus();
+                                }, 1000);
+                            } else {
+                                throw new Error(reloadResponse.message || 'Reload failed');
+                            }
+                        } catch (error) {
+                            console.error('Auto-reload failed:', error);
+                            // Show manual reload button on failure
+                            jobsList.innerHTML = `
+                                <div style="text-align: center; padding: 30px; background: #FFF3CD; border-radius: 8px; border: 1px solid #FFC107;">
+                                    <div style="font-size: 2rem; margin-bottom: 10px;">⚠️</div>
+                                    <div style="font-size: 1.1rem; font-weight: 600; color: #856404; margin-bottom: 8px;">
+                                        Không thể khởi động tự động
+                                    </div>
+                                    <div style="color: #856404; margin-bottom: 16px;">
+                                        Hãy click "Reload Jobs" để khởi động thủ công.
+                                    </div>
+                                    <button
+                                        onclick="document.getElementById('reloadCronBtn').click()"
+                                        style="background: #FFC107; color: #000; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                        🔄 Reload Jobs Ngay
+                                    </button>
+                                </div>
+                            `;
+                        }
+                    }, 1000);
                 } else if (status.jobsCount > 0) {
                     // Jobs are running - show normal list
                     jobsList.innerHTML = `
@@ -1579,7 +1616,11 @@
                     await loadCronJobsStatus();
 
                     // Step 4: If enabled but no jobs running, force reload
-                    if (enabled && response.data && response.data.jobsCount === 0) {
+                    // FIX: response.data.status.jobsCount (not response.data.jobsCount)
+                    const jobsCount = response.data?.status?.jobsCount || 0;
+                    console.log('After toggle - jobs count:', jobsCount, 'enabled:', enabled);
+
+                    if (enabled && jobsCount === 0) {
                         console.warn('⚠️ Auto Cron enabled but no jobs running, forcing reload...');
 
                         const reloadResponse = await apiRequest('/admin/settings/cron-reload', {
@@ -1587,10 +1628,10 @@
                         });
 
                         if (reloadResponse.success) {
-                            showToast('🔄 Jobs đã được reload', 'info');
+                            showToast('🔄 Jobs đã được reload tự động', 'info');
 
                             // Reload status again after force reload
-                            await new Promise(resolve => setTimeout(resolve, 500));
+                            await new Promise(resolve => setTimeout(resolve, 1000));
                             await loadCronJobsStatus();
                         }
                     }
