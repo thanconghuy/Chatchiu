@@ -226,7 +226,7 @@ class AutoSyncHistory {
         c.merchant_name,
         c.merchant_id,
         c.cashback_amount,
-        c.api_confirmed
+        c.is_confirmed as api_confirmed
       FROM auto_sync_change_log cl
       LEFT JOIN users u ON cl.user_id = u.id
       LEFT JOIN conversions c ON cl.conversion_id = c.id

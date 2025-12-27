@@ -1340,6 +1340,7 @@
     <script src="/js/auth.js"></script>
     <script src="/admin/sidebar.js"></script>
     <script src="/js/mobile-menu.js"></script>
+    <script src="/js/pagination.js"></script>
     <script>
         // Check authentication
         requireAuth();
@@ -2833,13 +2834,26 @@ ChatChiu Cashback System</textarea>
 
         // Pagination state
         let currentSyncHistoryPage = 1;
-        const syncHistoryPageSize = 20;
+        let syncHistoryPageSize = 20;
+
+        // Initialize simple pagination component (same as Users page)
+        const syncHistoryPaginator = new Pagination({
+            containerId: 'syncHistoryPagination',
+            itemsPerPage: syncHistoryPageSize,
+            onPageChange: (page, itemsPerPage) => {
+                currentSyncHistoryPage = page;
+                syncHistoryPageSize = itemsPerPage;
+                loadSyncHistory(page, itemsPerPage);
+            },
+            pageSizeOptions: [10, 20, 50, 100]
+        });
 
         /**
          * Load sync history and display in table with pagination
          * @param {number} page - Page number (default 1)
+         * @param {number} limit - Items per page (default syncHistoryPageSize)
          */
-        async function loadSyncHistory(page = 1) {
+        async function loadSyncHistory(page = 1, limit = syncHistoryPageSize) {
             try {
                 const tbody = document.getElementById('syncHistoryTableBody');
 
@@ -2854,8 +2868,9 @@ ChatChiu Cashback System</textarea>
                 console.log('Loading sync history, token exists:', !!token);
 
                 currentSyncHistoryPage = page;
+                syncHistoryPageSize = limit;
 
-                const response = await apiRequest(`/admin/auto-sync/history?page=${page}&limit=${syncHistoryPageSize}`);
+                const response = await apiRequest(`/admin/auto-sync/history?page=${page}&limit=${limit}`);
                 console.log('Sync history response:', response);
 
                 if (!response.success) {
@@ -2868,7 +2883,7 @@ ChatChiu Cashback System</textarea>
 
                 if (history.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px;">Chưa có lịch sử sync</td></tr>';
-                    renderSyncHistoryPagination(pagination);
+                    syncHistoryPaginator.update(pagination.total || 0, pagination.page || 1);
                     return;
                 }
 
@@ -2910,8 +2925,8 @@ ChatChiu Cashback System</textarea>
                     `;
                 }).join('');
 
-                // Render pagination
-                renderSyncHistoryPagination(pagination);
+                // Update pagination using simple component
+                syncHistoryPaginator.update(pagination.total || 0, pagination.page || 1);
 
                 // Also load stats
                 await loadSyncStats();
@@ -2926,106 +2941,7 @@ ChatChiu Cashback System</textarea>
             }
         }
 
-        /**
-         * Render pagination controls for sync history
-         * @param {Object} pagination - { total, page, limit, totalPages, hasNext, hasPrev }
-         */
-        function renderSyncHistoryPagination(pagination) {
-            const container = document.getElementById('syncHistoryPagination');
-            if (!container) return;
-
-            if (!pagination || pagination.total === 0) {
-                container.innerHTML = '';
-                return;
-            }
-
-            const { total, page, totalPages, hasNext, hasPrev } = pagination;
-            const startItem = ((page - 1) * syncHistoryPageSize) + 1;
-            const endItem = Math.min(page * syncHistoryPageSize, total);
-
-            // Generate page numbers to show
-            let pageNumbers = [];
-            const maxPagesToShow = 5;
-
-            if (totalPages <= maxPagesToShow) {
-                // Show all pages
-                for (let i = 1; i <= totalPages; i++) {
-                    pageNumbers.push(i);
-                }
-            } else {
-                // Show current page and surrounding pages
-                let startPage = Math.max(1, page - 2);
-                let endPage = Math.min(totalPages, page + 2);
-
-                // Adjust if we're near the beginning or end
-                if (page <= 3) {
-                    endPage = Math.min(totalPages, maxPagesToShow);
-                } else if (page >= totalPages - 2) {
-                    startPage = Math.max(1, totalPages - maxPagesToShow + 1);
-                }
-
-                for (let i = startPage; i <= endPage; i++) {
-                    pageNumbers.push(i);
-                }
-            }
-
-            container.innerHTML = `
-                <div class="pagination-container">
-                    <div class="pagination-info">
-                        Hiển thị <strong>${startItem}-${endItem}</strong> / <strong>${total}</strong> kết quả
-                    </div>
-                    <div class="pagination-controls">
-                        <button
-                            class="pagination-btn"
-                            ${!hasPrev ? 'disabled' : ''}
-                            data-action="sync-history-page"
-                            data-page="1"
-                            title="Trang đầu"
-                        >
-                            <i class="fas fa-angle-double-left"></i>
-                        </button>
-                        <button
-                            class="pagination-btn"
-                            ${!hasPrev ? 'disabled' : ''}
-                            data-action="sync-history-page"
-                            data-page="${page - 1}"
-                            title="Trang trước"
-                        >
-                            <i class="fas fa-angle-left"></i>
-                        </button>
-
-                        ${pageNumbers.map(p => `
-                            <button
-                                class="pagination-btn page-number-btn ${p === page ? 'active' : ''}"
-                                data-action="sync-history-page"
-                                data-page="${p}"
-                            >
-                                ${p}
-                            </button>
-                        `).join('')}
-
-                        <button
-                            class="pagination-btn"
-                            ${!hasNext ? 'disabled' : ''}
-                            data-action="sync-history-page"
-                            data-page="${page + 1}"
-                            title="Trang sau"
-                        >
-                            <i class="fas fa-angle-right"></i>
-                        </button>
-                        <button
-                            class="pagination-btn"
-                            ${!hasNext ? 'disabled' : ''}
-                            data-action="sync-history-page"
-                            data-page="${totalPages}"
-                            title="Trang cuối"
-                        >
-                            <i class="fas fa-angle-double-right"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
-        }
+        // Pagination now handled by AdvancedPagination component
 
         /**
          * Load sync statistics (last 30 days)
@@ -3392,12 +3308,7 @@ ChatChiu Cashback System</textarea>
                 case 'load-sync-history':
                     loadSyncHistory();
                     break;
-                case 'sync-history-page':
-                    const pageNum = parseInt(button.dataset.page);
-                    if (!isNaN(pageNum) && pageNum > 0) {
-                        loadSyncHistory(pageNum);
-                    }
-                    break;
+                // sync-history-page now handled by AdvancedPagination component
                 case 'close-modal':
                     closeEditModal();
                     break;

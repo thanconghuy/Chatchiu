@@ -29,7 +29,8 @@ const SIDEBAR_MENU_STRUCTURE = {
             items: [
                 { href: '/admin/reconciliation', icon: 'fa-solid fa-clipboard-list', text: 'Đối soát API', id: 'reconciliation' },
                 { href: '/admin/system-reconciliation', icon: 'fa-solid fa-rotate', text: 'Đối soát hệ thống', id: 'system-reconciliation' },
-                { href: '/admin/payment-requests', icon: 'fa-solid fa-wallet', text: 'Thanh toán', id: 'payment-requests', badge: null }
+                { href: '/admin/payment-requests', icon: 'fa-solid fa-wallet', text: 'Thanh toán', id: 'payment-requests', badge: null },
+                { href: '/admin/payment-stats', icon: 'fa-solid fa-chart-line', text: 'Thống kê thanh toán', id: 'payment-stats' }
             ]
         },
         {

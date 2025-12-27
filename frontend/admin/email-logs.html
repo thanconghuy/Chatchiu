@@ -674,6 +674,17 @@
                     closeModal();
                 }
             });
+
+            // Event delegation for dynamically created view buttons
+            document.getElementById('logsTableBody')?.addEventListener('click', (e) => {
+                const button = e.target.closest('[data-action="view-details"]');
+                if (button) {
+                    const emailId = button.dataset.emailId;
+                    if (emailId) {
+                        viewEmailDetails(emailId);
+                    }
+                }
+            });
         });
 
         // Load Statistics
@@ -790,7 +801,7 @@
                             ${log.error_message ? `<span class="error-message" title="${escapeHtml(log.error_message)}">${escapeHtml(log.error_message)}</span>` : '-'}
                         </td>
                         <td>
-                            <button class="view-details-btn" onclick="viewEmailDetails('${log.id}')">
+                            <button class="view-details-btn" data-action="view-details" data-email-id="${log.id}">
                                 <i class="fas fa-eye"></i> View
                             </button>
                         </td>
@@ -802,15 +813,8 @@
         // View Email Details
         async function viewEmailDetails(emailId) {
             try {
-                const response = await fetch(`/api/admin/email-logs/${emailId}`, {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                });
-
-                if (!response.ok) throw new Error('Failed to load email details');
-
-                const email = await response.json();
+                const result = await apiRequest(`/admin/email-logs/${emailId}`);
+                const email = result.data || result; // Handle both response formats
 
                 // Populate modal
                 const modalBody = document.getElementById('modalBody');
