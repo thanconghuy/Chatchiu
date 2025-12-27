@@ -491,6 +491,8 @@ class CashbackNotificationService {
    * Get notification statistics
    */
   async getStatistics(startDate, endDate) {
+    logger.info('📊 Getting statistics', { startDate, endDate });
+
     const query = `
       SELECT
         notification_type,
@@ -501,12 +503,19 @@ class CashbackNotificationService {
         AVG(available_balance) as avg_balance,
         SUM(available_balance) as total_balance
       FROM cashback_notifications
-      WHERE email_sent_at BETWEEN $1 AND $2
+      WHERE email_sent_at >= $1::date
+        AND email_sent_at < ($2::date + INTERVAL '1 day')
       GROUP BY notification_type
       ORDER BY notification_type
     `;
 
     const result = await pool.query(query, [startDate, endDate]);
+
+    logger.info('📊 Statistics result', {
+      rowCount: result.rows.length,
+      data: result.rows
+    });
+
     return result.rows;
   }
 }

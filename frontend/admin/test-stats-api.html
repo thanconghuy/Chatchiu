@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Stats API</title>
+</head>
+<body>
+    <h1>Test Notification Stats API</h1>
+    <button onclick="testStats()">Test API</button>
+    <pre id="result"></pre>
+
+    <script>
+        async function testStats() {
+            const token = localStorage.getItem('cashback_token');
+            const endDate = new Date().toISOString().split('T')[0];
+            const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+            console.log('Testing with dates:', { startDate, endDate });
+            console.log('Token:', token);
+
+            const response = await fetch(
+                `http://localhost:3007/api/notifications/admin/stats?startDate=${startDate}&endDate=${endDate}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                }
+            );
+
+            const data = await response.json();
+            console.log('API Response:', data);
+
+            document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+        }
+    </script>
+</body>
+</html>
