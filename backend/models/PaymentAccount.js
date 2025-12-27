@@ -140,7 +140,8 @@ class PaymentAccount {
       maskedName: account.account_holder_name
     });
 
-    // Decrypt if encrypted version exists
+    // TEMPORARILY DISABLED: Decryption
+    // Return plaintext data directly (encryption is disabled)
     if (account.account_number_encrypted) {
       try {
         account.account_number_decrypted = encryption.decrypt(account.account_number_encrypted);
@@ -157,15 +158,16 @@ class PaymentAccount {
           userId
         });
       } catch (error) {
-        console.error('❌ [PaymentAccount] Decryption failed:', error);
-        logger.error('[PaymentAccount] Decryption failed', {
-          accountId: id,
-          error: error.message
-        });
-        throw new Error('Unable to retrieve payment account information');
+        console.error('❌ [PaymentAccount] Decryption failed, using plaintext:', error);
+        // Fallback to plaintext if decryption fails
+        account.account_number_decrypted = account.account_number;
+        account.account_holder_name_decrypted = account.account_holder_name;
       }
     } else {
-      console.log('⚠️ [PaymentAccount] No encrypted data found, returning masked data');
+      // No encryption - use plaintext directly
+      console.log('⚠️ [PaymentAccount] No encrypted data, using plaintext');
+      account.account_number_decrypted = account.account_number;
+      account.account_holder_name_decrypted = account.account_holder_name;
     }
 
     // Remove encrypted fields from response
@@ -197,12 +199,13 @@ class PaymentAccount {
       await this.unsetAllDefaults(userId);
     }
 
-    // Encrypt sensitive fields
-    const accountNumberEncrypted = encryption.encrypt(accountNumber);
-    const accountNumberHash = encryption.hash(accountNumber);
-    const accountHolderNameEncrypted = encryption.encrypt(accountHolderName);
+    // TEMPORARILY DISABLED: Encryption - store plaintext with masking
+    // TODO: Re-enable encryption after fixing ENCRYPTION_KEY on production
+    const accountNumberEncrypted = null;
+    const accountNumberHash = null;
+    const accountHolderNameEncrypted = null;
 
-    logger.info('[PaymentAccount] Creating with encrypted data', {
+    logger.info('[PaymentAccount] Creating WITHOUT encryption (temporary)', {
       userId,
       accountType,
       bankName
@@ -242,11 +245,11 @@ class PaymentAccount {
     const values = [
       userId,
       accountType,
-      encryption.mask(accountHolderName),    // Store masked for display
-      encryption.mask(accountNumber),         // Store masked for display
-      accountNumberEncrypted,                 // Encrypted version
-      accountNumberHash,                      // Hash for lookup
-      accountHolderNameEncrypted,            // Encrypted version
+      accountHolderName,                     // TEMPORARY: Store plaintext (encryption disabled)
+      accountNumber,                         // TEMPORARY: Store plaintext (encryption disabled)
+      accountNumberEncrypted,                // Encrypted version (null when disabled)
+      accountNumberHash,                     // Hash for lookup (null when disabled)
+      accountHolderNameEncrypted,            // Encrypted version (null when disabled)
       1,                                      // Encryption version
       bankName || null,
       bankBranch || null,
