@@ -78,21 +78,29 @@
         // Account type change handler - show/hide bank fields
         const accountTypeSelect = document.getElementById('accountType');
         if (accountTypeSelect) {
+            console.log('✅ [Profile] Account type select found, attaching change listener');
+
             accountTypeSelect.addEventListener('change', function() {
+                console.log('📝 [Profile] Account type changed to:', this.value);
+
                 const bankNameGroup = document.getElementById('bankNameGroup');
                 const bankBranchGroup = document.getElementById('bankBranchGroup');
                 const bankName = document.getElementById('bankName');
 
                 if (this.value === 'bank') {
+                    console.log('🏦 [Profile] Showing bank fields');
                     bankNameGroup.style.display = 'block';
                     bankBranchGroup.style.display = 'block';
                     bankName.required = true;
                 } else {
+                    console.log('💳 [Profile] Hiding bank fields');
                     bankNameGroup.style.display = 'none';
                     bankBranchGroup.style.display = 'none';
                     bankName.required = false;
                 }
             });
+        } else {
+            console.error('❌ [Profile] Account type select NOT found');
         }
     }
 
@@ -685,6 +693,19 @@
         document.getElementById('paymentAccountForm').style.display = 'block';
         document.getElementById('addPaymentAccountBtn').style.display = 'none';
         document.getElementById('paymentForm').reset();
+
+        // Reset bank fields visibility
+        const bankNameGroup = document.getElementById('bankNameGroup');
+        const bankBranchGroup = document.getElementById('bankBranchGroup');
+        const bankName = document.getElementById('bankName');
+
+        if (bankNameGroup && bankBranchGroup && bankName) {
+            bankNameGroup.style.display = 'none';
+            bankBranchGroup.style.display = 'none';
+            bankName.required = false;
+        }
+
+        console.log('📋 [Profile] Payment form shown and reset');
     }
 
     /**
@@ -694,6 +715,19 @@
         document.getElementById('paymentAccountForm').style.display = 'none';
         document.getElementById('addPaymentAccountBtn').style.display = 'block';
         document.getElementById('paymentForm').reset();
+
+        // Reset bank fields visibility
+        const bankNameGroup = document.getElementById('bankNameGroup');
+        const bankBranchGroup = document.getElementById('bankBranchGroup');
+        const bankName = document.getElementById('bankName');
+
+        if (bankNameGroup && bankBranchGroup && bankName) {
+            bankNameGroup.style.display = 'none';
+            bankBranchGroup.style.display = 'none';
+            bankName.required = false;
+        }
+
+        console.log('📋 [Profile] Payment form hidden and reset');
     }
 
     /**

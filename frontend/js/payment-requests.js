@@ -78,6 +78,38 @@ function setupEventListeners() {
 
     // Saved payment account selector
     document.getElementById('savedPaymentAccount')?.addEventListener('change', handlePaymentAccountSelect);
+
+    // Account type change handler - show/hide bank fields
+    const accountTypeSelect = document.getElementById('accountType');
+    if (accountTypeSelect) {
+        console.log('✅ [PaymentRequest] Account type select found, attaching change listener');
+
+        accountTypeSelect.addEventListener('change', function() {
+            console.log('📝 [PaymentRequest] Account type changed to:', this.value);
+
+            const bankNameGroup = document.getElementById('bankNameGroup');
+            const bankBranchGroup = document.getElementById('bankBranchGroup');
+            const bankName = document.getElementById('bankName');
+
+            if (this.value === 'bank') {
+                console.log('🏦 [PaymentRequest] Showing bank fields');
+                bankNameGroup.style.display = 'block';
+                bankBranchGroup.style.display = 'block';
+                bankName.required = true;
+            } else {
+                console.log('💳 [PaymentRequest] Hiding bank fields');
+                bankNameGroup.style.display = 'none';
+                bankBranchGroup.style.display = 'none';
+                bankName.required = false;
+                // Clear bank-specific fields when not needed
+                if (bankName) bankName.value = '';
+                const bankBranch = document.getElementById('bankBranch');
+                if (bankBranch) bankBranch.value = '';
+            }
+        });
+    } else {
+        console.error('❌ [PaymentRequest] Account type select NOT found');
+    }
 }
 
 // Load user eligibility
@@ -373,18 +405,45 @@ function showCreateModal() {
     // Load saved payment accounts when opening modal
     loadSavedPaymentAccounts();
 
+    // Reset form and hide bank fields
+    document.getElementById('createRequestForm').reset();
+    const bankNameGroup = document.getElementById('bankNameGroup');
+    const bankBranchGroup = document.getElementById('bankBranchGroup');
+    const bankName = document.getElementById('bankName');
+
+    if (bankNameGroup && bankBranchGroup && bankName) {
+        bankNameGroup.style.display = 'none';
+        bankBranchGroup.style.display = 'none';
+        bankName.required = false;
+    }
+
     document.getElementById('createRequestModal').classList.add('show');
+    console.log('📋 [PaymentRequest] Modal shown and form reset');
 }
 
 // Close create modal
 function closeCreateModal() {
     document.getElementById('createRequestModal').classList.remove('show');
     document.getElementById('createRequestForm').reset();
+
     // Reset the saved payment account selector
     const selector = document.getElementById('savedPaymentAccount');
     if (selector) {
         selector.value = '';
     }
+
+    // Reset bank fields visibility
+    const bankNameGroup = document.getElementById('bankNameGroup');
+    const bankBranchGroup = document.getElementById('bankBranchGroup');
+    const bankName = document.getElementById('bankName');
+
+    if (bankNameGroup && bankBranchGroup && bankName) {
+        bankNameGroup.style.display = 'none';
+        bankBranchGroup.style.display = 'none';
+        bankName.required = false;
+    }
+
+    console.log('📋 [PaymentRequest] Modal closed and form reset');
 }
 
 // Load saved payment accounts
@@ -476,23 +535,24 @@ function handlePaymentAccountSelect(e) {
         // Auto-fill form fields
         const form = document.getElementById('createRequestForm');
 
+        // Set account type
+        form.accountType.value = account.account_type || 'bank';
+
+        // Trigger change event to show/hide bank fields
+        const event = new Event('change', { bubbles: true });
+        form.accountType.dispatchEvent(event);
+
+        // Fill in account details
+        form.bankAccountNumber.value = account.account_number || '';
+        form.bankAccountName.value = account.account_holder_name || '';
+
         if (account.account_type === 'bank') {
             form.bankName.value = account.bank_name || '';
-            form.bankAccountNumber.value = account.account_number || '';
-            form.bankAccountName.value = account.account_holder_name || '';
             form.bankBranch.value = account.bank_branch || '';
         } else {
-            // For non-bank accounts (MoMo, ZaloPay, etc.)
-            const accountTypeName = {
-                'momo': 'MoMo',
-                'zalopay': 'ZaloPay',
-                'other': 'Khác'
-            }[account.account_type] || account.account_type;
-
-            form.bankName.value = accountTypeName;
-            form.bankAccountNumber.value = account.account_number || '';
-            form.bankAccountName.value = account.account_holder_name || '';
-            form.bankBranch.value = account.bank_branch || '';
+            // For non-bank accounts, clear bank-specific fields
+            form.bankName.value = '';
+            form.bankBranch.value = '';
         }
 
         // Show success message
@@ -546,17 +606,38 @@ async function handleCreateRequest(e) {
         }
     }
 
+    const accountType = formData.get('accountType');
+
+    // Determine bankName based on account type
+    let bankNameValue;
+    if (accountType === 'bank') {
+        bankNameValue = formData.get('bankName');
+    } else {
+        // For non-bank accounts, use formatted account type name
+        const accountTypeNames = {
+            'momo': 'MoMo',
+            'zalopay': 'ZaloPay',
+            'other': 'Khác'
+        };
+        bankNameValue = accountTypeNames[accountType] || accountType.toUpperCase();
+    }
+
     const data = {
         requestedAmount: parseFloat(formData.get('requestedAmount')),
-        bankName: formData.get('bankName'),
+        bankName: bankNameValue,
         bankAccountNumber,
         bankAccountName,
-        bankBranch: formData.get('bankBranch') || null,
+        bankBranch: accountType === 'bank' ? (formData.get('bankBranch') || null) : null,
         notes: formData.get('notes') || null,
         paymentAccountId: paymentAccountId
     };
 
     // Validate
+    if (!accountType) {
+        showToast('Vui lòng chọn loại tài khoản', 'error');
+        return;
+    }
+
     if (data.requestedAmount < 100000) {
         showToast('Số tiền tối thiểu là 100,000 VNĐ', 'error');
         return;
@@ -564,6 +645,11 @@ async function handleCreateRequest(e) {
 
     if (eligibilityData && data.requestedAmount > eligibilityData.availableBalance) {
         showToast('Số tiền yêu cầu vượt quá số dư khả dụng', 'error');
+        return;
+    }
+
+    if (accountType === 'bank' && !data.bankName) {
+        showToast('Vui lòng nhập tên ngân hàng', 'error');
         return;
     }
 
