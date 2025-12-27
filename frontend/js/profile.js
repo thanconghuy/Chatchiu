@@ -76,24 +76,32 @@
         }
 
         // Account type change handler - show/hide bank fields
-        const accountTypeSelect = document.getElementById('accountType');
-        if (accountTypeSelect) {
-            accountTypeSelect.addEventListener('change', function() {
+        // Use event delegation to handle dynamically shown form
+        document.addEventListener('change', function(e) {
+            if (e.target && e.target.id === 'accountType') {
+                console.log('📝 [Profile] Account type changed to:', e.target.value);
+
                 const bankNameGroup = document.getElementById('bankNameGroup');
                 const bankBranchGroup = document.getElementById('bankBranchGroup');
                 const bankName = document.getElementById('bankName');
 
-                if (this.value === 'bank') {
-                    bankNameGroup.style.display = 'block';
-                    bankBranchGroup.style.display = 'block';
-                    bankName.required = true;
+                if (e.target.value === 'bank') {
+                    console.log('🏦 [Profile] Showing bank fields');
+                    if (bankNameGroup && bankBranchGroup && bankName) {
+                        bankNameGroup.style.display = 'block';
+                        bankBranchGroup.style.display = 'block';
+                        bankName.required = true;
+                    }
                 } else {
-                    bankNameGroup.style.display = 'none';
-                    bankBranchGroup.style.display = 'none';
-                    bankName.required = false;
+                    console.log('💳 [Profile] Hiding bank fields for:', e.target.value);
+                    if (bankNameGroup && bankBranchGroup && bankName) {
+                        bankNameGroup.style.display = 'none';
+                        bankBranchGroup.style.display = 'none';
+                        bankName.required = false;
+                    }
                 }
-            });
-        }
+            }
+        });
     }
 
     /**
@@ -682,9 +690,30 @@
      * Show payment account form
      */
     function showPaymentForm() {
+        const accountTypeSelect = document.getElementById('accountType');
+        const bankNameGroup = document.getElementById('bankNameGroup');
+        const bankBranchGroup = document.getElementById('bankBranchGroup');
+        const bankName = document.getElementById('bankName');
+
         document.getElementById('paymentAccountForm').style.display = 'block';
         document.getElementById('addPaymentAccountBtn').style.display = 'none';
         document.getElementById('paymentForm').reset();
+
+        // After reset, manually set accountType to 'bank' as default
+        if (accountTypeSelect) {
+            accountTypeSelect.value = 'bank';
+            console.log('📋 [Profile] Set accountType to:', accountTypeSelect.value);
+        }
+
+        // Directly show bank fields (don't rely on event)
+        if (bankNameGroup && bankBranchGroup && bankName) {
+            console.log('📋 [Profile] Showing bank fields directly');
+            bankNameGroup.style.display = 'block';
+            bankBranchGroup.style.display = 'block';
+            bankName.required = true;
+        }
+
+        console.log('📋 [Profile] Payment form shown and reset');
     }
 
     /**
@@ -694,6 +723,19 @@
         document.getElementById('paymentAccountForm').style.display = 'none';
         document.getElementById('addPaymentAccountBtn').style.display = 'block';
         document.getElementById('paymentForm').reset();
+
+        // Reset bank fields visibility
+        const bankNameGroup = document.getElementById('bankNameGroup');
+        const bankBranchGroup = document.getElementById('bankBranchGroup');
+        const bankName = document.getElementById('bankName');
+
+        if (bankNameGroup && bankBranchGroup && bankName) {
+            bankNameGroup.style.display = 'none';
+            bankBranchGroup.style.display = 'none';
+            bankName.required = false;
+        }
+
+        console.log('📋 [Profile] Payment form hidden and reset');
     }
 
     /**

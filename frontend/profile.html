@@ -762,7 +762,6 @@
                                             <option value="bank">Ngân hàng</option>
                                             <option value="momo">Momo</option>
                                             <option value="zalopay">ZaloPay</option>
-                                            <option value="other">Khác</option>
                                         </select>
                                     </div>
 
@@ -880,6 +879,24 @@
         })();
     </script>
 
-    <script src="js/profile.js"></script>
+    <script src="js/profile.js?v=20251227"></script>
+
+    <!-- Debug script to verify event listener is working -->
+    <script>
+        setTimeout(function() {
+            const accountTypeSelect = document.getElementById('accountType');
+            const bankNameGroup = document.getElementById('bankNameGroup');
+            const bankBranchGroup = document.getElementById('bankBranchGroup');
+
+            console.log('🔍 [Debug] accountTypeSelect:', accountTypeSelect);
+            console.log('🔍 [Debug] bankNameGroup:', bankNameGroup);
+            console.log('🔍 [Debug] bankBranchGroup:', bankBranchGroup);
+
+            if (accountTypeSelect) {
+                console.log('🔍 [Debug] Current accountType value:', accountTypeSelect.value);
+                console.log('🔍 [Debug] Event listeners count:', accountTypeSelect.eventListeners || 'Cannot check');
+            }
+        }, 1000);
+    </script>
 </body>
 </html>

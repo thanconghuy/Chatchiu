@@ -737,6 +737,16 @@
                 </div>
 
                 <div class="form-group">
+                    <label for="accountType">Loại tài khoản <span class="required">*</span></label>
+                    <select id="accountType" name="accountType" required>
+                        <option value="">Chọn loại tài khoản</option>
+                        <option value="bank">Ngân hàng</option>
+                        <option value="momo">Momo</option>
+                        <option value="zalopay">ZaloPay</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="bankNameGroup" style="display: none;">
                     <label for="bankName">
                         Tên ngân hàng <span class="required">*</span>
                     </label>
@@ -744,7 +754,6 @@
                         type="text"
                         id="bankName"
                         name="bankName"
-                        required
                         placeholder="Ví dụ: Vietcombank, BIDV, Techcombank..."
                     >
                 </div>
@@ -776,7 +785,7 @@
                     >
                 </div>
 
-                <div class="form-group">
+                <div class="form-group" id="bankBranchGroup" style="display: none;">
                     <label for="bankBranch">Chi nhánh (tùy chọn)</label>
                     <input
                         type="text"
@@ -845,7 +854,7 @@
     <script src="js/auth.js"></script>
     <script src="js/user-sidebar-v2.js"></script>
     <script src="js/mobile-menu.js"></script>
-    <script src="js/payment-requests.js"></script>
+    <script src="js/payment-requests.js?v=20251227"></script>
     <script>
         // ============ CSP FIX: Event Delegation for HTML-specific actions ============
         // Note: payment-requests.js handles its own actions (cancel, resubmit, etc.)
