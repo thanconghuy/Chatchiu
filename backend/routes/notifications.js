@@ -44,11 +44,17 @@ router.get('/admin/stats', authenticateAdmin, async (req, res) => {
 
 /**
  * GET /api/admin/notifications/recent
- * Get recent notifications
+ * Get recent notifications with pagination
  */
 router.get('/admin/recent', authenticateAdmin, async (req, res) => {
   try {
-    const { limit = 50, offset = 0, type } = req.query;
+    const { limit = 20, offset = 0, type } = req.query;
+
+    let countQuery = `
+      SELECT COUNT(*) as total
+      FROM cashback_notifications cn
+      JOIN users u ON cn.user_id = u.id
+    `;
 
     let query = `
       SELECT
@@ -60,12 +66,19 @@ router.get('/admin/recent', authenticateAdmin, async (req, res) => {
     `;
 
     const params = [];
+    let whereClause = '';
 
     if (type) {
-      query += ` WHERE cn.notification_type = $1`;
+      whereClause = ` WHERE cn.notification_type = $1`;
       params.push(type);
     }
 
+    // Get total count
+    const countResult = await pool.query(countQuery + whereClause, type ? [type] : []);
+    const total = parseInt(countResult.rows[0].total);
+
+    // Get paginated data
+    query += whereClause;
     query += `
       ORDER BY cn.email_sent_at DESC
       LIMIT $${params.length + 1} OFFSET $${params.length + 2}
@@ -79,9 +92,13 @@ router.get('/admin/recent', authenticateAdmin, async (req, res) => {
       success: true,
       data: {
         notifications: result.rows,
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-        total: result.rows.length
+        pagination: {
+          total,
+          limit: parseInt(limit),
+          offset: parseInt(offset),
+          totalPages: Math.ceil(total / parseInt(limit)),
+          currentPage: Math.floor(parseInt(offset) / parseInt(limit)) + 1
+        }
       }
     });
 
@@ -373,6 +390,115 @@ router.post('/admin/test-template', authenticateAdmin, async (req, res) => {
 
   } catch (error) {
     logger.error('Send test template error', { error: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
+ * DELETE /api/admin/notifications/cleanup
+ * Clear old notification logs (older than X days)
+ */
+router.delete('/admin/cleanup', authenticateAdmin, async (req, res) => {
+  try {
+    const { days = 90, confirmDelete } = req.body;
+
+    if (!confirmDelete) {
+      return res.status(400).json({
+        success: false,
+        message: 'Confirmation required. Set confirmDelete: true to proceed.'
+      });
+    }
+
+    const daysNum = parseInt(days);
+    if (isNaN(daysNum) || daysNum < 1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Days must be a positive number'
+      });
+    }
+
+    // Count logs to be deleted
+    const countQuery = `
+      SELECT COUNT(*) as count
+      FROM cashback_notifications
+      WHERE email_sent_at < NOW() - INTERVAL '${daysNum} days'
+    `;
+
+    const countResult = await pool.query(countQuery);
+    const toDelete = parseInt(countResult.rows[0].count);
+
+    // Delete old logs
+    const deleteQuery = `
+      DELETE FROM cashback_notifications
+      WHERE email_sent_at < NOW() - INTERVAL '${daysNum} days'
+    `;
+
+    await pool.query(deleteQuery);
+
+    logger.info('Notification logs cleaned up', {
+      adminId: req.userId,
+      days: daysNum,
+      deleted: toDelete
+    });
+
+    res.json({
+      success: true,
+      message: `Đã xóa ${toDelete} logs cũ hơn ${daysNum} ngày`,
+      data: {
+        deleted: toDelete,
+        days: daysNum
+      }
+    });
+
+  } catch (error) {
+    logger.error('Cleanup notifications error', { error: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
+ * DELETE /api/admin/notifications/clear-all
+ * Clear ALL notification logs (requires double confirmation)
+ */
+router.delete('/admin/clear-all', authenticateAdmin, async (req, res) => {
+  try {
+    const { confirmClearAll } = req.body;
+
+    if (confirmClearAll !== 'DELETE_ALL_LOGS') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid confirmation. Send confirmClearAll: "DELETE_ALL_LOGS" to proceed.'
+      });
+    }
+
+    // Count all logs
+    const countResult = await pool.query('SELECT COUNT(*) as count FROM cashback_notifications');
+    const totalLogs = parseInt(countResult.rows[0].count);
+
+    // Delete all
+    await pool.query('DELETE FROM cashback_notifications');
+
+    logger.warn('ALL notification logs cleared', {
+      adminId: req.userId,
+      deleted: totalLogs
+    });
+
+    res.json({
+      success: true,
+      message: `Đã xóa tất cả ${totalLogs} notification logs`,
+      data: {
+        deleted: totalLogs
+      }
+    });
+
+  } catch (error) {
+    logger.error('Clear all notifications error', { error: error.message });
     res.status(500).json({
       success: false,
       message: error.message

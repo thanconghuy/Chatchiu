@@ -207,15 +207,24 @@ async function sendTestReminders() {
 }
 
 /**
- * Load recent notifications
+ * Load recent notifications with pagination
  */
-async function loadRecentNotifications() {
+let currentPage = 1;
+const pageSize = 20;
+
+async function loadRecentNotifications(page = 1) {
     try {
-        const response = await fetch(`${API_BASE}/api/notifications/admin/recent?limit=20`, {
-            headers: {
-                'Authorization': `Bearer ${authToken}`
+        currentPage = page;
+        const offset = (page - 1) * pageSize;
+
+        const response = await fetch(
+            `${API_BASE}/api/notifications/admin/recent?limit=${pageSize}&offset=${offset}`,
+            {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                }
             }
-        });
+        );
 
         const data = await response.json();
 
@@ -233,6 +242,12 @@ async function loadRecentNotifications() {
                     </td>
                 </tr>
             `;
+
+            // Hide pagination if no data
+            const paginationContainer = document.getElementById('notificationPagination');
+            if (paginationContainer) {
+                paginationContainer.style.display = 'none';
+            }
             return;
         }
 
@@ -257,6 +272,9 @@ async function loadRecentNotifications() {
             </tr>
         `).join('');
 
+        // Render pagination
+        renderPagination(data.data.pagination);
+
     } catch (error) {
         console.error('Load notifications error:', error);
         const tbody = document.getElementById('recentNotificationsBody');
@@ -271,12 +289,185 @@ async function loadRecentNotifications() {
 }
 
 /**
+ * Render pagination controls
+ */
+function renderPagination(pagination) {
+    const container = document.getElementById('notificationPagination');
+    if (!container) return;
+
+    if (pagination.totalPages <= 1) {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = 'flex';
+
+    const { currentPage, totalPages, total } = pagination;
+    const maxButtons = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+    let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+
+    if (endPage - startPage < maxButtons - 1) {
+        startPage = Math.max(1, endPage - maxButtons + 1);
+    }
+
+    let html = `
+        <div class="pagination-info">
+            Hiển thị ${((currentPage - 1) * pageSize) + 1}-${Math.min(currentPage * pageSize, total)} của ${total}
+        </div>
+        <div class="pagination-buttons">
+    `;
+
+    // Previous button
+    html += `
+        <button class="pagination-btn ${currentPage === 1 ? 'disabled' : ''}"
+                onclick="loadRecentNotifications(${currentPage - 1})"
+                ${currentPage === 1 ? 'disabled' : ''}>
+            <i class="fas fa-chevron-left"></i>
+        </button>
+    `;
+
+    // First page
+    if (startPage > 1) {
+        html += `
+            <button class="pagination-btn" onclick="loadRecentNotifications(1)">1</button>
+            ${startPage > 2 ? '<span class="pagination-ellipsis">...</span>' : ''}
+        `;
+    }
+
+    // Page numbers
+    for (let i = startPage; i <= endPage; i++) {
+        html += `
+            <button class="pagination-btn ${i === currentPage ? 'active' : ''}"
+                    onclick="loadRecentNotifications(${i})">
+                ${i}
+            </button>
+        `;
+    }
+
+    // Last page
+    if (endPage < totalPages) {
+        html += `
+            ${endPage < totalPages - 1 ? '<span class="pagination-ellipsis">...</span>' : ''}
+            <button class="pagination-btn" onclick="loadRecentNotifications(${totalPages})">${totalPages}</button>
+        `;
+    }
+
+    // Next button
+    html += `
+        <button class="pagination-btn ${currentPage === totalPages ? 'disabled' : ''}"
+                onclick="loadRecentNotifications(${currentPage + 1})"
+                ${currentPage === totalPages ? 'disabled' : ''}>
+            <i class="fas fa-chevron-right"></i>
+        </button>
+    `;
+
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+/**
+ * Clear old notification logs
+ */
+async function clearOldLogs(days = 90) {
+    const confirmMsg = `Xóa tất cả notification logs cũ hơn ${days} ngày?\n\nHành động này không thể hoàn tác!`;
+
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/api/notifications/admin/cleanup`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                days: days,
+                confirmDelete: true
+            })
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.message || 'Không thể xóa logs');
+        }
+
+        showAlert('success', 'Thành công!', data.message, 'alertContainer', true);
+
+        // Reload notifications
+        setTimeout(() => {
+            loadRecentNotifications(1);
+            loadStatistics();
+        }, 1500);
+
+    } catch (error) {
+        console.error('Clear logs error:', error);
+        showAlert('danger', 'Lỗi!', error.message, 'alertContainer', false);
+    }
+}
+
+/**
+ * Clear all notification logs
+ */
+async function clearAllLogs() {
+    const confirmMsg1 = 'XÓA TẤT CẢ notification logs?\n\nHành động này KHÔNG THỂ HOÀN TÁC!';
+
+    if (!confirm(confirmMsg1)) {
+        return;
+    }
+
+    const confirmMsg2 = 'Bạn CHẮC CHẮN muốn xóa TẤT CẢ logs?\n\nGõ "DELETE ALL" để xác nhận:';
+    const userInput = prompt(confirmMsg2);
+
+    if (userInput !== 'DELETE ALL') {
+        showAlert('info', 'Đã hủy', 'Hành động xóa đã bị hủy', 'alertContainer', true);
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/api/notifications/admin/clear-all`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                confirmClearAll: 'DELETE_ALL_LOGS'
+            })
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.message || 'Không thể xóa logs');
+        }
+
+        showAlert('success', 'Đã xóa!', data.message, 'alertContainer', true);
+
+        // Reload notifications
+        setTimeout(() => {
+            loadRecentNotifications(1);
+            loadStatistics();
+        }, 1500);
+
+    } catch (error) {
+        console.error('Clear all logs error:', error);
+        showAlert('danger', 'Lỗi!', error.message, 'alertContainer', false);
+    }
+}
+
+/**
  * Load statistics and render charts
  */
 async function loadStatistics() {
     try {
         const endDate = new Date().toISOString().split('T')[0];
         const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+        console.log('📊 Loading statistics...', { startDate, endDate });
 
         const response = await fetch(
             `${API_BASE}/api/notifications/admin/stats?startDate=${startDate}&endDate=${endDate}`,
@@ -288,15 +479,48 @@ async function loadStatistics() {
         );
 
         const data = await response.json();
+        console.log('📊 Statistics API response:', data);
 
         if (!data.success) {
             throw new Error(data.message || 'Không thể tải thống kê');
         }
 
+        console.log('📊 Statistics data:', data.data.statistics);
+
+        if (!data.data.statistics || data.data.statistics.length === 0) {
+            console.warn('⚠️ No statistics data found');
+            // Hide charts if no data
+            const chartsGrid = document.querySelector('.charts-grid');
+            if (chartsGrid) {
+                chartsGrid.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: var(--gray-500);">
+                        <i class="fas fa-chart-line" style="font-size: 64px; margin-bottom: 16px; display: block;"></i>
+                        <h3 style="margin-bottom: 8px;">Chưa Có Dữ Liệu Thống Kê</h3>
+                        <p>Hệ thống chưa gửi email notification nào trong 30 ngày qua.</p>
+                        <p style="margin-top: 12px; font-size: 0.9em;">
+                            <i class="fas fa-info-circle"></i> Thử gửi test email hoặc đợi hệ thống gửi email tự động.
+                        </p>
+                    </div>
+                `;
+            }
+            return;
+        }
+
         renderCharts(data.data.statistics);
 
     } catch (error) {
-        console.error('Load statistics error:', error);
+        console.error('❌ Load statistics error:', error);
+        // Show error message
+        const chartsGrid = document.querySelector('.charts-grid');
+        if (chartsGrid) {
+            chartsGrid.innerHTML = `
+                <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: var(--danger-color);">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 64px; margin-bottom: 16px; display: block;"></i>
+                    <h3 style="margin-bottom: 8px;">Lỗi Tải Thống Kê</h3>
+                    <p>${error.message}</p>
+                </div>
+            `;
+        }
     }
 }
 
@@ -305,18 +529,28 @@ async function loadStatistics() {
  */
 function renderCharts(stats) {
     if (!stats || stats.length === 0) {
+        console.warn('⚠️ No stats to render');
         return;
     }
 
+    console.log('📈 Rendering charts with data:', stats);
+
     // Notification chart (line chart)
     const notificationCtx = document.getElementById('notificationChart');
+    if (!notificationCtx) {
+        console.error('❌ notificationChart canvas not found');
+        return;
+    }
+
     if (notificationChart) {
         notificationChart.destroy();
     }
 
     const labels = stats.map(s => formatNotificationType(s.notification_type));
-    const totalData = stats.map(s => parseInt(s.total_sent));
-    const successData = stats.map(s => parseInt(s.successful));
+    const totalData = stats.map(s => parseInt(s.total_sent) || 0);
+    const successData = stats.map(s => parseInt(s.successful) || 0);
+
+    console.log('📊 Chart data:', { labels, totalData, successData });
 
     notificationChart = new Chart(notificationCtx, {
         type: 'bar',
@@ -341,37 +575,94 @@ function renderCharts(stats) {
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    position: 'bottom'
+                    position: 'bottom',
+                    labels: {
+                        padding: 10,
+                        font: { size: 11 }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.dataset.label || '';
+                            const value = context.parsed.y || 0;
+                            const total = context.chart.data.datasets[0].data[context.dataIndex] || 0;
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
                 }
             },
             scales: {
                 y: {
                     beginAtZero: true,
                     ticks: {
-                        precision: 0
+                        precision: 0,
+                        font: { size: 10 }
+                    }
+                },
+                x: {
+                    ticks: {
+                        font: { size: 10 }
                     }
                 }
             }
         }
     });
 
+    // Render notification stats
+    const totalSent = totalData.reduce((sum, val) => sum + val, 0);
+    const totalSuccessful = successData.reduce((sum, val) => sum + val, 0);
+    const totalFailed = totalSent - totalSuccessful;
+    const successRate = totalSent > 0 ? ((totalSuccessful / totalSent) * 100).toFixed(1) : 0;
+
+    const notificationStatsEl = document.getElementById('notificationStats');
+    if (notificationStatsEl) {
+        notificationStatsEl.innerHTML = `
+            <div class="stat-item">
+                <div class="stat-label">Tổng Gửi</div>
+                <div class="stat-value info">${totalSent}</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Thành Công</div>
+                <div class="stat-value success">${totalSuccessful}</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Tỷ Lệ</div>
+                <div class="stat-value">${successRate}%</div>
+            </div>
+        `;
+    }
+
     // Success rate chart (pie chart)
     const successRateCtx = document.getElementById('successRateChart');
+    if (!successRateCtx) {
+        console.error('❌ successRateChart canvas not found');
+        return;
+    }
+
     if (successRateChart) {
         successRateChart.destroy();
     }
 
-    const totalSuccess = stats.reduce((sum, s) => sum + parseInt(s.successful), 0);
-    const totalFailed = stats.reduce((sum, s) => sum + parseInt(s.failed), 0);
+    const totalSuccess = stats.reduce((sum, s) => sum + (parseInt(s.successful) || 0), 0);
+    const totalFailedChart = stats.reduce((sum, s) => sum + (parseInt(s.failed) || 0), 0);
+
+    console.log('📊 Success rate data:', { totalSuccess, totalFailedChart });
+
+    const totalAll = totalSuccess + totalFailedChart;
+    const successPercentage = totalAll > 0 ? ((totalSuccess / totalAll) * 100).toFixed(1) : 0;
+    const failedPercentage = totalAll > 0 ? ((totalFailedChart / totalAll) * 100).toFixed(1) : 0;
 
     successRateChart = new Chart(successRateCtx, {
         type: 'doughnut',
         data: {
             labels: ['Thành công', 'Thất bại'],
             datasets: [{
-                data: [totalSuccess, totalFailed],
+                data: [totalSuccess, totalFailedChart],
                 backgroundColor: [
                     'rgba(16, 185, 129, 0.8)',
                     'rgba(239, 68, 68, 0.8)'
@@ -385,13 +676,48 @@ function renderCharts(stats) {
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    position: 'bottom'
+                    position: 'bottom',
+                    labels: {
+                        padding: 10,
+                        font: { size: 11 }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed || 0;
+                            const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
                 }
             }
         }
     });
+
+    // Render success rate stats
+    const successStatsEl = document.getElementById('successStats');
+    if (successStatsEl) {
+        successStatsEl.innerHTML = `
+            <div class="stat-item">
+                <div class="stat-label">Thành Công</div>
+                <div class="stat-value success">${totalSuccess} (${successPercentage}%)</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Thất Bại</div>
+                <div class="stat-value danger">${totalFailedChart} (${failedPercentage}%)</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Tổng Cộng</div>
+                <div class="stat-value info">${totalAll}</div>
+            </div>
+        `;
+    }
 }
 
 /**

@@ -117,6 +117,9 @@ class CronJobsService {
     // Job 5: Cashback reminder emails (configurable time, default: daily at 10 AM)
     await this.scheduleCashbackReminders();
 
+    // Job 6: Cleanup old notification logs (daily at 4 AM)
+    this.scheduleNotificationLogsCleanup();
+
     this.isInitialized = true;
     logger.success(`✅ Initialized ${this.jobs.length} cron jobs (auto-start enabled)`);
   }
@@ -423,6 +426,62 @@ class CronJobsService {
         error: error.message
       });
     }
+  }
+
+  /**
+   * Job 6: Cleanup old notification logs
+   * Schedule: Daily at 4 AM
+   * Purpose: Delete notification logs older than 90 days
+   */
+  scheduleNotificationLogsCleanup() {
+    const schedule = '0 4 * * *'; // Daily at 4 AM
+
+    const job = cron.schedule(schedule, async () => {
+      logger.info('🗑️  Cron: Notification logs cleanup started');
+
+      try {
+        const { pool } = require('../config/database');
+
+        // Delete logs older than 90 days
+        const result = await pool.query(`
+          DELETE FROM cashback_notifications
+          WHERE email_sent_at < CURRENT_TIMESTAMP - INTERVAL '90 days'
+        `);
+
+        const deletedCount = result.rowCount;
+
+        logger.success('🗑️  Cron: Notification logs cleanup completed', {
+          deletedCount
+        });
+
+        // Warn if large number of logs deleted
+        if (deletedCount > 5000) {
+          logger.warn('⚠️  Large number of notification logs deleted', {
+            count: deletedCount
+          });
+        }
+
+      } catch (error) {
+        logger.error('🗑️  Cron: Notification logs cleanup failed', {
+          error: error.message,
+          stack: error.stack
+        });
+      }
+    }, {
+      scheduled: true,
+      timezone: "Asia/Ho_Chi_Minh"
+    });
+
+    // Ensure job is started
+    job.start();
+
+    this.jobs.push({
+      name: 'notification-logs-cleanup',
+      schedule,
+      job
+    });
+
+    logger.info(`✅ Scheduled & Started: Notification logs cleanup (${schedule})`);
   }
 
   /**

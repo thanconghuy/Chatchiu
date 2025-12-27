@@ -668,26 +668,130 @@
         /* Charts Container */
         .charts-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            grid-template-columns: repeat(2, 1fr);
             gap: 24px;
             margin-bottom: 30px;
         }
 
         .chart-card {
             background: white;
-            padding: 24px;
+            padding: 20px;
             border-radius: 12px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
         }
 
         .chart-title {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 600;
             color: var(--gray-900);
-            margin-bottom: 20px;
+            margin-bottom: 16px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 250px;
+            margin-bottom: 16px;
+        }
+
+        .chart-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            padding-top: 16px;
+            border-top: 1px solid var(--gray-200);
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--gray-500);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        .stat-value.success {
+            color: var(--success-color);
+        }
+
+        .stat-value.danger {
+            color: var(--danger-color);
+        }
+
+        .stat-value.info {
+            color: var(--info-color);
+        }
+
+        /* Pagination */
+        .pagination-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-top: 1px solid var(--gray-200);
+            background: var(--gray-50);
+        }
+
+        .pagination-info {
+            font-size: 13px;
+            color: var(--gray-600);
+        }
+
+        .pagination-buttons {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .pagination-btn {
+            min-width: 36px;
+            height: 36px;
+            padding: 0 12px;
+            border: 1px solid var(--gray-300);
+            background: white;
+            color: var(--gray-700);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .pagination-btn:hover:not(.disabled) {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .pagination-btn.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .pagination-btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: var(--gray-100);
+        }
+
+        .pagination-ellipsis {
+            padding: 0 8px;
+            color: var(--gray-400);
         }
 
         /* Recent Notifications Table */
@@ -1170,7 +1274,12 @@
                     <i class="fas fa-chart-line"></i>
                     Thống Kê Gửi Email (30 Ngày)
                 </h3>
-                <canvas id="notificationChart"></canvas>
+                <div class="chart-wrapper">
+                    <canvas id="notificationChart"></canvas>
+                </div>
+                <div class="chart-stats" id="notificationStats">
+                    <!-- Stats will be injected by JS -->
+                </div>
             </div>
 
             <div class="chart-card">
@@ -1178,7 +1287,12 @@
                     <i class="fas fa-chart-pie"></i>
                     Tỷ Lệ Thành Công
                 </h3>
-                <canvas id="successRateChart"></canvas>
+                <div class="chart-wrapper">
+                    <canvas id="successRateChart"></canvas>
+                </div>
+                <div class="chart-stats" id="successStats">
+                    <!-- Stats will be injected by JS -->
+                </div>
             </div>
         </div>
 
@@ -1189,10 +1303,20 @@
                     <i class="fas fa-history"></i>
                     Email Gần Đây
                 </h2>
-                <button class="btn btn-secondary btn-sm" onclick="loadRecentNotifications()">
-                    <i class="fas fa-sync"></i>
-                    Làm Mới
-                </button>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-secondary btn-sm" onclick="loadRecentNotifications(1)">
+                        <i class="fas fa-sync"></i>
+                        Làm Mới
+                    </button>
+                    <button class="btn btn-warning btn-sm" onclick="clearOldLogs(90)" title="Xóa logs cũ hơn 90 ngày">
+                        <i class="fas fa-broom"></i>
+                        Xóa Logs Cũ
+                    </button>
+                    <button class="btn btn-danger btn-sm" onclick="clearAllLogs()" title="Xóa tất cả logs">
+                        <i class="fas fa-trash-alt"></i>
+                        Xóa Tất Cả
+                    </button>
+                </div>
             </div>
 
             <div class="table-container">
@@ -1215,6 +1339,9 @@
                     </tbody>
                 </table>
             </div>
+
+            <!-- Pagination -->
+            <div id="notificationPagination" class="pagination-container" style="display: none;"></div>
         </div>
             </div>
         </main>
