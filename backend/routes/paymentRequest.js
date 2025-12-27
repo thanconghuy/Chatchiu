@@ -86,7 +86,7 @@ router.get('/admin/list', authenticateAdmin, async (req, res) => {
  */
 router.get('/eligibility', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.userId;
     const eligibility = await paymentRequestService.checkEligibility(userId);
 
     res.json({
@@ -114,7 +114,7 @@ router.get('/eligibility', authenticateToken, async (req, res) => {
  */
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.userId;
     const {
       requestedAmount,
       bankName,
@@ -177,7 +177,7 @@ router.post('/', authenticateToken, async (req, res) => {
  */
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.userId;
     const { status, limit, offset } = req.query;
 
     const filters = {
@@ -217,7 +217,7 @@ router.get('/', authenticateToken, async (req, res) => {
  */
 router.get('/cancelled', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.userId;
     const { limit = 20, offset = 0 } = req.query;
 
     // Use PaymentRequest model to get cancelled requests
@@ -269,7 +269,7 @@ router.get('/cancelled', authenticateToken, async (req, res) => {
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
+    const userId = req.userId; // Fixed: use req.userId instead of req.user.id
 
     // Use findByIdWithDecryption to decrypt bank account information
     const paymentRequest = await PaymentRequest.findByIdWithDecryption(id, userId, false);
@@ -314,7 +314,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
+    const userId = req.userId;
 
     // Unlink items first
     const PaymentSystemReconciliationService = require('../services/paymentSystemReconciliationService');
@@ -355,7 +355,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 router.post('/:id/resubmit', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
+    const userId = req.userId;
 
     // Get the cancelled request
     const cancelledRequest = await PaymentRequest.findById(id);
@@ -473,7 +473,7 @@ router.get('/:id/items', authenticateToken, async (req, res) => {
 router.get('/admin/:id', authenticateAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const adminId = req.user.id;
+    const adminId = req.userId;
 
     // Use findByIdWithDecryption with admin privileges
     const paymentRequest = await PaymentRequest.findByIdWithDecryption(id, adminId, true);
@@ -527,9 +527,9 @@ router.patch('/admin/:id/confirm', authenticateAdmin, async (req, res) => {
     const { adminNotes } = req.body;
 
     const adminInfo = {
-      id: req.user.id,
-      full_name: req.user.full_name,
-      email: req.user.email
+      id: req.userId,
+      full_name: req.user?.full_name,
+      email: req.user?.email
     };
 
     const updated = await paymentRequestService.confirmPaymentRequest(
@@ -575,9 +575,9 @@ router.patch('/admin/:id/reject', authenticateAdmin, async (req, res) => {
     }
 
     const adminInfo = {
-      id: req.user.id,
-      full_name: req.user.full_name,
-      email: req.user.email
+      id: req.userId,
+      full_name: req.user?.full_name,
+      email: req.user?.email
     };
 
     const updated = await paymentRequestService.rejectPaymentRequest(
@@ -623,9 +623,9 @@ router.patch('/admin/:id/paid', authenticateAdmin, async (req, res) => {
     }
 
     const adminInfo = {
-      id: req.user.id,
-      full_name: req.user.full_name,
-      email: req.user.email
+      id: req.userId,
+      full_name: req.user?.full_name,
+      email: req.user?.email
     };
 
     const updated = await paymentRequestService.markAsPaid(
@@ -739,7 +739,7 @@ router.post('/admin/reconciliation/:id/add-late-items', authenticateAdmin, async
     const result = await paymentRequestService.addLateItemsToReconciliation(
       id,
       conversionIds,
-      req.user.id
+      req.userId
     );
 
     res.json({

@@ -994,6 +994,9 @@ document.addEventListener('click', (e) => {
         case 'resubmit-request':
             if (id) resubmitRequest(id);
             break;
+        case 'navigate-payment-history':
+            window.location.href = '/payment-history';
+            break;
     }
 });
 

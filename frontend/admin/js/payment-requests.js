@@ -385,21 +385,41 @@ function displayRequestDetail(request) {
             </div>
         ` : ''}
 
-        ${request.items && request.items.length > 0 ? `
+        ${request.systemReconciliationItems && request.systemReconciliationItems.length > 0 ? `
             <div style="margin-top: 1rem;">
-                <h4 style="margin-bottom: 0.5rem; font-size: 1rem;">Các đơn hàng thanh toán (${request.items.length})</h4>
-                <div class="items-list" style="max-height: 180px; overflow-y: auto;">
-                    ${request.items.map(item => `
-                        <div class="item-card" style="padding: 0.6rem; margin-bottom: 0.5rem;">
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 0.9em;">
-                                <strong>${item.merchant_name}</strong>
-                                <strong style="color: #667eea;">${formatCurrency(item.cashback_amount)}</strong>
+                <h4 style="margin-bottom: 0.5rem; font-size: 1rem;">Chi Tiết Theo Kỳ (${request.systemReconciliationItems.length} đơn hàng)</h4>
+                <div class="items-list" style="max-height: 250px; overflow-y: auto;">
+                    ${request.systemReconciliationItems.map(item => `
+                        <div class="item-card" style="padding: 0.75rem; margin-bottom: 0.5rem; background: #f8f9fa; border-left: 3px solid #667eea;">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 6px;">
+                                <div style="flex: 1;">
+                                    <div style="font-weight: 700; font-size: 0.95em; color: #333; margin-bottom: 2px;">${item.merchant_name || 'N/A'}</div>
+                                    <div style="font-size: 0.8em; color: #666;">
+                                        Mã ĐH: <code style="background: white; padding: 2px 6px; border-radius: 3px; font-size: 0.9em;">${item.order_code}</code>
+                                    </div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-weight: 700; color: #667eea; font-size: 1.05em;">${formatCurrency(item.cashback_amount)}</div>
+                                </div>
                             </div>
-                            <div style="font-size: 0.8em; color: #666;">
-                                ${item.order_code} • ${item.period_label}
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 6px; border-top: 1px solid #e0e0e0;">
+                                <div style="font-size: 0.8em; color: #999;">
+                                    <i class="fas fa-calendar-alt"></i> ${formatDateTime(item.order_time)}
+                                </div>
+                                <div>
+                                    <span style="background: #667eea; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.75em; font-weight: 600;">
+                                        ${item.period_label || 'N/A'}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     `).join('')}
+                </div>
+                <div style="margin-top: 0.75rem; padding: 0.75rem; background: #e8f4f8; border-radius: 6px; font-size: 0.85em;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <strong style="color: #667eea;"><i class="fas fa-calculator"></i> Tổng tiền các đơn hàng:</strong>
+                        <strong style="color: #667eea; font-size: 1.15em;">${formatCurrency(request.systemReconciliationTotalAmount || 0)}</strong>
+                    </div>
                 </div>
             </div>
         ` : ''}

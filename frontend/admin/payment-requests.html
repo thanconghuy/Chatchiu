@@ -643,6 +643,219 @@
                 padding: 1.5rem;
             }
         }
+
+        /* Enhanced Paid Modal Styles */
+        .paid-modal-content {
+            max-width: 600px;
+            padding: 0;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .paid-modal-header {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 24px 28px;
+            margin-bottom: 0;
+            border-bottom: none;
+        }
+
+        .paid-modal-header h2 {
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .modal-title-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .modal-icon {
+            width: 48px;
+            height: 48px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .paid-modal-body {
+            padding: 28px;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-group label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #1f2937;
+            font-size: 0.95rem;
+        }
+
+        .form-group label i {
+            color: #10b981;
+            font-size: 16px;
+        }
+
+        .required-mark {
+            color: #ef4444;
+            font-weight: 700;
+        }
+
+        .form-input,
+        .form-textarea {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.2s;
+            box-sizing: border-box;
+        }
+
+        .form-input:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: #10b981;
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+        }
+
+        .form-input::placeholder,
+        .form-textarea::placeholder {
+            color: #9ca3af;
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 100px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .input-hint {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 8px;
+            font-size: 0.8rem;
+            color: #6b7280;
+            padding: 8px 12px;
+            background: #f3f4f6;
+            border-radius: 6px;
+        }
+
+        .input-hint i {
+            color: #10b981;
+            font-size: 14px;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 12px;
+            padding: 20px 28px 28px 28px;
+            background: #f9fafb;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .btn-modal-cancel {
+            flex: 1;
+            padding: 14px 24px;
+            background: white;
+            color: #6b7280;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-modal-cancel:hover {
+            background: #f9fafb;
+            border-color: #d1d5db;
+            color: #374151;
+        }
+
+        .btn-modal-confirm {
+            flex: 2;
+            padding: 14px 24px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-modal-confirm:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-modal-confirm:active {
+            transform: translateY(0);
+        }
+
+        @media (max-width: 640px) {
+            .paid-modal-content {
+                max-width: 95%;
+                margin: 20px auto;
+            }
+
+            .paid-modal-header {
+                padding: 20px;
+            }
+
+            .modal-title-wrapper {
+                gap: 10px;
+            }
+
+            .modal-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+            }
+
+            .paid-modal-header h2 {
+                font-size: 1.25rem;
+            }
+
+            .paid-modal-body {
+                padding: 20px;
+            }
+
+            .modal-footer {
+                flex-direction: column;
+                padding: 16px 20px 20px 20px;
+            }
+
+            .btn-modal-cancel,
+            .btn-modal-confirm {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
@@ -827,27 +1040,55 @@
 
     <!-- Paid Modal -->
     <div id="paidModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Đánh dấu đã thanh toán</h2>
+        <div class="modal-content paid-modal-content">
+            <div class="modal-header paid-modal-header">
+                <div class="modal-title-wrapper">
+                    <div class="modal-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <h2>Xác Nhận Thanh Toán</h2>
+                </div>
                 <button class="close-modal" data-modal="paidModal">&times;</button>
             </div>
             <form id="paidForm">
                 <input type="hidden" id="paidRequestId">
-                <div class="form-group">
-                    <label>Mã giao dịch <span style="color: red;">*</span></label>
-                    <input type="text" id="transactionReference" required placeholder="Mã giao dịch ngân hàng">
+                <div class="paid-modal-body">
+                    <div class="form-group">
+                        <label>
+                            <i class="fas fa-receipt"></i>
+                            Mã Giao Dịch <span class="required-mark">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="transactionReference"
+                            required
+                            placeholder="Nhập mã giao dịch ngân hàng"
+                            class="form-input">
+                        <div class="input-hint">
+                            <i class="fas fa-info-circle"></i>
+                            Mã giao dịch từ ngân hàng khi chuyển khoản
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <i class="fas fa-edit"></i>
+                            Ghi Chú
+                        </label>
+                        <textarea
+                            id="paidNotes"
+                            placeholder="Thêm ghi chú về giao dịch này (tùy chọn)..."
+                            class="form-textarea"
+                            rows="4"></textarea>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Ghi chú (tùy chọn)</label>
-                    <textarea id="paidNotes" placeholder="Ghi chú về giao dịch..."></textarea>
-                </div>
-                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-                    <button type="button" class="btn-secondary btn-cancel-modal" data-modal="paidModal" style="flex: 1;">
-                        Hủy
+                <div class="modal-footer">
+                    <button type="button" class="btn-modal-cancel btn-cancel-modal" data-modal="paidModal">
+                        <i class="fas fa-times"></i>
+                        Hủy Bỏ
                     </button>
-                    <button type="submit" class="btn-paid" style="flex: 2;">
-                        Xác nhận đã thanh toán
+                    <button type="submit" class="btn-modal-confirm">
+                        <i class="fas fa-check-double"></i>
+                        Xác Nhận Đã Thanh Toán
                     </button>
                 </div>
             </form>

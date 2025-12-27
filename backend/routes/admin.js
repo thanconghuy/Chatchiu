@@ -6201,7 +6201,7 @@ router.get('/email-logs/:id', authenticateAdmin, async (req, res) => {
         error_message,
         context_id,
         context_type,
-        created_at
+        created_at as sent_at
       FROM email_logs
       WHERE id = $1`,
       [id]

@@ -361,6 +361,13 @@
             background: white;
         }
 
+        /* Subject Line Input - Full Width */
+        #templateSubject,
+        #editorSubject {
+            max-width: 100% !important;
+            width: 100% !important;
+        }
+
         .form-input:focus {
             outline: none;
             border-color: var(--primary-color);
@@ -1100,8 +1107,8 @@
                             Subject Line
                         </label>
                         <input type="text" id="templateSubject" class="form-input" readonly
-                               placeholder="Email subject...">
-                        <small class="form-hint">Subject line của email (chỉ xem, không chỉnh sửa)</small>
+                               placeholder="Subject line của email...">
+                        <small class="form-hint">Subject line của email (để chỉnh sửa, click "Mở Editor Template")</small>
                     </div>
 
                     <div class="editor-section">
