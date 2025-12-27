@@ -80,36 +80,36 @@ function setupEventListeners() {
     document.getElementById('savedPaymentAccount')?.addEventListener('change', handlePaymentAccountSelect);
 
     // Account type change handler - show/hide bank fields
-    const accountTypeSelect = document.getElementById('accountType');
-    if (accountTypeSelect) {
-        console.log('✅ [PaymentRequest] Account type select found, attaching change listener');
-
-        accountTypeSelect.addEventListener('change', function() {
-            console.log('📝 [PaymentRequest] Account type changed to:', this.value);
+    // Use event delegation to handle dynamically shown form
+    document.addEventListener('change', function(e) {
+        if (e.target && e.target.id === 'accountType') {
+            console.log('📝 [PaymentRequest] Account type changed to:', e.target.value);
 
             const bankNameGroup = document.getElementById('bankNameGroup');
             const bankBranchGroup = document.getElementById('bankBranchGroup');
             const bankName = document.getElementById('bankName');
 
-            if (this.value === 'bank') {
+            if (e.target.value === 'bank') {
                 console.log('🏦 [PaymentRequest] Showing bank fields');
-                bankNameGroup.style.display = 'block';
-                bankBranchGroup.style.display = 'block';
-                bankName.required = true;
+                if (bankNameGroup && bankBranchGroup && bankName) {
+                    bankNameGroup.style.display = 'block';
+                    bankBranchGroup.style.display = 'block';
+                    bankName.required = true;
+                }
             } else {
-                console.log('💳 [PaymentRequest] Hiding bank fields');
-                bankNameGroup.style.display = 'none';
-                bankBranchGroup.style.display = 'none';
-                bankName.required = false;
-                // Clear bank-specific fields when not needed
-                if (bankName) bankName.value = '';
-                const bankBranch = document.getElementById('bankBranch');
-                if (bankBranch) bankBranch.value = '';
+                console.log('💳 [PaymentRequest] Hiding bank fields for:', e.target.value);
+                if (bankNameGroup && bankBranchGroup && bankName) {
+                    bankNameGroup.style.display = 'none';
+                    bankBranchGroup.style.display = 'none';
+                    bankName.required = false;
+                    // Clear bank-specific fields when not needed
+                    bankName.value = '';
+                    const bankBranch = document.getElementById('bankBranch');
+                    if (bankBranch) bankBranch.value = '';
+                }
             }
-        });
-    } else {
-        console.error('❌ [PaymentRequest] Account type select NOT found');
-    }
+        }
+    });
 }
 
 // Load user eligibility
@@ -405,16 +405,26 @@ function showCreateModal() {
     // Load saved payment accounts when opening modal
     loadSavedPaymentAccounts();
 
-    // Reset form and hide bank fields
+    // Reset form
     document.getElementById('createRequestForm').reset();
+
+    // Set default account type to 'bank' and show bank fields
+    const accountTypeSelect = document.getElementById('accountType');
     const bankNameGroup = document.getElementById('bankNameGroup');
     const bankBranchGroup = document.getElementById('bankBranchGroup');
     const bankName = document.getElementById('bankName');
 
+    if (accountTypeSelect) {
+        accountTypeSelect.value = 'bank';
+        console.log('📋 [PaymentRequest] Set accountType to:', accountTypeSelect.value);
+    }
+
+    // Directly show bank fields (don't rely on event)
     if (bankNameGroup && bankBranchGroup && bankName) {
-        bankNameGroup.style.display = 'none';
-        bankBranchGroup.style.display = 'none';
-        bankName.required = false;
+        console.log('📋 [PaymentRequest] Showing bank fields directly');
+        bankNameGroup.style.display = 'block';
+        bankBranchGroup.style.display = 'block';
+        bankName.required = true;
     }
 
     document.getElementById('createRequestModal').classList.add('show');
