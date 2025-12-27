@@ -611,7 +611,7 @@
         Promise.all(accounts.map(async account => {
             try {
                 console.log('📡 [Profile] Fetching account ID:', account.id);
-                const response = await fetch(`/api/user/payment-accounts/${account.id}/decrypt`, {
+                const response = await fetch(`${CONFIG.API_BASE_URL}/user/payment-accounts/${account.id}/decrypt`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
