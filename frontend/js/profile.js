@@ -567,12 +567,6 @@
                                 <span class="payment-info-value">${account.bank_branch}</span>
                             </div>
                         ` : ''}
-                        ${account.notes ? `
-                            <div class="payment-info-row">
-                                <span class="payment-info-label">Ghi chú</span>
-                                <span class="payment-info-value">${account.notes}</span>
-                            </div>
-                        ` : ''}
                         <div class="payment-info-row">
                             <span class="payment-info-label">Trạng thái</span>
                             <span class="payment-info-value">
@@ -617,7 +611,7 @@
         Promise.all(accounts.map(async account => {
             try {
                 console.log('📡 [Profile] Fetching account ID:', account.id);
-                const response = await fetch(`/api/user/payment-accounts/${account.id}/decrypt`, {
+                const response = await fetch(`${CONFIG.API_BASE_URL}/user/payment-accounts/${account.id}/decrypt`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
@@ -709,12 +703,32 @@
         e.preventDefault();
 
         const accountType = document.getElementById('accountType').value;
-        const accountHolderName = document.getElementById('accountHolderName').value;
-        const accountNumber = document.getElementById('accountNumber').value;
-        const bankName = document.getElementById('bankName').value;
-        const bankBranch = document.getElementById('bankBranch').value;
-        const notes = document.getElementById('notes').value;
+        const accountHolderName = document.getElementById('accountHolderName').value.trim();
+        const accountNumber = document.getElementById('accountNumber').value.trim();
+        const bankName = document.getElementById('bankName').value.trim();
+        const bankBranch = document.getElementById('bankBranch').value.trim();
         const isDefault = document.getElementById('isDefault').checked;
+
+        // Validation
+        if (!accountType) {
+            showPaymentAlert('error', 'Vui lòng chọn loại tài khoản');
+            return;
+        }
+
+        if (!accountHolderName || accountHolderName.length < 2) {
+            showPaymentAlert('error', 'Tên chủ tài khoản phải có ít nhất 2 ký tự');
+            return;
+        }
+
+        if (!accountNumber || accountNumber.length < 5) {
+            showPaymentAlert('error', 'Số tài khoản không hợp lệ');
+            return;
+        }
+
+        if (accountType === 'bank' && !bankName) {
+            showPaymentAlert('error', 'Vui lòng nhập tên ngân hàng');
+            return;
+        }
 
         const saveBtn = document.getElementById('savePaymentBtn');
         saveBtn.disabled = true;
@@ -722,21 +736,31 @@
 
         try {
             const token = localStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN);
+
+            const payload = {
+                accountType,
+                accountHolderName,
+                accountNumber,
+                isDefault
+            };
+
+            // Only add bank fields if account type is bank
+            if (accountType === 'bank') {
+                payload.bankName = bankName;
+                if (bankBranch) {
+                    payload.bankBranch = bankBranch;
+                }
+            }
+
+            console.log('Creating payment account with payload:', payload);
+
             const response = await fetch(`${CONFIG.API_BASE_URL}/user/payment-accounts`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    accountType,
-                    accountHolderName,
-                    accountNumber,
-                    bankName: accountType === 'bank' ? bankName : null,
-                    bankBranch: accountType === 'bank' ? bankBranch : null,
-                    notes,
-                    isDefault
-                })
+                body: JSON.stringify(payload)
             });
 
             const data = await response.json();

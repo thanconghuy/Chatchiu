@@ -109,9 +109,16 @@ router.post('/', authenticateToken, async (req, res) => {
       accountNumber,
       bankName,
       bankBranch,
-      isDefault,
-      notes
+      isDefault
     } = req.body;
+
+    console.log('Creating payment account:', {
+      accountType,
+      accountHolderName: accountHolderName ? '***' : undefined,
+      accountNumber: accountNumber ? '***' : undefined,
+      bankName,
+      userId: req.userId
+    });
 
     // Validation
     if (!accountType || !accountHolderName || !accountNumber) {
@@ -152,11 +159,13 @@ router.post('/', authenticateToken, async (req, res) => {
       accountType,
       accountHolderName,
       accountNumber,
-      bankName,
-      bankBranch,
-      isDefault,
-      notes
+      bankName: bankName || null,
+      bankBranch: bankBranch || null,
+      isDefault: isDefault || false,
+      notes: null  // Always null - field removed from UI
     });
+
+    console.log('Payment account created successfully:', { accountId: account.id });
 
     res.status(201).json({
       success: true,
@@ -167,7 +176,7 @@ router.post('/', authenticateToken, async (req, res) => {
     console.error('Create payment account error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to create payment account'
+      message: error.message || 'Failed to create payment account'
     });
   }
 });
