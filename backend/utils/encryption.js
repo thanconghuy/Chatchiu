@@ -18,12 +18,22 @@ const SALT_LENGTH = 64;
  */
 function validateEncryptionKey() {
     if (!ENCRYPTION_KEY) {
-        throw new Error('ENCRYPTION_KEY environment variable is required');
+        const errorMsg = 'ENCRYPTION_KEY environment variable is required. ' +
+            'Generate one using: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))" ' +
+            'and add it to your .env file';
+        logger.error('[Encryption] Missing ENCRYPTION_KEY', { error: errorMsg });
+        throw new Error(errorMsg);
     }
 
     // Key should be 64 hex characters (32 bytes)
     if (!/^[0-9a-f]{64}$/i.test(ENCRYPTION_KEY)) {
-        throw new Error('ENCRYPTION_KEY must be 64 hex characters (32 bytes)');
+        const errorMsg = 'ENCRYPTION_KEY must be 64 hex characters (32 bytes). ' +
+            'Generate one using: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"';
+        logger.error('[Encryption] Invalid ENCRYPTION_KEY format', {
+            error: errorMsg,
+            currentLength: ENCRYPTION_KEY.length
+        });
+        throw new Error(errorMsg);
     }
 }
 
