@@ -1342,7 +1342,47 @@
         </div>
     </div>
 
+    <!-- Edit Label Modal -->
+    <div id="editLabelModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>Sửa Tên Kỳ Đối Soát</h2>
+                <button class="modal-close" data-action="close-edit-label-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="editLabelForm" style="display: flex; flex-direction: column; gap: 20px;">
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600;">Tên kỳ đối soát</label>
+                        <input
+                            type="text"
+                            id="newPeriodLabel"
+                            required
+                            maxlength="100"
+                            placeholder="VD: Tháng 12/2024"
+                            style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem;"
+                        >
+                        <small style="color: #666; margin-top: 4px; display: block;">Tối đa 100 ký tự</small>
+                    </div>
+                </form>
+                <div id="editLabelStatusMessage" class="status-message" style="display: none;"></div>
+            </div>
+            <div class="modal-footer" style="padding: 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px;">
+                <button data-action="close-edit-label-modal" style="padding: 10px 24px; border: 1px solid #ddd; background: white; border-radius: 8px; cursor: pointer;">
+                    Hủy
+                </button>
+                <button
+                    data-action="confirm-edit-label"
+                    style="padding: 10px 24px; background: #06b6d4; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;"
+                >
+                    Cập nhật
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="../js/config.js"></script>
+    <!-- Include reconciliation.js for deleteReconciliation function -->
+    <script src="/admin/reconciliation.js"></script>
     <script>
         let currentPage = 1;
         let currentReconId = null;
@@ -1361,6 +1401,44 @@
         const token = localStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN);
         if (!token) {
             window.location.href = '/login';
+        }
+
+        // Stub function for reconciliation.js compatibility
+        function displayUserName(elementId) {
+            // No-op: system-reconciliation doesn't need this function
+            // reconciliation.js calls it but we don't have the element
+        }
+
+        // Override deleteReconciliation from reconciliation.js
+        // Use system-reconciliation API endpoint instead
+        async function deleteReconciliation(reconciliationId) {
+            if (!confirm('Bạn có chắc muốn xóa kỳ đối soát này?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(
+                    `${CONFIG.API_BASE_URL}/admin/system-reconciliation/${reconciliationId}`,
+                    {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    }
+                );
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showToast(result.message || 'Đã xóa kỳ đối soát thành công', 'success');
+                    await loadReconciliations();
+                } else {
+                    showToast(result.message || 'Xóa thất bại', 'error');
+                }
+            } catch (error) {
+                console.error('Delete reconciliation error:', error);
+                showToast('Lỗi khi xóa: ' + error.message, 'error');
+            }
         }
 
         // Initialize
@@ -1790,6 +1868,10 @@
                                         <span>Xem Chi Tiết</span>
                                     </button>
                                     ${recon.status === 'draft' ? `
+                                        <button class="action-dropdown-item action-edit-label" data-action="edit-label" data-id="${recon.id}" data-label="${escapeHtml(recon.period_label)}">
+                                            <i class="fas fa-edit"></i>
+                                            <span>Sửa Tên</span>
+                                        </button>
                                         <button class="action-dropdown-item action-add-orders" data-action="add-orders" data-id="${recon.id}" data-label="${escapeHtml(recon.period_label)}">
                                             <i class="fas fa-plus-circle"></i>
                                             <span>Thêm Đơn Hàng</span>
@@ -2723,6 +2805,96 @@
             // Hide status message
             const statusEl = document.getElementById('addOrdersStatusMessage');
             if (statusEl) statusEl.style.display = 'none';
+        }
+
+        // ============ Edit Label Modal Functions ============
+        let currentEditLabelReconId = null;
+
+        function openEditLabelModal(reconId, currentLabel) {
+            currentEditLabelReconId = reconId;
+
+            // Set current label
+            const input = document.getElementById('newPeriodLabel');
+            input.value = currentLabel;
+
+            // Show modal
+            document.getElementById('editLabelModal').style.display = 'flex';
+
+            // Focus input
+            setTimeout(() => input.focus(), 100);
+
+            // Hide status message
+            const statusEl = document.getElementById('editLabelStatusMessage');
+            if (statusEl) statusEl.style.display = 'none';
+        }
+
+        function closeEditLabelModal() {
+            document.getElementById('editLabelModal').style.display = 'none';
+            currentEditLabelReconId = null;
+
+            // Clear input
+            document.getElementById('newPeriodLabel').value = '';
+
+            // Hide status message
+            const statusEl = document.getElementById('editLabelStatusMessage');
+            if (statusEl) statusEl.style.display = 'none';
+        }
+
+        async function confirmEditLabel() {
+            const newLabel = document.getElementById('newPeriodLabel').value.trim();
+            const statusEl = document.getElementById('editLabelStatusMessage');
+
+            if (!newLabel) {
+                statusEl.textContent = 'Vui lòng nhập tên kỳ đối soát';
+                statusEl.className = 'status-message error';
+                statusEl.style.display = 'block';
+                return;
+            }
+
+            if (newLabel.length > 100) {
+                statusEl.textContent = 'Tên kỳ đối soát không được vượt quá 100 ký tự';
+                statusEl.className = 'status-message error';
+                statusEl.style.display = 'block';
+                return;
+            }
+
+            try {
+                statusEl.textContent = 'Đang cập nhật...';
+                statusEl.className = 'status-message';
+                statusEl.style.display = 'block';
+
+                const response = await fetch(
+                    `${CONFIG.API_BASE_URL}/reconciliation/${currentEditLabelReconId}/label`,
+                    {
+                        method: 'PATCH',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ label: newLabel })
+                    }
+                );
+
+                const result = await response.json();
+
+                if (result.success) {
+                    statusEl.textContent = '✅ ' + result.message;
+                    statusEl.className = 'status-message success';
+
+                    // Close modal after 1 second
+                    setTimeout(() => {
+                        closeEditLabelModal();
+                        loadReconciliations(); // Reload list
+                    }, 1000);
+                } else {
+                    statusEl.textContent = '❌ ' + result.message;
+                    statusEl.className = 'status-message error';
+                }
+            } catch (error) {
+                console.error('Error updating label:', error);
+                statusEl.textContent = '❌ Lỗi kết nối: ' + error.message;
+                statusEl.className = 'status-message error';
+            }
         }
 
         async function loadAvailableOrders() {
@@ -3877,6 +4049,18 @@
                     if (viewDropdown) viewDropdown.classList.remove('show');
                     viewItems(id, label);
                     break;
+                case 'edit-label':
+                    // Close dropdown first
+                    const editLabelDropdown = document.getElementById(`dropdown-${id}`);
+                    if (editLabelDropdown) editLabelDropdown.classList.remove('show');
+                    openEditLabelModal(id, label);
+                    break;
+                case 'close-edit-label-modal':
+                    closeEditLabelModal();
+                    break;
+                case 'confirm-edit-label':
+                    confirmEditLabel();
+                    break;
                 case 'add-orders':
                     // Close dropdown first
                     const addDropdown = document.getElementById(`dropdown-${id}`);
@@ -3957,6 +4141,9 @@
                 case 'add-selected-to-draft':
                     const monthData = button.dataset.month;
                     addSelectedOrdersToDraft(monthData);
+                    break;
+                case 'load-eligible-orders':
+                    loadEligibleOrders();
                     break;
             }
         });

@@ -3424,7 +3424,7 @@ router.get('/monitoring/metrics', authenticateAdmin, async (req, res) => {
     ]);
 
     // Get cron job status
-    const cronStatus = cronJobsService.getStatus();
+    const cronStatus = await cronJobsService.getStatus();
 
     // Calculate overall statistics
     const totalClicks = matchRateResult.rows.reduce((sum, row) => sum + parseInt(row.total_clicks), 0);
@@ -3486,7 +3486,7 @@ router.get('/monitoring/metrics', authenticateAdmin, async (req, res) => {
  */
 router.get('/cron/status', authenticateAdmin, async (req, res) => {
   try {
-    const status = cronJobsService.getStatus();
+    const status = await cronJobsService.getStatus();
 
     res.json({
       success: true,
@@ -3720,8 +3720,8 @@ router.post('/check-pending-orders', authenticateAdmin, async (req, res) => {
  */
 router.post('/cron/start', authenticateAdmin, async (req, res) => {
   try {
-    cronJobsService.initialize();
-    const status = cronJobsService.getStatus();
+    await cronJobsService.initialize();
+    const status = await cronJobsService.getStatus();
 
     res.json({
       success: true,
@@ -3860,27 +3860,27 @@ router.post('/cron/stop', authenticateAdmin, async (req, res) => {
 });
 
 /**
- * POST /api/admin/cron/trigger/:jobName
- * Manually trigger a specific cron job
+ * POST /api/admin/cron/trigger/:jobKey
+ * Manually trigger a specific cron job by job_key
  */
-router.post('/cron/trigger/:jobName', authenticateAdmin, async (req, res) => {
+router.post('/cron/trigger/:jobKey', authenticateAdmin, async (req, res) => {
   try {
-    const { jobName } = req.params;
+    const { jobKey } = req.params;
 
-    logger.info(`Admin manually triggering cron job: ${jobName}`, {
+    logger.info(`Admin manually triggering cron job: ${jobKey}`, {
       adminId: req.user.id
     });
 
-    const result = await cronJobsService.triggerJob(jobName);
+    const result = await cronJobsService.triggerJob(jobKey);
 
     res.json({
       success: true,
-      message: `Job '${jobName}' triggered successfully`,
+      message: `Job '${jobKey}' triggered successfully`,
       data: result
     });
   } catch (error) {
     logger.error('Failed to trigger cron job', {
-      jobName: req.params.jobName,
+      jobKey: req.params.jobKey,
       error: error.message
     });
     res.status(500).json({
@@ -4099,6 +4099,130 @@ router.post('/settings/cron-reload', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to reload cron jobs'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/cron/jobs
+ * Get list of all cron jobs from database
+ */
+router.get('/cron/jobs', authenticateAdmin, async (req, res) => {
+  try {
+    const { pool } = require('../config/database');
+
+    const result = await pool.query(`
+      SELECT
+        id,
+        job_key,
+        job_name,
+        description,
+        cron_schedule,
+        timezone,
+        is_enabled,
+        is_running,
+        last_run_at,
+        last_run_status,
+        last_run_duration_ms,
+        last_run_result,
+        next_run_at,
+        total_runs,
+        success_runs,
+        failed_runs,
+        created_at,
+        updated_at
+      FROM cron_jobs
+      ORDER BY job_key
+    `);
+
+    res.json({
+      success: true,
+      data: result.rows.map(job => ({
+        ...job,
+        successRate: job.total_runs > 0
+          ? ((job.success_runs / job.total_runs) * 100).toFixed(1) + '%'
+          : 'N/A'
+      }))
+    });
+  } catch (error) {
+    logger.error('Failed to get cron jobs:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
+ * PUT /api/admin/cron/jobs/:jobKey
+ * Update cron job configuration
+ */
+router.put('/cron/jobs/:jobKey', authenticateAdmin, async (req, res) => {
+  try {
+    const { jobKey } = req.params;
+    const { is_enabled, cron_schedule } = req.body;
+    const { pool } = require('../config/database');
+
+    const updates = [];
+    const values = [];
+    let paramIndex = 1;
+
+    if (typeof is_enabled === 'boolean') {
+      updates.push(`is_enabled = $${paramIndex++}`);
+      values.push(is_enabled);
+    }
+
+    if (cron_schedule) {
+      updates.push(`cron_schedule = $${paramIndex++}`);
+      values.push(cron_schedule);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không có thông tin nào để cập nhật'
+      });
+    }
+
+    updates.push(`updated_at = NOW()`);
+    updates.push(`updated_by = $${paramIndex++}`);
+    values.push(req.userId);
+    values.push(jobKey);
+
+    const query = `
+      UPDATE cron_jobs
+      SET ${updates.join(', ')}
+      WHERE job_key = $${paramIndex}
+      RETURNING *
+    `;
+
+    const result = await pool.query(query, values);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy cron job'
+      });
+    }
+
+    // Reload cron jobs to apply changes
+    await cronJobsService.reload();
+
+    logger.info(`Updated cron job: ${jobKey}`, {
+      adminId: req.userId,
+      updates: { is_enabled, cron_schedule }
+    });
+
+    res.json({
+      success: true,
+      message: 'Đã cập nhật cron job thành công',
+      data: result.rows[0]
+    });
+  } catch (error) {
+    logger.error('Failed to update cron job:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
     });
   }
 });

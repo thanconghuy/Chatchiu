@@ -25,49 +25,39 @@ class CronJobsService {
 
   /**
    * Initialize all cron jobs
-   * Called on server startup if AUTO_CRON_ENABLED=true
+   * Loads configuration from database cron_jobs table
    * @param {boolean} forceReload - Force reload even if already initialized
    */
   async initialize(forceReload = false) {
-    // Production: Always use database setting (default: true)
-    // Local: Use .env variable for development control
-    const isProduction = process.env.NODE_ENV === 'production' || !process.env.NODE_ENV;
-    let autoCronEnabled = true; // Default: enabled
+    // Load cron jobs configuration from database
+    let enabledJobs = [];
 
     try {
-      const SystemSettings = require('../services/systemSettings');
-      const dbSetting = await SystemSettings.get('auto_cron_enabled', true);
+      const { pool } = require('../config/database');
 
-      if (isProduction) {
-        // Production: Database is source of truth
-        autoCronEnabled = dbSetting === true || dbSetting === 'true';
-        logger.info(`[Production] Cron setting from database: ${autoCronEnabled}`);
-      } else {
-        // Local development: .env can override database for dev convenience
-        if (process.env.AUTO_CRON_ENABLED !== undefined) {
-          autoCronEnabled = process.env.AUTO_CRON_ENABLED === 'true';
-          logger.info(`[Local Dev] Cron setting from .env: ${autoCronEnabled}`);
-        } else {
-          autoCronEnabled = dbSetting === true || dbSetting === 'true';
-          logger.info(`[Local Dev] Cron setting from database: ${autoCronEnabled}`);
-        }
-      }
+      // Get all enabled jobs from database
+      const result = await pool.query(`
+        SELECT job_key, job_name, cron_schedule, is_enabled, timezone
+        FROM cron_jobs
+        WHERE is_enabled = true
+        ORDER BY job_key
+      `);
 
-      // Update env variable to match final decision
-      process.env.AUTO_CRON_ENABLED = autoCronEnabled ? 'true' : 'false';
+      enabledJobs = result.rows;
+      logger.info(`Loaded ${enabledJobs.length} enabled cron jobs from database`);
 
     } catch (error) {
-      logger.warn('Failed to load cron setting from database, using default (enabled)', {
+      logger.warn('Failed to load cron jobs from database, will retry later', {
         error: error.message
       });
-      // Default to enabled if database query fails
-      autoCronEnabled = true;
-      process.env.AUTO_CRON_ENABLED = 'true';
+      // Don't initialize if database query fails - wait for retry
+      this.isInitialized = false;
+      return;
     }
 
-    // If not enabled, stop all jobs and mark as NOT initialized
-    if (!autoCronEnabled) {
-      logger.info('Auto cron jobs DISABLED');
+    // If no jobs enabled, stop all and mark as not initialized
+    if (enabledJobs.length === 0) {
+      logger.info('No cron jobs enabled in database');
       this.stopAll();
       this.isInitialized = false;
       return;
@@ -97,31 +87,45 @@ class CronJobsService {
       this.isInitialized = false;
     }
 
-    logger.info('Initializing cron jobs...');
+    logger.info('Initializing cron jobs from database...');
 
     // Stop all existing jobs first (in case of reinit)
     this.stopAll();
 
-    // Job 1: Retry unmatched clicks (every 6 hours)
-    this.scheduleRetryUnmatched();
+    // Schedule each enabled job from database
+    for (const jobConfig of enabledJobs) {
+      const { job_key, job_name, cron_schedule, timezone } = jobConfig;
 
-    // Job 2: Cleanup expired clicks (daily at 3 AM)
-    this.scheduleCleanupExpired();
-
-    // Job 3: Alert expiring clicks (daily at 9 AM)
-    this.scheduleExpiringAlert();
-
-    // Job 4: Cleanup old activity logs (daily at 2 AM)
-    this.scheduleActivityLogsCleanup();
-
-    // Job 5: Cashback reminder emails (configurable time, default: daily at 10 AM)
-    await this.scheduleCashbackReminders();
-
-    // Job 6: Cleanup old notification logs (daily at 4 AM)
-    this.scheduleNotificationLogsCleanup();
+      try {
+        switch (job_key) {
+          case 'retry-unmatched':
+            this.scheduleRetryUnmatched(cron_schedule, timezone);
+            break;
+          case 'cleanup-expired':
+            this.scheduleCleanupExpired(cron_schedule, timezone);
+            break;
+          case 'expiring-alert':
+            this.scheduleExpiringAlert(cron_schedule, timezone);
+            break;
+          case 'activity-logs-cleanup':
+            this.scheduleActivityLogsCleanup(cron_schedule, timezone);
+            break;
+          case 'cashback-reminders':
+            await this.scheduleCashbackReminders(cron_schedule, timezone);
+            break;
+          case 'notification-logs-cleanup':
+            this.scheduleNotificationLogsCleanup(cron_schedule, timezone);
+            break;
+          default:
+            logger.warn(`Unknown cron job key: ${job_key}`);
+        }
+      } catch (error) {
+        logger.error(`Failed to schedule job ${job_key}:`, error.message);
+      }
+    }
 
     this.isInitialized = true;
-    logger.success(`✅ Initialized ${this.jobs.length} cron jobs (auto-start enabled)`);
+    logger.success(`✅ Initialized ${this.jobs.length} cron jobs from database`);
   }
 
   /**
@@ -136,12 +140,10 @@ class CronJobsService {
 
   /**
    * Job 1: Retry unmatched clicks
-   * Schedule: Every 6 hours
+   * Schedule: Configurable from database (default: Every 6 hours)
    * Purpose: Automatically recover lost conversions
    */
-  scheduleRetryUnmatched() {
-    const schedule = process.env.RETRY_CRON_SCHEDULE || '0 */6 * * *'; // Default: every 6 hours
-
+  scheduleRetryUnmatched(schedule = '0 */6 * * *', timezone = 'Asia/Ho_Chi_Minh') {
     const job = cron.schedule(schedule, async () => {
       logger.info('🔄 Cron: Retry unmatched clicks started');
 
@@ -172,7 +174,7 @@ class CronJobsService {
       }
     }, {
       scheduled: true,
-      timezone: "Asia/Ho_Chi_Minh"
+      timezone
     });
 
     // Ensure job is started
@@ -192,8 +194,7 @@ class CronJobsService {
    * Schedule: Daily at 3 AM
    * Purpose: Mark clicks as expired after 30 days
    */
-  scheduleCleanupExpired() {
-    const schedule = '0 3 * * *'; // Daily at 3 AM
+  scheduleCleanupExpired(schedule = '0 3 * * *', timezone = 'Asia/Ho_Chi_Minh') {
 
     const job = cron.schedule(schedule, async () => {
       logger.info('🗑️  Cron: Cleanup expired clicks started');
@@ -226,7 +227,7 @@ class CronJobsService {
       }
     }, {
       scheduled: true,
-      timezone: "Asia/Ho_Chi_Minh"
+      timezone
     });
 
     // Ensure job is started
@@ -246,8 +247,7 @@ class CronJobsService {
    * Schedule: Daily at 9 AM
    * Purpose: Log warning for clicks expiring soon
    */
-  scheduleExpiringAlert() {
-    const schedule = '0 9 * * *'; // Daily at 9 AM
+  scheduleExpiringAlert(schedule = '0 9 * * *', timezone = 'Asia/Ho_Chi_Minh') {
 
     const job = cron.schedule(schedule, async () => {
       logger.info('⏰ Cron: Expiring clicks alert started');
@@ -274,7 +274,7 @@ class CronJobsService {
       }
     }, {
       scheduled: true,
-      timezone: "Asia/Ho_Chi_Minh"
+      timezone
     });
 
     // Ensure job is started
@@ -294,8 +294,7 @@ class CronJobsService {
    * Schedule: Daily at 2 AM
    * Purpose: Delete activity logs older than 90 days
    */
-  scheduleActivityLogsCleanup() {
-    const schedule = '0 2 * * *'; // Daily at 2 AM
+  scheduleActivityLogsCleanup(schedule = '0 2 * * *', timezone = 'Asia/Ho_Chi_Minh') {
 
     const job = cron.schedule(schedule, async () => {
       logger.info('🗑️  Cron: Activity logs cleanup started');
@@ -329,7 +328,7 @@ class CronJobsService {
       }
     }, {
       scheduled: true,
-      timezone: "Asia/Ho_Chi_Minh"
+      timezone
     });
 
     // Ensure job is started
@@ -346,27 +345,20 @@ class CronJobsService {
 
   /**
    * Job 5: Cashback reminder emails
-   * Schedule: Configurable via system_settings (default: daily at 10:00 AM)
+   * Schedule: Configurable from database (default: daily at 10:00 AM)
    * Purpose: Send periodic reminders to users with available cashback
    */
-  async scheduleCashbackReminders() {
+  async scheduleCashbackReminders(schedule = '0 10 * * *', timezone = 'Asia/Ho_Chi_Minh') {
     try {
       const SystemSettings = require('../services/systemSettings');
 
-      // Check if reminders are enabled
+      // Check if reminders are enabled via additional setting
       const enabled = await SystemSettings.get('cashback_reminder_enabled', true);
 
       if (!enabled || enabled === 'false') {
         logger.info('📧 Cashback reminders DISABLED via system settings');
         return;
       }
-
-      // Get configured time (format: HH:MM)
-      const reminderTime = await SystemSettings.get('cashback_reminder_time', '10:00');
-      const [hour, minute] = reminderTime.split(':');
-
-      // Build cron schedule: "minute hour * * *" (daily at specified time)
-      const schedule = `${minute} ${hour} * * *`;
 
       const job = cron.schedule(schedule, async () => {
         logger.info('📧 Cron: Cashback reminder emails started');
@@ -419,7 +411,7 @@ class CronJobsService {
         job
       });
 
-      logger.info(`✅ Scheduled & Started: Cashback reminder emails (${schedule} = ${reminderTime} daily)`);
+      logger.info(`✅ Scheduled & Started: Cashback reminder emails (${schedule})`);
 
     } catch (error) {
       logger.error('Failed to schedule cashback reminders', {
@@ -433,8 +425,7 @@ class CronJobsService {
    * Schedule: Daily at 4 AM
    * Purpose: Delete notification logs older than 90 days
    */
-  scheduleNotificationLogsCleanup() {
-    const schedule = '0 4 * * *'; // Daily at 4 AM
+  scheduleNotificationLogsCleanup(schedule = '0 4 * * *', timezone = 'Asia/Ho_Chi_Minh') {
 
     const job = cron.schedule(schedule, async () => {
       logger.info('🗑️  Cron: Notification logs cleanup started');
@@ -469,7 +460,7 @@ class CronJobsService {
       }
     }, {
       scheduled: true,
-      timezone: "Asia/Ho_Chi_Minh"
+      timezone
     });
 
     // Ensure job is started
@@ -507,17 +498,65 @@ class CronJobsService {
   /**
    * Get status of all jobs
    */
-  getStatus() {
-    return {
-      isInitialized: this.isInitialized,
-      autoCronEnabled: process.env.AUTO_CRON_ENABLED === 'true',
-      jobsCount: this.jobs.length,
-      jobs: this.jobs.map(({ name, schedule }) => ({
-        name,
-        schedule,
-        status: 'running'
-      }))
-    };
+  async getStatus() {
+    try {
+      const { pool } = require('../config/database');
+
+      // Get all jobs from database with their current status
+      const result = await pool.query(`
+        SELECT
+          job_key,
+          job_name,
+          cron_schedule,
+          is_enabled,
+          is_running,
+          last_run_at,
+          last_run_status,
+          last_run_duration_ms,
+          next_run_at,
+          total_runs,
+          success_runs,
+          failed_runs
+        FROM cron_jobs
+        ORDER BY job_key
+      `);
+
+      return {
+        isInitialized: this.isInitialized,
+        jobsCount: this.jobs.length,
+        enabledJobsCount: result.rows.filter(j => j.is_enabled).length,
+        jobs: result.rows.map(job => ({
+          key: job.job_key,
+          name: job.job_name,
+          schedule: job.cron_schedule,
+          isEnabled: job.is_enabled,
+          isRunning: job.is_running,
+          lastRunAt: job.last_run_at,
+          lastRunStatus: job.last_run_status,
+          lastRunDuration: job.last_run_duration_ms,
+          nextRunAt: job.next_run_at,
+          totalRuns: job.total_runs,
+          successRuns: job.success_runs,
+          failedRuns: job.failed_runs,
+          successRate: job.total_runs > 0
+            ? ((job.success_runs / job.total_runs) * 100).toFixed(1) + '%'
+            : 'N/A'
+        }))
+      };
+    } catch (error) {
+      logger.error('Failed to get cron jobs status:', error.message);
+      return {
+        isInitialized: this.isInitialized,
+        jobsCount: this.jobs.length,
+        enabledJobsCount: this.jobs.length,
+        jobs: this.jobs.map(({ name, schedule }) => ({
+          name,
+          schedule,
+          status: 'running'
+        })),
+        error: error.message
+      };
+    }
   }
 
   /**
@@ -556,6 +595,14 @@ class CronJobsService {
       case 'cashback-reminders':
         const CashbackNotificationService = require('../services/notifications/CashbackNotificationService');
         return await CashbackNotificationService.sendPeriodicReminders();
+
+      case 'notification-logs-cleanup':
+        const { pool: notifPool } = require('../config/database');
+        const notifCleanupResult = await notifPool.query(`
+          DELETE FROM notification_logs
+          WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '30 days'
+        `);
+        return { deletedCount: notifCleanupResult.rowCount };
 
       default:
         throw new Error(`Unknown job: ${jobName}`);
