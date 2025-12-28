@@ -225,6 +225,45 @@ router.patch('/:id/status', authenticateAdmin, async (req, res) => {
 });
 
 /**
+ * PATCH /api/reconciliation/:id/label
+ * Update reconciliation period label (draft only)
+ * Body: { label }
+ */
+router.patch('/:id/label', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { label } = req.body;
+
+    if (!label) {
+      return res.status(400).json({
+        success: false,
+        message: 'label is required'
+      });
+    }
+
+    const updated = await reconciliationService.updatePeriodLabel(id, label);
+
+    res.json({
+      success: true,
+      message: 'Cập nhật tên kỳ đối soát thành công',
+      data: updated
+    });
+  } catch (error) {
+    logger.error('Update reconciliation label failed', {
+      error: error.message,
+      reconciliationId: req.params.id,
+      label: req.body.label,
+      adminId: req.user?.id
+    });
+
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
  * POST /api/reconciliation/:id/rerun
  * Re-run reconciliation (create new version)
  * Body: { notes }

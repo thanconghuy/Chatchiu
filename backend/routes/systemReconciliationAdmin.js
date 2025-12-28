@@ -515,6 +515,105 @@ router.put('/:id', async (req, res) => {
 });
 
 /**
+ * DELETE /api/admin/system-reconciliation/:id
+ * Delete reconciliation (only draft status)
+ */
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if reconciliation exists and is draft
+    const checkQuery = `
+      SELECT id, status, period_label
+      FROM system_reconciliations
+      WHERE id = $1
+    `;
+    const checkResult = await pool.query(checkQuery, [id]);
+
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy kỳ đối soát'
+      });
+    }
+
+    const reconciliation = checkResult.rows[0];
+
+    if (reconciliation.status !== 'draft') {
+      return res.status(400).json({
+        success: false,
+        message: 'Chỉ có thể xóa kỳ đối soát ở trạng thái nháp (draft)'
+      });
+    }
+
+    // IMPORTANT: Restore conversions to waiting status before deleting
+    // Get all conversion IDs from this reconciliation
+    const getConversionsQuery = `
+      SELECT conversion_id
+      FROM system_reconciliation_items
+      WHERE system_reconciliation_id = $1
+    `;
+    const conversionsResult = await pool.query(getConversionsQuery, [id]);
+    const conversionIds = conversionsResult.rows.map(r => r.conversion_id);
+
+    console.log(`[Delete Reconciliation] Restoring ${conversionIds.length} conversions to waiting status`);
+
+    // Restore conversions: clear system_reconciliation_status and system_reconciliation_id
+    if (conversionIds.length > 0) {
+      const restoreConversionsQuery = `
+        UPDATE conversions
+        SET
+          system_reconciliation_status = NULL,
+          system_reconciliation_id = NULL,
+          updated_at = NOW()
+        WHERE id = ANY($1)
+      `;
+      await pool.query(restoreConversionsQuery, [conversionIds]);
+
+      console.log(`[Delete Reconciliation] Restored ${conversionIds.length} conversions in conversions table`);
+
+      // ALSO restore status in reconciliation_waiting_list (if exists)
+      const restoreWaitingListQuery = `
+        UPDATE reconciliation_waiting_list
+        SET
+          status = 'waiting',
+          selected_for_reconciliation_id = NULL,
+          updated_at = NOW()
+        WHERE conversion_id = ANY($1)
+          AND status = 'reconciled'
+      `;
+      const waitingListResult = await pool.query(restoreWaitingListQuery, [conversionIds]);
+
+      if (waitingListResult.rowCount > 0) {
+        console.log(`[Delete Reconciliation] Restored ${waitingListResult.rowCount} conversions in waiting list to 'waiting' status`);
+      }
+    }
+
+    // Delete reconciliation (CASCADE will delete items and logs)
+    const deleteQuery = `
+      DELETE FROM system_reconciliations
+      WHERE id = $1
+      RETURNING id
+    `;
+    await pool.query(deleteQuery, [id]);
+
+    console.log(`[Delete Reconciliation] Deleted reconciliation ${id}`);
+
+    res.json({
+      success: true,
+      message: `Đã xóa kỳ đối soát "${reconciliation.period_label}" và trả ${conversionIds.length} đơn hàng về trạng thái chờ`
+    });
+
+  } catch (error) {
+    console.error('Error deleting reconciliation:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
  * GET /api/admin/system-reconciliation/:id/logs
  * Get reconciliation logs
  */

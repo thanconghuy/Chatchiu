@@ -553,6 +553,63 @@ class ReconciliationService {
       throw error;
     }
   }
+
+  /**
+   * Update reconciliation period label
+   * Only allowed for draft status
+   * @param {string} reconciliationId
+   * @param {string} newLabel
+   * @returns {Promise<Object>}
+   */
+  async updatePeriodLabel(reconciliationId, newLabel) {
+    try {
+      logger.info('Updating reconciliation period label', { reconciliationId, newLabel });
+
+      // Validate reconciliation exists and is draft
+      const reconciliation = await Reconciliation.findById(reconciliationId);
+      if (!reconciliation) {
+        throw new Error('Kỳ đối soát không tồn tại');
+      }
+
+      if (reconciliation.status !== 'draft') {
+        throw new Error('Chỉ có thể sửa tên kỳ đối soát ở trạng thái nháp');
+      }
+
+      // Validate label
+      if (!newLabel || newLabel.trim().length === 0) {
+        throw new Error('Tên kỳ đối soát không được để trống');
+      }
+
+      if (newLabel.trim().length > 100) {
+        throw new Error('Tên kỳ đối soát không được vượt quá 100 ký tự');
+      }
+
+      // Update period_label
+      const query = `
+        UPDATE reconciliations
+        SET period_label = $1, updated_at = NOW()
+        WHERE id = $2
+        RETURNING *
+      `;
+
+      const result = await db.query(query, [newLabel.trim(), reconciliationId]);
+
+      logger.success('Updated reconciliation period label', {
+        reconciliationId,
+        oldLabel: reconciliation.period_label,
+        newLabel: newLabel.trim()
+      });
+
+      return result.rows[0];
+    } catch (error) {
+      logger.error('Failed to update reconciliation period label', {
+        reconciliationId,
+        newLabel,
+        error: error.message
+      });
+      throw error;
+    }
+  }
 }
 
 module.exports = new ReconciliationService();

@@ -1415,120 +1415,53 @@
             console.log('🔄 Loading cron jobs status...');
 
             try {
-                const response = await apiRequest('/admin/cron/status');
-                console.log('Cron status response:', response);
+                // Get detailed jobs info from database
+                const response = await apiRequest('/admin/cron/jobs');
+                console.log('Cron jobs response:', response);
 
                 if (!response || !response.success) {
-                    throw new Error(response?.message || 'Failed to load cron status');
+                    throw new Error(response?.message || 'Failed to load cron jobs');
                 }
 
-                const status = response.data; // Backend returns data field, not status
-                console.log('Cron status data:', status);
+                const jobs = response.data;
+                console.log('Cron jobs data:', jobs);
 
-                // Update toggle
-                document.getElementById('autoCronToggle').checked = status.autoCronEnabled;
+                // Count enabled jobs
+                const enabledCount = jobs.filter(j => j.is_enabled).length;
 
-                // Update status badge
-                updateAutoCronStatus(status.autoCronEnabled ? 'true' : 'false');
-
-                // Update info text
-                const infoText = status.isInitialized
-                    ? `Đã khởi tạo • ${status.jobsCount} jobs đang chạy`
-                    : 'Chưa được khởi tạo';
+                // Update info text (no toggle anymore - controlled per-job)
+                const infoText = `${enabledCount}/${jobs.length} jobs được kích hoạt`;
                 document.getElementById('cronJobsInfo').textContent = infoText;
 
-                // **AUTO-FIX**: If enabled but no jobs running, auto-reload on page load
+                // Render jobs table with full management
                 const jobsList = document.getElementById('cronJobsList');
-                if (status.autoCronEnabled && status.jobsCount === 0) {
-                    console.warn('⚠️ Auto Cron enabled but no jobs running! Auto-reloading...');
-
-                    // Show loading state
-                    jobsList.innerHTML = `
-                        <div style="text-align: center; padding: 30px; background: #E3F2FD; border-radius: 8px; border: 1px solid #2196F3;">
-                            <div style="font-size: 2rem; margin-bottom: 10px;">🔄</div>
-                            <div style="font-size: 1.1rem; font-weight: 600; color: #1565C0; margin-bottom: 8px;">
-                                Đang khởi động Cron Jobs...
-                            </div>
-                            <div style="color: #1976D2;">
-                                Vui lòng đợi...
-                            </div>
-                        </div>
-                    `;
-
-                    // Auto-reload jobs after 1 second
-                    setTimeout(async () => {
-                        try {
-                            const reloadResponse = await apiRequest('/admin/settings/cron-reload', {
-                                method: 'POST'
-                            });
-
-                            if (reloadResponse.success) {
-                                console.log('✅ Auto-reload successful');
-                                showToast('🔄 Cron Jobs đã được khởi động tự động', 'success');
-
-                                // Reload status to show running jobs
-                                setTimeout(() => {
-                                    loadCronJobsStatus();
-                                }, 1000);
-                            } else {
-                                throw new Error(reloadResponse.message || 'Reload failed');
-                            }
-                        } catch (error) {
-                            console.error('Auto-reload failed:', error);
-                            // Show manual reload button on failure
-                            jobsList.innerHTML = `
-                                <div style="text-align: center; padding: 30px; background: #FFF3CD; border-radius: 8px; border: 1px solid #FFC107;">
-                                    <div style="font-size: 2rem; margin-bottom: 10px;">⚠️</div>
-                                    <div style="font-size: 1.1rem; font-weight: 600; color: #856404; margin-bottom: 8px;">
-                                        Không thể khởi động tự động
-                                    </div>
-                                    <div style="color: #856404; margin-bottom: 16px;">
-                                        Hãy click "Reload Jobs" để khởi động thủ công.
-                                    </div>
-                                    <button
-                                        onclick="document.getElementById('reloadCronBtn').click()"
-                                        style="background: #FFC107; color: #000; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600;">
-                                        🔄 Reload Jobs Ngay
-                                    </button>
-                                </div>
-                            `;
-                        }
-                    }, 1000);
-                } else if (status.jobsCount > 0) {
-                    // Jobs are running - show normal list
-                    jobsList.innerHTML = `
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <thead>
-                                <tr style="background: white; border-bottom: 2px solid var(--gray-300);">
-                                    <th style="padding: 8px; text-align: left; font-size: 0.85rem;">Job Name</th>
-                                    <th style="padding: 8px; text-align: left; font-size: 0.85rem;">Lịch Trình</th>
-                                    <th style="padding: 8px; text-align: center; font-size: 0.85rem;">Trạng Thái</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${status.jobs.map(job => `
-                                    <tr style="border-bottom: 1px solid var(--gray-200);">
-                                        <td style="padding: 8px; font-size: 0.9rem;">${formatJobName(job.name)}</td>
-                                        <td style="padding: 8px; font-size: 0.85rem; font-family: monospace;">${job.schedule}</td>
-                                        <td style="padding: 8px; text-align: center;">
-                                            <span style="background: #C6F6D5; color: #22543D; padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
-                                                Running
-                                            </span>
-                                        </td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    `;
-                    console.log('✅ Cron jobs list rendered successfully');
-                } else {
-                    // Auto Cron is disabled
+                if (jobs.length === 0) {
                     jobsList.innerHTML = `
                         <div style="text-align: center; color: var(--gray-500); padding: 20px;">
-                            ⚠️ Auto Cron Jobs đã được tắt. Bật toggle ở trên để kích hoạt.
+                            Không có cron jobs nào được cấu hình
                         </div>
                     `;
-                    console.log('ℹ️ Auto Cron disabled');
+                } else {
+                    jobsList.innerHTML = `
+                        <div style="overflow-x: auto;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                                <thead>
+                                    <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                                        <th style="padding: 12px 8px; text-align: left;">Tên Job</th>
+                                        <th style="padding: 12px 8px; text-align: left;">Schedule</th>
+                                        <th style="padding: 12px 8px; text-align: center;">Status</th>
+                                        <th style="padding: 12px 8px; text-align: right;">Last Run</th>
+                                        <th style="padding: 12px 8px; text-align: right;">Stats</th>
+                                        <th style="padding: 12px 8px; text-align: center;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${jobs.map(job => renderCronJobRow(job)).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                    console.log('✅ Cron jobs table rendered');
                 }
             } catch (error) {
                 console.error('❌ Error loading cron jobs status:', error);
@@ -1546,6 +1479,223 @@
                     </div>
                 `;
             }
+        }
+
+        // Render a single cron job row with full management UI
+        function renderCronJobRow(job) {
+            // Format last run time
+            const lastRunText = job.last_run_at
+                ? formatRelativeTime(new Date(job.last_run_at))
+                : 'Chưa chạy';
+
+            // Status badge
+            let statusBadge = '';
+            if (job.is_running) {
+                statusBadge = '<span style="display: inline-block; padding: 4px 8px; background: #fbbf24; color: #78350f; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">Đang chạy</span>';
+            } else if (job.is_enabled) {
+                statusBadge = '<span style="display: inline-block; padding: 4px 8px; background: #10b981; color: white; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">Kích hoạt</span>';
+            } else {
+                statusBadge = '<span style="display: inline-block; padding: 4px 8px; background: #6b7280; color: white; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">Tắt</span>';
+            }
+
+            // Last run status color
+            let lastRunColor = '#6b7280';
+            if (job.last_run_status === 'success') lastRunColor = '#10b981';
+            if (job.last_run_status === 'failed') lastRunColor = '#ef4444';
+            if (job.last_run_status === 'running') lastRunColor = '#fbbf24';
+
+            // Stats text
+            const statsText = job.total_runs > 0
+                ? `${job.total_runs} lần | Thành công: ${job.successRate}`
+                : 'Chưa có thống kê';
+
+            // Duration text
+            const durationText = job.last_run_duration_ms
+                ? `${(job.last_run_duration_ms / 1000).toFixed(1)}s`
+                : '-';
+
+            return `
+                <tr style="border-bottom: 1px solid #e5e7eb;">
+                    <td style="padding: 12px 8px;">
+                        <div style="font-weight: 600; color: #1f2937;">${job.job_name}</div>
+                        <div style="font-size: 0.75rem; color: #6b7280; margin-top: 2px;">${job.description || job.job_key}</div>
+                    </td>
+                    <td style="padding: 12px 8px;">
+                        <code style="font-size: 0.85rem; background: #f3f4f6; padding: 4px 8px; border-radius: 4px;">${job.cron_schedule}</code>
+                        <div style="font-size: 0.7rem; color: #6b7280; margin-top: 2px;">${job.timezone || 'Asia/Ho_Chi_Minh'}</div>
+                    </td>
+                    <td style="padding: 12px 8px; text-align: center;">
+                        ${statusBadge}
+                    </td>
+                    <td style="padding: 12px 8px; text-align: right;">
+                        <div style="font-size: 0.85rem; color: ${lastRunColor}; font-weight: 500;">
+                            ${job.last_run_status ? job.last_run_status.toUpperCase() : '-'}
+                        </div>
+                        <div style="font-size: 0.75rem; color: #6b7280; margin-top: 2px;">
+                            ${lastRunText} ${job.last_run_duration_ms ? `(${durationText})` : ''}
+                        </div>
+                    </td>
+                    <td style="padding: 12px 8px; text-align: right;">
+                        <div style="font-size: 0.85rem; color: #1f2937;">${statsText}</div>
+                        ${job.last_run_result ? `
+                            <div style="font-size: 0.7rem; color: #6b7280; margin-top: 2px;">
+                                <a href="#" data-action="show-job-result" data-job-key="${job.job_key}" style="color: #06b6d4; text-decoration: none;">
+                                    Xem chi tiết →
+                                </a>
+                            </div>
+                        ` : ''}
+                    </td>
+                    <td style="padding: 12px 8px; text-align: center;">
+                        <!-- Dropdown Actions Menu -->
+                        <div style="position: relative; display: inline-block;">
+                            <button
+                                data-action="toggle-cron-dropdown"
+                                data-job-key="${job.job_key}"
+                                style="
+                                    padding: 6px 12px;
+                                    background: #f3f4f6;
+                                    border: 1px solid #d1d5db;
+                                    border-radius: 6px;
+                                    cursor: pointer;
+                                    font-size: 1rem;
+                                    color: #4b5563;
+                                    transition: all 0.2s;
+                                "
+                                onmouseover="this.style.background='#e5e7eb'"
+                                onmouseout="this.style.background='#f3f4f6'"
+                            >
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+
+                            <!-- Dropdown Menu (hidden by default) -->
+                            <div
+                                id="cron-dropdown-${job.job_key}"
+                                class="cron-dropdown-menu"
+                                style="
+                                    display: none;
+                                    position: absolute;
+                                    right: 0;
+                                    top: 100%;
+                                    margin-top: 4px;
+                                    background: white;
+                                    border: 1px solid #e5e7eb;
+                                    border-radius: 8px;
+                                    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+                                    min-width: 200px;
+                                    z-index: 1000;
+                                "
+                            >
+                                <!-- Toggle Enable/Disable -->
+                                <button
+                                    data-action="toggle-cron-job-menu"
+                                    data-job-key="${job.job_key}"
+                                    data-current-status="${job.is_enabled}"
+                                    style="
+                                        width: 100%;
+                                        padding: 10px 16px;
+                                        text-align: left;
+                                        border: none;
+                                        background: white;
+                                        cursor: pointer;
+                                        font-size: 0.875rem;
+                                        color: #374151;
+                                        display: flex;
+                                        align-items: center;
+                                        gap: 8px;
+                                        border-radius: 8px 8px 0 0;
+                                    "
+                                    onmouseover="this.style.background='#f9fafb'"
+                                    onmouseout="this.style.background='white'"
+                                >
+                                    <i class="fas ${job.is_enabled ? 'fa-toggle-on' : 'fa-toggle-off'}" style="width: 16px; color: ${job.is_enabled ? '#10b981' : '#6b7280'};"></i>
+                                    <span>${job.is_enabled ? 'Tắt' : 'Kích hoạt'} Job</span>
+                                </button>
+
+                                <hr style="margin: 0; border: none; border-top: 1px solid #e5e7eb;">
+
+                                <!-- Manual Trigger -->
+                                <button
+                                    data-action="trigger-cron-job"
+                                    data-job-key="${job.job_key}"
+                                    ${job.is_running ? 'disabled' : ''}
+                                    style="
+                                        width: 100%;
+                                        padding: 10px 16px;
+                                        text-align: left;
+                                        border: none;
+                                        background: white;
+                                        cursor: ${job.is_running ? 'not-allowed' : 'pointer'};
+                                        font-size: 0.875rem;
+                                        color: ${job.is_running ? '#9ca3af' : '#374151'};
+                                        display: flex;
+                                        align-items: center;
+                                        gap: 8px;
+                                        opacity: ${job.is_running ? '0.5' : '1'};
+                                    "
+                                    onmouseover="if(!this.disabled) this.style.background='#f9fafb'"
+                                    onmouseout="this.style.background='white'"
+                                >
+                                    <i class="fas fa-play" style="width: 16px; color: #06b6d4;"></i>
+                                    <span>Chạy ngay</span>
+                                </button>
+
+                                ${job.last_run_result ? `
+                                <hr style="margin: 0; border: none; border-top: 1px solid #e5e7eb;">
+
+                                <!-- View Results -->
+                                <button
+                                    data-action="show-job-result"
+                                    data-job-key="${job.job_key}"
+                                    style="
+                                        width: 100%;
+                                        padding: 10px 16px;
+                                        text-align: left;
+                                        border: none;
+                                        background: white;
+                                        cursor: pointer;
+                                        font-size: 0.875rem;
+                                        color: #374151;
+                                        display: flex;
+                                        align-items: center;
+                                        gap: 8px;
+                                        border-radius: 0 0 8px 8px;
+                                    "
+                                    onmouseover="this.style.background='#f9fafb'"
+                                    onmouseout="this.style.background='white'"
+                                >
+                                    <i class="fas fa-chart-bar" style="width: 16px; color: #8b5cf6;"></i>
+                                    <span>Xem kết quả</span>
+                                </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+
+        // Helper function to format relative time
+        function formatRelativeTime(date) {
+            const now = new Date();
+            const diffMs = now - date;
+            const diffSecs = Math.floor(diffMs / 1000);
+            const diffMins = Math.floor(diffSecs / 60);
+            const diffHours = Math.floor(diffMins / 60);
+            const diffDays = Math.floor(diffHours / 24);
+
+            if (diffSecs < 60) return `${diffSecs}s trước`;
+            if (diffMins < 60) return `${diffMins}m trước`;
+            if (diffHours < 24) return `${diffHours}h trước`;
+            if (diffDays < 7) return `${diffDays}d trước`;
+
+            // Format as date if older than 7 days
+            return date.toLocaleDateString('vi-VN', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
         }
 
         // Format job name to Vietnamese
@@ -1590,6 +1740,147 @@
                 btn.innerHTML = originalHtml;
             }
         }
+
+        // Toggle enable/disable cron job
+        async function toggleCronJob(jobKey, isEnabled) {
+            console.log(`Toggle cron job: ${jobKey} to ${isEnabled}`);
+
+            try {
+                const response = await apiRequest(`/admin/cron/jobs/${jobKey}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ is_enabled: isEnabled })
+                });
+
+                if (response.success) {
+                    showToast(
+                        isEnabled
+                            ? `✅ Đã kích hoạt job "${response.data.job_name}"`
+                            : `⚠️ Đã tắt job "${response.data.job_name}"`,
+                        'success'
+                    );
+
+                    // Reload to show updated status
+                    setTimeout(() => {
+                        loadCronJobsStatus();
+                    }, 500);
+                } else {
+                    showToast(response.message || 'Cập nhật thất bại', 'error');
+                    // Reload to revert UI
+                    loadCronJobsStatus();
+                }
+            } catch (error) {
+                console.error('Toggle cron job error:', error);
+                showToast('❌ Không thể cập nhật cron job', 'error');
+                // Reload to revert UI
+                loadCronJobsStatus();
+            }
+        }
+
+        // Manually trigger a cron job
+        async function triggerCronJob(jobKey) {
+            console.log(`Manually triggering cron job: ${jobKey}`);
+
+            // Close dropdown first
+            closeCronDropdown(jobKey);
+
+            if (!confirm(`Bạn có chắc muốn chạy job "${jobKey}" ngay bây giờ?`)) {
+                return;
+            }
+
+            try {
+                const response = await apiRequest(`/admin/cron/trigger/${jobKey}`, {
+                    method: 'POST'
+                });
+
+                if (response.success) {
+                    showToast(`✅ Job "${jobKey}" đã được chạy thành công!`, 'success');
+
+                    // Reload to show updated status
+                    setTimeout(() => {
+                        loadCronJobsStatus();
+                    }, 1000);
+                } else {
+                    showToast(response.message || 'Chạy job thất bại', 'error');
+                }
+            } catch (error) {
+                console.error('Trigger cron job error:', error);
+                showToast('❌ Không thể chạy cron job', 'error');
+            }
+        }
+
+        // Show job result details in a modal or alert
+        async function showJobResult(jobKey) {
+            console.log(`Showing result for job: ${jobKey}`);
+
+            try {
+                // Get job details from API
+                const response = await apiRequest('/admin/cron/jobs');
+
+                if (!response.success) {
+                    throw new Error(response.message || 'Failed to load job details');
+                }
+
+                const job = response.data.find(j => j.job_key === jobKey);
+
+                if (!job || !job.last_run_result) {
+                    showToast('Không có kết quả để hiển thị', 'info');
+                    return;
+                }
+
+                // Format result as JSON
+                const resultJson = JSON.stringify(job.last_run_result, null, 2);
+
+                // Show in alert (simple approach)
+                // TODO: Create a proper modal for better UX
+                alert(`Kết quả chạy job "${job.job_name}":\n\n${resultJson}`);
+
+                // Close dropdown
+                closeCronDropdown(jobKey);
+
+            } catch (error) {
+                console.error('Show job result error:', error);
+                showToast('❌ Không thể tải kết quả job', 'error');
+            }
+        }
+
+        // Toggle cron dropdown menu
+        function toggleCronDropdown(jobKey) {
+            const dropdown = document.getElementById(`cron-dropdown-${jobKey}`);
+            if (!dropdown) return;
+
+            // Close all other dropdowns first
+            document.querySelectorAll('.cron-dropdown-menu').forEach(menu => {
+                if (menu.id !== `cron-dropdown-${jobKey}`) {
+                    menu.style.display = 'none';
+                }
+            });
+
+            // Toggle current dropdown
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // Close specific dropdown
+        function closeCronDropdown(jobKey) {
+            const dropdown = document.getElementById(`cron-dropdown-${jobKey}`);
+            if (dropdown) {
+                dropdown.style.display = 'none';
+            }
+        }
+
+        // Close all dropdowns
+        function closeAllCronDropdowns() {
+            document.querySelectorAll('.cron-dropdown-menu').forEach(menu => {
+                menu.style.display = 'none';
+            });
+        }
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('[data-action="toggle-cron-dropdown"]') &&
+                !e.target.closest('.cron-dropdown-menu')) {
+                closeAllCronDropdowns();
+            }
+        });
 
         // Toggle auto cron
         document.getElementById('autoCronToggle')?.addEventListener('change', async (e) => {
@@ -3352,6 +3643,29 @@ ChatChiu Cashback System</textarea>
                     e.stopPropagation();
                     saveEmailTemplate();
                     break;
+                case 'trigger-cron-job':
+                    e.preventDefault();
+                    e.stopPropagation();
+                    triggerCronJob(button.dataset.jobKey);
+                    break;
+                case 'show-job-result':
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showJobResult(button.dataset.jobKey);
+                    break;
+                case 'toggle-cron-dropdown':
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleCronDropdown(button.dataset.jobKey);
+                    break;
+                case 'toggle-cron-job-menu':
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const isEnabled = button.dataset.currentStatus === 'true';
+                    toggleCronJob(button.dataset.jobKey, !isEnabled);
+                    // Close dropdown after action
+                    closeCronDropdown(button.dataset.jobKey);
+                    break;
             }
         });
 
@@ -3368,6 +3682,9 @@ ChatChiu Cashback System</textarea>
                     break;
                 case 'toggle-custom-schedule':
                     toggleCustomSchedule();
+                    break;
+                case 'toggle-cron-job':
+                    toggleCronJob(element.dataset.jobKey, element.checked);
                     break;
             }
         });
