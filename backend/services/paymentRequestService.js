@@ -193,10 +193,20 @@ class PaymentRequestService {
     try {
       logger.info('Creating payment request with enhanced validation', { userId, requestedAmount });
 
-      // Basic input validation
-      if (requestedAmount < 100000) {
-        const error = new Error('Số tiền yêu cầu phải ≥ 100,000 VNĐ');
+      // Get withdrawal limits from system settings
+      const minWithdrawal = await SystemSettingsService.getSetting('min_withdrawal_amount') || 50000;
+      const maxWithdrawal = await SystemSettingsService.getSetting('max_withdrawal_amount') || 5000000;
+
+      // Basic input validation with dynamic limits
+      if (requestedAmount < minWithdrawal) {
+        const error = new Error(`Số tiền yêu cầu phải ≥ ${minWithdrawal.toLocaleString('vi-VN')} VNĐ`);
         error.code = 'BELOW_MIN_AMOUNT';
+        throw error;
+      }
+
+      if (requestedAmount > maxWithdrawal) {
+        const error = new Error(`Số tiền yêu cầu không được vượt quá ${maxWithdrawal.toLocaleString('vi-VN')} VNĐ`);
+        error.code = 'ABOVE_MAX_AMOUNT';
         throw error;
       }
 
