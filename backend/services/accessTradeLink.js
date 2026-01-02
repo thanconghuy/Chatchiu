@@ -142,13 +142,39 @@ class AccessTradeLinkService {
 
       const affiliateUrl = response.data.data.success_link[0].aff_link;
 
+      // CRITICAL FIX: AccessTrade API doesn't include sub parameters in the response
+      // We need to append them manually to maintain tracking consistency
+      let finalAffiliateUrl = affiliateUrl;
+      try {
+        const urlObj = new URL(affiliateUrl);
+
+        // Append sub parameters for backup tracking
+        // These are CRITICAL for conversion matching when utm_content fails
+        urlObj.searchParams.set('sub1', utmParams.sub1 || user.id);
+        urlObj.searchParams.set('sub2', utmParams.sub2 || clickId);
+        urlObj.searchParams.set('sub3', utmParams.sub3 || clickType);
+        urlObj.searchParams.set('sub4', utmParams.sub4 || 'oneatweb');
+
+        finalAffiliateUrl = urlObj.toString();
+
+        logger.info('Appended sub parameters to AccessTrade link', {
+          merchant: merchant.name || merchant.id,
+          sub1: utmParams.sub1,
+          sub2: utmParams.sub2
+        });
+      } catch (error) {
+        logger.warn('Failed to append sub parameters, using original link', {
+          error: error.message
+        });
+      }
+
       logger.success('AccessTrade API link generated successfully', {
         merchant: merchant.name || merchant.id,
-        linkLength: affiliateUrl.length
+        linkLength: finalAffiliateUrl.length
       });
 
       return {
-        affiliateUrl,
+        affiliateUrl: finalAffiliateUrl,
         affSid,
         utmParams,
         originalUrl: destinationUrl,

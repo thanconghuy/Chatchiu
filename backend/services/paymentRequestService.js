@@ -3,6 +3,8 @@ const PaymentRequest = require('../models/PaymentRequestEncrypted');
 const PaymentAccount = require('../models/PaymentAccount');
 const PaymentSystemReconciliationService = require('./paymentSystemReconciliationService');
 const SystemSettingsService = require('./systemSettingsService');
+const UserPaymentHistory = require('../models/UserPaymentHistory');
+const UserPaymentDetail = require('../models/UserPaymentDetail');
 const logger = require('../utils/logger');
 
 /**
@@ -193,10 +195,20 @@ class PaymentRequestService {
     try {
       logger.info('Creating payment request with enhanced validation', { userId, requestedAmount });
 
-      // Basic input validation
-      if (requestedAmount < 100000) {
-        const error = new Error('Số tiền yêu cầu phải ≥ 100,000 VNĐ');
+      // Get withdrawal limits from system settings
+      const minWithdrawal = await SystemSettingsService.getSetting('min_withdrawal_amount') || 50000;
+      const maxWithdrawal = await SystemSettingsService.getSetting('max_withdrawal_amount') || 5000000;
+
+      // Basic input validation with dynamic limits
+      if (requestedAmount < minWithdrawal) {
+        const error = new Error(`Số tiền yêu cầu phải ≥ ${minWithdrawal.toLocaleString('vi-VN')} VNĐ`);
         error.code = 'BELOW_MIN_AMOUNT';
+        throw error;
+      }
+
+      if (requestedAmount > maxWithdrawal) {
+        const error = new Error(`Số tiền yêu cầu không được vượt quá ${maxWithdrawal.toLocaleString('vi-VN')} VNĐ`);
+        error.code = 'ABOVE_MAX_AMOUNT';
         throw error;
       }
 
@@ -474,6 +486,20 @@ class PaymentRequestService {
       logger.success('Payment request marked as paid', {
         id: paymentRequestId,
         transactionReference
+      });
+
+      // Create payment history record for user
+      setImmediate(async () => {
+        try {
+          await this._createPaymentHistoryFromRequest(updated);
+          logger.info('Payment history created from payment request', { paymentRequestId });
+        } catch (historyError) {
+          logger.error('Failed to create payment history', {
+            error: historyError.message,
+            paymentRequestId
+          });
+          // Non-critical, don't block the main flow
+        }
       });
 
       // Send email notification (async, don't block)
@@ -852,6 +878,227 @@ class PaymentRequestService {
     } catch (error) {
       logger.error('Failed to get order payment status', { error: error.message, conversionId });
       throw error;
+    }
+  }
+
+  /**
+   * Create payment history record from paid payment request
+   * This is called automatically when payment is marked as paid
+   * @param {Object} paymentRequest - The paid payment request
+   * @returns {Promise<Object>} Created payment history and details
+   * @private
+   */
+  async _createPaymentHistoryFromRequest(paymentRequest) {
+    const client = await db.pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      logger.info('Creating payment history from payment request', {
+        paymentRequestId: paymentRequest.id,
+        userId: paymentRequest.user_id,
+        amount: paymentRequest.requested_amount
+      });
+
+      // 1. Determine payment period from payment date (YYYY-MM format)
+      const paymentDate = new Date(paymentRequest.updated_at);
+      const paymentPeriod = `${paymentDate.getFullYear()}-${String(paymentDate.getMonth() + 1).padStart(2, '0')}`;
+
+      // 2. Get all linked reconciliation items from payment_reconciliation_mapping
+      const itemsQuery = `
+        SELECT
+          prm.reconciliation_item_id,
+          prm.cashback_amount,
+          sri.conversion_id,
+          sri.merchant_name,
+          sri.order_value,
+          sri.system_reconciliation_id,
+          sr.period_month as reconciliation_month
+        FROM payment_reconciliation_mapping prm
+        INNER JOIN system_reconciliation_items sri ON sri.id = prm.reconciliation_item_id
+        INNER JOIN system_reconciliations sr ON sr.id = sri.system_reconciliation_id
+        WHERE prm.payment_request_id = $1
+        ORDER BY sri.order_time ASC
+      `;
+
+      const itemsResult = await client.query(itemsQuery, [paymentRequest.id]);
+      const reconciliationItems = itemsResult.rows;
+
+      logger.info('Found reconciliation items for payment history', {
+        paymentRequestId: paymentRequest.id,
+        itemsCount: reconciliationItems.length
+      });
+
+      // Handle case where payment request has no linked items (legacy payment requests)
+      if (reconciliationItems.length === 0) {
+        logger.warn('Payment request has no linked reconciliation items - this is a legacy payment request', {
+          paymentRequestId: paymentRequest.id
+        });
+
+        // For legacy payment requests, we still create payment history but without details
+        // Just commit and return early
+        await client.query('COMMIT');
+
+        logger.info('Skipped payment history creation for legacy payment request', {
+          paymentRequestId: paymentRequest.id
+        });
+
+        return {
+          paymentHistory: null,
+          details: [],
+          legacy: true
+        };
+      }
+
+      // 3. Check if payment history already exists for this user and period
+      const existingHistoryQuery = `
+        SELECT id FROM user_payment_history
+        WHERE user_id = $1 AND payment_period = $2
+      `;
+      const existingHistoryResult = await client.query(existingHistoryQuery, [
+        paymentRequest.user_id,
+        paymentPeriod
+      ]);
+
+      let paymentHistory;
+
+      if (existingHistoryResult.rows.length > 0) {
+        // Update existing payment history
+        paymentHistory = existingHistoryResult.rows[0];
+        logger.info('Payment history already exists, will append details', {
+          paymentHistoryId: paymentHistory.id,
+          paymentPeriod
+        });
+
+        // Update total_cashback
+        const updateHistoryQuery = `
+          UPDATE user_payment_history
+          SET
+            total_cashback = total_cashback + $1,
+            updated_at = NOW()
+          WHERE id = $2
+          RETURNING *
+        `;
+        const updateResult = await client.query(updateHistoryQuery, [
+          paymentRequest.requested_amount,
+          paymentHistory.id
+        ]);
+        paymentHistory = updateResult.rows[0];
+
+      } else {
+        // Create new payment history record
+        const createHistoryQuery = `
+          INSERT INTO user_payment_history (
+            user_id,
+            payment_period,
+            total_cashback,
+            reconciliation_date,
+            payment_date,
+            status,
+            payment_method,
+            payment_details
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          RETURNING *
+        `;
+
+        const historyValues = [
+          paymentRequest.user_id,
+          paymentPeriod,
+          paymentRequest.requested_amount,
+          new Date(), // reconciliation_date
+          paymentDate, // payment_date
+          'paid',
+          'bank_transfer', // default payment method
+          JSON.stringify({
+            payment_request_id: paymentRequest.id,
+            bank_name: paymentRequest.bank_name,
+            bank_account_number: paymentRequest.bank_account_number_decrypted || paymentRequest.bank_account_number
+          })
+        ];
+
+        const historyResult = await client.query(createHistoryQuery, historyValues);
+        paymentHistory = historyResult.rows[0];
+
+        logger.info('Created new payment history', {
+          paymentHistoryId: paymentHistory.id,
+          paymentPeriod,
+          totalCashback: paymentHistory.total_cashback
+        });
+      }
+
+      // 4. Create payment details for each reconciliation item
+      const createdDetails = [];
+
+      for (const item of reconciliationItems) {
+        // Get conversion order_id for order_code
+        const conversionQuery = `
+          SELECT order_id FROM conversions WHERE id = $1
+        `;
+        const conversionResult = await client.query(conversionQuery, [item.conversion_id]);
+        const orderCode = conversionResult.rows[0]?.order_id || 'N/A';
+
+        const createDetailQuery = `
+          INSERT INTO user_payment_details (
+            payment_history_id,
+            conversion_id,
+            merchant_name,
+            order_code,
+            cashback_amount,
+            reconciliation_month,
+            payment_month,
+            status,
+            metadata
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          RETURNING *
+        `;
+
+        const detailValues = [
+          paymentHistory.id,
+          item.conversion_id,
+          item.merchant_name,
+          orderCode,
+          item.cashback_amount,
+          item.reconciliation_month,
+          paymentPeriod, // payment_month
+          'paid',
+          JSON.stringify({
+            payment_request_id: paymentRequest.id,
+            reconciliation_item_id: item.reconciliation_item_id,
+            system_reconciliation_id: item.system_reconciliation_id
+          })
+        ];
+
+        const detailResult = await client.query(createDetailQuery, detailValues);
+        createdDetails.push(detailResult.rows[0]);
+      }
+
+      await client.query('COMMIT');
+
+      logger.success('Payment history created successfully', {
+        paymentRequestId: paymentRequest.id,
+        paymentHistoryId: paymentHistory.id,
+        paymentPeriod,
+        detailsCount: createdDetails.length,
+        totalCashback: paymentHistory.total_cashback
+      });
+
+      return {
+        paymentHistory,
+        details: createdDetails
+      };
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      logger.error('Failed to create payment history from payment request', {
+        error: error.message,
+        paymentRequestId: paymentRequest.id,
+        stack: error.stack
+      });
+      throw error;
+    } finally {
+      client.release();
     }
   }
 }

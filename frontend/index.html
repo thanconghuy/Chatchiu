@@ -987,6 +987,33 @@
             margin-bottom: 8px;
         }
 
+        .footer-links {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .footer-links a {
+            color: white;
+            text-decoration: none;
+            opacity: 0.9;
+            transition: opacity 0.3s ease;
+            font-size: 14px;
+        }
+
+        .footer-links a:hover {
+            opacity: 1;
+            text-decoration: underline;
+        }
+
+        .footer-divider {
+            opacity: 0.5;
+            font-size: 14px;
+        }
+
         /* Mobile Responsive */
         @media (max-width: 768px) {
             .hero {
@@ -1462,6 +1489,19 @@
     <!-- Footer -->
     <footer class="footer">
         <div class="footer-content">
+            <div class="footer-links">
+                <a href="/">Trang chủ</a>
+                <span class="footer-divider">|</span>
+                <a href="/about">Giới thiệu</a>
+                <span class="footer-divider">|</span>
+                <a href="/guide">Hướng dẫn</a>
+                <span class="footer-divider">|</span>
+                <a href="/disclaimer">Miễn trừ trách nhiệm</a>
+                <span class="footer-divider">|</span>
+                <a href="/privacy">Bảo mật</a>
+                <span class="footer-divider">|</span>
+                <a href="/terms">Điều khoản</a>
+            </div>
             <p>&copy; 2025 Chắt Chiu - Mua Sắm Thông Minh, Tiết Kiệm Mỗi Ngày</p>
         </div>
     </footer>

@@ -682,6 +682,13 @@ class SystemReconciliationService {
         WHERE id = ANY($2)
       `, [reconciliationId, orders.map(o => o.conversion_id)]);
 
+      // 4.5. Remove from waiting list (if exists)
+      const conversionIds = orders.map(o => o.conversion_id);
+      await client.query(`
+        DELETE FROM reconciliation_waiting_list
+        WHERE conversion_id = ANY($1)
+      `, [conversionIds]);
+
       // 5. Recalculate totals
       const totalsQuery = `
         SELECT

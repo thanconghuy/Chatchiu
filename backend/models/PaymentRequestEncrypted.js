@@ -37,18 +37,15 @@ class PaymentRequestEncrypted {
     try {
       await client.query('BEGIN');
 
-      // Encrypt sensitive fields
-      const bankAccountNumberEncrypted = encryption.encrypt(bankAccountNumber);
-      const bankAccountNumberHash = encryption.hash(bankAccountNumber);
-      const bankAccountNameEncrypted = encryption.encrypt(bankAccountName);
-
-      logger.info('[PaymentRequest] Creating payment request with encrypted data', {
+      // ENCRYPTION DISABLED - Store plain text for now
+      // TODO: Re-enable encryption after fixing key rotation issues
+      logger.info('[PaymentRequest] Creating payment request (encryption disabled)', {
         userId,
         amount: requestedAmount,
         bankName
       });
 
-      // Insert payment request with encrypted data
+      // Insert payment request WITHOUT encryption
       const insertQuery = `
         INSERT INTO payment_requests (
           user_id,
@@ -56,29 +53,21 @@ class PaymentRequestEncrypted {
           bank_name,
           bank_account_number,
           bank_account_name,
-          bank_account_number_encrypted,
-          bank_account_number_hash,
-          bank_account_name_encrypted,
-          encryption_version,
           bank_branch,
           notes,
           status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING
-          id, user_id, requested_amount, bank_name, bank_branch,
-          notes, status, created_at, updated_at, encryption_version
+          id, user_id, requested_amount, bank_name, bank_account_number,
+          bank_account_name, bank_branch, notes, status, created_at, updated_at
       `;
 
       const values = [
         userId,
         requestedAmount,
         bankName,
-        encryption.mask(bankAccountNumber), // Store masked version for display
-        encryption.mask(bankAccountName),   // Store masked version for display
-        bankAccountNumberEncrypted,         // Encrypted version
-        bankAccountNumberHash,              // Hash for lookup
-        bankAccountNameEncrypted,           // Encrypted version
-        1,                                  // Encryption version
+        bankAccountNumber,  // Plain text
+        bankAccountName,    // Plain text
         bankBranch,
         notes,
         'pending'
@@ -182,7 +171,8 @@ class PaymentRequestEncrypted {
         throw new Error('Unauthorized access');
       }
 
-      // Decrypt sensitive fields if encrypted version exists
+      // ENCRYPTION DISABLED - Use plain text fields directly
+      // For backward compatibility, still check for encrypted data
       if (paymentRequest.bank_account_number_encrypted) {
         try {
           paymentRequest.bank_account_number_decrypted = encryption.decrypt(
@@ -192,30 +182,25 @@ class PaymentRequestEncrypted {
             paymentRequest.bank_account_name_encrypted
           );
 
-          // Update access audit
-          await client.query(`
-            UPDATE payment_requests
-            SET
-              last_decrypted_at = NOW(),
-              last_decrypted_by = $1,
-              decrypt_count = COALESCE(decrypt_count, 0) + 1
-            WHERE id = $2
-          `, [requestUserId, id]);
-
-          logger.info('[PaymentRequest] Decrypted sensitive data', {
+          logger.info('[PaymentRequest] Decrypted legacy encrypted data', {
             paymentRequestId: id,
             requestUserId,
             isAdmin
           });
 
         } catch (decryptError) {
-          logger.error('[PaymentRequest] Decryption failed', {
+          logger.error('[PaymentRequest] Decryption failed, falling back to plain text', {
             paymentRequestId: id,
             error: decryptError.message
           });
-          // Don't expose decryption errors to user
-          throw new Error('Unable to retrieve payment information');
+          // Fallback to plain text if decryption fails
+          paymentRequest.bank_account_number_decrypted = paymentRequest.bank_account_number || 'N/A';
+          paymentRequest.bank_account_name_decrypted = paymentRequest.bank_account_name || 'N/A';
         }
+      } else {
+        // No encrypted data - use plain text (normal case now)
+        paymentRequest.bank_account_number_decrypted = paymentRequest.bank_account_number || 'N/A';
+        paymentRequest.bank_account_name_decrypted = paymentRequest.bank_account_name || 'N/A';
       }
 
       // Remove encrypted fields from response

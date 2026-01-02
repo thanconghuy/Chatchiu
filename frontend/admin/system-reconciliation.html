@@ -3712,43 +3712,10 @@
         }
 
         // Setup event listeners for month group controls
+        // NOTE: This function is no longer needed - we use event delegation instead
         function setupMonthGroupEventListeners() {
-            // Handle "Select All" checkbox for each month
-            document.querySelectorAll('.select-all-month-orders').forEach(checkbox => {
-                checkbox.addEventListener('change', (e) => {
-                    const month = e.target.dataset.month;
-                    console.log('Select All clicked for month:', month);
-                    // Use attribute selector instead of class name
-                    const monthCheckboxes = document.querySelectorAll(`input[type="checkbox"][data-month="${month}"].order-checkbox`);
-                    console.log('Found individual checkboxes:', monthCheckboxes.length);
-                    monthCheckboxes.forEach(cb => cb.checked = e.target.checked);
-                    updateAddToDraftButtonState(month);
-                });
-            });
-
-            // Handle individual order checkboxes
-            document.querySelectorAll('.order-checkbox').forEach(checkbox => {
-                checkbox.addEventListener('change', (e) => {
-                    const month = e.target.dataset.month;
-                    updateAddToDraftButtonState(month);
-
-                    // Update "Select All" state
-                    const allCheckboxes = document.querySelectorAll(`input[type="checkbox"][data-month="${month}"].order-checkbox`);
-                    const checkedCheckboxes = document.querySelectorAll(`input[type="checkbox"][data-month="${month}"].order-checkbox:checked`);
-                    const selectAllCheckbox = document.querySelector(`.select-all-month-orders[data-month="${month}"]`);
-                    if (selectAllCheckbox) {
-                        selectAllCheckbox.checked = allCheckboxes.length === checkedCheckboxes.length && allCheckboxes.length > 0;
-                    }
-                });
-            });
-
-            // Handle dropdown change
-            document.querySelectorAll('.draft-recon-select-month').forEach(select => {
-                select.addEventListener('change', (e) => {
-                    const month = e.target.dataset.month;
-                    updateAddToDraftButtonState(month);
-                });
-            });
+            // Event delegation is now handled in the main document click/change handlers
+            // No need to attach individual listeners that cause memory leaks
         }
 
         // Update button state for a specific month
@@ -3802,18 +3769,8 @@
                 if (result.success) {
                     showToast(`Đã thêm ${selectedOrders.length} đơn hàng vào kỳ đối soát`, 'success');
 
-                    // Remove added orders from waiting list
-                    for (const id of waitingListIds) {
-                        await fetch(
-                            `${CONFIG.API_BASE_URL}/admin/system-reconciliation/auto-sync/waiting-list/${id}`,
-                            {
-                                method: 'DELETE',
-                                headers: {
-                                    'Authorization': `Bearer ${token}`
-                                }
-                            }
-                        );
-                    }
+                    // Backend automatically removes orders from waiting list
+                    // No need to manually delete here
 
                     // Reload data
                     await loadWaitingList();
@@ -4156,6 +4113,39 @@
                     currentAddOrdersPage = 1;
                     loadAvailableOrders();
                 }, 500);
+            }
+        });
+
+        // ============ CSP FIX: Waiting List Event Delegation ============
+        document.addEventListener('change', (e) => {
+            // Handle "Select All" checkbox for each month
+            if (e.target.classList.contains('select-all-month-orders')) {
+                const month = e.target.dataset.month;
+                console.log('Select All clicked for month:', month);
+                const monthCheckboxes = document.querySelectorAll(`input[type="checkbox"][data-month="${month}"].order-checkbox`);
+                console.log('Found individual checkboxes:', monthCheckboxes.length);
+                monthCheckboxes.forEach(cb => cb.checked = e.target.checked);
+                updateAddToDraftButtonState(month);
+            }
+
+            // Handle individual order checkboxes
+            else if (e.target.classList.contains('order-checkbox') && e.target.dataset.month) {
+                const month = e.target.dataset.month;
+                updateAddToDraftButtonState(month);
+
+                // Update "Select All" state
+                const allCheckboxes = document.querySelectorAll(`input[type="checkbox"][data-month="${month}"].order-checkbox`);
+                const checkedCheckboxes = document.querySelectorAll(`input[type="checkbox"][data-month="${month}"].order-checkbox:checked`);
+                const selectAllCheckbox = document.querySelector(`.select-all-month-orders[data-month="${month}"]`);
+                if (selectAllCheckbox) {
+                    selectAllCheckbox.checked = allCheckboxes.length === checkedCheckboxes.length && allCheckboxes.length > 0;
+                }
+            }
+
+            // Handle dropdown change
+            else if (e.target.classList.contains('draft-recon-select-month')) {
+                const month = e.target.dataset.month;
+                updateAddToDraftButtonState(month);
             }
         });
 

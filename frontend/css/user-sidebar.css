@@ -502,3 +502,20 @@ a.nav-subitem:hover .nav-icon i {
 .sidebar-overlay.show {
     animation: fadeIn 0.3s ease-out;
 }
+
+/* ========== NAV DIVIDER & SECTION TITLE ========== */
+.nav-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.2);
+    margin: 12px 14px;
+}
+
+.nav-section-title {
+    padding: 8px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 8px;
+}

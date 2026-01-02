@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chính sách bảo mật - Chắt Chiu.Online</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #8b5cf6;
+            --primary-dark: #7c3aed;
+            --secondary: #ec4899;
+            --gray-50: #fafafa;
+            --gray-100: #f4f4f5;
+            --gray-200: #e4e4e7;
+            --gray-600: #52525b;
+            --gray-700: #3f3f46;
+            --gray-800: #27272a;
+            --gray-900: #18181b;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(180deg, #fafafa 0%, #f4f4f5 100%);
+            color: var(--gray-900);
+            line-height: 1.6;
+        }
+
+        /* Navbar */
+        .navbar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-decoration: none;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 10px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s;
+            cursor: pointer;
+            border: none;
+            font-size: 1rem;
+            display: inline-block;
+        }
+
+        .btn-outline {
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            background: transparent;
+        }
+
+        .btn-outline:hover {
+            background: var(--primary);
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.25);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(139, 92, 246, 0.4);
+        }
+
+        /* Main Content */
+        .main-content {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 24px;
+        }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .page-header h1 {
+            font-size: 2.5em;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .page-header p {
+            font-size: 1.1em;
+            color: #7f8c8d;
+        }
+
+        .page-header .last-updated {
+            font-size: 0.9em;
+            color: #95a5a6;
+            margin-top: 10px;
+        }
+
+        .content-section {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .content-section h2 {
+            font-size: 1.8em;
+            color: #34495e;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #3498db;
+            display: inline-block;
+        }
+
+        .content-section h3 {
+            font-size: 1.4em;
+            color: #2980b9;
+            margin-top: 25px;
+            margin-bottom: 15px;
+        }
+
+        .content-section p {
+            font-size: 1.05em;
+            line-height: 1.8;
+            color: #555;
+            margin-bottom: 15px;
+        }
+
+        .content-section ul {
+            margin: 15px 0;
+            padding-left: 30px;
+        }
+
+        .content-section li {
+            font-size: 1.05em;
+            line-height: 1.8;
+            color: #555;
+            margin-bottom: 10px;
+        }
+
+        .security-box {
+            background: #d4edda;
+            border-left: 5px solid #28a745;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 25px 0;
+        }
+
+        .security-box h3 {
+            color: #155724;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .security-box p, .security-box ul {
+            color: #155724;
+        }
+
+        .warning-box {
+            background: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 25px 0;
+        }
+
+        .warning-box h3 {
+            color: #856404;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .warning-box p, .warning-box ul {
+            color: #856404;
+        }
+
+        .info-box {
+            background: #d1ecf1;
+            border-left: 5px solid #17a2b8;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 25px 0;
+        }
+
+        .info-box h3 {
+            color: #0c5460;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .info-box p {
+            color: #0c5460;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .data-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .data-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        /* Footer */
+        .footer {
+            background: var(--gray-900);
+            color: white;
+            padding: 40px 24px;
+            text-align: center;
+            margin-top: 60px;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .footer p {
+            opacity: 0.8;
+            margin-bottom: 8px;
+        }
+
+        .footer-links {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .footer-links a {
+            color: white;
+            text-decoration: none;
+            opacity: 0.9;
+            transition: opacity 0.3s ease;
+            font-size: 14px;
+        }
+
+        .footer-links a:hover {
+            opacity: 1;
+            text-decoration: underline;
+        }
+
+        .footer-divider {
+            opacity: 0.5;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .page-header h1 {
+                font-size: 2em;
+            }
+
+            .content-section {
+                padding: 20px;
+            }
+
+            .data-table {
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/" class="logo">Chắt Chiu.Online</a>
+            <div class="nav-buttons">
+                <a href="/login" class="btn btn-outline">Đăng nhập</a>
+                <a href="/register" class="btn btn-primary">Đăng ký ngay</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="page-header">
+            <h1>🔒 Chính sách bảo mật</h1>
+            <p>Cam kết bảo vệ thông tin và quyền riêng tư của bạn</p>
+            <p class="last-updated">Cập nhật lần cuối: Tháng 1 năm 2026</p>
+        </div>
+
+        <div class="content-section">
+            <h2>🛡️ Cam kết bảo mật</h2>
+            <p>
+                Tại <strong>Chắt Chiu.Online</strong>, chúng tôi cam kết bảo vệ quyền riêng tư và thông tin
+                cá nhân của người dùng. Chính sách bảo mật này giải thích cách chúng tôi thu thập, sử dụng,
+                lưu trữ và bảo vệ thông tin của bạn.
+            </p>
+
+            <div class="security-box">
+                <h3>✅ Nguyên tắc bảo mật của chúng tôi</h3>
+                <ul>
+                    <li><strong>Minh bạch:</strong> Thông báo rõ ràng về việc thu thập và sử dụng dữ liệu</li>
+                    <li><strong>Tối thiểu hóa:</strong> Chỉ thu thập thông tin cần thiết cho dịch vụ</li>
+                    <li><strong>An toàn:</strong> Sử dụng các biện pháp kỹ thuật tiên tiến để bảo vệ dữ liệu</li>
+                    <li><strong>Quyền kiểm soát:</strong> Người dùng có quyền truy cập, chỉnh sửa và xóa dữ liệu của mình</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="content-section">
+            <h2>📝 Thông tin chúng tôi thu thập</h2>
+
+            <h3>1. Thông tin cá nhân cơ bản</h3>
+            <p>Khi bạn đăng ký tài khoản, chúng tôi thu thập:</p>
+            <ul>
+                <li><strong>Email hoặc số điện thoại:</strong> Để xác thực tài khoản và liên lạc</li>
+                <li><strong>Họ tên:</strong> Hiển thị trên tài khoản và sử dụng trong giao tiếp</li>
+                <li><strong>Mật khẩu:</strong> Được mã hóa và lưu trữ an toàn</li>
+            </ul>
+
+            <h3>2. Thông tin thanh toán</h3>
+            <p>Khi bạn tạo yêu cầu rút tiền, chúng tôi thu thập:</p>
+            <ul>
+                <li><strong>Tên ngân hàng:</strong> Để xác định ngân hàng nhận tiền</li>
+                <li><strong>Số tài khoản ngân hàng:</strong> Để chuyển khoản cashback</li>
+                <li><strong>Tên chủ tài khoản:</strong> Để xác minh người nhận</li>
+                <li><strong>Chi nhánh (tùy chọn):</strong> Hỗ trợ chuyển khoản chính xác hơn</li>
+            </ul>
+
+            <div class="warning-box">
+                <h3>⚠️ Lưu ý quan trọng</h3>
+                <p>
+                    <strong>Chúng tôi KHÔNG thu thập:</strong>
+                </p>
+                <ul>
+                    <li>Thông tin thẻ tín dụng/ghi nợ</li>
+                    <li>Mã PIN hoặc mật khẩu ngân hàng</li>
+                    <li>Thông tin đăng nhập các dịch vụ khác</li>
+                </ul>
+            </div>
+
+            <h3>3. Dữ liệu giao dịch</h3>
+            <p>Để cung cấp dịch vụ cashback, chúng tôi lưu trữ:</p>
+            <ul>
+                <li><strong>Lịch sử đơn hàng:</strong> Thông tin về các giao dịch mua sắm qua link liên kết</li>
+                <li><strong>Số tiền cashback:</strong> Số tiền hoàn trả từ mỗi đơn hàng</li>
+                <li><strong>Trạng thái đơn hàng:</strong> Chờ đối soát, khả dụng, hoặc không hợp lệ</li>
+                <li><strong>Thông tin merchant:</strong> Tên sàn TMĐT và merchant bạn mua hàng</li>
+            </ul>
+
+            <h3>4. Dữ liệu kỹ thuật</h3>
+            <ul>
+                <li><strong>Cookie và session:</strong> Để duy trì phiên đăng nhập</li>
+                <li><strong>Địa chỉ IP:</strong> Cho mục đích bảo mật và chống gian lận</li>
+                <li><strong>Thiết bị và trình duyệt:</strong> Để tối ưu trải nghiệm người dùng</li>
+                <li><strong>Nhật ký hoạt động:</strong> Lưu lại lịch sử truy cập và thao tác</li>
+            </ul>
+
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Loại dữ liệu</th>
+                        <th>Mục đích</th>
+                        <th>Thời gian lưu trữ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Thông tin tài khoản</td>
+                        <td>Xác thực và quản lý tài khoản</td>
+                        <td>Cho đến khi xóa tài khoản</td>
+                    </tr>
+                    <tr>
+                        <td>Thông tin thanh toán</td>
+                        <td>Xử lý yêu cầu rút tiền</td>
+                        <td>3 năm sau giao dịch cuối</td>
+                    </tr>
+                    <tr>
+                        <td>Dữ liệu giao dịch</td>
+                        <td>Tính toán và theo dõi cashback</td>
+                        <td>5 năm (theo quy định pháp luật)</td>
+                    </tr>
+                    <tr>
+                        <td>Nhật ký hệ thống</td>
+                        <td>Bảo mật và hỗ trợ kỹ thuật</td>
+                        <td>12 tháng</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="content-section">
+            <h2>🎯 Mục đích sử dụng thông tin</h2>
+
+            <h3>Chúng tôi sử dụng thông tin của bạn để:</h3>
+
+            <div class="info-box">
+                <h3>✅ Cung cấp dịch vụ</h3>
+                <ul>
+                    <li>Tạo và quản lý tài khoản người dùng</li>
+                    <li>Theo dõi và ghi nhận giao dịch mua sắm</li>
+                    <li>Tính toán và cộng cashback vào tài khoản</li>
+                    <li>Xử lý yêu cầu rút tiền và chuyển khoản</li>
+                    <li>Gửi thông báo về trạng thái đơn hàng và cashback</li>
+                </ul>
+            </div>
+
+            <h3>Mục đích khác</h3>
+            <ul>
+                <li><strong>Hỗ trợ khách hàng:</strong> Giải đáp thắc mắc và xử lý khiếu nại</li>
+                <li><strong>Bảo mật:</strong> Phát hiện và ngăn chặn gian lận, lạm dụng</li>
+                <li><strong>Cải thiện dịch vụ:</strong> Phân tích và tối ưu trải nghiệm người dùng</li>
+                <li><strong>Tuân thủ pháp luật:</strong> Đáp ứng yêu cầu từ cơ quan có thẩm quyền</li>
+                <li><strong>Marketing (nếu đồng ý):</strong> Gửi thông tin khuyến mãi, ưu đãi</li>
+            </ul>
+        </div>
+
+        <div class="content-section">
+            <h2>🔐 Cách chúng tôi bảo vệ thông tin</h2>
+
+            <div class="security-box">
+                <h3>🛡️ Biện pháp bảo mật kỹ thuật</h3>
+                <ul>
+                    <li><strong>Mã hóa dữ liệu:</strong> Sử dụng SSL/TLS cho mọi kết nối</li>
+                    <li><strong>Mã hóa mật khẩu:</strong> Hash và salt mật khẩu trước khi lưu trữ</li>
+                    <li><strong>Tường lửa:</strong> Bảo vệ hệ thống khỏi tấn công từ bên ngoài</li>
+                    <li><strong>Sao lưu định kỳ:</strong> Backup dữ liệu hàng ngày để phòng ngừa mất mát</li>
+                    <li><strong>Giám sát 24/7:</strong> Theo dõi và phát hiện bất thường</li>
+                </ul>
+            </div>
+
+            <h3>Biện pháp quản lý</h3>
+            <ul>
+                <li><strong>Giới hạn quyền truy cập:</strong> Chỉ nhân viên được ủy quyền mới có quyền truy cập dữ liệu</li>
+                <li><strong>Đào tạo bảo mật:</strong> Nhân viên được đào tạo về bảo mật thông tin</li>
+                <li><strong>Hợp đồng bảo mật:</strong> Nhân viên ký cam kết bảo mật</li>
+                <li><strong>Kiểm toán định kỳ:</strong> Rà soát và cập nhật biện pháp bảo mật</li>
+            </ul>
+        </div>
+
+        <div class="content-section">
+            <h2>🤝 Chia sẻ thông tin với bên thứ ba</h2>
+
+            <p>
+                Chúng tôi <strong>KHÔNG bán, cho thuê hoặc trao đổi</strong> thông tin cá nhân của bạn
+                với bên thứ ba vì mục đích thương mại.
+            </p>
+
+            <h3>Chúng tôi có thể chia sẻ thông tin trong các trường hợp sau:</h3>
+
+            <div class="info-box">
+                <h3>✅ Đối tác cần thiết</h3>
+                <ul>
+                    <li><strong>Sàn TMĐT:</strong> Chia sẻ ID giao dịch để đối soát cashback</li>
+                    <li><strong>Ngân hàng:</strong> Thông tin thanh toán để chuyển khoản</li>
+                    <li><strong>Dịch vụ email:</strong> Gửi thông báo và xác thực tài khoản</li>
+                </ul>
+            </div>
+
+            <h3>Trường hợp bắt buộc</h3>
+            <ul>
+                <li>Tuân thủ yêu cầu pháp luật từ cơ quan có thẩm quyền</li>
+                <li>Bảo vệ quyền lợi và an toàn của Chắt Chiu.Online</li>
+                <li>Ngăn chặn gian lận hoặc hoạt động bất hợp pháp</li>
+            </ul>
+        </div>
+
+        <div class="content-section">
+            <h2>👤 Quyền của người dùng</h2>
+
+            <p>Bạn có các quyền sau đối với thông tin cá nhân của mình:</p>
+
+            <ul>
+                <li>
+                    <strong>Quyền truy cập:</strong><br>
+                    Xem và tải xuống thông tin cá nhân đã cung cấp
+                </li>
+                <li>
+                    <strong>Quyền chỉnh sửa:</strong><br>
+                    Cập nhật hoặc sửa đổi thông tin không chính xác
+                </li>
+                <li>
+                    <strong>Quyền xóa:</strong><br>
+                    Yêu cầu xóa tài khoản và dữ liệu cá nhân (có điều kiện)
+                </li>
+                <li>
+                    <strong>Quyền rút lại đồng ý:</strong><br>
+                    Từ chối nhận email marketing bất cứ lúc nào
+                </li>
+                <li>
+                    <strong>Quyền khiếu nại:</strong><br>
+                    Khiếu nại về cách xử lý dữ liệu của chúng tôi
+                </li>
+            </ul>
+
+            <div class="info-box">
+                <h3>📧 Cách thực hiện quyền của bạn</h3>
+                <p>
+                    Để thực hiện bất kỳ quyền nào ở trên, vui lòng liên hệ với chúng tôi qua email:
+                    <strong>contact@lammmo.com</strong>
+                </p>
+                <p>
+                    Chúng tôi sẽ phản hồi trong vòng <strong>7 ngày làm việc</strong>.
+                </p>
+            </div>
+        </div>
+
+        <div class="content-section" style="background: linear-gradient(135deg, #0088cc 0%, #005f99 100%); color: white; border-left: 5px solid #00b8ff;">
+            <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 250px;">
+                    <h3 style="color: white; margin: 0 0 10px 0; font-size: 1.4em; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 1.8em;">💬</span>
+                        Cần hỗ trợ?
+                    </h3>
+                    <p style="color: rgba(255,255,255,0.95); margin: 0; line-height: 1.6;">
+                        Tham gia nhóm Zalo của chúng tôi để được hỗ trợ nhanh chóng và cập nhật thông tin mới nhất về chương trình cashback.
+                    </p>
+                </div>
+                <div>
+                    <a href="https://zalo.me/g/ptmqpk507" target="_blank" rel="noopener noreferrer"
+                       style="display: inline-flex; align-items: center; gap: 10px; padding: 12px 30px; background: white; color: #0088cc; border-radius: 8px; text-decoration: none; font-weight: 600; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.477 2 2 6.145 2 11.243c0 2.855 1.371 5.424 3.513 7.152v3.605l3.42-1.871c.91.253 1.876.386 2.867.386 5.523 0 10-4.145 10-9.243S17.523 2 12 2z"/>
+                        </svg>
+                        Tham gia nhóm Zalo
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-section" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-align: center;">
+            <h2 style="color: white; border-bottom-color: rgba(255,255,255,0.3);">Cam kết của chúng tôi</h2>
+            <p style="color: rgba(255,255,255,0.95); font-size: 1.1em;">
+                Chắt Chiu.Online cam kết bảo vệ quyền riêng tư và thông tin cá nhân của bạn.
+                An toàn dữ liệu là ưu tiên hàng đầu của chúng tôi.
+            </p>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-links">
+                <a href="/">Trang chủ</a>
+                <span class="footer-divider">|</span>
+                <a href="/about">Giới thiệu</a>
+                <span class="footer-divider">|</span>
+                <a href="/guide">Hướng dẫn</a>
+                <span class="footer-divider">|</span>
+                <a href="/disclaimer">Miễn trừ trách nhiệm</a>
+                <span class="footer-divider">|</span>
+                <a href="/privacy">Bảo mật</a>
+                <span class="footer-divider">|</span>
+                <a href="/terms">Điều khoản</a>
+            </div>
+            <p>&copy; 2025 Chắt Chiu - Mua Sắm Thông Minh, Tiết Kiệm Mỗi Ngày</p>
+        </div>
+    </footer>
+
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        // Redirect if already logged in
+        if (isLoggedIn()) {
+            const user = getUser();
+            if (user && user.is_admin) {
+                window.location.href = '/admin';
+            } else {
+                window.location.href = '/dashboard';
+            }
+        }
+    </script>
+</body>
+</html>
