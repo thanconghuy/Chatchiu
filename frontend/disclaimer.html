@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Miễn trừ trách nhiệm - Chắt Chiu.Online</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #8b5cf6;
+            --primary-dark: #7c3aed;
+            --secondary: #ec4899;
+            --gray-50: #fafafa;
+            --gray-100: #f4f4f5;
+            --gray-200: #e4e4e7;
+            --gray-600: #52525b;
+            --gray-700: #3f3f46;
+            --gray-800: #27272a;
+            --gray-900: #18181b;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(180deg, #fafafa 0%, #f4f4f5 100%);
+            color: var(--gray-900);
+            line-height: 1.6;
+        }
+
+        /* Navbar */
+        .navbar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-decoration: none;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 10px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s;
+            cursor: pointer;
+            border: none;
+            font-size: 1rem;
+            display: inline-block;
+        }
+
+        .btn-outline {
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            background: transparent;
+        }
+
+        .btn-outline:hover {
+            background: var(--primary);
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.25);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(139, 92, 246, 0.4);
+        }
+
+        /* Main Content */
+        .main-content {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 24px;
+        }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .page-header h1 {
+            font-size: 2.5em;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .page-header p {
+            font-size: 1.1em;
+            color: #7f8c8d;
+        }
+
+        .page-header .last-updated {
+            font-size: 0.9em;
+            color: #95a5a6;
+            margin-top: 10px;
+        }
+
+        .intro-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+
+        .intro-box p {
+            line-height: 1.8;
+            margin: 0;
+            font-size: 1.05em;
+        }
+
+        .content-section {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .section-number {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .content-section h2 {
+            font-size: 1.8em;
+            color: #34495e;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #3498db;
+        }
+
+        .content-section h3 {
+            font-size: 1.4em;
+            color: #2980b9;
+            margin-top: 25px;
+            margin-bottom: 15px;
+        }
+
+        .content-section h4 {
+            font-size: 1.2em;
+            color: #34495e;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        .content-section p {
+            font-size: 1.05em;
+            line-height: 1.8;
+            color: #555;
+            margin-bottom: 15px;
+        }
+
+        .content-section ul {
+            margin: 15px 0;
+            padding-left: 30px;
+        }
+
+        .content-section li {
+            font-size: 1.05em;
+            line-height: 1.8;
+            color: #555;
+            margin-bottom: 10px;
+        }
+
+        .definition-box {
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+
+        .definition-box strong {
+            color: #2c3e50;
+            font-size: 1.1em;
+        }
+
+        .highlight-box {
+            background: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 25px 0;
+        }
+
+        .highlight-box h3,
+        .highlight-box h4 {
+            color: #856404;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .highlight-box p,
+        .highlight-box ul {
+            color: #856404;
+        }
+
+        .info-box {
+            background: #d1ecf1;
+            border-left: 5px solid #17a2b8;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 25px 0;
+        }
+
+        .info-box h3,
+        .info-box h4 {
+            color: #0c5460;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .info-box p {
+            color: #0c5460;
+        }
+
+        .danger-box {
+            background: #f8d7da;
+            border-left: 5px solid #dc3545;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 25px 0;
+        }
+
+        .danger-box h3,
+        .danger-box h4 {
+            color: #721c24;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .danger-box p,
+        .danger-box ul {
+            color: #721c24;
+        }
+
+        .status-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        .status-table th,
+        .status-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .status-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+        }
+
+        .status-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        /* Footer */
+        .footer {
+            background: var(--gray-900);
+            color: white;
+            padding: 40px 24px;
+            text-align: center;
+            margin-top: 60px;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .footer p {
+            opacity: 0.8;
+            margin-bottom: 8px;
+        }
+
+        .footer-links {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .footer-links a {
+            color: white;
+            text-decoration: none;
+            opacity: 0.9;
+            transition: opacity 0.3s ease;
+            font-size: 14px;
+        }
+
+        .footer-links a:hover {
+            opacity: 1;
+            text-decoration: underline;
+        }
+
+        .footer-divider {
+            opacity: 0.5;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .page-header h1 {
+                font-size: 2em;
+            }
+
+            .content-section {
+                padding: 20px;
+            }
+
+            .status-table {
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/" class="logo">Chắt Chiu.Online</a>
+            <div class="nav-buttons">
+                <a href="/login" class="btn btn-outline">Đăng nhập</a>
+                <a href="/register" class="btn btn-primary">Đăng ký ngay</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1>⚖️ Miễn trừ trách nhiệm</h1>
+            <p>
+                Tài liệu này bao gồm Điều khoản sử dụng, Chính sách bảo mật thông tin và Miễn trừ trách nhiệm,
+                điều chỉnh việc truy cập và sử dụng website Chắt Chiu.Online.
+            </p>
+            <p class="last-updated">Cập nhật lần cuối: Tháng 1 năm 2026</p>
+        </div>
+
+        <!-- Intro -->
+        <div class="intro-box">
+            <p>
+                <strong>Khi sử dụng dịch vụ, bạn xác nhận rằng:</strong> Đã đọc, hiểu và đồng ý bị ràng buộc
+                bởi toàn bộ nội dung dưới đây. Nếu bạn không đồng ý với bất kỳ phần nào, vui lòng không sử dụng dịch vụ.
+            </p>
+        </div>
+
+        <!-- I. ĐIỀU KHOẢN SỬ DỤNG -->
+        <div class="content-section">
+            <div class="section-number">I</div>
+            <h2>ĐIỀU KHOẢN SỬ DỤNG</h2>
+
+            <h3>1. Định nghĩa</h3>
+            <div class="definition-box">
+                <p><strong>"Chắt Chiu.Online" hoặc "Chúng tôi":</strong></p>
+                <p>
+                    Nền tảng trung gian giới thiệu người dùng đến các sàn thương mại điện tử và chia sẻ
+                    hoa hồng tiếp thị dưới hình thức cashback.
+                </p>
+            </div>
+
+            <div class="definition-box">
+                <p><strong>"Người dùng":</strong></p>
+                <p>
+                    Cá nhân đăng ký hoặc sử dụng dịch vụ trên Chắt Chiu.Online.
+                </p>
+            </div>
+
+            <div class="definition-box">
+                <p><strong>"Cashback":</strong></p>
+                <p>
+                    Khoản tiền được hoàn lại cho người dùng từ hoa hồng tiếp thị hợp lệ do sàn thương mại
+                    điện tử chi trả.
+                </p>
+            </div>
+
+            <h3>2. Phạm vi dịch vụ</h3>
+            <div class="info-box">
+                <h4>Chắt Chiu.Online KHÔNG phải là:</h4>
+                <ul>
+                    <li>Bên bán hàng - không sở hữu sản phẩm</li>
+                    <li>Đơn vị thanh toán - không xử lý giao dịch mua bán</li>
+                    <li>Đơn vị vận chuyển - không giao hàng</li>
+                    <li>Bên bảo hành - không chịu trách nhiệm về sản phẩm</li>
+                    <li>Trọng tài - không giải quyết tranh chấp mua bán</li>
+                </ul>
+            </div>
+
+            <h3>3. Điều kiện sử dụng</h3>
+            <p>Người dùng cam kết:</p>
+            <ul>
+                <li>Cung cấp thông tin chính xác, đầy đủ khi đăng ký và sử dụng dịch vụ</li>
+                <li>Tự chịu trách nhiệm bảo mật tài khoản</li>
+                <li>Không sử dụng dịch vụ cho mục đích gian lận, trục lợi hoặc vi phạm pháp luật</li>
+            </ul>
+
+            <h3>4. Cashback</h3>
+            <p>Cashback chỉ được ghi nhận khi:</p>
+            <ul>
+                <li>Người dùng truy cập sàn thương mại điện tử thông qua liên kết hợp lệ của Chắt Chiu.Online</li>
+                <li>Đơn hàng được giao và thanh toán thành công</li>
+                <li>Đơn hàng không bị hủy, hoàn trả hoặc vi phạm điều kiện của sàn</li>
+            </ul>
+
+            <div class="highlight-box">
+                <h4>⚠️ Lưu ý quan trọng</h4>
+                <p>
+                    Chắt Chiu.Online <strong>không đảm bảo</strong> mọi đơn hàng đều nhận được cashback
+                    do phụ thuộc vào dữ liệu và chính sách từ bên thứ ba.
+                </p>
+            </div>
+
+            <h3>5. Tạm ngưng và chấm dứt dịch vụ</h3>
+            <div class="danger-box">
+                <p>
+                    Chúng tôi có quyền tạm ngưng hoặc chấm dứt tài khoản người dùng nếu phát hiện:
+                </p>
+                <ul>
+                    <li>Hành vi gian lận</li>
+                    <li>Vi phạm điều khoản sử dụng</li>
+                    <li>Gây thiệt hại cho hệ thống</li>
+                    <li>Sử dụng công cụ tự động (bot) để tạo giao dịch giả</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- II. ĐỐI SOÁT & THANH TOÁN -->
+        <div class="content-section">
+            <div class="section-number">II</div>
+            <h2>ĐỐI SOÁT & THANH TOÁN CASHBACK</h2>
+
+            <h3>1. Đối soát</h3>
+            <p>
+                Cashback được đối soát trong vòng <strong>30-60 ngày</strong> kể từ thời điểm đơn hàng
+                được giao và thanh toán thành công.
+            </p>
+
+            <h3>2. Trạng thái cashback</h3>
+            <table class="status-table">
+                <thead>
+                    <tr>
+                        <th>Trạng thái</th>
+                        <th>Mô tả</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Chờ đối soát</strong></td>
+                        <td>Đơn hàng đang trong thời gian chờ xác nhận từ sàn TMĐT (30-60 ngày)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Khả dụng</strong></td>
+                        <td>Cashback đã được xác nhận hợp lệ và có thể rút về tài khoản ngân hàng</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Không hợp lệ</strong></td>
+                        <td>Đơn hàng bị hủy, hoàn trả hoặc vi phạm điều kiện của sàn TMĐT</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>3. Điều kiện rút tiền</h3>
+            <div class="info-box">
+                <h4>💰 Hạn mức rút tiền</h4>
+                <p>
+                    <strong>• Số tiền rút tối thiểu:</strong> 50.000 VNĐ<br>
+                    <strong>• Số tiền rút tối đa:</strong> 5.000.000 VNĐ cho mỗi lần rút
+                </p>
+                <p>
+                    <strong>Điều kiện:</strong> Cashback chỉ được rút khi ở trạng thái <em>khả dụng</em>.
+                </p>
+            </div>
+
+            <h3>4. Yêu cầu thanh toán</h3>
+            <p>
+                Người dùng phải chủ động tạo yêu cầu rút tiền và cung cấp chính xác thông tin tài khoản ngân hàng.
+            </p>
+            <div class="danger-box">
+                <h4>⚠️ Trách nhiệm người dùng</h4>
+                <p>
+                    Chắt Chiu.Online <strong>không chịu trách nhiệm</strong> đối với sai sót phát sinh từ
+                    thông tin không chính xác do người dùng cung cấp.
+                </p>
+            </div>
+        </div>
+
+        <!-- III. CHÍNH SÁCH BẢO MẬT -->
+        <div class="content-section">
+            <div class="section-number">III</div>
+            <h2>CHÍNH SÁCH BẢO MẬT THÔNG TIN</h2>
+
+            <h3>1. Thông tin thu thập</h3>
+            <p>Chúng tôi có thể thu thập:</p>
+            <ul>
+                <li><strong>Email, số điện thoại:</strong> Xác thực tài khoản và liên lạc</li>
+                <li><strong>Thông tin tài khoản ngân hàng:</strong> Chỉ phục vụ thanh toán cashback</li>
+                <li><strong>Dữ liệu đơn hàng:</strong> Để đối soát và tính toán cashback</li>
+            </ul>
+
+            <div class="highlight-box">
+                <h4>🔒 Chúng tôi KHÔNG thu thập</h4>
+                <ul>
+                    <li>Thông tin thẻ thanh toán (credit/debit card)</li>
+                    <li>Mật khẩu ngân hàng</li>
+                    <li>Thông tin ví điện tử</li>
+                    <li>Dữ liệu nhạy cảm khác không cần thiết</li>
+                </ul>
+            </div>
+
+            <h3>2. Mục đích sử dụng</h3>
+            <p>Thông tin cá nhân được sử dụng nhằm:</p>
+            <ul>
+                <li>Quản lý tài khoản người dùng</li>
+                <li>Ghi nhận và đối soát cashback</li>
+                <li>Thực hiện thanh toán khi có yêu cầu rút tiền</li>
+                <li>Tuân thủ nghĩa vụ pháp lý khi có yêu cầu hợp pháp từ cơ quan có thẩm quyền</li>
+            </ul>
+
+            <h3>3. Chia sẻ thông tin</h3>
+            <p>Thông tin người dùng chỉ được chia sẻ trong phạm vi cần thiết với:</p>
+            <ul>
+                <li><strong>Đối tác sàn thương mại điện tử:</strong> Để đối soát giao dịch và xác nhận cashback</li>
+                <li><strong>Cơ quan nhà nước có thẩm quyền:</strong> Theo quy định pháp luật</li>
+            </ul>
+
+            <div class="info-box">
+                <h4>✅ Cam kết bảo mật</h4>
+                <p>
+                    Chúng tôi <strong>KHÔNG</strong> bán, cho thuê hoặc trao đổi thông tin cá nhân của bạn
+                    với bên thứ ba vì mục đích thương mại.
+                </p>
+            </div>
+        </div>
+
+        <!-- IV. MIỄN TRỪ TRÁCH NHIỆM -->
+        <div class="content-section">
+            <div class="section-number">IV</div>
+            <h2>MIỄN TRỪ TRÁCH NHIỆM</h2>
+
+            <h3>1. Bên thứ ba</h3>
+            <div class="danger-box">
+                <h4>⚠️ Chắt Chiu.Online không chịu trách nhiệm đối với</h4>
+                <ul>
+                    <li>Chất lượng sản phẩm từ sàn TMĐT</li>
+                    <li>Dịch vụ khách hàng của merchant</li>
+                    <li>Giá cả và chính sách giá của người bán</li>
+                    <li>Thời gian và chất lượng giao hàng</li>
+                    <li>Tranh chấp phát sinh giữa người mua và người bán</li>
+                </ul>
+                <p>
+                    <strong>Mọi vấn đề liên quan đến sản phẩm và dịch vụ cần liên hệ trực tiếp với sàn TMĐT.</strong>
+                </p>
+            </div>
+
+            <h3>2. Gián đoạn dịch vụ</h3>
+            <p>Chúng tôi không chịu trách nhiệm đối với thiệt hại phát sinh do:</p>
+            <ul>
+                <li>Sự cố kỹ thuật, lỗi hệ thống</li>
+                <li>Bảo trì hệ thống định kỳ hoặc khẩn cấp</li>
+                <li>Lỗi từ bên thứ ba (sàn TMĐT, nhà cung cấp dịch vụ)</li>
+                <li>Các sự kiện bất khả kháng (thiên tai, dịch bệnh, chiến tranh, v.v.)</li>
+            </ul>
+
+            <h3>3. Thay đổi chính sách</h3>
+            <div class="highlight-box">
+                <h4>📝 Quyền sửa đổi</h4>
+                <p>
+                    Chắt Chiu.Online có quyền thay đổi nội dung điều khoản này bất kỳ lúc nào.
+                    Phiên bản cập nhật sẽ có hiệu lực kể từ thời điểm được công bố trên website.
+                </p>
+                <p>
+                    <strong>Trách nhiệm người dùng:</strong> Kiểm tra định kỳ để cập nhật các thay đổi.
+                    Việc tiếp tục sử dụng dịch vụ sau khi có thay đổi được coi là chấp nhận điều khoản mới.
+                </p>
+            </div>
+        </div>
+
+        <!-- V. LUẬT ÁP DỤNG -->
+        <div class="content-section">
+            <div class="section-number">V</div>
+            <h2>LUẬT ÁP DỤNG</h2>
+
+            <p>
+                Các điều khoản này được điều chỉnh và giải thích theo <strong>pháp luật Việt Nam</strong>.
+            </p>
+
+            <h3>Giải quyết tranh chấp</h3>
+            <div class="info-box">
+                <h4>🤝 Quy trình giải quyết</h4>
+                <p><strong>Bước 1:</strong> Thương lượng</p>
+                <p>
+                    Mọi tranh chấp phát sinh sẽ được ưu tiên giải quyết thông qua thương lượng giữa
+                    Chắt Chiu.Online và người dùng.
+                </p>
+                <p><strong>Bước 2:</strong> Cơ quan có thẩm quyền</p>
+                <p>
+                    Trường hợp không đạt được thỏa thuận, tranh chấp sẽ được giải quyết tại cơ quan
+                    có thẩm quyền theo quy định pháp luật Việt Nam.
+                </p>
+            </div>
+
+            <h3>Địa điểm giải quyết</h3>
+            <p>
+                Tòa án có thẩm quyền tại Việt Nam sẽ là nơi giải quyết tranh chấp cuối cùng nếu các
+                bên không đạt được thỏa thuận.
+            </p>
+        </div>
+
+        <!-- Support Box -->
+        <div class="content-section" style="background: linear-gradient(135deg, #0088cc 0%, #005f99 100%); color: white; border-left: 5px solid #00b8ff;">
+            <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 250px;">
+                    <h3 style="color: white; margin: 0 0 10px 0; font-size: 1.4em; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 1.8em;">💬</span>
+                        Cần hỗ trợ?
+                    </h3>
+                    <p style="color: rgba(255,255,255,0.95); margin: 0; line-height: 1.6;">
+                        Tham gia nhóm Zalo của chúng tôi để được hỗ trợ nhanh chóng và cập nhật thông tin mới nhất về chương trình cashback.
+                    </p>
+                </div>
+                <div>
+                    <a href="https://zalo.me/g/ptmqpk507" target="_blank" rel="noopener noreferrer"
+                       style="display: inline-flex; align-items: center; gap: 10px; padding: 12px 30px; background: white; color: #0088cc; border-radius: 8px; text-decoration: none; font-weight: 600; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.477 2 2 6.145 2 11.243c0 2.855 1.371 5.424 3.513 7.152v3.605l3.42-1.871c.91.253 1.876.386 2.867.386 5.523 0 10-4.145 10-9.243S17.523 2 12 2z"/>
+                        </svg>
+                        Tham gia nhóm Zalo
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contact & Acceptance -->
+        <div class="content-section" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-align: center;">
+            <h2 style="color: white; border-bottom-color: rgba(255,255,255,0.3);">Liên hệ & Hỗ trợ pháp lý</h2>
+            <p style="color: white; font-size: 1.1em;">
+                Nếu bạn có bất kỳ câu hỏi nào về Điều khoản pháp lý này:
+            </p>
+            <ul style="list-style: none; padding: 0; color: white; font-size: 1.05em;">
+                <li style="margin: 15px 0;"><strong>Email:</strong> contact@lammmo.com</li>
+                <li style="margin: 15px 0;"><strong>Website:</strong> https://chatchiu.online</li>
+            </ul>
+            <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.3); margin: 30px 0;">
+            <p style="color: white; font-size: 1.1em; font-weight: 600;">
+                Bằng việc sử dụng Chắt Chiu.Online, bạn xác nhận rằng đã đọc, hiểu và đồng ý với
+                tất cả các điều khoản pháp lý nêu trên.
+            </p>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-links">
+                <a href="/">Trang chủ</a>
+                <span class="footer-divider">|</span>
+                <a href="/about">Giới thiệu</a>
+                <span class="footer-divider">|</span>
+                <a href="/guide">Hướng dẫn</a>
+                <span class="footer-divider">|</span>
+                <a href="/disclaimer">Miễn trừ trách nhiệm</a>
+                <span class="footer-divider">|</span>
+                <a href="/privacy">Bảo mật</a>
+                <span class="footer-divider">|</span>
+                <a href="/terms">Điều khoản</a>
+            </div>
+            <p>&copy; 2025 Chắt Chiu - Mua Sắm Thông Minh, Tiết Kiệm Mỗi Ngày</p>
+        </div>
+    </footer>
+
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        // Redirect if already logged in
+        if (isLoggedIn()) {
+            const user = getUser();
+            if (user && user.is_admin) {
+                window.location.href = '/admin';
+            } else {
+                window.location.href = '/dashboard';
+            }
+        }
+    </script>
+</body>
+</html>

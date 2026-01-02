@@ -155,7 +155,11 @@ app.get('/health', async (req, res) => {
 });
 
 // Routes for HTML pages (without .html extension)
-const pages = ['login', 'login-neon', 'register', 'dashboard', 'history', 'reconciliation-history', 'payment-requests', 'forgot-password', 'reset-password', 'profile'];
+const pages = [
+  'login', 'login-neon', 'register', 'dashboard', 'history', 'reconciliation-history',
+  'payment-requests', 'forgot-password', 'reset-password', 'profile',
+  'about', 'guide', 'terms', 'privacy', 'disclaimer'
+];
 pages.forEach(page => {
   app.get(`/${page}`, (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend', `${page}.html`));

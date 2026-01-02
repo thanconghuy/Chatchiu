@@ -17,7 +17,7 @@ const ExcelJS = require('exceljs');
  */
 router.get('/payment-history', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.userId;
     const { year, status, limit, offset } = req.query;
 
     const options = {
@@ -48,7 +48,7 @@ router.get('/payment-history', authenticateToken, async (req, res) => {
  */
 router.get('/payment-history/summary', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.userId;
 
     const summary = await UserPaymentHistory.getSummary(userId);
     const availableYears = await UserPaymentHistory.getAvailableYears(userId);
@@ -79,7 +79,7 @@ router.get('/payment-history/summary', authenticateToken, async (req, res) => {
  */
 router.get('/payment-history/:period', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.userId;
     const { period } = req.params;
     const { status } = req.query;
 
@@ -138,7 +138,7 @@ router.get('/payment-history/:period', authenticateToken, async (req, res) => {
  */
 router.get('/payment-history/:period/export', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.userId;
     const { period } = req.params;
     const { format = 'xlsx' } = req.query;
 
