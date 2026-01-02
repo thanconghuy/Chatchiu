@@ -37,15 +37,23 @@ class PaymentRequestEncrypted {
     try {
       await client.query('BEGIN');
 
-      // ENCRYPTION DISABLED - Store plain text for now
-      // TODO: Re-enable encryption after fixing key rotation issues
-      logger.info('[PaymentRequest] Creating payment request (encryption disabled)', {
+      // ENCRYPTION ENABLED - Encrypt sensitive bank account data
+      logger.info('[PaymentRequest] Creating payment request with encryption', {
         userId,
         amount: requestedAmount,
         bankName
       });
 
-      // Insert payment request WITHOUT encryption
+      // Encrypt sensitive data
+      const bankAccountNumberEncrypted = encryption.encrypt(bankAccountNumber);
+      const bankAccountNameEncrypted = encryption.encrypt(bankAccountName);
+      const bankAccountNumberHash = encryption.hash(bankAccountNumber);
+
+      // Mask for display (show last 4 digits)
+      const bankAccountNumberMasked = encryption.mask(bankAccountNumber, 4);
+      const bankAccountNameMasked = encryption.mask(bankAccountName, 3);
+
+      // Insert payment request WITH encryption
       const insertQuery = `
         INSERT INTO payment_requests (
           user_id,
@@ -53,10 +61,14 @@ class PaymentRequestEncrypted {
           bank_name,
           bank_account_number,
           bank_account_name,
+          bank_account_number_encrypted,
+          bank_account_number_hash,
+          bank_account_name_encrypted,
+          encryption_version,
           bank_branch,
           notes,
           status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING
           id, user_id, requested_amount, bank_name, bank_account_number,
           bank_account_name, bank_branch, notes, status, created_at, updated_at
@@ -66,8 +78,12 @@ class PaymentRequestEncrypted {
         userId,
         requestedAmount,
         bankName,
-        bankAccountNumber,  // Plain text
-        bankAccountName,    // Plain text
+        bankAccountNumberMasked,        // Masked for display
+        bankAccountNameMasked,          // Masked for display
+        bankAccountNumberEncrypted,     // Encrypted full data
+        bankAccountNumberHash,          // Hash for duplicate detection
+        bankAccountNameEncrypted,       // Encrypted full name
+        1,                              // Encryption version
         bankBranch,
         notes,
         'pending'

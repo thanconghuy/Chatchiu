@@ -12,9 +12,10 @@ class PaymentAccount {
   /**
    * Get all payment accounts for a user
    * @param {String} userId - User UUID
+   * @param {Boolean} withDecryption - If true, decrypt data for owner (default: true for owner view)
    * @returns {Promise<Array>} List of payment accounts
    */
-  static async findByUserId(userId) {
+  static async findByUserId(userId, withDecryption = true) {
     const query = `
       SELECT
         id,
@@ -22,6 +23,7 @@ class PaymentAccount {
         account_type,
         account_holder_name,
         account_number,
+        ${withDecryption ? 'account_number_encrypted, account_holder_name_encrypted,' : ''}
         bank_name,
         bank_branch,
         is_default,
@@ -35,6 +37,37 @@ class PaymentAccount {
     `;
 
     const result = await pool.query(query, [userId]);
+
+    // Decrypt data for owner view (default behavior)
+    if (withDecryption) {
+      return result.rows.map(account => {
+        // Decrypt if encrypted data exists
+        if (account.account_number_encrypted) {
+          try {
+            account.account_number = encryption.decrypt(account.account_number_encrypted);
+            account.account_holder_name = encryption.decrypt(account.account_holder_name_encrypted);
+
+            logger.info('[PaymentAccount] Decrypted for owner', {
+              accountId: account.id,
+              userId
+            });
+          } catch (error) {
+            logger.error('[PaymentAccount] Decryption failed, using masked', {
+              accountId: account.id,
+              error: error.message
+            });
+            // Keep masked data if decryption fails
+          }
+        }
+
+        // Remove encrypted fields from response
+        delete account.account_number_encrypted;
+        delete account.account_holder_name_encrypted;
+
+        return account;
+      });
+    }
+
     return result.rows;
   }
 
@@ -199,13 +232,16 @@ class PaymentAccount {
       await this.unsetAllDefaults(userId);
     }
 
-    // TEMPORARILY DISABLED: Encryption - store plaintext with masking
-    // TODO: Re-enable encryption after fixing ENCRYPTION_KEY on production
-    const accountNumberEncrypted = null;
-    const accountNumberHash = null;
-    const accountHolderNameEncrypted = null;
+    // ENCRYPTION ENABLED - Encrypt sensitive account data
+    const accountNumberEncrypted = encryption.encrypt(accountNumber);
+    const accountNumberHash = encryption.hash(accountNumber);
+    const accountHolderNameEncrypted = encryption.encrypt(accountHolderName);
 
-    logger.info('[PaymentAccount] Creating WITHOUT encryption (temporary)', {
+    // Mask for display
+    const accountNumberMasked = encryption.mask(accountNumber, 4);
+    const accountHolderNameMasked = encryption.mask(accountHolderName, 3);
+
+    logger.info('[PaymentAccount] Creating WITH encryption', {
       userId,
       accountType,
       bankName
@@ -245,11 +281,11 @@ class PaymentAccount {
     const values = [
       userId,
       accountType,
-      accountHolderName,                     // TEMPORARY: Store plaintext (encryption disabled)
-      accountNumber,                         // TEMPORARY: Store plaintext (encryption disabled)
-      accountNumberEncrypted,                // Encrypted version (null when disabled)
-      accountNumberHash,                     // Hash for lookup (null when disabled)
-      accountHolderNameEncrypted,            // Encrypted version (null when disabled)
+      accountHolderNameMasked,               // Masked for display
+      accountNumberMasked,                   // Masked for display
+      accountNumberEncrypted,                // Encrypted full data
+      accountNumberHash,                     // Hash for duplicate detection
+      accountHolderNameEncrypted,            // Encrypted full name
       1,                                      // Encryption version
       bankName || null,
       bankBranch || null,
