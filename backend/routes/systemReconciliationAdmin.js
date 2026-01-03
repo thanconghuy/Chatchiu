@@ -474,6 +474,77 @@ router.post('/:id/add-orders', async (req, res) => {
 });
 
 /**
+ * PATCH /api/admin/system-reconciliation/:id/label
+ * Update reconciliation period label (draft only)
+ */
+router.patch('/:id/label', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { label } = req.body;
+
+    if (!label || label.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tên kỳ đối soát không được để trống'
+      });
+    }
+
+    if (label.trim().length > 100) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tên kỳ đối soát không được vượt quá 100 ký tự'
+      });
+    }
+
+    // Check if reconciliation exists and is draft
+    const checkQuery = `
+      SELECT id, status, period_label
+      FROM system_reconciliations
+      WHERE id = $1
+    `;
+    const checkResult = await pool.query(checkQuery, [id]);
+
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Kỳ đối soát không tồn tại'
+      });
+    }
+
+    const reconciliation = checkResult.rows[0];
+
+    if (reconciliation.status !== 'draft') {
+      return res.status(400).json({
+        success: false,
+        message: 'Chỉ có thể sửa tên kỳ đối soát ở trạng thái nháp'
+      });
+    }
+
+    // Update period_label
+    const updateQuery = `
+      UPDATE system_reconciliations
+      SET period_label = $1
+      WHERE id = $2
+      RETURNING *
+    `;
+    const updateResult = await pool.query(updateQuery, [label.trim(), id]);
+
+    res.json({
+      success: true,
+      message: 'Cập nhật tên kỳ đối soát thành công',
+      data: updateResult.rows[0]
+    });
+
+  } catch (error) {
+    console.error('Error updating reconciliation label:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
  * PUT /api/admin/system-reconciliation/:id
  * Update reconciliation (status, label)
  */
@@ -824,25 +895,29 @@ router.post('/:id/sync', async (req, res) => {
 router.get('/auto-sync/preview', async (req, res) => {
   try {
     // Get eligible conversions not yet in waiting list
+    // Join with users and clicks to get additional info
     const eligibleQuery = `
       SELECT
-        conversion_id,
-        user_id,
-        user_email,
-        user_full_name,
-        aff_sid,
-        merchant_id,
-        merchant_name,
-        order_code,
-        order_amount,
-        commission,
-        cashback_amount,
-        order_time,
-        approval_time,
-        eligible_date,
-        approval_month,
-        days_since_approval
-      FROM get_eligible_conversions_for_waiting_list()
+        e.conversion_id,
+        e.user_id,
+        COALESCE(u.email, 'N/A') as user_email,
+        COALESCE(u.full_name, u.username, 'N/A') as user_full_name,
+        COALESCE(cl.aff_sid, 'N/A') as aff_sid,
+        e.merchant_id,
+        e.merchant_name,
+        e.order_code,
+        e.order_amount,
+        e.commission,
+        e.cashback_amount,
+        e.order_time,
+        e.approval_time,
+        e.eligible_date,
+        e.approval_month,
+        e.days_since_approval
+      FROM get_eligible_conversions_for_waiting_list() e
+      LEFT JOIN users u ON e.user_id = u.id
+      LEFT JOIN conversions c ON e.conversion_id = c.id
+      LEFT JOIN clicks cl ON c.click_id = cl.id
     `;
 
     const result = await pool.query(eligibleQuery);
@@ -1176,13 +1251,8 @@ router.post('/auto-sync/create-from-waiting', async (req, res) => {
       action = 'created';
     }
 
-    // Move orders from waiting list to reconciled status
-    const movedResult = await pool.query(
-      'SELECT move_from_waiting_to_reconciliation($1, $2) as moved_count',
-      [reconciliation.id, selectedOrderIds]
-    );
-
-    const movedCount = movedResult.rows[0].moved_count;
+    // Note: Waiting list cleanup is now handled automatically in SystemReconciliationService
+    // Both createReconciliation() and addOrdersToReconciliation() delete from waiting list
 
     // Get remaining waiting list count
     const remainingResult = await pool.query(
@@ -1202,7 +1272,6 @@ router.post('/auto-sync/create-from-waiting', async (req, res) => {
         reconciliation_id: reconciliation.id,
         order_count: selectedOrderIds.length,
         total_cashback: totalCashback,
-        moved_count: movedCount,
         remaining_in_waiting: remaining,
         action // 'created' or 'added'
       }

@@ -183,6 +183,14 @@ class SystemReconciliationService {
         WHERE id = ANY($2)
       `, [reconciliation.id, orders.map(o => o.conversion_id)]);
 
+      // Remove from waiting list (if exists)
+      // Orders may have been added via auto-sync waiting list
+      const conversionIds = orders.map(o => o.conversion_id);
+      await client.query(`
+        DELETE FROM reconciliation_waiting_list
+        WHERE conversion_id = ANY($1)
+      `, [conversionIds]);
+
       // Log creation
       await client.query(`
         INSERT INTO system_reconciliation_logs (

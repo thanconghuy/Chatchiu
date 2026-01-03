@@ -145,6 +145,27 @@ async function syncConversions(syncDays = 7, syncType = 'auto') {
         errors: results.errors
       });
       logger.info('Sync session completed', { sessionId: syncSession.id });
+
+      // Update auto_sync_config with last run info
+      try {
+        const { pool } = require('../config/database');
+        const message = `Đã import ${results.created + results.updated} conversions, ${results.skipped} trùng lặp`;
+
+        await pool.query(`
+          UPDATE auto_sync_config
+          SET
+            last_run_at = NOW(),
+            last_run_status = $1,
+            last_run_message = $2,
+            updated_at = NOW()
+          WHERE enabled = true
+        `, ['success', message]);
+
+        logger.info('Updated auto_sync_config with last run info');
+      } catch (configError) {
+        logger.error('Failed to update auto_sync_config', { error: configError.message });
+        // Don't throw - this is not critical
+      }
     }
 
     // Return format compatible with autoSyncService
@@ -169,6 +190,24 @@ async function syncConversions(syncDays = 7, syncType = 'auto') {
           errorStack: error.stack
         });
         logger.info('Sync session marked as failed', { sessionId: syncSession.id });
+
+        // Update auto_sync_config with error status
+        try {
+          const { pool } = require('../config/database');
+          await pool.query(`
+            UPDATE auto_sync_config
+            SET
+              last_run_at = NOW(),
+              last_run_status = $1,
+              last_run_message = $2,
+              updated_at = NOW()
+            WHERE enabled = true
+          `, ['error', error.message]);
+
+          logger.info('Updated auto_sync_config with error status');
+        } catch (configError) {
+          logger.error('Failed to update auto_sync_config', { error: configError.message });
+        }
       } catch (logError) {
         logger.error('Failed to update sync session', { error: logError.message });
       }

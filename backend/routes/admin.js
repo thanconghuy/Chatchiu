@@ -6632,4 +6632,118 @@ router.put('/email-template', authenticateAdmin, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/admin/settings/payment
+ * Get payment-related settings
+ */
+router.get('/settings/payment', authenticateAdmin, async (req, res) => {
+  try {
+    const { pool } = require('../config/database');
+
+    const result = await pool.query(`
+      SELECT
+        setting_key,
+        setting_value,
+        setting_type,
+        description,
+        is_editable,
+        updated_at
+      FROM system_settings
+      WHERE category = 'payment'
+      ORDER BY setting_key
+    `);
+
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    logger.error('Get payment settings error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to get payment settings'
+    });
+  }
+});
+
+/**
+ * PUT /api/admin/settings/payment/:key
+ * Update a payment setting
+ */
+router.put('/settings/payment/:key', authenticateAdmin, async (req, res) => {
+  try {
+    const { key } = req.params;
+    const { value } = req.body;
+    const { pool } = require('../config/database');
+
+    // Validate setting exists and is editable
+    const checkResult = await pool.query(`
+      SELECT setting_key, setting_type, is_editable
+      FROM system_settings
+      WHERE setting_key = $1 AND category = 'payment'
+    `, [key]);
+
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Setting not found'
+      });
+    }
+
+    const setting = checkResult.rows[0];
+
+    if (!setting.is_editable) {
+      return res.status(403).json({
+        success: false,
+        message: 'This setting cannot be edited'
+      });
+    }
+
+    // Validate value based on type
+    if (setting.setting_type === 'number') {
+      const numValue = parseFloat(value);
+      if (isNaN(numValue) || numValue < 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid number value'
+        });
+      }
+    }
+
+    // Update setting
+    const updateResult = await pool.query(`
+      UPDATE system_settings
+      SET
+        setting_value = $1,
+        updated_by = $2,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE setting_key = $3
+      RETURNING
+        setting_key,
+        setting_value,
+        setting_type,
+        description,
+        updated_at
+    `, [value.toString(), req.userId, key]);
+
+    logger.info('[Admin] Payment setting updated', {
+      adminId: req.userId,
+      settingKey: key,
+      newValue: value
+    });
+
+    res.json({
+      success: true,
+      message: 'Setting updated successfully',
+      data: updateResult.rows[0]
+    });
+  } catch (error) {
+    logger.error('Update payment setting error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to update setting'
+    });
+  }
+});
+
 module.exports = router;
