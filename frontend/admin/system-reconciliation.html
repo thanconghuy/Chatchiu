@@ -2864,7 +2864,7 @@
                 statusEl.style.display = 'block';
 
                 const response = await fetch(
-                    `${CONFIG.API_BASE_URL}/reconciliation/${currentEditLabelReconId}/label`,
+                    `${CONFIG.API_BASE_URL}/admin/system-reconciliation/${currentEditLabelReconId}/label`,
                     {
                         method: 'PATCH',
                         headers: {
