@@ -34,6 +34,11 @@ class SystemSettings {
       );
 
       if (result.rows.length === 0) {
+        // If not found and defaultValue provided, auto-save it
+        if (defaultValue !== null && defaultValue !== undefined) {
+          logger.info(`Auto-creating setting ${key} with default value`);
+          await this.set(key, defaultValue, null); // Use null for system-generated defaults
+        }
         return defaultValue;
       }
 

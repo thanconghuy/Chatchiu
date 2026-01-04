@@ -1,5 +1,6 @@
 const EmailService = require('../EmailService');
 const EmailTemplateService = require('../EmailTemplateService');
+const SystemSettings = require('../systemSettings');
 const emailConfig = require('../../config/email');
 
 /**
@@ -7,6 +8,8 @@ const emailConfig = require('../../config/email');
  *
  * Helper functions để gửi email cho payment request events
  * Tách riêng để tránh ảnh hưởng business logic
+ *
+ * Updated: 2026-01-04 - Migrate to database-based templates from SystemSettings
  */
 
 /**
@@ -22,43 +25,39 @@ async function sendPaymentConfirmedEmail(paymentRequest) {
       return { success: false, reason: 'no_email' };
     }
 
-    // Render email template
-    const html = await EmailTemplateService.renderTemplate(
-      emailConfig.TEMPLATES.PAYMENT_CONFIRMED,
-      {
-        // Header
-        headerTitle: `${emailConfig.ICONS.CHECKMARK} Yêu Cầu Đã Xác Nhận`,
-        headerSubtitle: 'Chúng tôi đang xử lý yêu cầu rút tiền của bạn',
+    // Load template from SystemSettings (database-based)
+    const subject = await SystemSettings.get('email_template_payment_confirmed_subject');
+    let htmlContent = await SystemSettings.get('email_template_payment_confirmed_content');
 
-        // User info
-        userName: paymentRequest.user_name || paymentRequest.user_email,
+    if (!subject || !htmlContent) {
+      console.error('[PaymentEmailHelper] Template payment_confirmed not found in database');
+      return { success: false, reason: 'template_not_found' };
+    }
 
-        // Payment info
-        requestId: paymentRequest.id,
-        requestedAmount: EmailTemplateService.formatCurrency(paymentRequest.requested_amount),
-        bankName: paymentRequest.bank_name,
-        bankAccountNumber: EmailTemplateService.maskBankAccount(paymentRequest.bank_account_number),
-        confirmedAt: EmailTemplateService.formatDateTime(paymentRequest.confirmed_at),
-        adminNotes: paymentRequest.admin_notes || '',
+    // Prepare variables for replacement
+    const variables = {
+      userName: paymentRequest.user_name || paymentRequest.user_email,
+      paymentId: paymentRequest.id,
+      amount: EmailTemplateService.formatCurrency(paymentRequest.requested_amount),
+      bankAccount: `${paymentRequest.bank_name} - ${EmailTemplateService.maskBankAccount(paymentRequest.bank_account_number)}`,
+      approvedDate: EmailTemplateService.formatDateTime(paymentRequest.confirmed_at)
+    };
 
-        // URLs
-        frontendUrl: emailConfig.FRONTEND_URL,
-        dashboardUrl: emailConfig.DASHBOARD_URL,
-        paymentHistoryUrl: emailConfig.PAYMENT_HISTORY_URL,
-        supportUrl: emailConfig.SUPPORT_URL,
-        notificationSettingsUrl: emailConfig.NOTIFICATION_SETTINGS_URL,
-        copyrightYear: emailConfig.COPYRIGHT_YEAR,
+    // Replace variables in subject and content
+    let finalSubject = subject;
+    let finalContent = htmlContent;
 
-        // Subject (for layout)
-        subject: emailConfig.SUBJECTS.PAYMENT_CONFIRMED(EmailTemplateService.formatCurrency(paymentRequest.requested_amount))
-      }
-    );
+    for (const [key, value] of Object.entries(variables)) {
+      const regex = new RegExp(`{{${key}}}`, 'g');
+      finalSubject = finalSubject.replace(regex, value);
+      finalContent = finalContent.replace(regex, value);
+    }
 
     // Send email
     const result = await EmailService.sendEmail({
       to: paymentRequest.user_email,
-      subject: emailConfig.SUBJECTS.PAYMENT_CONFIRMED(EmailTemplateService.formatCurrency(paymentRequest.requested_amount)),
-      html: html,
+      subject: finalSubject,
+      html: finalContent,
       context: {
         userId: paymentRequest.user_id,
         emailType: emailConfig.EMAIL_TYPES.PAYMENT_CONFIRMED,
@@ -88,43 +87,39 @@ async function sendPaymentRejectedEmail(paymentRequest) {
       return { success: false, reason: 'no_email' };
     }
 
-    // Render email template
-    const html = await EmailTemplateService.renderTemplate(
-      emailConfig.TEMPLATES.PAYMENT_REJECTED,
-      {
-        // Header
-        headerTitle: `${emailConfig.ICONS.WARNING} Yêu Cầu Bị Từ Chối`,
-        headerSubtitle: 'Vui lòng kiểm tra thông tin và thử lại',
+    // Load template from SystemSettings (database-based)
+    const subject = await SystemSettings.get('email_template_payment_rejected_subject');
+    let htmlContent = await SystemSettings.get('email_template_payment_rejected_content');
 
-        // User info
-        userName: paymentRequest.user_name || paymentRequest.user_email,
+    if (!subject || !htmlContent) {
+      console.error('[PaymentEmailHelper] Template payment_rejected not found in database');
+      return { success: false, reason: 'template_not_found' };
+    }
 
-        // Payment info
-        requestId: paymentRequest.id,
-        requestedAmount: EmailTemplateService.formatCurrency(paymentRequest.requested_amount),
-        bankName: paymentRequest.bank_name,
-        bankAccountNumber: EmailTemplateService.maskBankAccount(paymentRequest.bank_account_number),
-        rejectedAt: EmailTemplateService.formatDateTime(paymentRequest.rejected_at),
-        rejectionReason: paymentRequest.admin_notes || 'Không có lý do cụ thể',
+    // Prepare variables for replacement
+    const variables = {
+      userName: paymentRequest.user_name || paymentRequest.user_email,
+      paymentId: paymentRequest.id,
+      amount: EmailTemplateService.formatCurrency(paymentRequest.requested_amount),
+      bankAccount: `${paymentRequest.bank_name} - ${EmailTemplateService.maskBankAccount(paymentRequest.bank_account_number)}`,
+      reason: paymentRequest.admin_notes || 'Không có lý do cụ thể'
+    };
 
-        // URLs
-        frontendUrl: emailConfig.FRONTEND_URL,
-        dashboardUrl: emailConfig.DASHBOARD_URL,
-        createPaymentUrl: emailConfig.CREATE_PAYMENT_URL,
-        supportUrl: emailConfig.SUPPORT_URL,
-        notificationSettingsUrl: emailConfig.NOTIFICATION_SETTINGS_URL,
-        copyrightYear: emailConfig.COPYRIGHT_YEAR,
+    // Replace variables in subject and content
+    let finalSubject = subject;
+    let finalContent = htmlContent;
 
-        // Subject (for layout)
-        subject: emailConfig.SUBJECTS.PAYMENT_REJECTED(EmailTemplateService.formatCurrency(paymentRequest.requested_amount))
-      }
-    );
+    for (const [key, value] of Object.entries(variables)) {
+      const regex = new RegExp(`{{${key}}}`, 'g');
+      finalSubject = finalSubject.replace(regex, value);
+      finalContent = finalContent.replace(regex, value);
+    }
 
     // Send email
     const result = await EmailService.sendEmail({
       to: paymentRequest.user_email,
-      subject: emailConfig.SUBJECTS.PAYMENT_REJECTED(EmailTemplateService.formatCurrency(paymentRequest.requested_amount)),
-      html: html,
+      subject: finalSubject,
+      html: finalContent,
       context: {
         userId: paymentRequest.user_id,
         emailType: emailConfig.EMAIL_TYPES.PAYMENT_REJECTED,
@@ -154,44 +149,40 @@ async function sendPaymentPaidEmail(paymentRequest) {
       return { success: false, reason: 'no_email' };
     }
 
-    // Render email template
-    const html = await EmailTemplateService.renderTemplate(
-      emailConfig.TEMPLATES.PAYMENT_PAID,
-      {
-        // Header
-        headerTitle: `${emailConfig.ICONS.CELEBRATION} Đã Chuyển Tiền Thành Công!`,
-        headerSubtitle: 'Vui lòng kiểm tra tài khoản ngân hàng của bạn',
+    // Load template from SystemSettings (database-based)
+    const subject = await SystemSettings.get('email_template_payment_paid_subject');
+    let htmlContent = await SystemSettings.get('email_template_payment_paid_content');
 
-        // User info
-        userName: paymentRequest.user_name || paymentRequest.user_email,
+    if (!subject || !htmlContent) {
+      console.error('[PaymentEmailHelper] Template payment_paid not found in database');
+      return { success: false, reason: 'template_not_found' };
+    }
 
-        // Payment info
-        requestId: paymentRequest.id,
-        requestedAmount: EmailTemplateService.formatCurrency(paymentRequest.requested_amount),
-        bankName: paymentRequest.bank_name,
-        bankAccountNumber: EmailTemplateService.maskBankAccount(paymentRequest.bank_account_number),
-        transactionReference: paymentRequest.transaction_reference || 'N/A',
-        paidAt: EmailTemplateService.formatDateTime(paymentRequest.paid_at),
-        adminNotes: paymentRequest.admin_notes || '',
+    // Prepare variables for replacement
+    const variables = {
+      userName: paymentRequest.user_name || paymentRequest.user_email,
+      paymentId: paymentRequest.id,
+      amount: EmailTemplateService.formatCurrency(paymentRequest.requested_amount),
+      bankAccount: `${paymentRequest.bank_name} - ${EmailTemplateService.maskBankAccount(paymentRequest.bank_account_number)}`,
+      paidDate: EmailTemplateService.formatDateTime(paymentRequest.paid_at),
+      transactionId: paymentRequest.transaction_reference || 'N/A'
+    };
 
-        // URLs
-        frontendUrl: emailConfig.FRONTEND_URL,
-        dashboardUrl: emailConfig.DASHBOARD_URL,
-        paymentHistoryUrl: emailConfig.PAYMENT_HISTORY_URL,
-        supportUrl: emailConfig.SUPPORT_URL,
-        notificationSettingsUrl: emailConfig.NOTIFICATION_SETTINGS_URL,
-        copyrightYear: emailConfig.COPYRIGHT_YEAR,
+    // Replace variables in subject and content
+    let finalSubject = subject;
+    let finalContent = htmlContent;
 
-        // Subject (for layout)
-        subject: emailConfig.SUBJECTS.PAYMENT_PAID(EmailTemplateService.formatCurrency(paymentRequest.requested_amount))
-      }
-    );
+    for (const [key, value] of Object.entries(variables)) {
+      const regex = new RegExp(`{{${key}}}`, 'g');
+      finalSubject = finalSubject.replace(regex, value);
+      finalContent = finalContent.replace(regex, value);
+    }
 
     // Send email
     const result = await EmailService.sendEmail({
       to: paymentRequest.user_email,
-      subject: emailConfig.SUBJECTS.PAYMENT_PAID(EmailTemplateService.formatCurrency(paymentRequest.requested_amount)),
-      html: html,
+      subject: finalSubject,
+      html: finalContent,
       context: {
         userId: paymentRequest.user_id,
         emailType: emailConfig.EMAIL_TYPES.PAYMENT_PAID,

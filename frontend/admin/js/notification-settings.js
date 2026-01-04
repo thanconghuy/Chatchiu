@@ -12,7 +12,7 @@ let authToken = localStorage.getItem(STORAGE_KEYS.TOKEN);
 let notificationChart, successRateChart;
 
 // Initialize on page load
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     if (!authToken) {
         window.location.href = '/login';
         return;
@@ -23,6 +23,9 @@ document.addEventListener('DOMContentLoaded', () => {
     loadStatistics();
     initEventListeners();
 
+    // Load templates from server first
+    await loadTemplatesFromServer();
+
     // Load first template on page load
     if (document.getElementById('templateSelect')) {
         loadTemplate();
@@ -31,6 +34,130 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add template editor event listeners
     initTemplateEditorListeners();
 });
+
+/**
+ * Toggle test email form
+ */
+function toggleTestEmailForm() {
+    const checkbox = document.getElementById('enableTestEmail');
+    const form = document.getElementById('testEmailForm');
+    const statusDiv = document.getElementById('testEmailStatus');
+
+    if (checkbox.checked) {
+        form.style.display = 'block';
+        statusDiv.style.display = 'none';
+    } else {
+        form.style.display = 'none';
+        statusDiv.style.display = 'none';
+    }
+}
+
+/**
+ * Send test email for current template
+ */
+async function sendTestEmailForTemplate() {
+    const templateType = document.getElementById('templateSelect').value;
+    const recipientEmail = document.getElementById('testEmailRecipient').value;
+    const statusDiv = document.getElementById('testEmailStatus');
+
+    // Validation
+    if (!recipientEmail || !recipientEmail.trim()) {
+        statusDiv.style.display = 'block';
+        statusDiv.innerHTML = `
+            <div style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 2px solid #ef4444; padding: 14px; border-radius: 8px; display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-exclamation-circle" style="color: #ef4444; font-size: 1.2rem;"></i>
+                <span style="color: #991b1b; font-weight: 600;">Vui lòng nhập email nhận</span>
+            </div>
+        `;
+        return;
+    }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(recipientEmail)) {
+        statusDiv.style.display = 'block';
+        statusDiv.innerHTML = `
+            <div style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 2px solid #ef4444; padding: 14px; border-radius: 8px; display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-exclamation-circle" style="color: #ef4444; font-size: 1.2rem;"></i>
+                <span style="color: #991b1b; font-weight: 600;">Email không hợp lệ</span>
+            </div>
+        `;
+        return;
+    }
+
+    try {
+        // Show loading state
+        const sendBtn = document.querySelector('[data-action="sendTestEmailForTemplate"]');
+        const originalText = sendBtn.innerHTML;
+        sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang gửi...';
+        sendBtn.disabled = true;
+
+        statusDiv.style.display = 'block';
+        statusDiv.innerHTML = `
+            <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 2px solid #3b82f6; padding: 14px; border-radius: 8px; display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-circle-notch fa-spin" style="color: #3b82f6; font-size: 1.2rem;"></i>
+                <span style="color: #1e40af; font-weight: 600;">Đang gửi test email...</span>
+            </div>
+        `;
+
+        // Send test email
+        const response = await fetch(`${API_BASE}/api/notifications/admin/test-template`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                templateType: templateType,
+                recipientEmail: recipientEmail
+            })
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.message || 'Không thể gửi test email');
+        }
+
+        // Show success message
+        statusDiv.innerHTML = `
+            <div style="background: linear-gradient(135deg, #f0fdf4 0%, #d1fae5 100%); border: 2px solid #10b981; padding: 14px; border-radius: 8px; display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-check-circle" style="color: #10b981; font-size: 1.2rem;"></i>
+                <span style="color: #065f46; font-weight: 600;">
+                    Test email đã được gửi đến ${recipientEmail}! Vui lòng kiểm tra hộp thư.
+                </span>
+            </div>
+        `;
+
+        // Also show toast
+        showAlert('success', 'Đã Gửi!',
+                 `Test email đã được gửi đến ${recipientEmail}`,
+                 'alertContainer', true);
+
+        // Restore button
+        sendBtn.innerHTML = originalText;
+        sendBtn.disabled = false;
+
+    } catch (error) {
+        console.error('Send test email error:', error);
+
+        statusDiv.innerHTML = `
+            <div style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 2px solid #ef4444; padding: 14px; border-radius: 8px; display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-times-circle" style="color: #ef4444; font-size: 1.2rem;"></i>
+                <span style="color: #991b1b; font-weight: 600;">
+                    Lỗi: ${error.message}
+                </span>
+            </div>
+        `;
+
+        showAlert('danger', 'Lỗi!', error.message, 'alertContainer', false);
+
+        // Restore button
+        const sendBtn = document.querySelector('[data-action="sendTestEmailForTemplate"]');
+        sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Gửi Test Email';
+        sendBtn.disabled = false;
+    }
+}
 
 /**
  * Initialize event listeners
@@ -821,114 +948,192 @@ function clearAlerts(containerId) {
  * Email Template Management Functions
  */
 
-// Template definitions
-const EMAIL_TEMPLATES = {
-    instant: {
-        subject: '🎉 Bạn có cashback mới từ {merchant}!',
-        content: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                <h2 style="color: #667eea;">Chúc mừng {{userName}}! 🎉</h2>
-                <p>Bạn vừa nhận được <strong style="color: #10b981; font-size: 20px;">{{amount}}</strong> cashback!</p>
-                <div style="background: #f0fdf4; padding: 16px; border-radius: 8px; margin: 20px 0;">
-                    <p style="margin: 0; color: #065f46;">💰 Tổng số dư khả dụng: <strong>{{totalAvailable}}</strong></p>
-                </div>
-                <p>Bạn có thể tạo yêu cầu rút tiền ngay bây giờ!</p>
-                <a href="https://chatchiu.online/payment-requests"
-                   style="display: inline-block; background: #667eea; color: white; padding: 12px 24px;
-                          border-radius: 6px; text-decoration: none; margin: 10px 0;">
-                    Tạo Yêu Cầu Rút Tiền
-                </a>
-                <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
-                <p style="font-size: 12px; color: #6b7280;">
-                    Không muốn nhận email này?
-                    <a href="{{unsubscribeUrl}}" style="color: #667eea;">Hủy đăng ký</a>
-                </p>
-            </div>
-        `
-    },
-    reminder: {
-        subject: '⏰ Nhắc nhở: Bạn có {{totalAvailable}} cashback chờ rút!',
-        content: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                <h2 style="color: #f59e0b;">Xin chào {{userName}}! ⏰</h2>
-                <p>Bạn vẫn còn cashback chưa rút:</p>
-                <div style="background: #fef3c7; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
-                    <p style="margin: 0; font-size: 16px; color: #92400e;">Số dư khả dụng</p>
-                    <p style="margin: 10px 0; font-size: 32px; font-weight: bold; color: #f59e0b;">{{totalAvailable}}</p>
-                </div>
-                <p>Đừng để tiền nằm không nhé! Tạo yêu cầu rút tiền ngay hôm nay.</p>
-                <a href="https://chatchiu.online/payment-requests"
-                   style="display: inline-block; background: #f59e0b; color: white; padding: 12px 24px;
-                          border-radius: 6px; text-decoration: none; margin: 10px 0;">
-                    Rút Tiền Ngay
-                </a>
-                <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
-                <p style="font-size: 12px; color: #6b7280;">
-                    Không muốn nhận email nhắc nhở?
-                    <a href="{{unsubscribeUrl}}" style="color: #f59e0b;">Hủy đăng ký</a>
-                </p>
-            </div>
-        `
-    },
-    urgent: {
-        subject: '🚨 KHẨN: Deadline đối soát sắp hết! Rút tiền ngay!',
-        content: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                <div style="background: #fee2e2; padding: 16px; border-left: 4px solid #ef4444; margin-bottom: 20px;">
-                    <h2 style="color: #991b1b; margin: 0;">⚠️ THÔNG BÁO KHẨN!</h2>
-                </div>
-                <p>Xin chào {{userName}},</p>
-                <p><strong>Deadline đối soát sắp hết!</strong> Nếu không rút tiền trước deadline,
-                   cashback của bạn sẽ bị khóa và không thể rút được nữa.</p>
-                <div style="background: #fef2f2; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
-                    <p style="margin: 0; font-size: 16px; color: #991b1b;">Số tiền sắp bị khóa</p>
-                    <p style="margin: 10px 0; font-size: 32px; font-weight: bold; color: #ef4444;">{{totalAvailable}}</p>
-                </div>
-                <p style="color: #991b1b; font-weight: bold;">
-                    ⏰ Hành động ngay để không mất tiền!
-                </p>
-                <a href="https://chatchiu.online/payment-requests"
-                   style="display: inline-block; background: #ef4444; color: white; padding: 14px 28px;
-                          border-radius: 6px; text-decoration: none; margin: 10px 0; font-weight: bold;">
-                    TẠO YÊU CẦU RÚT TIỀN NGAY
-                </a>
-                <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
-                <p style="font-size: 12px; color: #6b7280;">
-                    Email này rất quan trọng.
-                    <a href="{{unsubscribeUrl}}" style="color: #ef4444;">Hủy đăng ký</a> nếu bạn không muốn nhận nữa.
-                </p>
-            </div>
-        `
+// Template definitions - will be loaded from server
+let EMAIL_TEMPLATES = {};
+
+/**
+ * Load templates from server
+ */
+async function loadTemplatesFromServer() {
+    try {
+        console.log('🔄 Loading templates from:', `${API_BASE}/api/notifications/admin/templates`);
+
+        const response = await fetch(`${API_BASE}/api/notifications/admin/templates`, {
+            headers: {
+                'Authorization': `Bearer ${authToken}`
+            }
+        });
+
+        console.log('📡 Response status:', response.status);
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log('📦 Response data:', data);
+
+        if (!data.success) {
+            throw new Error(data.message || 'Không thể tải templates');
+        }
+
+        EMAIL_TEMPLATES = data.data;
+        console.log('✅ Loaded email templates from server:', EMAIL_TEMPLATES);
+        console.log('📊 Template count:', Object.keys(EMAIL_TEMPLATES).length);
+
+        // Show success message if templates loaded
+        if (Object.keys(EMAIL_TEMPLATES).length > 0) {
+            showAlert('success', 'Thành công',
+                     `Đã tải ${Object.keys(EMAIL_TEMPLATES).length} email templates`,
+                     'alertContainer', true);
+        }
+
+    } catch (error) {
+        console.error('❌ Load templates error:', error);
+        showAlert('danger', 'Lỗi!',
+                 `Không thể tải email templates: ${error.message}`,
+                 'alertContainer', false);
     }
-};
+}
+
+/**
+ * Get sample data based on template type
+ */
+function getSampleDataForTemplate(templateType) {
+    if (templateType === 'instant' || templateType === 'reminder' || templateType === 'urgent') {
+        // Cashback notification templates
+        return {
+            userName: 'Nguyễn Văn A',
+            amount: '250,000₫',
+            totalAvailable: '1,500,000₫',
+            merchant: 'Shopee',
+            createRequestUrl: 'https://chatchiu.online/payment-requests',
+            unsubscribeUrl: 'https://chatchiu.online/unsubscribe?token=xxx'
+        };
+    } else if (templateType.startsWith('payment_')) {
+        // Payment request templates
+        return {
+            userName: 'Nguyễn Văn A',
+            paymentId: 'PR-2026-001',
+            amount: '1,500,000₫',
+            bankAccount: 'ACB - 1234567890 - Nguyễn Văn A',
+            approvedDate: '04/01/2026',
+            paidDate: '04/01/2026',
+            transactionId: 'TXN-2026-ABC123',
+            reason: 'Thông tin tài khoản ngân hàng không hợp lệ'
+        };
+    } else if (templateType === 'reconciliation_finalized') {
+        // Reconciliation template
+        return {
+            userName: 'Nguyễn Văn A',
+            reconciliationId: 'REC-2026-Q1',
+            period: 'Q1/2026 (01/01/2026 - 31/03/2026)',
+            totalAmount: '15,750,000₫',
+            finalizedDate: '04/01/2026',
+            totalOrders: '127',
+            totalPayments: '45'
+        };
+    }
+    return {};
+}
+
+/**
+ * Get available variables for template type
+ */
+function getVariablesForTemplate(templateType) {
+    if (templateType === 'instant' || templateType === 'reminder' || templateType === 'urgent') {
+        return [
+            { code: '{{userName}}', description: 'Tên người dùng' },
+            { code: '{{amount}}', description: 'Số tiền cashback (VND)' },
+            { code: '{{totalAvailable}}', description: 'Tổng số dư khả dụng' },
+            { code: '{{merchant}}', description: 'Tên merchant (Shopee, Lazada, ...)' },
+            { code: '{{createRequestUrl}}', description: 'Link tạo yêu cầu rút tiền' },
+            { code: '{{unsubscribeUrl}}', description: 'Link hủy đăng ký' }
+        ];
+    } else if (templateType.startsWith('payment_')) {
+        return [
+            { code: '{{userName}}', description: 'Tên người dùng' },
+            { code: '{{paymentId}}', description: 'Mã yêu cầu thanh toán (PR-xxxx)' },
+            { code: '{{amount}}', description: 'Số tiền thanh toán (VND)' },
+            { code: '{{bankAccount}}', description: 'Thông tin tài khoản ngân hàng' },
+            { code: '{{approvedDate}}', description: 'Ngày duyệt yêu cầu' },
+            { code: '{{paidDate}}', description: 'Ngày chuyển tiền' },
+            { code: '{{transactionId}}', description: 'Mã giao dịch chuyển tiền' },
+            { code: '{{reason}}', description: 'Lý do từ chối (nếu có)' }
+        ];
+    } else if (templateType === 'reconciliation_finalized') {
+        return [
+            { code: '{{userName}}', description: 'Tên người dùng' },
+            { code: '{{reconciliationId}}', description: 'Mã đối soát (REC-xxxx)' },
+            { code: '{{period}}', description: 'Kỳ đối soát (VD: Q1/2026)' },
+            { code: '{{totalAmount}}', description: 'Tổng số tiền đối soát' },
+            { code: '{{finalizedDate}}', description: 'Ngày hoàn thành đối soát' },
+            { code: '{{totalOrders}}', description: 'Tổng số đơn hàng' },
+            { code: '{{totalPayments}}', description: 'Tổng số yêu cầu thanh toán' }
+        ];
+    }
+    return [];
+}
 
 /**
  * Load and display template preview
  */
 function loadTemplate() {
     const templateType = document.getElementById('templateSelect').value;
+
+    console.log('Loading template:', templateType);
+    console.log('Available templates:', Object.keys(EMAIL_TEMPLATES));
+
     const template = EMAIL_TEMPLATES[templateType];
 
-    if (!template) return;
+    if (!template) {
+        console.error('Template not found:', templateType);
+        console.error('EMAIL_TEMPLATES:', EMAIL_TEMPLATES);
+
+        // Show error message in preview
+        document.getElementById('templatePreview').innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #ef4444;">
+                <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 16px;"></i>
+                <p style="font-weight: bold;">Template "${templateType}" chưa được tải từ server</p>
+                <p style="font-size: 0.9rem; color: #6b7280;">Vui lòng kiểm tra console hoặc reload trang</p>
+            </div>
+        `;
+        return;
+    }
 
     // Update subject
     document.getElementById('templateSubject').value = template.subject;
 
-    // Update preview with sample data
-    const sampleData = {
-        userName: 'Nguyễn Văn A',
-        amount: '250,000đ',
-        totalAvailable: '1,500,000đ',
-        merchant: 'Shopee',
-        unsubscribeUrl: 'https://chatchiu.online/unsubscribe?token=xxx'
-    };
+    // Get sample data for this template type
+    const sampleData = getSampleDataForTemplate(templateType);
 
+    // Update preview with sample data
     let previewContent = template.content;
     Object.keys(sampleData).forEach(key => {
         previewContent = previewContent.replace(new RegExp(`{{${key}}}`, 'g'), sampleData[key]);
     });
 
     document.getElementById('templatePreview').innerHTML = previewContent;
+
+    // Update variables list
+    updateVariablesList(templateType);
+}
+
+/**
+ * Update variables list display
+ */
+function updateVariablesList(templateType) {
+    const variablesList = document.querySelector('.variables-list');
+    if (!variablesList) return;
+
+    const variables = getVariablesForTemplate(templateType);
+
+    variablesList.innerHTML = variables.map(v => `
+        <div class="variable-item">
+            <code>${v.code}</code>
+            <span>${v.description}</span>
+        </div>
+    `).join('');
 }
 
 /**
@@ -1026,10 +1231,16 @@ function initTemplateEditorListeners() {
         openEditorBtn.addEventListener('click', openTemplateEditor);
     }
 
-    // Send test email button - open modal
-    const testEmailBtn = document.querySelector('[data-action="sendTestEmail"]');
-    if (testEmailBtn) {
-        testEmailBtn.addEventListener('click', openTestEmailModal);
+    // Test email checkbox toggle
+    const testEmailCheckbox = document.getElementById('enableTestEmail');
+    if (testEmailCheckbox) {
+        testEmailCheckbox.addEventListener('change', toggleTestEmailForm);
+    }
+
+    // Send test email for current template
+    const sendTestBtnInline = document.querySelector('[data-action="sendTestEmailForTemplate"]');
+    if (sendTestBtnInline) {
+        sendTestBtnInline.addEventListener('click', sendTestEmailForTemplate);
     }
 
     // Template editor modal close button
@@ -1061,9 +1272,9 @@ function initTemplateEditorListeners() {
     }
 
     // Test email modal - send button
-    const sendTestBtn = document.querySelector('[data-action="sendTestEmailSubmit"]');
-    if (sendTestBtn) {
-        sendTestBtn.addEventListener('click', sendTestEmail);
+    const sendTestBtnModal = document.querySelector('[data-action="sendTestEmailSubmit"]');
+    if (sendTestBtnModal) {
+        sendTestBtnModal.addEventListener('click', sendTestEmail);
     }
 
     // Close test email modal on backdrop click
@@ -1105,28 +1316,68 @@ function closeTemplateEditor() {
 /**
  * Save template changes
  */
-function saveTemplateChanges() {
+async function saveTemplateChanges() {
     const templateType = document.getElementById('editorTemplateType').value;
     const newSubject = document.getElementById('editorSubject').value;
     const newContent = document.getElementById('editorContent').value;
 
     if (!newSubject || !newContent) {
-        showAlert('alertContainer', 'warning', 'Cảnh Báo', 'Subject và Content không được để trống!');
+        showAlert('warning', 'Cảnh Báo', 'Subject và Content không được để trống!', 'alertContainer', false);
         return;
     }
 
-    // Update template in memory
-    EMAIL_TEMPLATES[templateType].subject = newSubject;
-    EMAIL_TEMPLATES[templateType].content = newContent;
+    try {
+        // Show loading state
+        const saveBtn = document.querySelector('[data-action="saveTemplateChanges"]');
+        const originalText = saveBtn.innerHTML;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...';
+        saveBtn.disabled = true;
 
-    // Update preview
-    loadTemplate();
+        // Save to server
+        const response = await fetch(`${API_BASE}/api/notifications/admin/templates/${templateType}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                subject: newSubject,
+                content: newContent
+            })
+        });
 
-    // Close modal
-    closeTemplateEditor();
+        const data = await response.json();
 
-    // Show success message
-    showAlert('alertContainer', 'success', 'Đã Lưu!',
-              'Template đã được cập nhật. Lưu ý: Thay đổi chỉ tồn tại trong phiên làm việc hiện tại. ' +
-              'Để lưu vĩnh viễn, cần cập nhật file backend/services/emailTemplates.js');
+        if (!data.success) {
+            throw new Error(data.message || 'Không thể lưu template');
+        }
+
+        // Update template in memory
+        EMAIL_TEMPLATES[templateType].subject = newSubject;
+        EMAIL_TEMPLATES[templateType].content = newContent;
+
+        // Update preview
+        loadTemplate();
+
+        // Close modal
+        closeTemplateEditor();
+
+        // Show success message
+        showAlert('success', 'Đã Lưu!',
+                  'Template đã được lưu vào database thành công. Thay đổi sẽ được áp dụng cho email tiếp theo.',
+                  'alertContainer', true);
+
+        // Restore button
+        saveBtn.innerHTML = originalText;
+        saveBtn.disabled = false;
+
+    } catch (error) {
+        console.error('Save template error:', error);
+        showAlert('danger', 'Lỗi!', error.message, 'alertContainer', false);
+
+        // Restore button
+        const saveBtn = document.querySelector('[data-action="saveTemplateChanges"]');
+        saveBtn.innerHTML = '<i class="fas fa-save"></i> Lưu Thay Đổi';
+        saveBtn.disabled = false;
+    }
 }
