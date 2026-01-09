@@ -653,23 +653,38 @@ router.get('/conversions', authenticateToken, async (req, res) => {
       });
     }
 
-    // Get conversions with System Reconciliation status
+    // Get system_conversions with reconciliation status
     const conversionsQuery = `
       SELECT
-        c.*,
-        m.logo_url as merchant_logo,
+        sc.id,
+        sc.merchant_name,
+        NULL as merchant_logo,
+        sc.order_code,
+        sc.order_amount,
+        sc.commission,
+        sc.cashback_amount,
+        sc.status,
+        sc.order_time,
+        sc.approval_time,
+        NULL as matched_at,
+        sc.created_at,
+        CASE
+          WHEN sc.system_reconciliation_id IS NOT NULL THEN 'reconciled'
+          ELSE NULL
+        END as system_reconciliation_status,
+        sc.system_reconciliation_id,
+        NULL as system_reconciled_at,
         sri.id as system_reconciliation_item_id,
-        sri.system_reconciliation_id,
         sr.status as system_reconciliation_status_detail,
         sr.period_label as system_reconciliation_period,
-        sr.finalized_at as system_reconciliation_finalized_at
-      FROM conversions c
-      LEFT JOIN merchants m ON m.id = c.merchant_id
-      LEFT JOIN system_reconciliation_items sri ON sri.conversion_id = c.id
+        sr.finalized_at as system_reconciliation_finalized_at,
+        'system' as source_type
+      FROM system_conversions sc
+      LEFT JOIN system_reconciliation_items sri ON sri.system_conversion_id = sc.id
       LEFT JOIN system_reconciliations sr ON sr.id = sri.system_reconciliation_id
-      WHERE c.user_id = $1
-      ${status ? 'AND c.status = $2' : ''}
-      ORDER BY c.created_at DESC
+      WHERE sc.user_id = $1
+      ${status ? 'AND sc.status = $2' : ''}
+      ORDER BY sc.created_at DESC
       LIMIT $${status ? '3' : '2'} OFFSET $${status ? '4' : '3'}
     `;
 
@@ -694,7 +709,9 @@ router.get('/conversions', authenticateToken, async (req, res) => {
         approvalTime: sc.approval_time,
         matchedAt: sc.matched_at,
         createdAt: sc.created_at,
-        // System Reconciliation Status (from conversions.system_reconciliation_status column)
+        // Source type: 'api' or 'system'
+        sourceType: sc.source_type,
+        // System Reconciliation Status (from conversions.system_reconciliation_status column or computed)
         systemReconciliationStatus: sc.system_reconciliation_status || null,
         systemReconciliationId: sc.system_reconciliation_id || null,
         systemReconciledAt: sc.system_reconciled_at || null,

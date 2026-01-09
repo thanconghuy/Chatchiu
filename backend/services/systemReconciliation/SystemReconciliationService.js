@@ -33,11 +33,12 @@ class SystemReconciliationService {
       reconciliationDate.setDate(periodEnd.getDate() + 15);
 
       // Check if any selected orders are already in another reconciliation
+      // Use system_conversion_id for system reconciliation (migration 037)
       const checkOrdersQuery = `
-        SELECT sri.conversion_id, sr.period_label
+        SELECT sri.system_conversion_id, sr.period_label
         FROM system_reconciliation_items sri
         JOIN system_reconciliations sr ON sri.system_reconciliation_id = sr.id
-        WHERE sri.conversion_id = ANY($1)
+        WHERE sri.system_conversion_id = ANY($1)
         LIMIT 1
       `;
       const existingOrders = await client.query(checkOrdersQuery, [selectedOrderIds]);
@@ -47,31 +48,31 @@ class SystemReconciliationService {
         throw new Error(`Một số đơn hàng đã có trong kỳ đối soát "${order.period_label}". Vui lòng chọn đơn hàng khác.`);
       }
 
-      // Collect selected orders from conversions
+      // Collect selected orders from system_conversions (internal orders)
       // Filter by selectedOrderIds array
       const ordersQuery = `
         SELECT
-          c.id as conversion_id,
-          c.user_id,
-          c.merchant_id,
-          COALESCE(c.merchant_name, 'Unknown') as merchant_name,
-          c.order_time,
-          c.confirmed_time,
-          COALESCE(c.order_amount, 0) as order_value,
-          COALESCE(c.commission, 0) as commission,
-          COALESCE(c.cashback_amount, 0) as cashback_amount,
-          c.status,
+          sc.id as conversion_id,
+          sc.user_id,
+          sc.merchant_id,
+          COALESCE(sc.merchant_name, 'Unknown') as merchant_name,
+          sc.order_time,
+          sc.approval_time as confirmed_time,
+          COALESCE(sc.order_amount, 0) as order_value,
+          COALESCE(sc.commission, 0) as commission,
+          COALESCE(sc.cashback_amount, 0) as cashback_amount,
+          sc.status,
           u.created_at as user_created_at
-        FROM conversions c
-        LEFT JOIN users u ON c.user_id = u.id
-        WHERE c.id = ANY($1)
-          AND c.status = 'approved'
+        FROM system_conversions sc
+        LEFT JOIN users u ON sc.user_id = u.id
+        WHERE sc.id = ANY($1)
+          AND sc.status = 'approved'
           AND NOT EXISTS (
             -- Exclude already reconciled orders
             SELECT 1 FROM system_reconciliation_items sri
-            WHERE sri.conversion_id = c.id
+            WHERE sri.system_conversion_id = sc.id
           )
-        ORDER BY c.order_time ASC
+        ORDER BY sc.order_time ASC
       `;
 
       const ordersResult = await client.query(ordersQuery, [selectedOrderIds]);
@@ -172,14 +173,11 @@ class SystemReconciliationService {
         ]);
       }
 
-      // Update conversions status to 'pending'
-      // This will auto-sync to system_conversions via trigger
+      // Update system_conversions to link to reconciliation
       await client.query(`
-        UPDATE conversions
+        UPDATE system_conversions
         SET
-          system_reconciliation_status = 'pending',
-          system_reconciliation_id = $1,
-          system_reconciled_at = CURRENT_TIMESTAMP
+          system_reconciliation_id = $1
         WHERE id = ANY($2)
       `, [reconciliation.id, orders.map(o => o.conversion_id)]);
 
@@ -288,29 +286,9 @@ class SystemReconciliationService {
           recon.period_end
         ]);
 
-        // Log transaction for each user
-        // Get current balance first
-        const balanceResult = await client.query(
-          'SELECT available_balance FROM user_system_balance WHERE user_id = $1',
-          [userBalance.user_id]
-        );
-
-        const currentBalance = balanceResult.rows[0]?.available_balance || 0;
-
-        await client.query(`
-          INSERT INTO user_balance_transactions (
-            user_id, transaction_type, amount,
-            balance_before, balance_after,
-            description, created_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
-        `, [
-          userBalance.user_id,
-          'reconciliation_finalized',
-          totalCashback,
-          parseFloat(currentBalance) - totalCashback,
-          parseFloat(currentBalance),
-          'Đối soát nội bộ: ' + recon.period_label
-        ]);
+        // NOTE: Transaction logging is handled automatically by database trigger
+        // See migration 015_create_user_balance_transactions.sql
+        // The trigger `log_balance_transaction()` automatically logs all balance changes
       }
 
       // Update conversions status to 'reconciled'

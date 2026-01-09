@@ -17,6 +17,7 @@ const bcrypt = require('bcrypt');
 router.get('/profile', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.id;
+        const { pool } = require('../config/database');
 
         // Get user data
         const user = await User.findById(userId);
@@ -30,6 +31,29 @@ router.get('/profile', authenticateToken, async (req, res) => {
         // Get user stats
         const stats = await User.getStats(userId);
 
+        // Get system reconciliation balance (from finalized reconciliations)
+        const systemBalanceQuery = `
+            SELECT
+                COALESCE(available_balance, 0) as system_available,
+                COALESCE(pending_balance, 0) as system_pending,
+                COALESCE(total_earned, 0) as system_total
+            FROM user_system_balance
+            WHERE user_id = $1
+        `;
+        const systemBalanceResult = await pool.query(systemBalanceQuery, [userId]);
+        const systemBalance = systemBalanceResult.rows[0] || {
+            system_available: 0,
+            system_pending: 0,
+            system_total: 0
+        };
+
+        // Combine balances from both sources:
+        // 1. user.available_balance: From AccessTrade API conversions
+        // 2. systemBalance.system_available: From System Reconciliation (finalized)
+        const totalAvailableBalance = parseFloat(user.available_balance || 0) + parseFloat(systemBalance.system_available || 0);
+        const totalPendingBalance = parseFloat(user.pending_balance || 0) + parseFloat(systemBalance.system_pending || 0);
+        const totalCashback = parseFloat(user.total_cashback || 0) + parseFloat(systemBalance.system_total || 0);
+
         // Build profile response
         const profile = {
             id: user.id,
@@ -42,9 +66,21 @@ router.get('/profile', authenticateToken, async (req, res) => {
             oauthProvider: user.oauth_provider,
             emailVerified: user.email_verified,
             isAdmin: user.is_admin || false,
-            availableBalance: parseFloat(user.available_balance) || 0,
-            pendingBalance: parseFloat(user.pending_balance) || 0,
-            totalCashback: parseFloat(user.total_cashback) || 0,
+            // Combined balances from both API and System Reconciliation
+            availableBalance: totalAvailableBalance,
+            pendingBalance: totalPendingBalance,
+            totalCashback: totalCashback,
+            // Breakdown for debugging/transparency
+            apiBalance: {
+                available: parseFloat(user.available_balance || 0),
+                pending: parseFloat(user.pending_balance || 0),
+                total: parseFloat(user.total_cashback || 0)
+            },
+            systemBalance: {
+                available: parseFloat(systemBalance.system_available || 0),
+                pending: parseFloat(systemBalance.system_pending || 0),
+                total: parseFloat(systemBalance.system_total || 0)
+            },
             // Include stats
             totalOrders: stats.totalOrders || 0,
             totalCommission: parseFloat(stats.totalCommission) || 0,

@@ -969,6 +969,57 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+
+        /* Toast Notification Styles - Only for #toast element */
+        #toast {
+            position: fixed !important;
+            top: 20px !important;
+            right: 20px !important;
+            left: auto !important;
+            bottom: auto !important;
+            padding: 16px 24px !important;
+            border-radius: 8px !important;
+            color: white !important;
+            font-size: 14px !important;
+            font-weight: 500 !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+            z-index: 999999 !important;
+            min-width: 250px !important;
+            max-width: 400px !important;
+            word-wrap: break-word !important;
+            width: auto !important;
+            height: auto !important;
+            transition: opacity 0.3s ease, transform 0.3s ease !important;
+            align-items: flex-start !important;
+            justify-content: flex-start !important;
+        }
+
+        #toast.success {
+            background-color: #10b981 !important;
+        }
+
+        #toast.error {
+            background-color: #ef4444 !important;
+        }
+
+        #toast.warning {
+            background-color: #f59e0b !important;
+        }
+
+        #toast.info {
+            background-color: #3b82f6 !important;
+        }
+
+        #toast[style*="display: none"] {
+            opacity: 0 !important;
+            transform: translateX(400px) !important;
+            pointer-events: none !important;
+        }
+
+        #toast[style*="display: block"] {
+            opacity: 1 !important;
+            transform: translateX(0) !important;
+        }
     </style>
 </head>
 <body>
@@ -3688,7 +3739,12 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    showToast(`Đã thêm ${result.data.added_count} đơn hàng vào danh sách chờ`, 'success');
+                    // Show appropriate message based on added count
+                    if (result.data.added_count === 0) {
+                        showToast('Không có đơn hàng mới đủ điều kiện để thêm vào danh sách chờ', 'info');
+                    } else {
+                        showToast(`Đã thêm ${result.data.added_count} đơn hàng vào danh sách chờ (${formatCurrency(result.data.total_cashback)})`, 'success');
+                    }
 
                     // Reload data - these functions may disable/enable the button
                     await loadNewOrdersPreview();
@@ -3825,10 +3881,12 @@
                         `;
 
                         orders.forEach(order => {
+                            // Use system_conversion_id for system conversions (after migration 038)
+                            const conversionId = order.system_conversion_id || order.conversion_id;
                             html += `
                                 <tr>
                                     <td style="text-align: center;">
-                                        <input type="checkbox" class="order-checkbox" value="${order.id}" data-conversion-id="${order.conversion_id}" data-month="${month}" style="width: 18px; height: 18px; cursor: pointer;">
+                                        <input type="checkbox" class="order-checkbox" value="${order.id}" data-conversion-id="${conversionId}" data-month="${month}" style="width: 18px; height: 18px; cursor: pointer;">
                                     </td>
                                     <td><strong>${order.order_code || 'N/A'}</strong></td>
                                     <td>${order.merchant_name || 'N/A'}</td>
@@ -4021,10 +4079,24 @@
         }
 
         async function createReconciliationFromWaiting(month, periodLabel) {
+            console.log('[createReconciliationFromWaiting] month:', month, 'periodLabel:', periodLabel);
+
+            if (!month || !periodLabel) {
+                showToast('Thiếu thông tin tháng hoặc tên kỳ đối soát', 'error');
+                return;
+            }
+
+            // Format month to YYYY-MM-DD (first day of month)
+            // Input might be ISO timestamp like "2025-11-30T17:00:00.000Z"
+            const monthDate = new Date(month);
+            const formattedMonth = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}-01`;
+
+            console.log('[createReconciliationFromWaiting] formattedMonth:', formattedMonth);
+
             try {
                 // First, check if there's an existing draft reconciliation for this period
                 const checkResponse = await fetch(
-                    `${CONFIG.API_BASE_URL}/admin/system-reconciliation/auto-sync/check-draft-reconciliation?month=${month}`,
+                    `${CONFIG.API_BASE_URL}/admin/system-reconciliation/auto-sync/check-draft-reconciliation?month=${formattedMonth}`,
                     {
                         headers: {
                             'Authorization': `Bearer ${token}`
@@ -4078,17 +4150,24 @@
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
-                            month,
+                            month: formattedMonth,  // Use formatted month (YYYY-MM-DD)
                             periodLabel,
                             reconciliationId // null if creating new, id if adding to existing
                         })
                     }
                 );
 
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ message: 'Lỗi không xác định' }));
+                    showToast(errorData.message || `Lỗi ${response.status}: ${response.statusText}`, 'error');
+                    return;
+                }
+
                 const result = await response.json();
+                console.log('[createReconciliationFromWaiting] Response:', result);
 
                 if (result.success) {
-                    showToast(result.message, 'success');
+                    showToast(result.message || 'Tạo kỳ đối soát thành công', 'success');
                     await loadWaitingList();
                     await loadNewOrdersPreview();
                     // Optionally reload reconciliations list to show updated data
@@ -4391,7 +4470,28 @@
         });
 
         console.log('[system-reconciliation.html] CSP-compliant event delegation loaded');
+
+        // ============ Toast Notification Function ============
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            if (!toast) {
+                console.error('Toast element not found');
+                return;
+            }
+
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            toast.style.display = 'block';
+
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 5000);
+        }
     </script>
+
+    <!-- Toast Container -->
+    <div id="toast" class="toast" style="display: none;"></div>
 
     <!-- Sidebar Component -->
     <script src="/admin/sidebar.js"></script>
