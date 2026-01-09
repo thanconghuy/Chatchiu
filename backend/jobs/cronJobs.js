@@ -145,7 +145,13 @@ class CronJobsService {
    */
   scheduleRetryUnmatched(schedule = '0 */6 * * *', timezone = 'Asia/Ho_Chi_Minh') {
     const job = cron.schedule(schedule, async () => {
+      const jobKey = 'retry-unmatched';
+      const startTime = Date.now();
+
       logger.info('🔄 Cron: Retry unmatched clicks started');
+
+      // Mark job as started in database
+      await this.recordJobStart(jobKey);
 
       try {
         const results = await retryService.retryUnmatchedClicks({
@@ -166,11 +172,19 @@ class CronJobsService {
           });
         }
 
+        // Record success
+        const duration = Date.now() - startTime;
+        await this.recordJobComplete(jobKey, 'success', duration, results);
+
       } catch (error) {
         logger.error('🔄 Cron: Retry unmatched clicks failed', {
           error: error.message,
           stack: error.stack
         });
+
+        // Record failure
+        const duration = Date.now() - startTime;
+        await this.recordJobComplete(jobKey, 'failed', duration, { error: error.message });
       }
     }, {
       scheduled: true,
@@ -197,7 +211,13 @@ class CronJobsService {
   scheduleCleanupExpired(schedule = '0 3 * * *', timezone = 'Asia/Ho_Chi_Minh') {
 
     const job = cron.schedule(schedule, async () => {
+      const jobKey = 'cleanup-expired';
+      const startTime = Date.now();
+
       logger.info('🗑️  Cron: Cleanup expired clicks started');
+
+      // Mark job as started in database
+      await this.recordJobStart(jobKey);
 
       try {
         const { pool } = require('../config/database');
@@ -220,10 +240,18 @@ class CronJobsService {
           expiredCount
         });
 
+        // Record success
+        const duration = Date.now() - startTime;
+        await this.recordJobComplete(jobKey, 'success', duration, { expiredCount });
+
       } catch (error) {
         logger.error('🗑️  Cron: Cleanup expired clicks failed', {
           error: error.message
         });
+
+        // Record failure
+        const duration = Date.now() - startTime;
+        await this.recordJobComplete(jobKey, 'failed', duration, { error: error.message });
       }
     }, {
       scheduled: true,
@@ -250,7 +278,13 @@ class CronJobsService {
   scheduleExpiringAlert(schedule = '0 9 * * *', timezone = 'Asia/Ho_Chi_Minh') {
 
     const job = cron.schedule(schedule, async () => {
+      const jobKey = 'expiring-alert';
+      const startTime = Date.now();
+
       logger.info('⏰ Cron: Expiring clicks alert started');
+
+      // Mark job as started in database
+      await this.recordJobStart(jobKey);
 
       try {
         const expiringClicks = await retryService.getExpiringClicksReport(
@@ -267,10 +301,20 @@ class CronJobsService {
           logger.info('⏰ No clicks expiring soon');
         }
 
+        // Record success
+        const duration = Date.now() - startTime;
+        await this.recordJobComplete(jobKey, 'success', duration, {
+          expiringCount: expiringClicks.length
+        });
+
       } catch (error) {
         logger.error('⏰ Cron: Expiring clicks alert failed', {
           error: error.message
         });
+
+        // Record failure
+        const duration = Date.now() - startTime;
+        await this.recordJobComplete(jobKey, 'failed', duration, { error: error.message });
       }
     }, {
       scheduled: true,
@@ -297,7 +341,13 @@ class CronJobsService {
   scheduleActivityLogsCleanup(schedule = '0 2 * * *', timezone = 'Asia/Ho_Chi_Minh') {
 
     const job = cron.schedule(schedule, async () => {
+      const jobKey = 'activity-logs-cleanup';
+      const startTime = Date.now();
+
       logger.info('🗑️  Cron: Activity logs cleanup started');
+
+      // Mark job as started in database
+      await this.recordJobStart(jobKey);
 
       try {
         const { pool } = require('../config/database');
@@ -321,10 +371,18 @@ class CronJobsService {
           });
         }
 
+        // Record success
+        const duration = Date.now() - startTime;
+        await this.recordJobComplete(jobKey, 'success', duration, { deletedCount });
+
       } catch (error) {
         logger.error('🗑️  Cron: Activity logs cleanup failed', {
           error: error.message
         });
+
+        // Record failure
+        const duration = Date.now() - startTime;
+        await this.recordJobComplete(jobKey, 'failed', duration, { error: error.message });
       }
     }, {
       scheduled: true,
@@ -361,7 +419,13 @@ class CronJobsService {
       }
 
       const job = cron.schedule(schedule, async () => {
+        const jobKey = 'cashback-reminders';
+        const startTime = Date.now();
+
         logger.info('📧 Cron: Cashback reminder emails started');
+
+        // Mark job as started in database
+        await this.recordJobStart(jobKey);
 
         try {
           // Check if still enabled before running
@@ -369,6 +433,13 @@ class CronJobsService {
 
           if (!stillEnabled || stillEnabled === 'false') {
             logger.info('📧 Cashback reminders disabled, skipping this run');
+
+            // Record as success with skipped status
+            const duration = Date.now() - startTime;
+            await this.recordJobComplete(jobKey, 'success', duration, {
+              skipped: true,
+              reason: 'disabled_in_settings'
+            });
             return;
           }
 
@@ -391,11 +462,19 @@ class CronJobsService {
             });
           }
 
+          // Record success
+          const duration = Date.now() - startTime;
+          await this.recordJobComplete(jobKey, 'success', duration, results);
+
         } catch (error) {
           logger.error('📧 Cron: Cashback reminder emails failed', {
             error: error.message,
             stack: error.stack
           });
+
+          // Record failure
+          const duration = Date.now() - startTime;
+          await this.recordJobComplete(jobKey, 'failed', duration, { error: error.message });
         }
       }, {
         scheduled: true,
@@ -428,7 +507,13 @@ class CronJobsService {
   scheduleNotificationLogsCleanup(schedule = '0 4 * * *', timezone = 'Asia/Ho_Chi_Minh') {
 
     const job = cron.schedule(schedule, async () => {
+      const jobKey = 'notification-logs-cleanup';
+      const startTime = Date.now();
+
       logger.info('🗑️  Cron: Notification logs cleanup started');
+
+      // Mark job as started in database
+      await this.recordJobStart(jobKey);
 
       try {
         const { pool } = require('../config/database');
@@ -452,11 +537,19 @@ class CronJobsService {
           });
         }
 
+        // Record success
+        const duration = Date.now() - startTime;
+        await this.recordJobComplete(jobKey, 'success', duration, { deletedCount });
+
       } catch (error) {
         logger.error('🗑️  Cron: Notification logs cleanup failed', {
           error: error.message,
           stack: error.stack
         });
+
+        // Record failure
+        const duration = Date.now() - startTime;
+        await this.recordJobComplete(jobKey, 'failed', duration, { error: error.message });
       }
     }, {
       scheduled: true,
@@ -493,6 +586,38 @@ class CronJobsService {
 
     this.jobs = [];
     // Note: isInitialized flag is managed by initialize() method
+  }
+
+  /**
+   * Record job start in database
+   * @param {string} jobKey - Job key to record
+   */
+  async recordJobStart(jobKey) {
+    try {
+      const { pool } = require('../config/database');
+      await pool.query('SELECT cron_job_started($1)', [jobKey]);
+    } catch (error) {
+      logger.error(`Failed to record job start for ${jobKey}:`, error.message);
+    }
+  }
+
+  /**
+   * Record job completion in database
+   * @param {string} jobKey - Job key to record
+   * @param {string} status - 'success' or 'failed'
+   * @param {number} durationMs - Duration in milliseconds
+   * @param {object} result - Result object to store as JSON
+   */
+  async recordJobComplete(jobKey, status, durationMs, result = null) {
+    try {
+      const { pool } = require('../config/database');
+      await pool.query(
+        'SELECT cron_job_completed($1, $2, $3, $4)',
+        [jobKey, status, durationMs, result ? JSON.stringify(result) : null]
+      );
+    } catch (error) {
+      logger.error(`Failed to record job completion for ${jobKey}:`, error.message);
+    }
   }
 
   /**
@@ -564,48 +689,76 @@ class CronJobsService {
    * @param {string} jobName - Name of job to trigger
    */
   async triggerJob(jobName) {
+    const startTime = Date.now();
     logger.info(`Manually triggering job: ${jobName}`);
 
-    switch (jobName) {
-      case 'retry-unmatched':
-        return await retryService.retryUnmatchedClicks({ daysOld: 1, limit: 200 });
+    // Record job start
+    await this.recordJobStart(jobName);
 
-      case 'cleanup-expired':
-        const { pool } = require('../config/database');
-        const result = await pool.query(`
-          UPDATE clicks c
-          SET last_checked_at = NOW()
-          WHERE c.link_expires_at < NOW()
-            AND NOT EXISTS (SELECT 1 FROM conversions co WHERE co.click_id = c.id)
-          RETURNING id
-        `);
-        return { expiredCount: result.rows.length };
+    try {
+      let result;
 
-      case 'expiring-alert':
-        return await retryService.getExpiringClicksReport(3, 100);
+      switch (jobName) {
+        case 'retry-unmatched':
+          result = await retryService.retryUnmatchedClicks({ daysOld: 1, limit: 200 });
+          break;
 
-      case 'cleanup-activity-logs':
-        const { pool: activityPool } = require('../config/database');
-        const cleanupResult = await activityPool.query(`
-          DELETE FROM user_activity_logs
-          WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '90 days'
-        `);
-        return { deletedCount: cleanupResult.rowCount };
+        case 'cleanup-expired':
+          const { pool } = require('../config/database');
+          const cleanupResult = await pool.query(`
+            UPDATE clicks c
+            SET last_checked_at = NOW()
+            WHERE c.link_expires_at < NOW()
+              AND NOT EXISTS (SELECT 1 FROM conversions co WHERE co.click_id = c.id)
+            RETURNING id
+          `);
+          result = { expiredCount: cleanupResult.rows.length };
+          break;
 
-      case 'cashback-reminders':
-        const CashbackNotificationService = require('../services/notifications/CashbackNotificationService');
-        return await CashbackNotificationService.sendPeriodicReminders();
+        case 'expiring-alert':
+          const expiringClicks = await retryService.getExpiringClicksReport(3, 100);
+          result = { expiringCount: expiringClicks.length, clicks: expiringClicks };
+          break;
 
-      case 'notification-logs-cleanup':
-        const { pool: notifPool } = require('../config/database');
-        const notifCleanupResult = await notifPool.query(`
-          DELETE FROM notification_logs
-          WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '30 days'
-        `);
-        return { deletedCount: notifCleanupResult.rowCount };
+        case 'cleanup-activity-logs':
+          const { pool: activityPool } = require('../config/database');
+          const activityCleanupResult = await activityPool.query(`
+            DELETE FROM user_activity_logs
+            WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '90 days'
+          `);
+          result = { deletedCount: activityCleanupResult.rowCount };
+          break;
 
-      default:
-        throw new Error(`Unknown job: ${jobName}`);
+        case 'cashback-reminders':
+          const CashbackNotificationService = require('../services/notifications/CashbackNotificationService');
+          result = await CashbackNotificationService.sendPeriodicReminders();
+          break;
+
+        case 'notification-logs-cleanup':
+          const { pool: notifPool } = require('../config/database');
+          const notifCleanupResult = await notifPool.query(`
+            DELETE FROM cashback_notifications
+            WHERE email_sent_at < CURRENT_TIMESTAMP - INTERVAL '90 days'
+          `);
+          result = { deletedCount: notifCleanupResult.rowCount };
+          break;
+
+        default:
+          throw new Error(`Unknown job: ${jobName}`);
+      }
+
+      // Record success
+      const duration = Date.now() - startTime;
+      await this.recordJobComplete(jobName, 'success', duration, result);
+
+      return result;
+
+    } catch (error) {
+      // Record failure
+      const duration = Date.now() - startTime;
+      await this.recordJobComplete(jobName, 'failed', duration, { error: error.message });
+
+      throw error;
     }
   }
 }

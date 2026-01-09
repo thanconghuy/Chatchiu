@@ -150,7 +150,7 @@ class SystemReconciliationService {
 
         await client.query(`
           INSERT INTO system_reconciliation_items (
-            system_reconciliation_id, conversion_id, user_id,
+            system_reconciliation_id, system_conversion_id, user_id,
             merchant_id, merchant_name, order_time, approval_time,
             order_value, commission_amount, cashback_amount,
             conversion_status, is_high_risk, risk_score
@@ -185,10 +185,11 @@ class SystemReconciliationService {
 
       // Remove from waiting list (if exists)
       // Orders may have been added via auto-sync waiting list
+      // Use system_conversion_id after migration 038
       const conversionIds = orders.map(o => o.conversion_id);
       await client.query(`
         DELETE FROM reconciliation_waiting_list
-        WHERE conversion_id = ANY($1)
+        WHERE system_conversion_id = ANY($1)
       `, [conversionIds]);
 
       // Log creation
@@ -596,36 +597,33 @@ class SystemReconciliationService {
         throw new Error('Chỉ có thể thêm đơn hàng vào kỳ đối soát DRAFT');
       }
 
-      // 2. Get order details (only approved, not already in any reconciliation)
+      // 2. Get order details from system_conversions (only approved, not already in any reconciliation)
       const ordersQuery = `
         SELECT
-          c.id as conversion_id,
-          c.user_id,
-          c.merchant_id,
-          COALESCE(c.merchant_name, 'Unknown') as merchant_name,
-          c.order_time,
-          c.confirmed_time,
-          COALESCE(c.order_amount, 0) as order_value,
-          COALESCE(c.commission, 0) as commission,
-          COALESCE(c.cashback_amount, 0) as cashback_amount,
-          c.status,
+          sc.id as conversion_id,
+          sc.user_id,
+          sc.merchant_id,
+          COALESCE(sc.merchant_name, 'Unknown') as merchant_name,
+          sc.order_time,
+          sc.order_time as confirmed_time,
+          COALESCE(sc.order_amount, 0) as order_value,
+          COALESCE(sc.commission, 0) as commission,
+          COALESCE(sc.cashback_amount, 0) as cashback_amount,
+          sc.status,
           u.created_at as user_created_at
-        FROM conversions c
-        LEFT JOIN users u ON c.user_id = u.id
-        WHERE c.id = ANY($1)
-          AND c.status = 'approved'
-          AND NOT EXISTS (
-            SELECT 1 FROM system_reconciliation_items sri
-            WHERE sri.conversion_id = c.id
-          )
-        ORDER BY c.order_time ASC
+        FROM system_conversions sc
+        LEFT JOIN users u ON sc.user_id = u.id
+        WHERE sc.id = ANY($1)
+          AND sc.status = 'approved'
+          AND sc.system_reconciliation_id IS NULL
+        ORDER BY sc.order_time ASC
       `;
 
       const ordersResult = await client.query(ordersQuery, [orderIds]);
       const orders = ordersResult.rows;
 
       if (orders.length === 0) {
-        throw new Error('Không có đơn hàng hợp lệ để thêm');
+        throw new Error('Không có đơn hàng hợp lệ để thêm (hoặc đã được thêm vào kỳ đối soát khác)');
       }
 
       // 3. Insert reconciliation items
@@ -642,7 +640,7 @@ class SystemReconciliationService {
 
         await client.query(`
           INSERT INTO system_reconciliation_items (
-            system_reconciliation_id, conversion_id, user_id,
+            system_reconciliation_id, system_conversion_id, user_id,
             merchant_id, merchant_name, order_time, approval_time,
             order_value, commission_amount, cashback_amount,
             conversion_status, is_high_risk, risk_score
@@ -680,21 +678,19 @@ class SystemReconciliationService {
         }
       }
 
-      // 4. Update conversions status
-      await client.query(`
-        UPDATE conversions
-        SET
-          system_reconciliation_status = 'pending',
-          system_reconciliation_id = $1,
-          system_reconciled_at = CURRENT_TIMESTAMP
-        WHERE id = ANY($2)
-      `, [reconciliationId, orders.map(o => o.conversion_id)]);
-
-      // 4.5. Remove from waiting list (if exists)
+      // 4. Update system_conversions status
       const conversionIds = orders.map(o => o.conversion_id);
       await client.query(`
+        UPDATE system_conversions
+        SET system_reconciliation_id = $1
+        WHERE id = ANY($2)
+      `, [reconciliationId, conversionIds]);
+
+      // 4.5. Remove from waiting list (if exists)
+      // Use system_conversion_id after migration 038
+      await client.query(`
         DELETE FROM reconciliation_waiting_list
-        WHERE conversion_id = ANY($1)
+        WHERE system_conversion_id = ANY($1)
       `, [conversionIds]);
 
       // 5. Recalculate totals

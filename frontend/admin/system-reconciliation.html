@@ -1190,7 +1190,6 @@
                     </p>
                 </div>
                 <div class="card-body" style="padding: 20px;">
-                    <!-- Month Filter -->
                     <div style="margin-bottom: 16px;">
                         <label style="font-weight: 600; margin-right: 8px;">Tháng:</label>
                         <select id="waitingListMonthFilter" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
@@ -1380,6 +1379,67 @@
         </div>
     </div>
 
+    <!-- Add to Draft Reconciliation Modal -->
+    <div id="addToDraftModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>📋 Thêm Đơn Hàng Vào Kỳ Đối Soát</h2>
+                <button class="modal-close" data-action="close-add-to-draft-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 20px; padding: 16px; background: #f0f9ff; border-left: 4px solid #3b82f6; border-radius: 8px;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                        <i class="fas fa-info-circle" style="color: #3b82f6; font-size: 1.2rem;"></i>
+                        <strong style="color: #1e40af;">Thông tin đơn hàng được chọn</strong>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
+                        <div>
+                            <div style="font-size: 0.875rem; color: #64748b;">Số đơn hàng</div>
+                            <div id="modalSelectedCount" style="font-size: 1.25rem; font-weight: 700; color: #1e293b;">0</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.875rem; color: #64748b;">Tổng cashback</div>
+                            <div id="modalSelectedCashback" style="font-size: 1.25rem; font-weight: 700; color: #10b981;">0 đ</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label for="selectDraftReconciliation" style="display: block; margin-bottom: 8px; font-weight: 600; color: #1e293b;">
+                        <i class="fas fa-calendar-alt" style="color: #f59e0b; margin-right: 6px;"></i>
+                        Chọn kỳ đối soát (Draft)
+                    </label>
+                    <select
+                        id="selectDraftReconciliation"
+                        required
+                        style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 1rem; cursor: pointer;"
+                    >
+                        <option value="">-- Chọn kỳ đối soát --</option>
+                    </select>
+                    <small style="color: #64748b; font-size: 0.875rem; display: block; margin-top: 6px;">
+                        <i class="fas fa-lightbulb"></i>
+                        Chỉ hiển thị các kỳ đối soát đang ở trạng thái "Draft" (Chưa hoàn tất)
+                    </small>
+                </div>
+
+                <div id="addToDraftStatus" class="status-message" style="display: none;"></div>
+            </div>
+            <div class="modal-footer" style="padding: 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px;">
+                <button data-action="close-add-to-draft-modal" style="padding: 10px 24px; border: 1px solid #ddd; background: white; border-radius: 8px; cursor: pointer;">
+                    <i class="fas fa-times"></i>
+                    Hủy
+                </button>
+                <button
+                    data-action="confirm-add-to-draft"
+                    style="padding: 10px 24px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px;"
+                >
+                    <i class="fas fa-plus"></i>
+                    Thêm vào kỳ đối soát
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="../js/config.js"></script>
     <!-- Include reconciliation.js for deleteReconciliation function -->
     <script src="/admin/reconciliation.js"></script>
@@ -1485,10 +1545,13 @@
 
         function setupEventListeners() {
             // Create reconciliation form
-            document.getElementById('createReconForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                await createReconciliation();
-            });
+            const createReconForm = document.getElementById('createReconForm');
+            if (createReconForm) {
+                createReconForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    await createReconciliation();
+                });
+            }
 
             // Rows per page - REMOVED (no longer exists in table layout)
             // document.getElementById('rowsPerPage').addEventListener('change', (e) => {
@@ -1498,32 +1561,51 @@
             // });
 
             // Pagination
-            document.getElementById('prevPage').addEventListener('click', () => {
-                if (currentPage > 1) {
-                    currentPage--;
-                    loadReconciliations();
-                }
-            });
+            const prevPageBtn = document.getElementById('prevPage');
+            if (prevPageBtn) {
+                prevPageBtn.addEventListener('click', () => {
+                    if (currentPage > 1) {
+                        currentPage--;
+                        loadReconciliations();
+                    }
+                });
+            }
 
-            document.getElementById('nextPage').addEventListener('click', () => {
-                currentPage++;
-                loadReconciliations();
-            });
+            const nextPageBtn = document.getElementById('nextPage');
+            if (nextPageBtn) {
+                nextPageBtn.addEventListener('click', () => {
+                    currentPage++;
+                    loadReconciliations();
+                });
+            }
 
             // Filters
-            document.getElementById('statusFilter').addEventListener('change', () => {
-                currentPage = 1;
-                loadReconciliations();
-            });
+            const statusFilter = document.getElementById('statusFilter');
+            if (statusFilter) {
+                statusFilter.addEventListener('change', () => {
+                    currentPage = 1;
+                    loadReconciliations();
+                });
+            }
 
-            document.getElementById('searchInput').addEventListener('input', debounce(() => {
-                currentPage = 1;
-                loadReconciliations();
-            }, 500));
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.addEventListener('input', debounce(() => {
+                    currentPage = 1;
+                    loadReconciliations();
+                }, 500));
+            }
 
             // Batch actions
-            document.getElementById('batchFinalizeBtn').addEventListener('click', batchFinalize);
-            document.getElementById('clearSelectionBtn').addEventListener('click', clearSelection);
+            const batchFinalizeBtn = document.getElementById('batchFinalizeBtn');
+            if (batchFinalizeBtn) {
+                batchFinalizeBtn.addEventListener('click', batchFinalize);
+            }
+
+            const clearSelectionBtn = document.getElementById('clearSelectionBtn');
+            if (clearSelectionBtn) {
+                clearSelectionBtn.addEventListener('click', clearSelection);
+            }
 
             // Auto-Sync event listeners
             const newOrdersMonthFilter = document.getElementById('newOrdersMonthFilter');
@@ -2459,9 +2541,15 @@
                         <strong>Đã chọn:</strong> <span id="selectedCount" style="color: #3b82f6; font-weight: 700;">0</span> đơn hàng
                         | <strong>Tổng cashback:</strong> <span id="selectedCashback" style="color: #10b981; font-weight: 700;">0 đ</span>
                     </div>
-                    <button type="button" data-action="clear-selection" style="padding: 6px 12px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.875rem;">
-                        Bỏ chọn tất cả
-                    </button>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" data-action="add-to-draft-reconciliation" style="padding: 8px 16px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.875rem; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-plus"></i>
+                            Thêm vào kỳ đối soát
+                        </button>
+                        <button type="button" data-action="clear-selection" style="padding: 8px 16px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.875rem;">
+                            Bỏ chọn tất cả
+                        </button>
+                    </div>
                 </div>
 
                 <h4 style="margin: 24px 0 16px 0; color: #1e293b;">Chi Tiết Đơn Hàng Đủ Điều Kiện</h4>
@@ -2584,6 +2672,150 @@
                 selectAllCheckbox.indeterminate = false;
             }
             updateSelection();
+        }
+
+        // Add to Draft Reconciliation Functions
+        async function openAddToDraftModal() {
+            console.log('[openAddToDraftModal] Function called');
+
+            // Get selected orders
+            const checkboxes = document.querySelectorAll('.eligible-order-checkbox:checked');
+            console.log('[openAddToDraftModal] Selected checkboxes:', checkboxes.length);
+
+            if (checkboxes.length === 0) {
+                alert('Vui lòng chọn ít nhất 1 đơn hàng');
+                return;
+            }
+
+            // Update modal info
+            let totalCashback = 0;
+            checkboxes.forEach(cb => {
+                totalCashback += parseFloat(cb.dataset.cashback || 0);
+            });
+
+            document.getElementById('modalSelectedCount').textContent = checkboxes.length;
+            document.getElementById('modalSelectedCashback').textContent = formatMoney(totalCashback);
+
+            // Load draft reconciliations
+            console.log('[openAddToDraftModal] Loading draft reconciliations...');
+            await loadDraftReconciliations();
+
+            // Show modal
+            const modal = document.getElementById('addToDraftModal');
+            console.log('[openAddToDraftModal] Modal element:', modal);
+            if (modal) {
+                modal.style.display = 'flex'; // Override inline style
+                modal.classList.add('show');
+                console.log('[openAddToDraftModal] Modal shown');
+            } else {
+                console.error('[openAddToDraftModal] Modal not found!');
+            }
+        }
+
+        function closeAddToDraftModal() {
+            const modal = document.getElementById('addToDraftModal');
+            modal.style.display = 'none';
+            modal.classList.remove('show');
+            document.getElementById('addToDraftStatus').style.display = 'none';
+        }
+
+        async function loadDraftReconciliations() {
+            try {
+                const response = await fetch(`${CONFIG.API_BASE_URL}/admin/system-reconciliation?status=draft`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    const select = document.getElementById('selectDraftReconciliation');
+                    select.innerHTML = '<option value="">-- Chọn kỳ đối soát --</option>';
+
+                    result.data.reconciliations.forEach(recon => {
+                        const option = document.createElement('option');
+                        option.value = recon.id;
+                        option.textContent = `${recon.period_label} (${recon.total_orders} đơn hàng, ${formatMoney(recon.total_cashback)})`;
+                        select.appendChild(option);
+                    });
+
+                    if (result.data.reconciliations.length === 0) {
+                        select.innerHTML = '<option value="">Không có kỳ đối soát Draft nào</option>';
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading draft reconciliations:', error);
+                showStatusInModal('error', 'Không thể tải danh sách kỳ đối soát Draft');
+            }
+        }
+
+        async function confirmAddToDraft() {
+            const reconId = document.getElementById('selectDraftReconciliation').value;
+
+            if (!reconId) {
+                showStatusInModal('error', 'Vui lòng chọn kỳ đối soát');
+                return;
+            }
+
+            // Get selected order IDs
+            const checkboxes = document.querySelectorAll('.eligible-order-checkbox:checked');
+            const orderIds = Array.from(checkboxes).map(cb => cb.value);
+
+            if (orderIds.length === 0) {
+                showStatusInModal('error', 'Không có đơn hàng nào được chọn');
+                return;
+            }
+
+            try {
+                showStatusInModal('loading', `Đang thêm ${orderIds.length} đơn hàng vào kỳ đối soát...`);
+
+                const response = await fetch(`${CONFIG.API_BASE_URL}/admin/system-reconciliation/${reconId}/add-orders`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ orderIds })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showStatusInModal('success', `✅ Đã thêm ${orderIds.length} đơn hàng vào kỳ đối soát thành công!`);
+
+                    // Reload eligible orders after 1.5s
+                    setTimeout(() => {
+                        closeAddToDraftModal();
+                        loadEligibleOrders(eligibleOrdersPage);
+                        loadReconciliations(); // Refresh reconciliation list
+                    }, 1500);
+                } else {
+                    showStatusInModal('error', result.message || 'Không thể thêm đơn hàng');
+                }
+            } catch (error) {
+                console.error('Error adding orders to draft:', error);
+                showStatusInModal('error', 'Lỗi kết nối server');
+            }
+        }
+
+        function showStatusInModal(type, message) {
+            const statusEl = document.getElementById('addToDraftStatus');
+            statusEl.style.display = 'block';
+
+            const colors = {
+                success: { bg: '#d1fae5', border: '#10b981', text: '#065f46' },
+                error: { bg: '#fee2e2', border: '#ef4444', text: '#991b1b' },
+                loading: { bg: '#dbeafe', border: '#3b82f6', text: '#1e40af' }
+            };
+
+            const color = colors[type] || colors.error;
+
+            statusEl.innerHTML = `
+                <div style="padding: 12px 16px; background: ${color.bg}; border-left: 4px solid ${color.border}; border-radius: 6px; color: ${color.text}; font-weight: 500;">
+                    ${type === 'loading' ? '<i class="fas fa-spinner fa-spin"></i>' : ''} ${message}
+                </div>
+            `;
         }
 
         function displayEligibleOrdersPagination(pagination) {
@@ -4049,6 +4281,15 @@
                     break;
                 case 'clear-selection':
                     clearSelection();
+                    break;
+                case 'add-to-draft-reconciliation':
+                    openAddToDraftModal();
+                    break;
+                case 'close-add-to-draft-modal':
+                    closeAddToDraftModal();
+                    break;
+                case 'confirm-add-to-draft':
+                    confirmAddToDraft();
                     break;
                 case 'change-eligible-orders-page':
                     changeEligibleOrdersPage(parseInt(page));

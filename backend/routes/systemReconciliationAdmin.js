@@ -85,11 +85,11 @@ router.get('/stats', async (req, res) => {
 
 /**
  * GET /api/admin/system-reconciliation/preview
- * Preview eligible orders for a specific period before creating reconciliation
+ * Preview eligible orders from system_conversions for a specific period before creating reconciliation
  */
 router.get('/preview', async (req, res) => {
   try {
-    const { periodStart: startStr, periodEnd: endStr, affSid, page = 1, limit = 50 } = req.query;
+    const { periodStart: startStr, periodEnd: endStr, page = 1, limit = 50 } = req.query;
 
     if (!startStr || !endStr) {
       return res.status(400).json({
@@ -110,26 +110,21 @@ router.get('/preview', async (req, res) => {
       });
     }
 
-    // Build aff_sid filter
-    let affSidCondition = '';
-    if (affSid && affSid !== 'all') {
-      affSidCondition = ` AND cl.aff_sid = '${affSid}'`;
-    }
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const offset = (pageNum - 1) * limitNum;
 
-    // Count total eligible orders
+    // Query from system_conversions only (Cashback System orders)
+    // Only include orders that have NOT been reconciled yet
     const countQuery = `
       SELECT COUNT(*) as total
       FROM system_conversions sc
-      LEFT JOIN clicks cl ON sc.click_id = cl.id
       WHERE sc.status = 'approved'
         AND sc.order_time >= $1
         AND sc.order_time <= $2
-        ${affSidCondition}
+        AND sc.system_reconciliation_id IS NULL
     `;
-    const countResult = await pool.query(countQuery, [periodStart, periodEnd]);
-    const totalOrders = parseInt(countResult.rows[0].total);
 
-    // Calculate summary from all orders
     const summaryQuery = `
       SELECT
         COUNT(*) as total_orders,
@@ -138,27 +133,19 @@ router.get('/preview', async (req, res) => {
         COALESCE(SUM(sc.commission), 0) as total_commission,
         COALESCE(SUM(sc.order_amount), 0) as total_order_amount
       FROM system_conversions sc
-      LEFT JOIN clicks cl ON sc.click_id = cl.id
       WHERE sc.status = 'approved'
         AND sc.order_time >= $1
         AND sc.order_time <= $2
-        ${affSidCondition}
+        AND sc.system_reconciliation_id IS NULL
     `;
-    const summaryResult = await pool.query(summaryQuery, [periodStart, periodEnd]);
-    const summary = summaryResult.rows[0];
 
-    // Get paginated orders
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
-    const offset = (pageNum - 1) * limitNum;
-
-    const query = `
+    const ordersQuery = `
       SELECT
         sc.id,
         sc.user_id,
         COALESCE(u.full_name, u.username, 'N/A') as user_name,
         COALESCE(u.email, 'N/A') as user_email,
-        COALESCE(cl.aff_sid, 'N/A') as aff_sid,
+        'Cashback System' as aff_sid,
         sc.merchant_id,
         COALESCE(sc.merchant_name, 'Unknown') as merchant_name,
         COALESCE(sc.order_code, 'N/A') as order_code,
@@ -168,22 +155,25 @@ router.get('/preview', async (req, res) => {
         sc.status as conversion_status,
         sc.order_time,
         sc.created_at,
-        CASE
-          WHEN sc.system_reconciliation_id IS NOT NULL THEN true
-          ELSE false
-        END as is_reconciled
+        false as is_reconciled
       FROM system_conversions sc
       LEFT JOIN users u ON sc.user_id = u.id
-      LEFT JOIN clicks cl ON sc.click_id = cl.id
       WHERE sc.status = 'approved'
         AND sc.order_time >= $1
         AND sc.order_time <= $2
-        ${affSidCondition}
+        AND sc.system_reconciliation_id IS NULL
       ORDER BY sc.order_time DESC
       LIMIT $3 OFFSET $4
     `;
 
-    const result = await pool.query(query, [periodStart, periodEnd, limitNum, offset]);
+    // Execute queries
+    const countResult = await pool.query(countQuery, [periodStart, periodEnd]);
+    const totalOrders = parseInt(countResult.rows[0].total);
+
+    const summaryResult = await pool.query(summaryQuery, [periodStart, periodEnd]);
+    const summary = summaryResult.rows[0];
+
+    const result = await pool.query(ordersQuery, [periodStart, periodEnd, limitNum, offset]);
     const orders = result.rows;
 
     res.json({
@@ -347,10 +337,11 @@ router.get('/:id/items', async (req, res) => {
         sri.*,
         u.full_name as user_name,
         u.email as user_email,
-        c.order_code
+        COALESCE(sc.order_code, c.order_code, 'N/A') as order_code
       FROM system_reconciliation_items sri
       LEFT JOIN users u ON sri.user_id = u.id
       LEFT JOIN conversions c ON sri.conversion_id = c.id
+      LEFT JOIN system_conversions sc ON sri.system_conversion_id = sc.id
       WHERE ${whereClause}
       ORDER BY sri.order_time DESC
       LIMIT $${paramIndex++} OFFSET $${paramIndex++}
@@ -1180,8 +1171,9 @@ router.post('/auto-sync/create-from-waiting', async (req, res) => {
     }
 
     // Get all orders from waiting list for this month
+    // Use system_conversion_id for system reconciliation (migration 038)
     const waitingOrdersResult = await pool.query(`
-      SELECT conversion_id, cashback_amount
+      SELECT system_conversion_id, cashback_amount
       FROM reconciliation_waiting_list
       WHERE approval_month = $1 AND status = 'waiting'
       ORDER BY approval_time ASC
@@ -1194,7 +1186,7 @@ router.post('/auto-sync/create-from-waiting', async (req, res) => {
       });
     }
 
-    const selectedOrderIds = waitingOrdersResult.rows.map(o => o.conversion_id);
+    const selectedOrderIds = waitingOrdersResult.rows.map(o => o.system_conversion_id);
     const totalCashback = waitingOrdersResult.rows.reduce((sum, o) => sum + parseFloat(o.cashback_amount || 0), 0);
 
     let reconciliation;

@@ -606,11 +606,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('periodLabel').value = `${monthNames[now.getMonth()]}/${now.getFullYear()}`;
 
     // Event listeners
-    document.getElementById('previewBtn').addEventListener('click', previewReconciliation);
-    document.getElementById('createBtn').addEventListener('click', createReconciliation);
-    document.getElementById('closeDetailsModal').addEventListener('click', closeModal);
-    document.getElementById('closeDetailsBtn').addEventListener('click', closeModal);
-    document.getElementById('exportCsvBtn').addEventListener('click', exportCsv);
+    const previewBtn = document.getElementById('previewBtn');
+    if (previewBtn) {
+        previewBtn.addEventListener('click', previewReconciliation);
+    }
+
+    const createBtn = document.getElementById('createBtn');
+    if (createBtn) {
+        createBtn.addEventListener('click', createReconciliation);
+    }
+
+    const closeDetailsModal = document.getElementById('closeDetailsModal');
+    if (closeDetailsModal) {
+        closeDetailsModal.addEventListener('click', closeModal);
+    }
+
+    const closeDetailsBtn = document.getElementById('closeDetailsBtn');
+    if (closeDetailsBtn) {
+        closeDetailsBtn.addEventListener('click', closeModal);
+    }
+
+    const exportCsvBtn = document.getElementById('exportCsvBtn');
+    if (exportCsvBtn) {
+        exportCsvBtn.addEventListener('click', exportCsv);
+    }
 
     // Close modal when clicking outside
     window.onclick = function(event) {
