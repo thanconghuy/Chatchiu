@@ -1,0 +1,91 @@
+╔═══════════════════════════════════════════════════════════════╗
+║         BƯỚC 7: QUICK TEST REFERENCE CARD                     ║
+║         ✅ TEST DATA ĐÃ SẴN SÀNG - AN TOÀN 100%               ║
+╚═══════════════════════════════════════════════════════════════╝
+
+✅ SERVER: http://localhost:3007 (RUNNING)
+✅ TEST USER: testuser@test.com (Balance: ~90,000đ from 8 orders)
+✅ ADMIN: admin@test.com
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 ACCOUNTS (ĐÃ TẠO SẴN - KHÔNG ẢNH HƯỞNG DỮ LIỆU THỰC)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+👤 TEST USER:
+   Email: testuser@test.com
+   Password: Test123456
+   Balance: ~90,000đ ✅ (from 8 real test orders)
+   User ID: f7721918-7f35-41a8-90dd-df47deb13d4e
+   Orders: 8 conversions from Tiki, Lazada, Sendo, TikTok Shop
+
+👑 ADMIN:
+   Email: admin@test.com
+   Password: Admin123456
+   URL: http://localhost:3007/admin/login
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚀 5 BƯỚC TEST (10 PHÚT)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1️⃣ LOGIN & TẠO PAYMENT REQUEST
+   → http://localhost:3007/login
+   → testuser@test.com / Test123456
+   → Tạo payment request: 50,000đ
+   → Bank: Test Bank E2E
+
+2️⃣ GET PAYMENT ID
+   → Chạy: node backend/tests/get-latest-payment.js
+   → Copy payment request ID
+
+3️⃣ ADMIN LOGIN
+   → http://localhost:3007/admin/login
+   → admin@test.com / Admin123456
+
+4️⃣ MARK AS PAID ⚠️ CODE MỚI CHẠY Ở ĐÂY!
+   → Tìm payment: 50,000đ (testuser@test.com)
+   → Click "Confirm"
+   → Click "Mark as Paid"
+   → Transaction Ref: E2E-TEST-001
+   → Submit
+
+5️⃣ VERIFY
+   → node backend/tests/step7-e2e-verify.js <PAYMENT-ID>
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ SUCCESS CRITERIA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Khi chạy verify, bạn sẽ thấy:
+
+   🎉 ALL CHECKS PASSED!
+
+   ✅ Balance giảm: ~90,000 → ~40,000đ
+   ✅ total_withdrawn: 0 → 50,000đ
+   ✅ Transaction log: payment_deducted
+   ✅ Code mới hoạt động đúng!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔧 HELPER COMMANDS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Get latest payment request ID
+node backend/tests/get-latest-payment.js
+
+# Verify payment (after mark as paid)
+node backend/tests/step7-e2e-verify.js <payment-id>
+
+# Recreate complete test data with full workflow (recommended)
+node backend/tests/create-complete-test-workflow.js
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💡 NOTES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ Test data đã sẵn sàng - chỉ cần login và test
+✅ Không ảnh hưởng dữ liệu user thực
+✅ Có thể test nhiều lần (recreate data mỗi lần)
+✅ Server đang chạy: http://localhost:3007
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📚 CHI TIẾT: backend/tests/HUONG-DAN-TEST-UI-BUOC-7.md
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

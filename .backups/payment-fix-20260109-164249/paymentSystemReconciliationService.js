@@ -25,16 +25,22 @@ class PaymentSystemReconciliationService {
 
   /**
    * Calculate available balance for user from system reconciliation
-   * Uses the same logic as validation function
-   * Available Balance = Total Approved Cashback - (Pending + Confirmed + Paid Requests)
+   * Updated to use user_system_balance table (new system)
    */
   static async calculateAvailableBalance(userId) {
     try {
-      // Use database function to ensure consistency
+      // Read directly from user_system_balance table
       const query = `
-        SELECT calculate_user_available_balance_from_system_recon($1::UUID) as available_balance
+        SELECT available_balance
+        FROM user_system_balance
+        WHERE user_id = $1
       `;
       const result = await pool.query(query, [userId]);
+
+      // Return 0 if user doesn't have balance record yet
+      if (result.rows.length === 0) {
+        return 0;
+      }
 
       return parseFloat(result.rows[0].available_balance) || 0;
     } catch (error) {
@@ -126,25 +132,20 @@ class PaymentSystemReconciliationService {
       let currentTotal = 0;
 
       // Select items until we reach requested amount
-      // IMPORTANT: Don't select items that would make total exceed requested by too much
       for (const item of availableItems) {
-        const itemAmount = parseFloat(item.cashback_amount);
-
-        // If we already have exact amount or more, stop
         if (currentTotal >= requestedAmount) break;
 
-        // Add this item (even if it pushes us over, we need FIFO)
         selectedItems.push({
           itemId: item.item_id,
           systemReconciliationId: item.system_reconciliation_id,
           conversionId: item.conversion_id,
-          cashbackAmount: itemAmount,
+          cashbackAmount: parseFloat(item.cashback_amount),
           merchantName: item.merchant_name,
           orderTime: item.order_time,
           reconciliationPeriodLabel: item.reconciliation_period_label
         });
 
-        currentTotal += itemAmount;
+        currentTotal += parseFloat(item.cashback_amount);
       }
 
       // VALIDATION: Check if we have enough

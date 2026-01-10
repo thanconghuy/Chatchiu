@@ -716,23 +716,23 @@
                         type="number"
                         id="requestedAmount"
                         name="requestedAmount"
-                        min="100000"
+                        min="50000"
                         step="1000"
                         required
                     >
-                    <small>Tối thiểu: 100,000 VNĐ | Tối đa: <span id="maxAmount">0</span> VNĐ</small>
+                    <small>Tối thiểu: <span id="minAmount">50,000</span> VNĐ | Tối đa: <span id="maxAmount">0</span> VNĐ</small>
                 </div>
 
                 <!-- Payment Account Selector -->
-                <div class="form-group" style="background: #f0f9ff; padding: 16px; border-radius: 8px; border: 2px solid #3b82f6;">
-                    <label for="savedPaymentAccount" style="color: #1e40af; font-weight: 600;">
+                <div class="form-group payment-account-selector">
+                    <label for="savedPaymentAccount">
                         💳 Chọn tài khoản đã lưu
                     </label>
-                    <select id="savedPaymentAccount" name="savedPaymentAccount" style="margin-bottom: 8px;">
+                    <select id="savedPaymentAccount" name="savedPaymentAccount">
                         <option value="">-- Nhập thông tin mới hoặc chọn tài khoản đã lưu --</option>
                     </select>
-                    <small style="color: #1e40af;">
-                        💡 <a href="/profile" target="_blank" style="color: #2563eb; text-decoration: underline;">Quản lý tài khoản thanh toán trong Profile</a>
+                    <small class="account-help-text">
+                        💡 <a href="/profile" target="_blank">Quản lý tài khoản thanh toán trong Profile</a>
                     </small>
                 </div>
 
@@ -804,11 +804,11 @@
                     ></textarea>
                 </div>
 
-                <div style="display: flex; gap: 1rem; margin-top: 2rem;">
-                    <button type="button" class="btn-secondary" data-action="close-create-modal" style="flex: 1;">
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" data-action="close-create-modal">
                         Hủy
                     </button>
-                    <button type="submit" class="btn-primary" style="flex: 2;">
+                    <button type="submit" class="btn-primary">
                         Tạo yêu cầu
                     </button>
                 </div>

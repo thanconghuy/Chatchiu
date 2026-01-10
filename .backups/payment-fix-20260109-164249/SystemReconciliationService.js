@@ -67,7 +67,6 @@ class SystemReconciliationService {
         LEFT JOIN users u ON sc.user_id = u.id
         WHERE sc.id = ANY($1)
           AND sc.status = 'approved'
-          AND (sc.payment_status IS NULL OR sc.payment_status != 'paid')
           AND NOT EXISTS (
             -- Exclude already reconciled orders
             SELECT 1 FROM system_reconciliation_items sri
@@ -292,7 +291,7 @@ class SystemReconciliationService {
         // The trigger `log_balance_transaction()` automatically logs all balance changes
       }
 
-      // Update conversions status to 'reconciled' (old API table - for backward compatibility)
+      // Update conversions status to 'reconciled'
       await client.query(`
         UPDATE conversions c
         SET
@@ -303,17 +302,6 @@ class SystemReconciliationService {
         WHERE c.id = sri.conversion_id
           AND sri.system_reconciliation_id = $1
           AND c.system_reconciliation_status = 'pending'
-      `, [reconciliationId]);
-
-      // Update system_conversions status to 'reconciled' (new system table)
-      await client.query(`
-        UPDATE system_conversions sc
-        SET
-          system_reconciliation_id = $1
-        FROM system_reconciliation_items sri
-        WHERE sc.id = sri.system_conversion_id
-          AND sri.system_reconciliation_id = $1
-          AND sc.system_reconciliation_id IS NULL
       `, [reconciliationId]);
 
       // Update reconciliation status
@@ -863,21 +851,12 @@ class SystemReconciliationService {
         }
 
         // If validation passes, proceed with revert
-        // Revert old API conversions table
         await client.query(`
           UPDATE conversions
           SET
             system_reconciliation_status = 'pending'
           WHERE system_reconciliation_id = $1
             AND system_reconciliation_status = 'reconciled'
-        `, [reconciliationId]);
-
-        // Revert new system_conversions table
-        await client.query(`
-          UPDATE system_conversions
-          SET
-            system_reconciliation_id = NULL
-          WHERE system_reconciliation_id = $1
         `, [reconciliationId]);
 
         // Revert user balances

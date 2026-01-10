@@ -7,7 +7,6 @@
 
 const { pool } = require('../../config/database');
 const DebtManagementService = require('./DebtManagementService');
-const SystemSettingsService = require('../systemSettingsService');
 
 class BalanceManagementService {
   /**
@@ -61,7 +60,7 @@ class BalanceManagementService {
    */
   static async canWithdraw(userId, amount) {
     const balance = await this.getUserBalance(userId);
-    const minAmount = await SystemSettingsService.getSetting('min_withdrawal_amount') || 50000;
+    const minAmount = 100000; // 100k VND minimum
 
     const available = parseFloat(balance.available_balance);
     const debt = parseFloat(balance.debt_balance || 0);

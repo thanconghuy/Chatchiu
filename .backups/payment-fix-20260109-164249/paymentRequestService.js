@@ -5,7 +5,6 @@ const PaymentSystemReconciliationService = require('./paymentSystemReconciliatio
 const SystemSettingsService = require('./systemSettingsService');
 const UserPaymentHistory = require('../models/UserPaymentHistory');
 const UserPaymentDetail = require('../models/UserPaymentDetail');
-const BalanceManagementService = require('./systemReconciliation/BalanceManagementService');
 const logger = require('../utils/logger');
 
 /**
@@ -36,7 +35,7 @@ class PaymentRequestService {
       const totalCashbackResult = await db.query(totalCashbackQuery, [userId]);
       const totalConfirmedCashback = parseFloat(totalCashbackResult.rows[0].total) || 0;
 
-      // Get total requested amount (what user asked for)
+      // Get total requested amount (all payment requests except rejected and cancelled)
       const totalRequestedQuery = `
         SELECT COALESCE(SUM(requested_amount), 0) as total
         FROM payment_requests
@@ -60,31 +59,7 @@ class PaymentRequestService {
       // Get minimum withdrawal amount from system settings
       const minAmount = await SystemSettingsService.getSetting('min_withdrawal_amount') || 50000;
 
-      // 🔥 ENHANCED: Check for negative balance (data integrity issue)
-      if (availableBalance < 0) {
-        logger.warn('User has negative balance', {
-          userId,
-          availableBalance,
-          totalConfirmedCashback,
-          totalRequested
-        });
-
-        return {
-          isEligible: false,
-          availableBalance,
-          totalConfirmedCashback,
-          totalRequested,
-          hasPendingRequest,
-          minAmount,
-          reasons: [
-            'Số dư khả dụng của bạn hiện âm. Vui lòng liên hệ admin để kiểm tra.',
-            `Số dư hiện tại: ${availableBalance.toLocaleString('vi-VN')} VNĐ`
-          ]
-        };
-      }
-
-      // 🔥 ENHANCED: More strict validation
-      const isEligible = availableBalance >= minAmount && !hasPendingRequest && availableBalance > 0;
+      const isEligible = availableBalance >= minAmount && !hasPendingRequest;
 
       const eligibility = {
         isEligible,
@@ -101,9 +76,7 @@ class PaymentRequestService {
         if (hasPendingRequest) {
           eligibility.reasons.push('Bạn đang có yêu cầu thanh toán chờ xử lý');
         }
-        if (availableBalance <= 0) {
-          eligibility.reasons.push('Số dư khả dụng không đủ. Vui lòng chờ kỳ đối soát tiếp theo.');
-        } else if (availableBalance < minAmount) {
+        if (availableBalance < minAmount) {
           eligibility.reasons.push(`Số dư khả dụng phải ≥ ${minAmount.toLocaleString('vi-VN')} VNĐ (hiện tại: ${availableBalance.toLocaleString('vi-VN')} VNĐ)`);
         }
       }
@@ -251,7 +224,7 @@ class PaymentRequestService {
         throw error;
       }
 
-      // VALIDATION: Check available balance only (no item selection)
+      // VALIDATION LAYER 1: Database-level validation with detailed error codes
       const validation = await PaymentSystemReconciliationService.validatePaymentRequest(
         userId,
         requestedAmount,
@@ -262,6 +235,20 @@ class PaymentRequestService {
         const error = new Error(validation.errorMessage);
         error.code = validation.errorCode;
         error.validationDetails = validation;
+        throw error;
+      }
+
+      // VALIDATION LAYER 2: Auto-select items with database locks (prevents race conditions)
+      const autoSelectResult = await PaymentSystemReconciliationService.autoSelectItemsForPayment(
+        userId,
+        requestedAmount,
+        true // Enable database locking
+      );
+
+      if (!autoSelectResult.success) {
+        const error = new Error(autoSelectResult.message);
+        error.code = autoSelectResult.errorCode || 'AUTO_SELECT_FAILED';
+        error.details = autoSelectResult;
         throw error;
       }
 
@@ -322,26 +309,54 @@ class PaymentRequestService {
         paymentAccountId: finalPaymentAccountId
       });
 
+      // VALIDATION LAYER 3: Link payment with items (includes pre-linking verification)
+      try {
+        await PaymentSystemReconciliationService.linkPaymentWithItems(
+          paymentRequest.id,
+          autoSelectResult.selectedItems,
+          userId
+        );
+      } catch (linkError) {
+        // If linking fails, cancel the payment request
+        await PaymentRequest.cancel(paymentRequest.id, userId);
+
+        logger.error('Linking failed, payment request cancelled', {
+          paymentRequestId: paymentRequest.id,
+          error: linkError.message,
+          code: linkError.code
+        });
+
+        throw linkError;
+      }
+
       // Log successful validation and creation
       await PaymentSystemReconciliationService.logValidationAttempt({
         userId,
         requestedAmount,
         validationPassed: true,
         availableBalance: validation.availableBalance,
-        selectedItemsCount: 0, // No auto-selection
-        selectedItemsTotal: 0, // No auto-selection
+        selectedItemsCount: autoSelectResult.selectedItems.length,
+        selectedItemsTotal: autoSelectResult.totalAmount,
         paymentRequestId: paymentRequest.id,
         context
       });
 
-      logger.success('Payment request created successfully', {
+      logger.success('Payment request created with all validations passed', {
         id: paymentRequest.id,
-        requestedAmount
+        requestedAmount,
+        itemsCount: autoSelectResult.selectedItems.length,
+        totalAmount: autoSelectResult.totalAmount,
+        validationLayers: 3
       });
 
-      // Return payment request (no items linking)
+      // Return payment request with linked items
+      const linkedItems = await PaymentSystemReconciliationService.getLinkedItemsForPayment(paymentRequest.id);
+
       return {
-        ...paymentRequest
+        ...paymentRequest,
+        linkedItems,
+        linkedItemsCount: linkedItems.length,
+        totalLinkedAmount: linkedItems.reduce((sum, item) => sum + parseFloat(item.cashback_amount), 0)
       };
 
     } catch (error) {
@@ -447,8 +462,6 @@ class PaymentRequestService {
 
   /**
    * Mark payment request as paid (Admin)
-   * IMPORTANT: This now deducts balance from user_system_balance
-   *
    * @param {string} paymentRequestId
    * @param {Object} adminInfo
    * @param {string} transactionReference - Required
@@ -456,117 +469,26 @@ class PaymentRequestService {
    * @returns {Promise<Object>}
    */
   async markAsPaid(paymentRequestId, adminInfo, transactionReference, adminNotes = null) {
-    const client = await db.pool.connect();
-
     try {
-      await client.query('BEGIN');
-
       logger.info('Marking payment request as paid', { paymentRequestId, adminId: adminInfo.id });
 
       if (!transactionReference) {
         throw new Error('Mã giao dịch là bắt buộc');
       }
 
-      // Step 1: Get payment request details
-      const prQuery = 'SELECT * FROM payment_requests WHERE id = $1';
-      const prResult = await client.query(prQuery, [paymentRequestId]);
-
-      if (prResult.rows.length === 0) {
-        throw new Error('Payment request không tồn tại');
-      }
-
-      const paymentRequest = prResult.rows[0];
-      const requestedAmount = parseFloat(paymentRequest.requested_amount);
-
-      logger.info('Payment request found', {
-        paymentRequestId,
-        userId: paymentRequest.user_id,
-        requestedAmount
-      });
-
-      // Step 2: 🔥 DEDUCT BALANCE from user_system_balance
-      // This will:
-      // - Deduct available_balance
-      // - Increase total_withdrawn
-      // - Trigger auto-log to user_balance_transactions
-      // Deduct based on REQUESTED amount (what user asked for)
-      await BalanceManagementService.deductBalance(
-        paymentRequest.user_id,
-        requestedAmount,
-        paymentRequestId
-      );
-
-      logger.success('Balance deducted successfully', {
-        paymentRequestId,
-        userId: paymentRequest.user_id,
-        amount: requestedAmount
-      });
-
-      // Step 3: Update payment_requests status to 'paid'
-      const updateQuery = `
-        UPDATE payment_requests
-        SET
-          status = 'paid',
-          paid_at = CURRENT_TIMESTAMP,
-          transaction_reference = $2,
-          admin_notes = $3,
-          updated_at = CURRENT_TIMESTAMP
-        WHERE id = $1
-        RETURNING *
-      `;
-
-      const updateResult = await client.query(updateQuery, [
-        paymentRequestId,
+      const updated = await PaymentRequest.updateStatus(paymentRequestId, 'paid', {
+        adminId: adminInfo.id,
+        adminNotes: adminNotes || 'Đã chuyển tiền thành công',
         transactionReference,
-        adminNotes || 'Đã chuyển tiền thành công'
-      ]);
-
-      const updated = updateResult.rows[0];
-
-      // Step 3.5: 🔥 UPDATE system_conversions.payment_status = 'paid'
-      // Mark conversions as paid using FIFO (oldest first) up to requested amount
-      const fifoQuery = `
-        WITH selected_conversions AS (
-          SELECT
-            id,
-            cashback_amount,
-            SUM(cashback_amount) OVER (
-              ORDER BY order_time ASC, id ASC
-              ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-            ) as running_total
-          FROM system_conversions
-          WHERE user_id = $1
-            AND status = 'approved'
-            AND (payment_status IS NULL OR payment_status = 'unpaid')
-        )
-        UPDATE system_conversions
-        SET
-          payment_status = 'paid',
-          payment_request_id = $2,
-          payment_linked_at = CURRENT_TIMESTAMP
-        WHERE id IN (
-          SELECT id FROM selected_conversions WHERE running_total <= $3
-        )
-        RETURNING id
-      `;
-      const conversionUpdateResult = await client.query(fifoQuery, [paymentRequest.user_id, paymentRequestId, requestedAmount]);
-
-      logger.info('Updated payment_status for system_conversions (FIFO)', {
-        paymentRequestId,
-        conversionCount: conversionUpdateResult.rowCount,
-        requestedAmount
+        performedBy: adminInfo
       });
-
-      await client.query('COMMIT');
 
       logger.success('Payment request marked as paid', {
         id: paymentRequestId,
-        transactionReference,
-        balanceDeducted: requestedAmount,
-        conversionsUpdated: conversionUpdateResult.rowCount
+        transactionReference
       });
 
-      // Step 4: Create payment history record for user (async, non-blocking)
+      // Create payment history record for user
       setImmediate(async () => {
         try {
           await this._createPaymentHistoryFromRequest(updated);
@@ -580,7 +502,7 @@ class PaymentRequestService {
         }
       });
 
-      // Step 5: Send email notification (async, non-blocking)
+      // Send email notification (async, don't block)
       setImmediate(async () => {
         try {
           const { sendPaymentPaidEmail } = require('./emailHelpers/paymentEmailHelper');
@@ -597,14 +519,8 @@ class PaymentRequestService {
       return updated;
 
     } catch (error) {
-      await client.query('ROLLBACK');
-      logger.error('Failed to mark payment as paid - ROLLBACK executed', {
-        error: error.message,
-        paymentRequestId
-      });
+      logger.error('Failed to mark payment as paid', { error: error.message, paymentRequestId });
       throw error;
-    } finally {
-      client.release();
     }
   }
 
@@ -988,6 +904,52 @@ class PaymentRequestService {
       const paymentDate = new Date(paymentRequest.updated_at);
       const paymentPeriod = `${paymentDate.getFullYear()}-${String(paymentDate.getMonth() + 1).padStart(2, '0')}`;
 
+      // 2. Get all linked reconciliation items from payment_reconciliation_mapping
+      const itemsQuery = `
+        SELECT
+          prm.reconciliation_item_id,
+          prm.cashback_amount,
+          sri.conversion_id,
+          sri.merchant_name,
+          sri.order_value,
+          sri.system_reconciliation_id,
+          sr.period_month as reconciliation_month
+        FROM payment_reconciliation_mapping prm
+        INNER JOIN system_reconciliation_items sri ON sri.id = prm.reconciliation_item_id
+        INNER JOIN system_reconciliations sr ON sr.id = sri.system_reconciliation_id
+        WHERE prm.payment_request_id = $1
+        ORDER BY sri.order_time ASC
+      `;
+
+      const itemsResult = await client.query(itemsQuery, [paymentRequest.id]);
+      const reconciliationItems = itemsResult.rows;
+
+      logger.info('Found reconciliation items for payment history', {
+        paymentRequestId: paymentRequest.id,
+        itemsCount: reconciliationItems.length
+      });
+
+      // Handle case where payment request has no linked items (legacy payment requests)
+      if (reconciliationItems.length === 0) {
+        logger.warn('Payment request has no linked reconciliation items - this is a legacy payment request', {
+          paymentRequestId: paymentRequest.id
+        });
+
+        // For legacy payment requests, we still create payment history but without details
+        // Just commit and return early
+        await client.query('COMMIT');
+
+        logger.info('Skipped payment history creation for legacy payment request', {
+          paymentRequestId: paymentRequest.id
+        });
+
+        return {
+          paymentHistory: null,
+          details: [],
+          legacy: true
+        };
+      }
+
       // 3. Check if payment history already exists for this user and period
       const existingHistoryQuery = `
         SELECT id FROM user_payment_history
@@ -1065,17 +1027,66 @@ class PaymentRequestService {
         });
       }
 
+      // 4. Create payment details for each reconciliation item
+      const createdDetails = [];
+
+      for (const item of reconciliationItems) {
+        // Get conversion order_id for order_code
+        const conversionQuery = `
+          SELECT order_id FROM conversions WHERE id = $1
+        `;
+        const conversionResult = await client.query(conversionQuery, [item.conversion_id]);
+        const orderCode = conversionResult.rows[0]?.order_id || 'N/A';
+
+        const createDetailQuery = `
+          INSERT INTO user_payment_details (
+            payment_history_id,
+            conversion_id,
+            merchant_name,
+            order_code,
+            cashback_amount,
+            reconciliation_month,
+            payment_month,
+            status,
+            metadata
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          RETURNING *
+        `;
+
+        const detailValues = [
+          paymentHistory.id,
+          item.conversion_id,
+          item.merchant_name,
+          orderCode,
+          item.cashback_amount,
+          item.reconciliation_month,
+          paymentPeriod, // payment_month
+          'paid',
+          JSON.stringify({
+            payment_request_id: paymentRequest.id,
+            reconciliation_item_id: item.reconciliation_item_id,
+            system_reconciliation_id: item.system_reconciliation_id
+          })
+        ];
+
+        const detailResult = await client.query(createDetailQuery, detailValues);
+        createdDetails.push(detailResult.rows[0]);
+      }
+
       await client.query('COMMIT');
 
       logger.success('Payment history created successfully', {
         paymentRequestId: paymentRequest.id,
         paymentHistoryId: paymentHistory.id,
         paymentPeriod,
+        detailsCount: createdDetails.length,
         totalCashback: paymentHistory.total_cashback
       });
 
       return {
-        paymentHistory
+        paymentHistory,
+        details: createdDetails
       };
 
     } catch (error) {

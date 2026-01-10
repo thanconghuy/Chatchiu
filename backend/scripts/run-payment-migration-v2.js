@@ -15,7 +15,7 @@ async function runMigration() {
                 CREATE TABLE IF NOT EXISTS payment_requests (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                     user_id UUID NOT NULL,
-                    requested_amount DECIMAL(15,2) NOT NULL CHECK (requested_amount >= 100000),
+                    requested_amount DECIMAL(15,2) NOT NULL CHECK (requested_amount >= 50000),
                     bank_name VARCHAR(255) NOT NULL,
                     bank_account_number VARCHAR(50) NOT NULL,
                     bank_account_name VARCHAR(255) NOT NULL,
