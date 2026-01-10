@@ -672,11 +672,16 @@ async function handleCreateRequest(e) {
 
     try {
         const token = localStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN);
+
+        // Generate idempotency key for this request
+        const idempotencyKey = crypto.randomUUID();
+
         const response = await fetch(`${API_BASE_URL}/payment-requests`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+                'Authorization': `Bearer ${token}`,
+                'Idempotency-Key': idempotencyKey
             },
             body: JSON.stringify(data)
         });
