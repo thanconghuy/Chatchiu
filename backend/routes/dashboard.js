@@ -27,39 +27,49 @@ router.get('/stats', authenticateToken, async (req, res) => {
     const clickStats = await Click.getStats(req.userId);
     console.log('[Dashboard Stats] Click stats:', clickStats);
 
-    // Calculate available balance for display
-    // Available Balance = Total Approved - Total Requested
-    // Logic: All payment requests (pending, confirmed, paid) reduce available balance
+    // Get balance from user_system_balance table (NEW LOGIC V2.0)
+    // This table maintains the correct balance using reserve/release pattern
     const balanceQuery = `
-      WITH cashback_total AS (
-        SELECT
-          COALESCE(SUM(CASE WHEN status = 'approved' THEN cashback_amount ELSE 0 END), 0) as total_confirmed_cashback,
-          COALESCE(SUM(CASE WHEN status = 'pending' THEN cashback_amount ELSE 0 END), 0) as pending_balance
-        FROM system_conversions
-        WHERE user_id = $1
-      ),
-      payment_total AS (
-        SELECT
-          COALESCE(SUM(requested_amount), 0) as total_requested
-        FROM payment_requests
-        WHERE user_id = $1
-          AND status NOT IN ('rejected', 'cancelled')
-      )
       SELECT
-        ct.total_confirmed_cashback - pt.total_requested as available_balance,
-        ct.pending_balance,
-        ct.total_confirmed_cashback,
-        pt.total_requested,
-        0 as total_paid
-      FROM cashback_total ct, payment_total pt
+        usb.available_balance,
+        usb.pending_balance,
+        usb.reserved_balance,
+        usb.total_earned,
+        usb.total_withdrawn,
+        usb.debt_balance,
+        COALESCE(
+          (SELECT SUM(requested_amount)
+           FROM payment_requests
+           WHERE user_id = $1
+             AND status IN ('pending', 'confirmed')
+             AND cancelled_at IS NULL),
+          0
+        ) as total_requested
+      FROM user_system_balance usb
+      WHERE usb.user_id = $1
     `;
     const balanceResult = await pool.query(balanceQuery, [req.userId]);
-    const balanceStats = balanceResult.rows[0];
-    console.log('[Dashboard Stats] Balance calculation:', {
-      totalConfirmedCashback: balanceStats.total_confirmed_cashback,
-      totalRequested: balanceStats.total_requested,
-      availableBalance: balanceStats.available_balance
-    });
+
+    if (balanceResult.rows.length === 0) {
+      // No balance record found - return zeros
+      const balanceStats = {
+        available_balance: 0,
+        pending_balance: 0,
+        reserved_balance: 0,
+        total_earned: 0,
+        total_withdrawn: 0,
+        total_requested: 0
+      };
+      console.log('[Dashboard Stats] No balance record found, using zeros');
+    } else {
+      var balanceStats = balanceResult.rows[0];
+      console.log('[Dashboard Stats] Balance from user_system_balance:', {
+        availableBalance: balanceStats.available_balance,
+        totalEarned: balanceStats.total_earned,
+        totalWithdrawn: balanceStats.total_withdrawn,
+        totalRequested: balanceStats.total_requested
+      });
+    }
 
     // Get conversion stats from system_conversions
     const conversionQuery = `
