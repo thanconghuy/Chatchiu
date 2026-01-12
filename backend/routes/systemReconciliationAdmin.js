@@ -334,13 +334,33 @@ router.get('/:id/items', async (req, res) => {
     params.push(limit, offset);
     const itemsQuery = `
       SELECT
-        sri.*,
+        sri.id,
+        sri.system_reconciliation_id,
+        sri.conversion_id,
+        sri.system_conversion_id,
+        sri.user_id,
+        sri.merchant_id,
+        sri.merchant_name,
+        sri.order_time,
+        sri.approval_time,
+        sri.order_value,
+        sri.commission_amount,
+        sri.cashback_amount,
+        sri.conversion_status,
+        sri.api_reconciled,
+        sri.api_reconciliation_id,
+        sri.is_high_risk,
+        sri.risk_score,
+        sri.risk_notes,
+        sri.created_at,
+        sri.reconciled_at,
         u.full_name as user_name,
         u.email as user_email,
-        COALESCE(sc.order_code, 'N/A') as order_code
+        COALESCE(sc.order_code, c.order_code, 'N/A') as order_code
       FROM system_reconciliation_items sri
       LEFT JOIN users u ON sri.user_id = u.id
       LEFT JOIN system_conversions sc ON sri.system_conversion_id = sc.id
+      LEFT JOIN conversions c ON sri.conversion_id = c.id
       WHERE ${whereClause}
       ORDER BY sri.order_time DESC
       LIMIT $${paramIndex++} OFFSET $${paramIndex++}
