@@ -1,5 +1,5 @@
-// Admin Payment Requests Management - v20251209
-console.log('[Payment Requests] Script loaded - v20251209 - CSP compliant');
+// Admin Payment Requests Management - v20260110
+console.log('[Payment Requests] Script loaded - v20260110 - Enhanced confirm modal with auto-fill notes');
 const API_BASE_URL = window.location.hostname === 'localhost'
     ? 'http://localhost:3007/api'
     : '/api';
@@ -13,6 +13,7 @@ const STORAGE_KEYS = window.CONFIG?.STORAGE_KEYS || {
 let currentPage = 1;
 let limit = 20;
 let currentFilters = {};
+let requestsCache = {}; // Cache để lưu thông tin requests
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
@@ -175,6 +176,11 @@ function displayPaymentRequests(requests) {
         `;
         return;
     }
+
+    // Lưu requests vào cache
+    requests.forEach(req => {
+        requestsCache[req.id] = req;
+    });
 
     tableBody.innerHTML = requests.map(req => `
         <tr>
@@ -471,7 +477,32 @@ function getLogActionText(action) {
 // Show confirm modal
 function showConfirmModal(id) {
     document.getElementById('confirmRequestId').value = id;
-    document.getElementById('confirmNotes').value = '';
+
+    // Lấy thông tin request từ cache
+    const request = requestsCache[id];
+
+    if (request) {
+        // Hiển thị thông tin request
+        const infoText = `${request.user_name || request.user_email || 'N/A'} - ${formatCurrency(request.requested_amount)} - ${request.bank_name}`;
+        document.getElementById('confirmRequestInfoText').textContent = infoText;
+
+        // Tự động điền ghi chú với format: "Xác nhận yêu cầu thanh toán của {User} - {Mã yêu cầu} - {Ngày tạo}"
+        const userName = request.user_name || request.user_email || request.user_username || 'User';
+        const requestCode = request.id.substring(0, 8).toUpperCase();
+        const createdDate = new Date(request.created_at).toLocaleDateString('vi-VN', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+
+        const autoNote = `Xác nhận yêu cầu thanh toán của ${userName} - ${requestCode} - ${createdDate}`;
+        document.getElementById('confirmNotes').value = autoNote;
+    } else {
+        // Nếu không có trong cache, để trống
+        document.getElementById('confirmRequestInfoText').textContent = 'Đang tải thông tin...';
+        document.getElementById('confirmNotes').value = '';
+    }
+
     openModal('confirmModal');
 }
 

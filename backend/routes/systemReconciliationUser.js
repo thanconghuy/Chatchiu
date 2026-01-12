@@ -145,7 +145,7 @@ router.get('/reconciliations/:id', authenticateToken, async (req, res) => {
     const itemsQuery = `
       SELECT
         sri.id,
-        sri.conversion_id,
+        COALESCE(sri.conversion_id, sri.system_conversion_id) as conversion_id,
         sri.order_time,
         sri.cashback_amount,
         sri.merchant_name,
@@ -154,9 +154,10 @@ router.get('/reconciliations/:id', authenticateToken, async (req, res) => {
         sri.conversion_status,
         sri.is_high_risk,
         sri.risk_score,
-        c.order_code
+        COALESCE(sc.order_code, c.order_code, 'N/A') as order_code
       FROM system_reconciliation_items sri
       LEFT JOIN conversions c ON sri.conversion_id = c.id
+      LEFT JOIN system_conversions sc ON sri.system_conversion_id = sc.id
       WHERE sri.system_reconciliation_id = $1 AND sri.user_id = $2
       ORDER BY sri.order_time DESC
     `;
@@ -203,19 +204,20 @@ router.get('/history', authenticateToken, async (req, res) => {
         sr.period_end,
         sr.reconciliation_date,
         sr.status as reconciliation_status,
-        sri.conversion_id,
+        COALESCE(sri.conversion_id, sri.system_conversion_id) as conversion_id,
         sri.order_id,
         sri.cashback_amount,
         sri.conversion_status,
         sri.is_high_risk,
         sri.risk_score,
         sri.api_reconciled,
-        c.merchant_name,
-        c.order_time,
-        c.approval_time
+        COALESCE(sc.merchant_name, c.merchant_name, sri.merchant_name) as merchant_name,
+        COALESCE(sc.order_time, c.order_time, sri.order_time) as order_time,
+        COALESCE(sc.approval_time, c.approval_time) as approval_time
       FROM system_reconciliation_items sri
       JOIN system_reconciliations sr ON sri.system_reconciliation_id = sr.id
       LEFT JOIN conversions c ON sri.conversion_id = c.id
+      LEFT JOIN system_conversions sc ON sri.system_conversion_id = sc.id
       WHERE sri.user_id = $1
       ORDER BY sri.created_at DESC
       LIMIT $2 OFFSET $3

@@ -302,11 +302,15 @@ router.post('/admin/test-template', authenticateAdmin, async (req, res) => {
     }
 
     // Validate template type
-    const validTypes = ['instant', 'reminder', 'urgent'];
+    const validTypes = [
+      'instant', 'reminder', 'urgent',
+      'payment_confirmed', 'payment_rejected', 'payment_paid',
+      'reconciliation_finalized'
+    ];
     if (!validTypes.includes(templateType)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid template type. Must be: instant, reminder, or urgent'
+        message: 'Invalid template type. Must be one of: ' + validTypes.join(', ')
       });
     }
 
@@ -319,54 +323,75 @@ router.post('/admin/test-template', authenticateAdmin, async (req, res) => {
       });
     }
 
-    // Get template configurations
-    const templates = {
-      instant: {
-        subject: '🎉 Bạn có cashback mới từ Shopee!',
-        template: 'cashback-instant',
-        context: {
-          userName: 'Test User',
-          amount: '250,000đ',
-          totalAvailable: '1,500,000đ',
-          merchant: 'Shopee',
-          createRequestUrl: `${process.env.BASE_URL || 'https://chatchiu.online'}/payment-requests`,
-          unsubscribeUrl: `${process.env.BASE_URL || 'https://chatchiu.online'}/notifications/unsubscribe/test/cashback-instant`
-        }
-      },
-      reminder: {
-        subject: '⏰ Nhắc nhở: Bạn có 1,500,000đ cashback chờ rút!',
-        template: 'cashback-reminder',
-        context: {
-          userName: 'Test User',
-          totalAvailable: '1,500,000đ',
-          createRequestUrl: `${process.env.BASE_URL || 'https://chatchiu.online'}/payment-requests`,
-          unsubscribeUrl: `${process.env.BASE_URL || 'https://chatchiu.online'}/notifications/unsubscribe/test/cashback-reminder`
-        }
-      },
-      urgent: {
-        subject: '🚨 KHẨN: Deadline đối soát sắp hết! Rút tiền ngay!',
-        template: 'cashback-urgent',
-        context: {
-          userName: 'Test User',
-          totalAvailable: '1,500,000đ',
-          deadlineDate: '31/12/2025',
-          createRequestUrl: `${process.env.BASE_URL || 'https://chatchiu.online'}/payment-requests`,
-          unsubscribeUrl: `${process.env.BASE_URL || 'https://chatchiu.online'}/notifications/unsubscribe/test/cashback-urgent`
-        }
-      }
-    };
+    // Load template from SystemSettings
+    const SystemSettings = require('../services/systemSettings');
 
-    const templateConfig = templates[templateType];
+    const subject = await SystemSettings.get(`email_template_${templateType}_subject`);
+    let htmlContent = await SystemSettings.get(`email_template_${templateType}_content`);
+
+    if (!subject || !htmlContent) {
+      return res.status(404).json({
+        success: false,
+        message: `Template ${templateType} not found in database. Please reload the Notification Settings page first to load default templates.`
+      });
+    }
+
+    // Sample data based on template type
+    let sampleData = {};
+
+    if (templateType === 'instant' || templateType === 'reminder' || templateType === 'urgent') {
+      // Cashback notification templates
+      sampleData = {
+        userName: 'Nguyễn Văn A',
+        amount: '250,000₫',
+        totalAvailable: '1,500,000₫',
+        merchant: 'Shopee',
+        createRequestUrl: `${process.env.BASE_URL || 'https://chatchiu.online'}/payment-requests`,
+        unsubscribeUrl: `${process.env.BASE_URL || 'https://chatchiu.online'}/notifications/unsubscribe/test/${templateType}`
+      };
+    } else if (templateType.startsWith('payment_')) {
+      // Payment request templates
+      sampleData = {
+        userName: 'Nguyễn Văn A',
+        paymentId: 'PR-2026-001',
+        amount: '1,500,000₫',
+        bankAccount: 'ACB - 1234567890 - Nguyễn Văn A',
+        approvedDate: '04/01/2026',
+        paidDate: '04/01/2026',
+        transactionId: 'TXN-2026-ABC123',
+        reason: 'Thông tin tài khoản ngân hàng không hợp lệ. Vui lòng kiểm tra lại số tài khoản và tên chủ tài khoản.'
+      };
+    } else if (templateType === 'reconciliation_finalized') {
+      // Reconciliation template
+      sampleData = {
+        userName: 'Nguyễn Văn A',
+        reconciliationId: 'REC-2026-Q1',
+        period: 'Q1/2026 (01/01/2026 - 31/03/2026)',
+        totalAmount: '15,750,000₫',
+        finalizedDate: '04/01/2026',
+        totalOrders: '127',
+        totalPayments: '45'
+      };
+    }
+
+    // Replace variables in subject and content
+    let finalSubject = subject;
+    let finalContent = htmlContent;
+
+    for (const [key, value] of Object.entries(sampleData)) {
+      const regex = new RegExp(`{{${key}}}`, 'g');
+      finalSubject = finalSubject.replace(regex, value);
+      finalContent = finalContent.replace(regex, value);
+    }
 
     // Import EmailService
     const EmailService = require('../services/EmailService');
 
-    // Send test email
-    const emailResult = await EmailService.sendEmailWithTemplate({
+    // Send test email with custom HTML
+    const emailResult = await EmailService.sendEmail({
       to: recipientEmail,
-      subject: templateConfig.subject,
-      template: templateConfig.template,
-      context: templateConfig.context
+      subject: finalSubject,
+      html: finalContent
     });
 
     if (emailResult.success) {
@@ -499,6 +524,343 @@ router.delete('/admin/clear-all', authenticateAdmin, async (req, res) => {
 
   } catch (error) {
     logger.error('Clear all notifications error', { error: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/notifications/admin/templates
+ * Get all email templates
+ */
+router.get('/admin/templates', authenticateAdmin, async (req, res) => {
+  try {
+    const SystemSettings = require('../services/systemSettings');
+
+    // Define default templates
+    const defaultTemplates = {
+      // === CASHBACK NOTIFICATION TEMPLATES ===
+      instant: {
+        subject: '🎉 Bạn có cashback mới từ {merchant}!',
+        content: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <h2 style="color: #667eea;">Chúc mừng {{userName}}! 🎉</h2>
+  <p>Bạn vừa nhận được <strong style="color: #10b981; font-size: 20px;">{{amount}}</strong> cashback!</p>
+  <div style="background: #f0fdf4; padding: 16px; border-radius: 8px; margin: 20px 0;">
+    <p style="margin: 0; color: #065f46;">💰 Tổng số dư khả dụng: <strong>{{totalAvailable}}</strong></p>
+  </div>
+  <p>Bạn có thể tạo yêu cầu rút tiền ngay bây giờ!</p>
+  <a href="https://chatchiu.online/payment-requests" style="display: inline-block; background: #667eea; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin: 10px 0;">
+    Tạo Yêu Cầu Rút Tiền
+  </a>
+  <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+  <p style="font-size: 12px; color: #6b7280;">
+    Không muốn nhận email này? <a href="{{unsubscribeUrl}}" style="color: #667eea;">Hủy đăng ký</a>
+  </p>
+</div>`
+      },
+      reminder: {
+        subject: '⏰ Nhắc nhở: Bạn có {{totalAvailable}} cashback chờ rút!',
+        content: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <h2 style="color: #f59e0b;">Xin chào {{userName}}! ⏰</h2>
+  <p>Bạn vẫn còn cashback chưa rút:</p>
+  <div style="background: #fef3c7; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
+    <p style="margin: 0; font-size: 16px; color: #92400e;">Số dư khả dụng</p>
+    <p style="margin: 10px 0; font-size: 32px; font-weight: bold; color: #f59e0b;">{{totalAvailable}}</p>
+  </div>
+  <p>Đừng để tiền nằm không nhé! Tạo yêu cầu rút tiền ngay hôm nay.</p>
+  <a href="https://chatchiu.online/payment-requests" style="display: inline-block; background: #f59e0b; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin: 10px 0;">
+    Rút Tiền Ngay
+  </a>
+  <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+  <p style="font-size: 12px; color: #6b7280;">
+    Không muốn nhận email nhắc nhở? <a href="{{unsubscribeUrl}}" style="color: #f59e0b;">Hủy đăng ký</a>
+  </p>
+</div>`
+      },
+      urgent: {
+        subject: '🚨 KHẨN: Deadline đối soát sắp hết! Rút tiền ngay!',
+        content: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: #fee2e2; padding: 16px; border-left: 4px solid #ef4444; margin-bottom: 20px;">
+    <h2 style="color: #991b1b; margin: 0;">⚠️ THÔNG BÁO KHẨN!</h2>
+  </div>
+  <p>Xin chào {{userName}},</p>
+  <p><strong>Deadline đối soát sắp hết!</strong> Nếu không rút tiền trước deadline, cashback của bạn sẽ bị khóa và không thể rút được nữa.</p>
+  <div style="background: #fef2f2; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
+    <p style="margin: 0; font-size: 16px; color: #991b1b;">Số tiền sắp bị khóa</p>
+    <p style="margin: 10px 0; font-size: 32px; font-weight: bold; color: #ef4444;">{{totalAvailable}}</p>
+  </div>
+  <p style="color: #991b1b; font-weight: bold;">⏰ Hành động ngay để không mất tiền!</p>
+  <a href="https://chatchiu.online/payment-requests" style="display: inline-block; background: #ef4444; color: white; padding: 14px 28px; border-radius: 6px; text-decoration: none; margin: 10px 0; font-weight: bold;">
+    TẠO YÊU CẦU RÚT TIỀN NGAY
+  </a>
+  <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+  <p style="font-size: 12px; color: #6b7280;">
+    Email này rất quan trọng. <a href="{{unsubscribeUrl}}" style="color: #ef4444;">Hủy đăng ký</a> nếu bạn không muốn nhận nữa.
+  </p>
+</div>`
+      },
+
+      // === PAYMENT REQUEST TEMPLATES ===
+      payment_confirmed: {
+        subject: '✅ Yêu cầu thanh toán #{{paymentId}} đã được duyệt',
+        content: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: #d1fae5; padding: 16px; border-left: 4px solid #10b981; margin-bottom: 20px;">
+    <h2 style="color: #065f46; margin: 0;">✅ Yêu cầu đã được duyệt!</h2>
+  </div>
+  <p>Xin chào {{userName}},</p>
+  <p>Yêu cầu thanh toán <strong>#{{paymentId}}</strong> của bạn đã được duyệt thành công.</p>
+  <div style="background: #f0fdf4; padding: 20px; border-radius: 8px; margin: 20px 0;">
+    <table style="width: 100%; border-collapse: collapse;">
+      <tr>
+        <td style="padding: 8px 0; color: #6b7280;">Mã yêu cầu:</td>
+        <td style="padding: 8px 0; font-weight: bold; text-align: right;">{{paymentId}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; color: #6b7280;">Số tiền:</td>
+        <td style="padding: 8px 0; font-weight: bold; text-align: right; color: #10b981; font-size: 18px;">{{amount}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; color: #6b7280;">Tài khoản nhận:</td>
+        <td style="padding: 8px 0; font-weight: bold; text-align: right;">{{bankAccount}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; color: #6b7280;">Ngày duyệt:</td>
+        <td style="padding: 8px 0; font-weight: bold; text-align: right;">{{approvedDate}}</td>
+      </tr>
+    </table>
+  </div>
+  <p>Chúng tôi sẽ xử lý thanh toán và chuyển tiền đến tài khoản của bạn trong vòng <strong>1-3 ngày làm việc</strong>.</p>
+  <p>Bạn sẽ nhận được email xác nhận khi tiền đã được chuyển thành công.</p>
+  <a href="https://chatchiu.online/payment-requests" style="display: inline-block; background: #10b981; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin: 10px 0;">
+    Xem Chi Tiết Yêu Cầu
+  </a>
+  <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+  <p style="font-size: 12px; color: #6b7280;">
+    Cảm ơn bạn đã sử dụng Chatchiu!
+  </p>
+</div>`
+      },
+      payment_rejected: {
+        subject: '❌ Yêu cầu thanh toán #{{paymentId}} bị từ chối',
+        content: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: #fee2e2; padding: 16px; border-left: 4px solid #ef4444; margin-bottom: 20px;">
+    <h2 style="color: #991b1b; margin: 0;">❌ Yêu cầu bị từ chối</h2>
+  </div>
+  <p>Xin chào {{userName}},</p>
+  <p>Rất tiếc, yêu cầu thanh toán <strong>#{{paymentId}}</strong> của bạn đã bị từ chối.</p>
+  <div style="background: #fef2f2; padding: 20px; border-radius: 8px; margin: 20px 0;">
+    <table style="width: 100%; border-collapse: collapse;">
+      <tr>
+        <td style="padding: 8px 0; color: #6b7280;">Mã yêu cầu:</td>
+        <td style="padding: 8px 0; font-weight: bold; text-align: right;">{{paymentId}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; color: #6b7280;">Số tiền:</td>
+        <td style="padding: 8px 0; font-weight: bold; text-align: right; font-size: 18px;">{{amount}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; color: #6b7280; vertical-align: top;">Lý do từ chối:</td>
+        <td style="padding: 8px 0; font-weight: bold; text-align: right; color: #ef4444;">{{reason}}</td>
+      </tr>
+    </table>
+  </div>
+  <p><strong>Bước tiếp theo:</strong></p>
+  <ul style="color: #374151;">
+    <li>Kiểm tra lại thông tin tài khoản ngân hàng</li>
+    <li>Đảm bảo số dư cashback đủ để rút</li>
+    <li>Tạo yêu cầu mới với thông tin chính xác</li>
+  </ul>
+  <p>Số tiền <strong>{{amount}}</strong> đã được hoàn lại vào số dư khả dụng của bạn.</p>
+  <a href="https://chatchiu.online/payment-requests" style="display: inline-block; background: #ef4444; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin: 10px 0;">
+    Tạo Yêu Cầu Mới
+  </a>
+  <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+  <p style="font-size: 12px; color: #6b7280;">
+    Nếu bạn có thắc mắc, vui lòng liên hệ support@chatchiu.com
+  </p>
+</div>`
+      },
+      payment_paid: {
+        subject: '💸 Đã chuyển tiền cho yêu cầu #{{paymentId}}',
+        content: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: #dbeafe; padding: 16px; border-left: 4px solid #3b82f6; margin-bottom: 20px;">
+    <h2 style="color: #1e40af; margin: 0;">💸 Tiền đã được chuyển!</h2>
+  </div>
+  <p>Xin chào {{userName}},</p>
+  <p>Chúng tôi đã chuyển tiền cho yêu cầu <strong>#{{paymentId}}</strong> đến tài khoản ngân hàng của bạn.</p>
+  <div style="background: #eff6ff; padding: 20px; border-radius: 8px; margin: 20px 0;">
+    <table style="width: 100%; border-collapse: collapse;">
+      <tr>
+        <td style="padding: 8px 0; color: #6b7280;">Mã yêu cầu:</td>
+        <td style="padding: 8px 0; font-weight: bold; text-align: right;">{{paymentId}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; color: #6b7280;">Số tiền:</td>
+        <td style="padding: 8px 0; font-weight: bold; text-align: right; color: #3b82f6; font-size: 20px;">{{amount}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; color: #6b7280;">Tài khoản nhận:</td>
+        <td style="padding: 8px 0; font-weight: bold; text-align: right;">{{bankAccount}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; color: #6b7280;">Ngày chuyển:</td>
+        <td style="padding: 8px 0; font-weight: bold; text-align: right;">{{paidDate}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; color: #6b7280;">Mã giao dịch:</td>
+        <td style="padding: 8px 0; font-weight: bold; text-align: right; font-family: monospace;">{{transactionId}}</td>
+      </tr>
+    </table>
+  </div>
+  <p>Tiền sẽ xuất hiện trong tài khoản của bạn trong vòng <strong>vài phút đến vài giờ</strong> tùy ngân hàng.</p>
+  <p style="background: #fef3c7; padding: 12px; border-radius: 6px; font-size: 14px;">
+    💡 <strong>Lưu ý:</strong> Nếu sau 24 giờ bạn chưa nhận được tiền, vui lòng liên hệ ngân hàng hoặc support của chúng tôi.
+  </p>
+  <a href="https://chatchiu.online/payment-requests" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin: 10px 0;">
+    Xem Lịch Sử Giao Dịch
+  </a>
+  <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+  <p style="font-size: 12px; color: #6b7280;">
+    Cảm ơn bạn đã tin tưởng sử dụng Chatchiu! 🎉
+  </p>
+</div>`
+      },
+
+      // === RECONCILIATION TEMPLATES ===
+      reconciliation_finalized: {
+        subject: '📊 Kỳ đối soát {{period}} đã hoàn thành',
+        content: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: #f3e8ff; padding: 16px; border-left: 4px solid #9333ea; margin-bottom: 20px;">
+    <h2 style="color: #581c87; margin: 0;">📊 Đối soát hoàn thành!</h2>
+  </div>
+  <p>Xin chào {{userName}},</p>
+  <p>Kỳ đối soát <strong>{{period}}</strong> đã được hoàn tất và khóa sổ.</p>
+  <div style="background: #faf5ff; padding: 20px; border-radius: 8px; margin: 20px 0;">
+    <table style="width: 100%; border-collapse: collapse;">
+      <tr>
+        <td style="padding: 8px 0; color: #6b7280;">Mã đối soát:</td>
+        <td style="padding: 8px 0; font-weight: bold; text-align: right;">{{reconciliationId}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; color: #6b7280;">Kỳ đối soát:</td>
+        <td style="padding: 8px 0; font-weight: bold; text-align: right;">{{period}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; color: #6b7280;">Tổng thanh toán:</td>
+        <td style="padding: 8px 0; font-weight: bold; text-align: right; color: #9333ea; font-size: 20px;">{{totalAmount}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; color: #6b7280;">Ngày hoàn thành:</td>
+        <td style="padding: 8px 0; font-weight: bold; text-align: right;">{{finalizedDate}}</td>
+      </tr>
+    </table>
+  </div>
+  <p><strong>Kết quả đối soát:</strong></p>
+  <ul style="color: #374151;">
+    <li>Tổng số đơn hàng: <strong>{{totalOrders}}</strong></li>
+    <li>Tổng số yêu cầu thanh toán: <strong>{{totalPayments}}</strong></li>
+    <li>Tổng số tiền đã chi trả: <strong>{{totalAmount}}</strong></li>
+  </ul>
+  <div style="background: #fef3c7; padding: 16px; border-radius: 8px; margin: 20px 0;">
+    <p style="margin: 0; font-size: 14px; color: #92400e;">
+      ⚠️ <strong>Lưu ý:</strong> Các đơn hàng trong kỳ này đã được khóa. Cashback chưa rút sẽ không thể tạo yêu cầu thanh toán nữa.
+    </p>
+  </div>
+  <p>Nếu bạn có thắc mắc về kết quả đối soát, vui lòng liên hệ bộ phận kế toán.</p>
+  <a href="https://chatchiu.online/reconciliations" style="display: inline-block; background: #9333ea; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin: 10px 0;">
+    Xem Chi Tiết Đối Soát
+  </a>
+  <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+  <p style="font-size: 12px; color: #6b7280;">
+    Email tự động từ hệ thống Chatchiu
+  </p>
+</div>`
+      }
+    };
+
+    // Get templates from SystemSettings or use defaults
+    const templates = {};
+    for (const [type, defaultTemplate] of Object.entries(defaultTemplates)) {
+      const savedSubject = await SystemSettings.get(`email_template_${type}_subject`, defaultTemplate.subject);
+      const savedContent = await SystemSettings.get(`email_template_${type}_content`, defaultTemplate.content);
+
+      templates[type] = {
+        subject: savedSubject,
+        content: savedContent
+      };
+    }
+
+    res.json({
+      success: true,
+      data: templates
+    });
+
+  } catch (error) {
+    logger.error('Get email templates error', { error: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
+ * PUT /api/notifications/admin/templates/:type
+ * Update email template for a specific type
+ */
+router.put('/admin/templates/:type', authenticateAdmin, async (req, res) => {
+  try {
+    const { type } = req.params;
+    const { subject, content } = req.body;
+
+    // Validate type
+    const validTypes = [
+      'instant', 'reminder', 'urgent',
+      'payment_confirmed', 'payment_rejected', 'payment_paid',
+      'reconciliation_finalized'
+    ];
+    if (!validTypes.includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid template type. Must be one of: ' + validTypes.join(', ')
+      });
+    }
+
+    // Validate required fields
+    if (!subject || !content) {
+      return res.status(400).json({
+        success: false,
+        message: 'Subject and content are required'
+      });
+    }
+
+    const SystemSettings = require('../services/systemSettings');
+
+    // Save to SystemSettings
+    await SystemSettings.set(`email_template_${type}_subject`, subject, req.userId);
+    await SystemSettings.set(`email_template_${type}_content`, content, req.userId);
+
+    logger.info('Email template updated', {
+      adminId: req.userId,
+      type,
+      subjectLength: subject.length,
+      contentLength: content.length
+    });
+
+    res.json({
+      success: true,
+      message: 'Template đã được lưu thành công',
+      data: {
+        type,
+        subject,
+        content
+      }
+    });
+
+  } catch (error) {
+    logger.error('Update email template error', { error: error.message });
     res.status(500).json({
       success: false,
       message: error.message

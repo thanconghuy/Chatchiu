@@ -464,6 +464,11 @@ body {
     color: #6c757d;
 }
 
+.status-na {
+    background: #e9ecef;
+    color: #6c757d;
+}
+
 .status-warning {
     background: #fff3cd;
     color: #856404;
@@ -506,6 +511,186 @@ body {
     overflow-y: auto;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     animation: slideIn 0.3s ease-out;
+}
+
+/* Wider modal for payment request form */
+#createRequestModal .modal-content {
+    max-width: 920px;
+    max-height: 92vh;
+    overflow-y: auto;
+}
+
+#createRequestModal .modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 16px 24px;
+    border-radius: 16px 16px 0 0;
+}
+
+#createRequestModal .modal-header h2 {
+    color: white;
+    margin: 0;
+    font-size: 20px;
+}
+
+#createRequestModal .close-modal {
+    color: white;
+    opacity: 0.9;
+}
+
+#createRequestModal .close-modal:hover {
+    opacity: 1;
+}
+
+#createRequestModal form {
+    padding: 20px 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+/* Full width elements */
+#createRequestModal .form-group:first-child,
+#createRequestModal .form-group:has(#savedPaymentAccount),
+#createRequestModal .form-group:has(#notes),
+#createRequestModal .modal-actions {
+    grid-column: 1 / -1;
+}
+
+#createRequestModal .form-group {
+    margin-bottom: 0;
+}
+
+#createRequestModal .form-group label {
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 6px;
+    display: block;
+    font-size: 13px;
+}
+
+#createRequestModal .form-group input,
+#createRequestModal .form-group select,
+#createRequestModal .form-group textarea {
+    width: 100%;
+    padding: 9px 12px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+#createRequestModal .form-group textarea {
+    min-height: 60px;
+    resize: vertical;
+}
+
+#createRequestModal .form-group input:focus,
+#createRequestModal .form-group select:focus,
+#createRequestModal .form-group textarea:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+#createRequestModal .form-group small {
+    display: block;
+    margin-top: 4px;
+    color: #6b7280;
+    font-size: 12px;
+}
+
+#createRequestModal .required {
+    color: #ef4444;
+}
+
+/* Payment account selector styling */
+#createRequestModal .payment-account-selector {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 2px solid #3b82f6;
+}
+
+#createRequestModal .payment-account-selector label {
+    color: #1e40af;
+    font-size: 13px;
+}
+
+#createRequestModal .account-help-text {
+    color: #1e40af !important;
+}
+
+#createRequestModal .account-help-text a {
+    color: #2563eb;
+    text-decoration: underline;
+    font-weight: 500;
+}
+
+#createRequestModal .account-help-text a:hover {
+    color: #1d4ed8;
+}
+
+/* Modal actions */
+#createRequestModal .modal-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 2px solid #e5e7eb;
+}
+
+#createRequestModal .modal-actions button {
+    flex: 1;
+    padding: 11px 20px;
+    font-size: 15px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+#createRequestModal .modal-actions .btn-primary {
+    flex: 2;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+}
+
+#createRequestModal .modal-actions .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+}
+
+#createRequestModal .modal-actions .btn-secondary {
+    background: #f3f4f6;
+    color: #374151;
+    border: 2px solid #e5e7eb;
+}
+
+#createRequestModal .modal-actions .btn-secondary:hover {
+    background: #e5e7eb;
+    border-color: #d1d5db;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    #createRequestModal .modal-content {
+        max-width: 95%;
+    }
+
+    #createRequestModal form {
+        grid-template-columns: 1fr;
+        padding: 20px;
+    }
+
+    #createRequestModal .modal-header {
+        padding: 20px;
+    }
+
+    #createRequestModal .modal-header h2 {
+        font-size: 20px;
+    }
 }
 
 @keyframes slideIn {

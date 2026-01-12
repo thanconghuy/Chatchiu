@@ -1,5 +1,6 @@
 const EmailService = require('../EmailService');
 const EmailTemplateService = require('../EmailTemplateService');
+const SystemSettings = require('../systemSettings');
 const emailConfig = require('../../config/email');
 const { pool } = require('../../config/database');
 
@@ -8,6 +9,8 @@ const { pool } = require('../../config/database');
  *
  * Helper functions để gửi email cho reconciliation events
  * Tách riêng để tránh ảnh hưởng business logic
+ *
+ * Updated: 2026-01-04 - Migrate to database-based templates from SystemSettings
  */
 
 /**
@@ -47,40 +50,41 @@ async function sendReconciliationFinalizedEmails({ reconciliationId, periodLabel
         const cashbackAmount = parseFloat(userBalance.total_cashback);
         const orderCount = parseInt(userBalance.order_count);
 
-        // Render email template
-        const html = await EmailTemplateService.renderTemplate(
-          emailConfig.TEMPLATES.RECONCILIATION_FINALIZED,
-          {
-            // Header
-            headerTitle: `${emailConfig.ICONS.MONEY} Cashback Đã Nhận!`,
-            headerSubtitle: `Kỳ đối soát ${periodLabel}`,
+        // Load template from SystemSettings (database-based)
+        const subject = await SystemSettings.get('email_template_reconciliation_finalized_subject');
+        let htmlContent = await SystemSettings.get('email_template_reconciliation_finalized_content');
 
-            // User info
-            userName: user.full_name || user.email,
+        if (!subject || !htmlContent) {
+          console.error('[ReconciliationEmailHelper] Template reconciliation_finalized not found in database');
+          return { success: false, reason: 'template_not_found' };
+        }
 
-            // Reconciliation info
-            periodLabel: periodLabel,
-            orderCount: orderCount,
-            cashbackAmount: EmailTemplateService.formatCurrency(cashbackAmount),
-            newBalance: EmailTemplateService.formatCurrency(newBalance),
+        // Prepare variables for replacement
+        const variables = {
+          userName: user.full_name || user.email,
+          reconciliationId: reconciliationId,
+          period: periodLabel,
+          totalAmount: EmailTemplateService.formatCurrency(cashbackAmount),
+          finalizedDate: EmailTemplateService.formatDate(new Date()),
+          totalOrders: orderCount.toString(),
+          totalPayments: '0' // TODO: Add actual payment count if needed
+        };
 
-            // URLs
-            frontendUrl: emailConfig.FRONTEND_URL,
-            dashboardUrl: emailConfig.DASHBOARD_URL,
-            supportUrl: emailConfig.SUPPORT_URL,
-            notificationSettingsUrl: emailConfig.NOTIFICATION_SETTINGS_URL,
-            copyrightYear: emailConfig.COPYRIGHT_YEAR,
+        // Replace variables in subject and content
+        let finalSubject = subject;
+        let finalContent = htmlContent;
 
-            // Subject (for layout)
-            subject: emailConfig.SUBJECTS.RECONCILIATION_FINALIZED(periodLabel, EmailTemplateService.formatCurrency(cashbackAmount))
-          }
-        );
+        for (const [key, value] of Object.entries(variables)) {
+          const regex = new RegExp(`{{${key}}}`, 'g');
+          finalSubject = finalSubject.replace(regex, value);
+          finalContent = finalContent.replace(regex, value);
+        }
 
         // Send email
         const result = await EmailService.sendEmail({
           to: user.email,
-          subject: emailConfig.SUBJECTS.RECONCILIATION_FINALIZED(periodLabel, EmailTemplateService.formatCurrency(cashbackAmount)),
-          html: html,
+          subject: finalSubject,
+          html: finalContent,
           context: {
             userId: user.id,
             emailType: emailConfig.EMAIL_TYPES.RECONCILIATION_FINALIZED,

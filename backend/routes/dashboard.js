@@ -27,18 +27,49 @@ router.get('/stats', authenticateToken, async (req, res) => {
     const clickStats = await Click.getStats(req.userId);
     console.log('[Dashboard Stats] Click stats:', clickStats);
 
-    // Get balance from system_conversions instead of users table
+    // Get balance from user_system_balance table (NEW LOGIC V2.0)
+    // This table maintains the correct balance using reserve/release pattern
     const balanceQuery = `
       SELECT
-        COALESCE(SUM(CASE WHEN status = 'approved' THEN cashback_amount ELSE 0 END), 0) as available_balance,
-        COALESCE(SUM(CASE WHEN status = 'pending' THEN cashback_amount ELSE 0 END), 0) as pending_balance,
-        COALESCE(SUM(CASE WHEN status IN ('approved', 'pending') THEN cashback_amount ELSE 0 END), 0) as total_cashback
-      FROM system_conversions
-      WHERE user_id = $1
+        usb.available_balance,
+        usb.pending_balance,
+        usb.reserved_balance,
+        usb.total_earned,
+        usb.total_withdrawn,
+        usb.debt_balance,
+        COALESCE(
+          (SELECT SUM(requested_amount)
+           FROM payment_requests
+           WHERE user_id = $1
+             AND status IN ('pending', 'confirmed')
+             AND cancelled_at IS NULL),
+          0
+        ) as total_requested
+      FROM user_system_balance usb
+      WHERE usb.user_id = $1
     `;
     const balanceResult = await pool.query(balanceQuery, [req.userId]);
-    const balanceStats = balanceResult.rows[0];
-    console.log('[Dashboard Stats] Balance from system_conversions:', balanceStats);
+
+    if (balanceResult.rows.length === 0) {
+      // No balance record found - return zeros
+      const balanceStats = {
+        available_balance: 0,
+        pending_balance: 0,
+        reserved_balance: 0,
+        total_earned: 0,
+        total_withdrawn: 0,
+        total_requested: 0
+      };
+      console.log('[Dashboard Stats] No balance record found, using zeros');
+    } else {
+      var balanceStats = balanceResult.rows[0];
+      console.log('[Dashboard Stats] Balance from user_system_balance:', {
+        availableBalance: balanceStats.available_balance,
+        totalEarned: balanceStats.total_earned,
+        totalWithdrawn: balanceStats.total_withdrawn,
+        totalRequested: balanceStats.total_requested
+      });
+    }
 
     // Get conversion stats from system_conversions
     const conversionQuery = `
@@ -64,6 +95,7 @@ router.get('/stats', authenticateToken, async (req, res) => {
         availableBalance: parseFloat(balanceStats.available_balance) || 0,
         pendingBalance: parseFloat(balanceStats.pending_balance) || 0,
         totalCashback: parseFloat(balanceStats.total_cashback) || 0,
+        approvedBalance: parseFloat(conversionStats.total_approved_cashback) || 0, // Alias for totalApprovedCashback
         totalConversions: parseInt(conversionStats.total_conversions) || 0,
         approvedConversions: parseInt(conversionStats.approved_conversions) || 0,
         pendingConversions: parseInt(conversionStats.pending_conversions) || 0,
@@ -653,23 +685,39 @@ router.get('/conversions', authenticateToken, async (req, res) => {
       });
     }
 
-    // Get conversions with System Reconciliation status
+    // Get system_conversions with reconciliation status
     const conversionsQuery = `
       SELECT
-        c.*,
-        m.logo_url as merchant_logo,
+        sc.id,
+        sc.merchant_name,
+        NULL as merchant_logo,
+        sc.order_code,
+        sc.order_amount,
+        sc.commission,
+        sc.cashback_amount,
+        sc.status,
+        sc.order_time,
+        sc.approval_time,
+        NULL as matched_at,
+        sc.created_at,
+        CASE
+          WHEN sri.system_reconciliation_id IS NOT NULL THEN 'reconciled'
+          WHEN sc.system_reconciliation_id IS NOT NULL THEN 'reconciled'
+          ELSE NULL
+        END as system_reconciliation_status,
+        COALESCE(sri.system_reconciliation_id, sc.system_reconciliation_id) as system_reconciliation_id,
+        NULL as system_reconciled_at,
         sri.id as system_reconciliation_item_id,
-        sri.system_reconciliation_id,
         sr.status as system_reconciliation_status_detail,
         sr.period_label as system_reconciliation_period,
-        sr.finalized_at as system_reconciliation_finalized_at
-      FROM conversions c
-      LEFT JOIN merchants m ON m.id = c.merchant_id
-      LEFT JOIN system_reconciliation_items sri ON sri.conversion_id = c.id
+        sr.finalized_at as system_reconciliation_finalized_at,
+        'system' as source_type
+      FROM system_conversions sc
+      LEFT JOIN system_reconciliation_items sri ON sri.system_conversion_id = sc.id
       LEFT JOIN system_reconciliations sr ON sr.id = sri.system_reconciliation_id
-      WHERE c.user_id = $1
-      ${status ? 'AND c.status = $2' : ''}
-      ORDER BY c.created_at DESC
+      WHERE sc.user_id = $1
+      ${status ? 'AND sc.status = $2' : ''}
+      ORDER BY sc.created_at DESC
       LIMIT $${status ? '3' : '2'} OFFSET $${status ? '4' : '3'}
     `;
 
@@ -694,7 +742,9 @@ router.get('/conversions', authenticateToken, async (req, res) => {
         approvalTime: sc.approval_time,
         matchedAt: sc.matched_at,
         createdAt: sc.created_at,
-        // System Reconciliation Status (from conversions.system_reconciliation_status column)
+        // Source type: 'api' or 'system'
+        sourceType: sc.source_type,
+        // System Reconciliation Status (from conversions.system_reconciliation_status column or computed)
         systemReconciliationStatus: sc.system_reconciliation_status || null,
         systemReconciliationId: sc.system_reconciliation_id || null,
         systemReconciledAt: sc.system_reconciled_at || null,
@@ -834,6 +884,160 @@ router.get('/reconciliation/:id/items', authenticateToken, async (req, res) => {
       success: false,
       message: error.message || 'Failed to get reconciliation items'
     });
+  }
+});
+
+/**
+ * GET /api/dashboard/debug-balance
+ * Debug endpoint to check balance discrepancy
+ */
+router.get('/debug-balance', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    // 1. Get current balance from user_system_balance
+    const balanceQuery = `
+      SELECT * FROM user_system_balance WHERE user_id = $1
+    `;
+    const balanceResult = await pool.query(balanceQuery, [userId]);
+    const currentBalance = balanceResult.rows[0];
+
+    // 2. Calculate total approved cashback
+    const conversionsQuery = `
+      SELECT
+        COALESCE(SUM(CASE WHEN status = 'approved' THEN cashback_amount ELSE 0 END), 0) as total_approved,
+        COUNT(*) FILTER (WHERE status = 'approved') as approved_count
+      FROM system_conversions
+      WHERE user_id = $1
+    `;
+    const conversionsResult = await pool.query(conversionsQuery, [userId]);
+    const totalApproved = parseFloat(conversionsResult.rows[0].total_approved);
+
+    // 3. Calculate total requested payments
+    const paymentsQuery = `
+      SELECT
+        id,
+        status,
+        requested_amount,
+        created_at
+      FROM payment_requests
+      WHERE user_id = $1
+        AND status NOT IN ('rejected', 'cancelled')
+      ORDER BY created_at DESC
+    `;
+    const paymentsResult = await pool.query(paymentsQuery, [userId]);
+    const payments = paymentsResult.rows.map(pr => ({
+      id: pr.id,
+      status: pr.status,
+      amount: parseFloat(pr.requested_amount),
+      createdAt: pr.created_at
+    }));
+    const totalRequested = payments.reduce((sum, p) => sum + p.amount, 0);
+
+    // 4. Calculate expected balance
+    const expectedBalance = totalApproved - totalRequested;
+    const actualBalance = parseFloat(currentBalance?.available_balance || 0);
+    const discrepancy = actualBalance - expectedBalance;
+
+    res.json({
+      success: true,
+      debug: {
+        currentBalance: {
+          available: actualBalance,
+          totalEarned: parseFloat(currentBalance?.total_earned || 0),
+          totalWithdrawn: parseFloat(currentBalance?.total_withdrawn || 0)
+        },
+        calculations: {
+          totalApproved,
+          approvedCount: conversionsResult.rows[0].approved_count,
+          totalRequested,
+          paymentsCount: payments.length,
+          expectedBalance,
+          actualBalance,
+          discrepancy
+        },
+        payments,
+        needsSync: Math.abs(discrepancy) > 0.01
+      }
+    });
+  } catch (error) {
+    console.error('Debug balance error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/dashboard/sync-balance
+ * Sync user balance to match calculations
+ */
+router.post('/sync-balance', authenticateToken, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const userId = req.userId;
+
+    // Calculate expected balance
+    const conversionsQuery = `
+      SELECT COALESCE(SUM(CASE WHEN status = 'approved' THEN cashback_amount ELSE 0 END), 0) as total_approved
+      FROM system_conversions
+      WHERE user_id = $1
+    `;
+    const conversionsResult = await client.query(conversionsQuery, [userId]);
+    const totalApproved = parseFloat(conversionsResult.rows[0].total_approved);
+
+    const paymentsQuery = `
+      SELECT COALESCE(SUM(requested_amount), 0) as total_requested
+      FROM payment_requests
+      WHERE user_id = $1
+        AND status NOT IN ('rejected', 'cancelled')
+    `;
+    const paymentsResult = await client.query(paymentsQuery, [userId]);
+    const totalRequested = parseFloat(paymentsResult.rows[0].total_requested);
+
+    const expectedBalance = totalApproved - totalRequested;
+
+    // Update balance
+    const updateQuery = `
+      UPDATE user_system_balance
+      SET
+        available_balance = $1,
+        total_earned = $2,
+        total_withdrawn = $3,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE user_id = $4
+      RETURNING *
+    `;
+    const updateResult = await client.query(updateQuery, [
+      expectedBalance,
+      totalApproved,
+      totalRequested,
+      userId
+    ]);
+
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      message: 'Balance synced successfully',
+      balance: {
+        available: parseFloat(updateResult.rows[0].available_balance),
+        totalEarned: parseFloat(updateResult.rows[0].total_earned),
+        totalWithdrawn: parseFloat(updateResult.rows[0].total_withdrawn)
+      }
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Sync balance error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  } finally {
+    client.release();
   }
 });
 

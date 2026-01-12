@@ -85,11 +85,11 @@ router.get('/stats', async (req, res) => {
 
 /**
  * GET /api/admin/system-reconciliation/preview
- * Preview eligible orders for a specific period before creating reconciliation
+ * Preview eligible orders from system_conversions for a specific period before creating reconciliation
  */
 router.get('/preview', async (req, res) => {
   try {
-    const { periodStart: startStr, periodEnd: endStr, affSid, page = 1, limit = 50 } = req.query;
+    const { periodStart: startStr, periodEnd: endStr, page = 1, limit = 50 } = req.query;
 
     if (!startStr || !endStr) {
       return res.status(400).json({
@@ -110,26 +110,21 @@ router.get('/preview', async (req, res) => {
       });
     }
 
-    // Build aff_sid filter
-    let affSidCondition = '';
-    if (affSid && affSid !== 'all') {
-      affSidCondition = ` AND cl.aff_sid = '${affSid}'`;
-    }
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const offset = (pageNum - 1) * limitNum;
 
-    // Count total eligible orders
+    // Query from system_conversions only (Cashback System orders)
+    // Only include orders that have NOT been reconciled yet
     const countQuery = `
       SELECT COUNT(*) as total
       FROM system_conversions sc
-      LEFT JOIN clicks cl ON sc.click_id = cl.id
       WHERE sc.status = 'approved'
         AND sc.order_time >= $1
         AND sc.order_time <= $2
-        ${affSidCondition}
+        AND sc.system_reconciliation_id IS NULL
     `;
-    const countResult = await pool.query(countQuery, [periodStart, periodEnd]);
-    const totalOrders = parseInt(countResult.rows[0].total);
 
-    // Calculate summary from all orders
     const summaryQuery = `
       SELECT
         COUNT(*) as total_orders,
@@ -138,27 +133,19 @@ router.get('/preview', async (req, res) => {
         COALESCE(SUM(sc.commission), 0) as total_commission,
         COALESCE(SUM(sc.order_amount), 0) as total_order_amount
       FROM system_conversions sc
-      LEFT JOIN clicks cl ON sc.click_id = cl.id
       WHERE sc.status = 'approved'
         AND sc.order_time >= $1
         AND sc.order_time <= $2
-        ${affSidCondition}
+        AND sc.system_reconciliation_id IS NULL
     `;
-    const summaryResult = await pool.query(summaryQuery, [periodStart, periodEnd]);
-    const summary = summaryResult.rows[0];
 
-    // Get paginated orders
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
-    const offset = (pageNum - 1) * limitNum;
-
-    const query = `
+    const ordersQuery = `
       SELECT
         sc.id,
         sc.user_id,
         COALESCE(u.full_name, u.username, 'N/A') as user_name,
         COALESCE(u.email, 'N/A') as user_email,
-        COALESCE(cl.aff_sid, 'N/A') as aff_sid,
+        'Cashback System' as aff_sid,
         sc.merchant_id,
         COALESCE(sc.merchant_name, 'Unknown') as merchant_name,
         COALESCE(sc.order_code, 'N/A') as order_code,
@@ -168,22 +155,25 @@ router.get('/preview', async (req, res) => {
         sc.status as conversion_status,
         sc.order_time,
         sc.created_at,
-        CASE
-          WHEN sc.system_reconciliation_id IS NOT NULL THEN true
-          ELSE false
-        END as is_reconciled
+        false as is_reconciled
       FROM system_conversions sc
       LEFT JOIN users u ON sc.user_id = u.id
-      LEFT JOIN clicks cl ON sc.click_id = cl.id
       WHERE sc.status = 'approved'
         AND sc.order_time >= $1
         AND sc.order_time <= $2
-        ${affSidCondition}
+        AND sc.system_reconciliation_id IS NULL
       ORDER BY sc.order_time DESC
       LIMIT $3 OFFSET $4
     `;
 
-    const result = await pool.query(query, [periodStart, periodEnd, limitNum, offset]);
+    // Execute queries
+    const countResult = await pool.query(countQuery, [periodStart, periodEnd]);
+    const totalOrders = parseInt(countResult.rows[0].total);
+
+    const summaryResult = await pool.query(summaryQuery, [periodStart, periodEnd]);
+    const summary = summaryResult.rows[0];
+
+    const result = await pool.query(ordersQuery, [periodStart, periodEnd, limitNum, offset]);
     const orders = result.rows;
 
     res.json({
@@ -344,12 +334,32 @@ router.get('/:id/items', async (req, res) => {
     params.push(limit, offset);
     const itemsQuery = `
       SELECT
-        sri.*,
+        sri.id,
+        sri.system_reconciliation_id,
+        sri.conversion_id,
+        sri.system_conversion_id,
+        sri.user_id,
+        sri.merchant_id,
+        sri.merchant_name,
+        sri.order_time,
+        sri.approval_time,
+        sri.order_value,
+        sri.commission_amount,
+        sri.cashback_amount,
+        sri.conversion_status,
+        sri.api_reconciled,
+        sri.api_reconciliation_id,
+        sri.is_high_risk,
+        sri.risk_score,
+        sri.risk_notes,
+        sri.created_at,
+        sri.reconciled_at,
         u.full_name as user_name,
         u.email as user_email,
-        c.order_code
+        COALESCE(sc.order_code, c.order_code, 'N/A') as order_code
       FROM system_reconciliation_items sri
       LEFT JOIN users u ON sri.user_id = u.id
+      LEFT JOIN system_conversions sc ON sri.system_conversion_id = sc.id
       LEFT JOIN conversions c ON sri.conversion_id = c.id
       WHERE ${whereClause}
       ORDER BY sri.order_time DESC
@@ -617,47 +627,34 @@ router.delete('/:id', async (req, res) => {
       });
     }
 
-    // IMPORTANT: Restore conversions to waiting status before deleting
-    // Get all conversion IDs from this reconciliation
+    // IMPORTANT: Restore system_conversions before deleting
+    // Get all system_conversion IDs from this reconciliation
     const getConversionsQuery = `
-      SELECT conversion_id
+      SELECT system_conversion_id
       FROM system_reconciliation_items
       WHERE system_reconciliation_id = $1
     `;
     const conversionsResult = await pool.query(getConversionsQuery, [id]);
-    const conversionIds = conversionsResult.rows.map(r => r.conversion_id);
+    const conversionIds = conversionsResult.rows.map(r => r.system_conversion_id);
 
-    console.log(`[Delete Reconciliation] Restoring ${conversionIds.length} conversions to waiting status`);
+    console.log(`[Delete Reconciliation] Restoring ${conversionIds.length} system_conversions`);
 
-    // Restore conversions: clear system_reconciliation_status and system_reconciliation_id
+    // Restore system_conversions: clear system_reconciliation_id
     if (conversionIds.length > 0) {
       const restoreConversionsQuery = `
-        UPDATE conversions
+        UPDATE system_conversions
         SET
-          system_reconciliation_status = NULL,
           system_reconciliation_id = NULL,
           updated_at = NOW()
         WHERE id = ANY($1)
       `;
       await pool.query(restoreConversionsQuery, [conversionIds]);
 
-      console.log(`[Delete Reconciliation] Restored ${conversionIds.length} conversions in conversions table`);
+      console.log(`[Delete Reconciliation] Restored ${conversionIds.length} system_conversions`);
 
-      // ALSO restore status in reconciliation_waiting_list (if exists)
-      const restoreWaitingListQuery = `
-        UPDATE reconciliation_waiting_list
-        SET
-          status = 'waiting',
-          selected_for_reconciliation_id = NULL,
-          updated_at = NOW()
-        WHERE conversion_id = ANY($1)
-          AND status = 'reconciled'
-      `;
-      const waitingListResult = await pool.query(restoreWaitingListQuery, [conversionIds]);
-
-      if (waitingListResult.rowCount > 0) {
-        console.log(`[Delete Reconciliation] Restored ${waitingListResult.rowCount} conversions in waiting list to 'waiting' status`);
-      }
+      // Note: No need to restore waiting list status
+      // Items were removed from waiting list when added to reconciliation
+      // They won't be re-added automatically (user must manually add them again)
     }
 
     // Delete reconciliation (CASCADE will delete items and logs)
@@ -895,14 +892,14 @@ router.post('/:id/sync', async (req, res) => {
 router.get('/auto-sync/preview', async (req, res) => {
   try {
     // Get eligible conversions not yet in waiting list
-    // Join with users and clicks to get additional info
+    // Join with users to get user info
+    // Note: e.conversion_id is actually system_conversions.id
     const eligibleQuery = `
       SELECT
         e.conversion_id,
         e.user_id,
         COALESCE(u.email, 'N/A') as user_email,
         COALESCE(u.full_name, u.username, 'N/A') as user_full_name,
-        COALESCE(cl.aff_sid, 'N/A') as aff_sid,
         e.merchant_id,
         e.merchant_name,
         e.order_code,
@@ -916,8 +913,6 @@ router.get('/auto-sync/preview', async (req, res) => {
         e.days_since_approval
       FROM get_eligible_conversions_for_waiting_list() e
       LEFT JOIN users u ON e.user_id = u.id
-      LEFT JOIN conversions c ON e.conversion_id = c.id
-      LEFT JOIN clicks cl ON c.click_id = cl.id
     `;
 
     const result = await pool.query(eligibleQuery);
@@ -1172,6 +1167,8 @@ router.post('/auto-sync/create-from-waiting', async (req, res) => {
   try {
     const { month, periodLabel, reconciliationId } = req.body;
 
+    console.log('[create-from-waiting] Received:', { month, periodLabel, reconciliationId });
+
     if (!month || !periodLabel) {
       return res.status(400).json({
         success: false,
@@ -1180,12 +1177,16 @@ router.post('/auto-sync/create-from-waiting', async (req, res) => {
     }
 
     // Get all orders from waiting list for this month
+    // Use system_conversion_id for system reconciliation (migration 038)
+    console.log('[create-from-waiting] Querying waiting list for month:', month);
     const waitingOrdersResult = await pool.query(`
-      SELECT conversion_id, cashback_amount
+      SELECT system_conversion_id, cashback_amount
       FROM reconciliation_waiting_list
       WHERE approval_month = $1 AND status = 'waiting'
       ORDER BY approval_time ASC
     `, [month]);
+
+    console.log('[create-from-waiting] Found orders:', waitingOrdersResult.rows.length);
 
     if (waitingOrdersResult.rows.length === 0) {
       return res.status(400).json({
@@ -1194,7 +1195,7 @@ router.post('/auto-sync/create-from-waiting', async (req, res) => {
       });
     }
 
-    const selectedOrderIds = waitingOrdersResult.rows.map(o => o.conversion_id);
+    const selectedOrderIds = waitingOrdersResult.rows.map(o => o.system_conversion_id);
     const totalCashback = waitingOrdersResult.rows.reduce((sum, o) => sum + parseFloat(o.cashback_amount || 0), 0);
 
     let reconciliation;
@@ -1278,7 +1279,8 @@ router.post('/auto-sync/create-from-waiting', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error creating/adding to reconciliation from waiting list:', error);
+    console.error('[create-from-waiting] ERROR:', error);
+    console.error('[create-from-waiting] Stack:', error.stack);
     res.status(500).json({
       success: false,
       message: error.message

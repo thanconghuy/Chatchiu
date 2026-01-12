@@ -25,13 +25,18 @@ class PaymentSystemReconciliationService {
 
   /**
    * Calculate available balance for user from system reconciliation
+   * Uses the same logic as validation function
+   * Available Balance = Total Approved Cashback - (Pending + Confirmed + Paid Requests)
    */
   static async calculateAvailableBalance(userId) {
     try {
-      const query = `SELECT calculate_user_available_balance_from_system_recon($1) as balance`;
+      // Use database function to ensure consistency
+      const query = `
+        SELECT calculate_user_available_balance_from_system_recon($1::UUID) as available_balance
+      `;
       const result = await pool.query(query, [userId]);
 
-      return parseFloat(result.rows[0].balance) || 0;
+      return parseFloat(result.rows[0].available_balance) || 0;
     } catch (error) {
       logger.error('Calculate available balance failed', { error: error.message, userId });
       throw error;
@@ -121,20 +126,25 @@ class PaymentSystemReconciliationService {
       let currentTotal = 0;
 
       // Select items until we reach requested amount
+      // IMPORTANT: Don't select items that would make total exceed requested by too much
       for (const item of availableItems) {
+        const itemAmount = parseFloat(item.cashback_amount);
+
+        // If we already have exact amount or more, stop
         if (currentTotal >= requestedAmount) break;
 
+        // Add this item (even if it pushes us over, we need FIFO)
         selectedItems.push({
           itemId: item.item_id,
           systemReconciliationId: item.system_reconciliation_id,
           conversionId: item.conversion_id,
-          cashbackAmount: parseFloat(item.cashback_amount),
+          cashbackAmount: itemAmount,
           merchantName: item.merchant_name,
           orderTime: item.order_time,
           reconciliationPeriodLabel: item.reconciliation_period_label
         });
 
-        currentTotal += parseFloat(item.cashback_amount);
+        currentTotal += itemAmount;
       }
 
       // VALIDATION: Check if we have enough

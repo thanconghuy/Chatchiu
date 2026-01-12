@@ -1,213 +1,97 @@
+/**
+ * Payment Request Service - REDESIGNED
+ *
+ * Version: 2.0
+ * Date: 2026-01-10
+ *
+ * KEY CHANGES:
+ * 1. createPaymentRequest() - RESERVES balance immediately
+ * 2. cancelPaymentRequest() - RELEASES balance back
+ * 3. markAsPaid() - Only records withdrawal (no balance deduction)
+ * 4. Idempotency support
+ * 5. Complete audit trail
+ */
+
 const db = require('../config/database');
-const PaymentRequest = require('../models/PaymentRequestEncrypted');
+const PaymentRequest = require('../models/PaymentRequest');
 const PaymentAccount = require('../models/PaymentAccount');
-const PaymentSystemReconciliationService = require('./paymentSystemReconciliationService');
+const BalanceManagementService = require('./systemReconciliation/BalanceManagementService');
 const SystemSettingsService = require('./systemSettingsService');
-const UserPaymentHistory = require('../models/UserPaymentHistory');
-const UserPaymentDetail = require('../models/UserPaymentDetail');
 const logger = require('../utils/logger');
 
-/**
- * Payment Request Service
- * Business logic for payment request operations
- */
 class PaymentRequestService {
-  /**
-   * Check user eligibility for creating payment request
-   * Uses System Reconciliation balance
-   * @param {string} userId
-   * @returns {Promise<Object>}
-   */
-  async checkEligibility(userId) {
-    try {
-      logger.info('Checking payment request eligibility', { userId });
-
-      // Get available balance from system reconciliation
-      const availableBalance = await PaymentSystemReconciliationService.calculateAvailableBalance(userId);
-
-      // Get total confirmed cashback from system_conversions
-      const totalCashbackQuery = `
-        SELECT COALESCE(SUM(cashback_amount), 0) as total
-        FROM system_conversions
-        WHERE user_id = $1
-          AND status = 'approved'
-      `;
-      const totalCashbackResult = await db.query(totalCashbackQuery, [userId]);
-      const totalConfirmedCashback = parseFloat(totalCashbackResult.rows[0].total) || 0;
-
-      // Get total requested amount (all payment requests except rejected and cancelled)
-      const totalRequestedQuery = `
-        SELECT COALESCE(SUM(requested_amount), 0) as total
-        FROM payment_requests
-        WHERE user_id = $1
-          AND status NOT IN ('rejected', 'cancelled')
-      `;
-      const totalRequestedResult = await db.query(totalRequestedQuery, [userId]);
-      const totalRequested = parseFloat(totalRequestedResult.rows[0].total) || 0;
-
-      // Check for pending requests (exclude cancelled)
-      const pendingQuery = `
-        SELECT COUNT(*) as count
-        FROM payment_requests
-        WHERE user_id = $1
-          AND status = 'pending'
-          AND cancelled_at IS NULL
-      `;
-      const pendingResult = await db.query(pendingQuery, [userId]);
-      const hasPendingRequest = parseInt(pendingResult.rows[0].count) > 0;
-
-      // Get minimum withdrawal amount from system settings
-      const minAmount = await SystemSettingsService.getSetting('min_withdrawal_amount') || 50000;
-
-      const isEligible = availableBalance >= minAmount && !hasPendingRequest;
-
-      const eligibility = {
-        isEligible,
-        availableBalance,
-        totalConfirmedCashback,
-        totalRequested,
-        hasPendingRequest,
-        minAmount,
-        reasons: []
-      };
-
-      // Explain why not eligible
-      if (!isEligible) {
-        if (hasPendingRequest) {
-          eligibility.reasons.push('Bạn đang có yêu cầu thanh toán chờ xử lý');
-        }
-        if (availableBalance < minAmount) {
-          eligibility.reasons.push(`Số dư khả dụng phải ≥ ${minAmount.toLocaleString('vi-VN')} VNĐ (hiện tại: ${availableBalance.toLocaleString('vi-VN')} VNĐ)`);
-        }
-      }
-
-      logger.success('Eligibility check completed', eligibility);
-      return eligibility;
-
-    } catch (error) {
-      logger.error('Failed to check eligibility', { error: error.message, userId });
-      throw error;
-    }
-  }
 
   /**
-   * Get available reconciliation items for payment
-   * Uses FIFO (First-In-First-Out) approach
-   * @param {string} userId
-   * @param {number} requestedAmount
-   * @returns {Promise<Object>}
-   */
-  async getAvailableItems(userId, requestedAmount) {
-    try {
-      logger.info('Getting available reconciliation items', { userId, requestedAmount });
-
-      // Query reconciliation items that:
-      // 1. Belong to user
-      // 2. From confirmed reconciliations
-      // 3. Not yet included in any payment request
-      // 4. Order by confirmed_time (FIFO)
-      const query = `
-        SELECT
-          ri.id,
-          ri.reconciliation_id,
-          ri.conversion_id,
-          ri.cashback_amount,
-          c.order_code,
-          c.merchant_name,
-          c.order_time,
-          c.confirmed_time,
-          r.period_label,
-          r.confirmed_at as reconciliation_confirmed_at
-        FROM reconciliation_items ri
-        JOIN conversions c ON ri.conversion_id = c.id
-        JOIN reconciliations r ON ri.reconciliation_id = r.id
-        LEFT JOIN payment_reconciliation_mapping prm ON ri.id = prm.reconciliation_item_id
-        WHERE c.user_id = $1
-          AND r.status = 'confirmed'
-          AND prm.id IS NULL
-        ORDER BY c.confirmed_time ASC
-      `;
-
-      const result = await db.query(query, [userId]);
-      const availableItems = result.rows;
-
-      // Calculate how many items needed using FIFO
-      let runningTotal = 0;
-      const selectedItems = [];
-
-      for (const item of availableItems) {
-        if (runningTotal >= requestedAmount) break;
-
-        selectedItems.push(item);
-        runningTotal += parseFloat(item.cashback_amount);
-      }
-
-      const summary = {
-        requestedAmount,
-        selectedItems,
-        selectedCount: selectedItems.length,
-        totalSelectedAmount: runningTotal,
-        availableCount: availableItems.length,
-        totalAvailableAmount: availableItems.reduce((sum, item) => sum + parseFloat(item.cashback_amount), 0),
-        isSufficient: runningTotal >= requestedAmount
-      };
-
-      logger.success('Available items retrieved', {
-        selectedCount: summary.selectedCount,
-        totalSelectedAmount: summary.totalSelectedAmount
-      });
-
-      return summary;
-
-    } catch (error) {
-      logger.error('Failed to get available items', { error: error.message, userId, requestedAmount });
-      throw error;
-    }
-  }
-
-  /**
-   * Create a new payment request
-   * Enhanced with multi-layer validation for balance integrity
+   * Create Payment Request with Balance Reserve (NEW LOGIC)
+   *
+   * Flow:
+   * 1. Check idempotency (return cached if exists)
+   * 2. Validate amount & bank info
+   * 3. Start transaction
+   * 4. Lock & check balance
+   * 5. Create payment request
+   * 6. RESERVE balance (deduct from available_balance)
+   * 7. Log to balance_transactions
+   * 8. Commit
+   *
    * @param {Object} params
    * @param {string} params.userId
    * @param {number} params.requestedAmount
+   * @param {string} params.idempotencyKey - REQUIRED UUID v4
    * @param {string} params.bankName
    * @param {string} params.bankAccountNumber
    * @param {string} params.bankAccountName
    * @param {string} params.bankBranch
    * @param {string} params.notes
-   * @param {Object} params.context - Request context (IP, user agent)
+   * @param {string} params.paymentAccountId
    * @returns {Promise<Object>}
    */
   async createPaymentRequest(params) {
     const {
       userId,
       requestedAmount,
+      idempotencyKey, // NEW: Required for idempotency
       bankName,
       bankAccountNumber,
       bankAccountName,
       bankBranch = null,
       notes = null,
-      paymentAccountId = null,
-      context = {}
+      paymentAccountId = null
     } = params;
 
+    const client = await db.pool.connect();
+
     try {
-      logger.info('Creating payment request with enhanced validation', { userId, requestedAmount });
+      // ========================================
+      // STEP 0: Idempotency Check
+      // ========================================
+      const existingRequest = await client.query(`
+        SELECT * FROM payment_requests
+        WHERE idempotency_key = $1
+      `, [idempotencyKey]);
 
-      // Get withdrawal limits from system settings
-      const minWithdrawal = await SystemSettingsService.getSetting('min_withdrawal_amount') || 50000;
-      const maxWithdrawal = await SystemSettingsService.getSetting('max_withdrawal_amount') || 5000000;
+      if (existingRequest.rows.length > 0) {
+        logger.info('Idempotent request detected', {
+          idempotencyKey,
+          existingRequestId: existingRequest.rows[0].id
+        });
+        return existingRequest.rows[0];
+      }
 
-      // Basic input validation with dynamic limits
-      if (requestedAmount < minWithdrawal) {
-        const error = new Error(`Số tiền yêu cầu phải ≥ ${minWithdrawal.toLocaleString('vi-VN')} VNĐ`);
+      // ========================================
+      // STEP 1: Validate Input
+      // ========================================
+      const minAmount = await SystemSettingsService.getSetting('min_withdrawal_amount') || 40000;
+      const maxAmount = await SystemSettingsService.getSetting('max_withdrawal_amount') || 500000;
+
+      if (requestedAmount < minAmount) {
+        const error = new Error(`Số tiền tối thiểu là ${minAmount.toLocaleString('vi-VN')}đ`);
         error.code = 'BELOW_MIN_AMOUNT';
         throw error;
       }
 
-      if (requestedAmount > maxWithdrawal) {
-        const error = new Error(`Số tiền yêu cầu không được vượt quá ${maxWithdrawal.toLocaleString('vi-VN')} VNĐ`);
+      if (requestedAmount > maxAmount) {
+        const error = new Error(`Số tiền tối đa là ${maxAmount.toLocaleString('vi-VN')}đ`);
         error.code = 'ABOVE_MAX_AMOUNT';
         throw error;
       }
@@ -218,87 +102,69 @@ class PaymentRequestService {
         throw error;
       }
 
-      if (bankAccountNumber.length < 6) {
-        const error = new Error('Số tài khoản không hợp lệ (tối thiểu 6 ký tự)');
-        error.code = 'INVALID_ACCOUNT_NUMBER';
-        throw error;
-      }
+      // ========================================
+      // STEP 2: Start Transaction
+      // ========================================
+      await client.query('BEGIN');
+      await client.query('SET TRANSACTION ISOLATION LEVEL SERIALIZABLE');
 
-      // VALIDATION LAYER 1: Database-level validation with detailed error codes
-      const validation = await PaymentSystemReconciliationService.validatePaymentRequest(
+      logger.info('Creating payment request with reserve logic', {
         userId,
         requestedAmount,
-        context
-      );
+        idempotencyKey
+      });
 
-      if (!validation.isValid) {
-        const error = new Error(validation.errorMessage);
-        error.code = validation.errorCode;
-        error.validationDetails = validation;
+      // ========================================
+      // STEP 3: Check Balance (with lock)
+      // ========================================
+      const balanceResult = await client.query(`
+        SELECT available_balance, total_earned, total_withdrawn
+        FROM user_system_balance
+        WHERE user_id = $1
+        FOR UPDATE
+      `, [userId]);
+
+      if (balanceResult.rows.length === 0) {
+        throw new Error('Bạn chưa có số dư. Vui lòng chờ đối soát hoàn tất.');
+      }
+
+      const currentBalance = balanceResult.rows[0];
+      const availableBalance = parseFloat(currentBalance.available_balance);
+
+      if (requestedAmount > availableBalance) {
+        const error = new Error(
+          `Số dư không đủ. Khả dụng: ${availableBalance.toLocaleString('vi-VN')}đ, ` +
+          `Yêu cầu: ${requestedAmount.toLocaleString('vi-VN')}đ`
+        );
+        error.code = 'INSUFFICIENT_BALANCE';
+        error.details = {
+          available: availableBalance,
+          requested: requestedAmount,
+          shortage: requestedAmount - availableBalance
+        };
         throw error;
       }
 
-      // VALIDATION LAYER 2: Auto-select items with database locks (prevents race conditions)
-      const autoSelectResult = await PaymentSystemReconciliationService.autoSelectItemsForPayment(
-        userId,
-        requestedAmount,
-        true // Enable database locking
-      );
-
-      if (!autoSelectResult.success) {
-        const error = new Error(autoSelectResult.message);
-        error.code = autoSelectResult.errorCode || 'AUTO_SELECT_FAILED';
-        error.details = autoSelectResult;
-        throw error;
-      }
-
-      // Auto-save payment account if not using saved account
-      let finalPaymentAccountId = paymentAccountId;
-
-      if (!paymentAccountId && bankName && bankAccountNumber && bankAccountName) {
-        try {
-          // Check if user already has 5 accounts (max limit)
-          const accountCount = await PaymentAccount.count(userId);
-
-          if (accountCount < 5) {
-            // Check if this exact account already exists
-            const existingAccounts = await PaymentAccount.findByUserId(userId);
-            const accountExists = existingAccounts.some(acc =>
-              acc.account_number === bankAccountNumber &&
-              acc.account_holder_name === bankAccountName
-            );
-
-            if (!accountExists) {
-              // Auto-save the payment account
-              const newAccount = await PaymentAccount.create({
-                userId,
-                accountType: 'bank', // Default to bank for payment requests
-                accountHolderName: bankAccountName,
-                accountNumber: bankAccountNumber,
-                bankName: bankName,
-                bankBranch: bankBranch || null,
-                isDefault: accountCount === 0, // Set as default if it's the first account
-                notes: 'Tự động lưu từ yêu cầu thanh toán'
-              });
-
-              finalPaymentAccountId = newAccount.id;
-              logger.info('Auto-saved payment account from payment request', {
-                accountId: newAccount.id,
-                userId
-              });
-            }
-          }
-        } catch (autoSaveError) {
-          // Non-critical error, just log it and continue
-          logger.warn('Failed to auto-save payment account', {
-            error: autoSaveError.message,
-            userId
-          });
-        }
-      }
-
-      // Create payment request
-      const paymentRequest = await PaymentRequest.create({
+      // ========================================
+      // STEP 4: Create Payment Request
+      // ========================================
+      const prResult = await client.query(`
+        INSERT INTO payment_requests (
+          user_id,
+          requested_amount,
+          bank_name,
+          bank_account_number,
+          bank_account_name,
+          bank_branch,
+          notes,
+          payment_account_id,
+          status,
+          idempotency_key,
+          reserve_balance_at,
+          created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, NOW(), NOW())
+        RETURNING *
+      `, [
         userId,
         requestedAmount,
         bankName,
@@ -306,797 +172,869 @@ class PaymentRequestService {
         bankAccountName,
         bankBranch,
         notes,
-        paymentAccountId: finalPaymentAccountId
+        paymentAccountId,
+        idempotencyKey
+      ]);
+
+      const paymentRequest = prResult.rows[0];
+
+      logger.info('Payment request record created', {
+        paymentRequestId: paymentRequest.id,
+        userId,
+        requestedAmount
       });
 
-      // VALIDATION LAYER 3: Link payment with items (includes pre-linking verification)
-      try {
-        await PaymentSystemReconciliationService.linkPaymentWithItems(
-          paymentRequest.id,
-          autoSelectResult.selectedItems,
-          userId
-        );
-      } catch (linkError) {
-        // If linking fails, cancel the payment request
-        await PaymentRequest.cancel(paymentRequest.id, userId);
-
-        logger.error('Linking failed, payment request cancelled', {
-          paymentRequestId: paymentRequest.id,
-          error: linkError.message,
-          code: linkError.code
-        });
-
-        throw linkError;
-      }
-
-      // Log successful validation and creation
-      await PaymentSystemReconciliationService.logValidationAttempt({
+      // ========================================
+      // STEP 5: RESERVE BALANCE
+      // ========================================
+      await BalanceManagementService.reserveBalance(
+        client,
         userId,
         requestedAmount,
-        validationPassed: true,
-        availableBalance: validation.availableBalance,
-        selectedItemsCount: autoSelectResult.selectedItems.length,
-        selectedItemsTotal: autoSelectResult.totalAmount,
+        paymentRequest.id
+      );
+
+      logger.success('Balance reserved successfully', {
         paymentRequestId: paymentRequest.id,
-        context
+        userId,
+        amount: requestedAmount,
+        availableBefore: availableBalance,
+        availableAfter: availableBalance - requestedAmount
       });
 
-      logger.success('Payment request created with all validations passed', {
-        id: paymentRequest.id,
+      // ========================================
+      // STEP 6: Log Action
+      // ========================================
+      await client.query(`
+        INSERT INTO payment_request_logs (
+          payment_request_id,
+          action,
+          old_status,
+          new_status,
+          performed_by,
+          notes
+        ) VALUES ($1, 'created', NULL, 'pending', $2, $3)
+      `, [
+        paymentRequest.id,
+        userId,
+        `Tạo yêu cầu thanh toán ${requestedAmount.toLocaleString('vi-VN')}đ`
+      ]);
+
+      // ========================================
+      // STEP 7: Commit Transaction
+      // ========================================
+      await client.query('COMMIT');
+
+      logger.success('Payment request created successfully', {
+        paymentRequestId: paymentRequest.id,
+        userId,
         requestedAmount,
-        itemsCount: autoSelectResult.selectedItems.length,
-        totalAmount: autoSelectResult.totalAmount,
-        validationLayers: 3
+        idempotencyKey
       });
 
-      // Return payment request with linked items
-      const linkedItems = await PaymentSystemReconciliationService.getLinkedItemsForPayment(paymentRequest.id);
+      return paymentRequest;
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+
+      logger.error('Failed to create payment request', {
+        userId,
+        requestedAmount,
+        idempotencyKey,
+        error: error.message,
+        code: error.code
+      });
+
+      throw error;
+
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Cancel Payment Request with Balance Release (NEW LOGIC)
+   *
+   * Flow:
+   * 1. Validate request exists & belongs to user
+   * 2. Validate status is 'pending' (only pending can be cancelled)
+   * 3. Start transaction
+   * 4. Update payment_requests status to 'cancelled'
+   * 5. RELEASE balance (add back to available_balance)
+   * 6. Log to balance_transactions
+   * 7. Commit
+   *
+   * @param {string} paymentRequestId
+   * @param {string} userId
+   * @param {string} reason - Optional cancellation reason
+   * @returns {Promise<Object>}
+   */
+  async cancelPaymentRequest(paymentRequestId, userId, reason = null) {
+    const client = await db.pool.connect();
+
+    try {
+      await client.query('BEGIN');
+      await client.query('SET TRANSACTION ISOLATION LEVEL SERIALIZABLE');
+
+      // ========================================
+      // STEP 1: Get and Lock Payment Request
+      // ========================================
+      const prResult = await client.query(`
+        SELECT * FROM payment_requests
+        WHERE id = $1 AND user_id = $2
+        FOR UPDATE
+      `, [paymentRequestId, userId]);
+
+      if (prResult.rows.length === 0) {
+        throw new Error('Không tìm thấy yêu cầu thanh toán hoặc bạn không có quyền hủy');
+      }
+
+      const paymentRequest = prResult.rows[0];
+
+      // ========================================
+      // STEP 2: Validate Can Cancel
+      // ========================================
+      if (paymentRequest.status !== 'pending') {
+        throw new Error(
+          `Chỉ có thể hủy yêu cầu đang chờ xử lý. ` +
+          `Trạng thái hiện tại: ${paymentRequest.status}`
+        );
+      }
+
+      if (paymentRequest.cancelled_at) {
+        throw new Error('Yêu cầu thanh toán đã được hủy trước đó');
+      }
+
+      logger.info('Cancelling payment request', {
+        paymentRequestId,
+        userId,
+        amount: paymentRequest.requested_amount
+      });
+
+      // ========================================
+      // STEP 3: Update Payment Request
+      // ========================================
+      await client.query(`
+        UPDATE payment_requests
+        SET status = 'cancelled',
+            cancelled_at = NOW(),
+            cancelled_by = $2,
+            cancellation_reason = $3,
+            release_balance_at = NOW(),
+            updated_at = NOW()
+        WHERE id = $1
+      `, [paymentRequestId, userId, reason]);
+
+      // ========================================
+      // STEP 4: RELEASE BALANCE
+      // ========================================
+      await BalanceManagementService.releaseBalance(
+        client,
+        userId,
+        parseFloat(paymentRequest.requested_amount),
+        paymentRequestId
+      );
+
+      logger.success('Balance released successfully', {
+        paymentRequestId,
+        userId,
+        amount: paymentRequest.requested_amount
+      });
+
+      // ========================================
+      // STEP 5: Log Action
+      // ========================================
+      await client.query(`
+        INSERT INTO payment_request_logs (
+          payment_request_id,
+          action,
+          old_status,
+          new_status,
+          performed_by,
+          notes
+        ) VALUES ($1, 'cancelled', 'pending', 'cancelled', $2, $3)
+      `, [
+        paymentRequestId,
+        userId,
+        reason || 'Người dùng hủy yêu cầu thanh toán'
+      ]);
+
+      // ========================================
+      // STEP 6: Commit Transaction
+      // ========================================
+      await client.query('COMMIT');
+
+      logger.success('Payment request cancelled successfully', {
+        paymentRequestId,
+        userId,
+        amount: paymentRequest.requested_amount,
+        reason
+      });
 
       return {
         ...paymentRequest,
-        linkedItems,
-        linkedItemsCount: linkedItems.length,
-        totalLinkedAmount: linkedItems.reduce((sum, item) => sum + parseFloat(item.cashback_amount), 0)
+        status: 'cancelled',
+        cancelled_at: new Date(),
+        cancelled_by: userId,
+        cancellation_reason: reason
       };
 
     } catch (error) {
-      logger.error('Failed to create payment request', {
-        error: error.message,
-        code: error.code,
-        details: error.details,
-        validationDetails: error.validationDetails,
-        params
+      await client.query('ROLLBACK');
+
+      logger.error('Failed to cancel payment request', {
+        paymentRequestId,
+        userId,
+        error: error.message
       });
+
       throw error;
+
+    } finally {
+      client.release();
     }
   }
 
   /**
-   * Confirm payment request (Admin)
+   * Mark Payment Request as Paid (NEW LOGIC)
+   *
+   * Flow:
+   * 1. Validate request exists & status
+   * 2. Start transaction
+   * 3. Update payment_requests status to 'paid'
+   * 4. RECORD withdrawal (update total_withdrawn ONLY, no balance deduction)
+   * 5. Mark conversions as paid (FIFO)
+   * 6. Log to balance_transactions
+   * 7. Commit
+   * 8. Send email notification (async)
+   *
    * @param {string} paymentRequestId
-   * @param {Object} adminInfo
-   * @param {string} adminInfo.id
-   * @param {string} adminInfo.full_name
-   * @param {string} adminInfo.email
-   * @param {string} adminNotes
-   * @returns {Promise<Object>}
-   */
-  async confirmPaymentRequest(paymentRequestId, adminInfo, adminNotes = null) {
-    try {
-      logger.info('Confirming payment request', { paymentRequestId, adminId: adminInfo.id });
-
-      const updated = await PaymentRequest.updateStatus(paymentRequestId, 'confirmed', {
-        adminId: adminInfo.id,
-        adminNotes: adminNotes || 'Yêu cầu thanh toán đã được xác nhận',
-        performedBy: adminInfo
-      });
-
-      logger.success('Payment request confirmed', { id: paymentRequestId });
-
-      // Send email notification (async, don't block)
-      setImmediate(async () => {
-        try {
-          const { sendPaymentConfirmedEmail } = require('./emailHelpers/paymentEmailHelper');
-          await sendPaymentConfirmedEmail(updated);
-          logger.info('Payment confirmed email sent', { paymentRequestId });
-        } catch (emailError) {
-          logger.error('Failed to send payment confirmed email', {
-            error: emailError.message,
-            paymentRequestId
-          });
-        }
-      });
-
-      return updated;
-
-    } catch (error) {
-      logger.error('Failed to confirm payment request', { error: error.message, paymentRequestId });
-      throw error;
-    }
-  }
-
-  /**
-   * Reject payment request (Admin)
-   * @param {string} paymentRequestId
-   * @param {Object} adminInfo
-   * @param {string} rejectionReason - Required
-   * @returns {Promise<Object>}
-   */
-  async rejectPaymentRequest(paymentRequestId, adminInfo, rejectionReason) {
-    try {
-      logger.info('Rejecting payment request', { paymentRequestId, adminId: adminInfo.id });
-
-      if (!rejectionReason) {
-        throw new Error('Lý do từ chối là bắt buộc');
-      }
-
-      const updated = await PaymentRequest.updateStatus(paymentRequestId, 'rejected', {
-        adminId: adminInfo.id,
-        adminNotes: rejectionReason,
-        performedBy: adminInfo
-      });
-
-      logger.success('Payment request rejected', { id: paymentRequestId });
-
-      // Send email notification (async, don't block)
-      setImmediate(async () => {
-        try {
-          const { sendPaymentRejectedEmail } = require('./emailHelpers/paymentEmailHelper');
-          await sendPaymentRejectedEmail(updated);
-          logger.info('Payment rejected email sent', { paymentRequestId });
-        } catch (emailError) {
-          logger.error('Failed to send payment rejected email', {
-            error: emailError.message,
-            paymentRequestId
-          });
-        }
-      });
-
-      return updated;
-
-    } catch (error) {
-      logger.error('Failed to reject payment request', { error: error.message, paymentRequestId });
-      throw error;
-    }
-  }
-
-  /**
-   * Mark payment request as paid (Admin)
-   * @param {string} paymentRequestId
-   * @param {Object} adminInfo
-   * @param {string} transactionReference - Required
-   * @param {string} adminNotes
+   * @param {Object} adminInfo - { id, full_name, email }
+   * @param {string} transactionReference - Bank transaction reference
+   * @param {string} adminNotes - Optional admin notes
    * @returns {Promise<Object>}
    */
   async markAsPaid(paymentRequestId, adminInfo, transactionReference, adminNotes = null) {
+    const client = await db.pool.connect();
+
     try {
-      logger.info('Marking payment request as paid', { paymentRequestId, adminId: adminInfo.id });
+      await client.query('BEGIN');
+      await client.query('SET TRANSACTION ISOLATION LEVEL SERIALIZABLE');
 
       if (!transactionReference) {
         throw new Error('Mã giao dịch là bắt buộc');
       }
 
-      const updated = await PaymentRequest.updateStatus(paymentRequestId, 'paid', {
-        adminId: adminInfo.id,
-        adminNotes: adminNotes || 'Đã chuyển tiền thành công',
+      // ========================================
+      // STEP 1: Get and Lock Payment Request
+      // ========================================
+      const prResult = await client.query(`
+        SELECT * FROM payment_requests
+        WHERE id = $1
+        FOR UPDATE
+      `, [paymentRequestId]);
+
+      if (prResult.rows.length === 0) {
+        throw new Error('Không tìm thấy yêu cầu thanh toán');
+      }
+
+      const paymentRequest = prResult.rows[0];
+      const requestedAmount = parseFloat(paymentRequest.requested_amount);
+
+      // ========================================
+      // STEP 2: Validate Can Mark Paid
+      // ========================================
+      if (!['pending', 'confirmed'].includes(paymentRequest.status)) {
+        throw new Error(
+          `Không thể đánh dấu đã thanh toán từ trạng thái: ${paymentRequest.status}`
+        );
+      }
+
+      logger.info('Marking payment request as paid', {
+        paymentRequestId,
+        userId: paymentRequest.user_id,
+        amount: requestedAmount,
+        adminId: adminInfo.id
+      });
+
+      // ========================================
+      // STEP 3: Update Payment Request Status
+      // ========================================
+      await client.query(`
+        UPDATE payment_requests
+        SET status = 'paid',
+            paid_at = NOW(),
+            paid_by = $2,
+            transaction_reference = $3,
+            admin_notes = $4,
+            updated_at = NOW()
+        WHERE id = $1
+      `, [paymentRequestId, adminInfo.id, transactionReference, adminNotes]);
+
+      // ========================================
+      // STEP 4: RECORD WITHDRAWAL (no balance deduction)
+      // ========================================
+      await BalanceManagementService.recordWithdrawal(
+        client,
+        paymentRequest.user_id,
+        requestedAmount,
+        paymentRequestId,
+        adminInfo.id,
+        { transactionReference }
+      );
+
+      logger.success('Withdrawal recorded successfully', {
+        paymentRequestId,
+        userId: paymentRequest.user_id,
+        amount: requestedAmount
+      });
+
+      // ========================================
+      // STEP 5: Mark Conversions as Paid (FIFO)
+      // ========================================
+      const fifoQuery = `
+        WITH selected_conversions AS (
+          SELECT
+            id,
+            cashback_amount,
+            SUM(cashback_amount) OVER (
+              ORDER BY order_time ASC, id ASC
+              ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+            ) as running_total
+          FROM system_conversions
+          WHERE user_id = $1
+            AND status = 'approved'
+            AND (payment_status IS NULL OR payment_status = 'unpaid')
+        )
+        UPDATE system_conversions
+        SET payment_status = 'paid',
+            payment_request_id = $2,
+            payment_linked_at = NOW()
+        WHERE id IN (
+          SELECT id FROM selected_conversions
+          WHERE running_total <= $3
+             OR (running_total - cashback_amount) < $3
+        )
+        RETURNING id, cashback_amount
+      `;
+
+      const conversionsResult = await client.query(fifoQuery, [
+        paymentRequest.user_id,
+        paymentRequestId,
+        requestedAmount
+      ]);
+
+      logger.info('Conversions marked as paid (FIFO)', {
+        paymentRequestId,
+        conversionsCount: conversionsResult.rowCount,
+        amount: requestedAmount
+      });
+
+      // ========================================
+      // STEP 6: Log Action
+      // ========================================
+      await client.query(`
+        INSERT INTO payment_request_logs (
+          payment_request_id,
+          action,
+          old_status,
+          new_status,
+          performed_by,
+          performed_by_name,
+          performed_by_email,
+          notes,
+          metadata
+        ) VALUES ($1, 'marked_paid', $2, 'paid', $3, $4, $5, $6, $7)
+      `, [
+        paymentRequestId,
+        paymentRequest.status,
+        adminInfo.id,
+        adminInfo.full_name,
+        adminInfo.email,
+        adminNotes || `Đã thanh toán - Mã GD: ${transactionReference}`,
+        JSON.stringify({
+          transactionReference,
+          conversionsMarked: conversionsResult.rowCount
+        })
+      ]);
+
+      // ========================================
+      // STEP 7: Commit Transaction
+      // ========================================
+      await client.query('COMMIT');
+
+      logger.success('Payment request marked as paid successfully', {
+        paymentRequestId,
+        userId: paymentRequest.user_id,
+        amount: requestedAmount,
         transactionReference,
-        performedBy: adminInfo
+        conversionsMarked: conversionsResult.rowCount
       });
 
-      logger.success('Payment request marked as paid', {
-        id: paymentRequestId,
-        transactionReference
-      });
-
-      // Create payment history record for user
-      setImmediate(async () => {
-        try {
-          await this._createPaymentHistoryFromRequest(updated);
-          logger.info('Payment history created from payment request', { paymentRequestId });
-        } catch (historyError) {
-          logger.error('Failed to create payment history', {
-            error: historyError.message,
-            paymentRequestId
-          });
-          // Non-critical, don't block the main flow
-        }
-      });
-
-      // Send email notification (async, don't block)
+      // ========================================
+      // STEP 8: Send Email (async, non-blocking)
+      // ========================================
       setImmediate(async () => {
         try {
           const { sendPaymentPaidEmail } = require('./emailHelpers/paymentEmailHelper');
-          await sendPaymentPaidEmail(updated);
+          await sendPaymentPaidEmail({
+            ...paymentRequest,
+            status: 'paid',
+            paid_at: new Date(),
+            transaction_reference: transactionReference
+          });
           logger.info('Payment paid email sent', { paymentRequestId });
         } catch (emailError) {
-          logger.error('Failed to send payment paid email', {
-            error: emailError.message,
-            paymentRequestId
+          logger.error('Failed to send payment email', {
+            paymentRequestId,
+            error: emailError.message
           });
         }
       });
 
-      return updated;
-
-    } catch (error) {
-      logger.error('Failed to mark payment as paid', { error: error.message, paymentRequestId });
-      throw error;
-    }
-  }
-
-  /**
-   * Get late reconciliation items
-   * (Conversions confirmed after reconciliation period)
-   * @param {Object} filters
-   * @param {string} filters.userId
-   * @param {string} filters.merchantName
-   * @param {string} filters.periodMonth - Format: 'YYYY-MM'
-   * @param {number} filters.minDaysLate
-   * @param {number} filters.limit
-   * @param {number} filters.offset
-   * @returns {Promise<Object>}
-   */
-  async getLateReconciliationItems(filters = {}) {
-    try {
-      logger.info('Getting late reconciliation items', filters);
-
-      const {
-        userId = null,
-        merchantName = null,
-        periodMonth = null,
-        minDaysLate = null,
-        limit = 50,
-        offset = 0
-      } = filters;
-
-      let query = `
-        SELECT *
-        FROM v_late_reconciliation_items
-        WHERE 1=1
-      `;
-
-      const values = [];
-      let paramCount = 0;
-
-      // Filter by user
-      if (userId) {
-        paramCount++;
-        query += ` AND user_id = $${paramCount}`;
-        values.push(userId);
-      }
-
-      // Filter by merchant
-      if (merchantName) {
-        paramCount++;
-        query += ` AND merchant_name ILIKE $${paramCount}`;
-        values.push(`%${merchantName}%`);
-      }
-
-      // Filter by period
-      if (periodMonth) {
-        paramCount++;
-        query += ` AND original_period = $${paramCount}`;
-        values.push(periodMonth);
-      }
-
-      // Filter by minimum days late
-      if (minDaysLate) {
-        paramCount++;
-        query += ` AND days_late >= $${paramCount}`;
-        values.push(minDaysLate);
-      }
-
-      // Pagination
-      query += ` ORDER BY confirmed_time DESC`;
-      paramCount++;
-      query += ` LIMIT $${paramCount}`;
-      values.push(limit);
-
-      paramCount++;
-      query += ` OFFSET $${paramCount}`;
-      values.push(offset);
-
-      const result = await db.query(query, values);
-
-      // Get count
-      let countQuery = `
-        SELECT COUNT(*) as count
-        FROM v_late_reconciliation_items
-        WHERE 1=1
-      `;
-
-      const countValues = [];
-      let countParamCount = 0;
-
-      if (userId) {
-        countParamCount++;
-        countQuery += ` AND user_id = $${countParamCount}`;
-        countValues.push(userId);
-      }
-
-      if (merchantName) {
-        countParamCount++;
-        countQuery += ` AND merchant_name ILIKE $${countParamCount}`;
-        countValues.push(`%${merchantName}%`);
-      }
-
-      if (periodMonth) {
-        countParamCount++;
-        countQuery += ` AND original_period = $${countParamCount}`;
-        countValues.push(periodMonth);
-      }
-
-      if (minDaysLate) {
-        countParamCount++;
-        countQuery += ` AND days_late >= $${countParamCount}`;
-        countValues.push(minDaysLate);
-      }
-
-      const countResult = await db.query(countQuery, countValues);
-
-      const response = {
-        items: result.rows,
-        total: parseInt(countResult.rows[0].count),
-        limit,
-        offset,
-        hasMore: offset + result.rows.length < parseInt(countResult.rows[0].count)
+      return {
+        ...paymentRequest,
+        status: 'paid',
+        paid_at: new Date(),
+        transaction_reference: transactionReference,
+        admin_notes: adminNotes,
+        conversions_marked: conversionsResult.rowCount
       };
 
-      logger.success('Late items retrieved', {
-        count: result.rows.length,
-        total: response.total
+    } catch (error) {
+      await client.query('ROLLBACK');
+
+      logger.error('Failed to mark payment as paid', {
+        paymentRequestId,
+        error: error.message
       });
 
-      return response;
-
-    } catch (error) {
-      logger.error('Failed to get late reconciliation items', { error: error.message, filters });
       throw error;
+
+    } finally {
+      client.release();
     }
   }
 
   /**
-   * Add late items to existing reconciliation
-   * @param {string} reconciliationId
-   * @param {Array<string>} conversionIds - Array of conversion IDs to add
-   * @param {string} adminId
+   * Check Eligibility for Payment Request
+   *
+   * @param {string} userId
    * @returns {Promise<Object>}
    */
-  async addLateItemsToReconciliation(reconciliationId, conversionIds, adminId) {
+  async checkEligibility(userId) {
     try {
-      logger.info('Adding late items to reconciliation', {
-        reconciliationId,
-        conversionIds,
-        adminId
-      });
+      // Get current balance
+      const balance = await BalanceManagementService.getUserBalance(userId);
+      const availableBalance = parseFloat(balance.available_balance);
+      const minAmount = await SystemSettingsService.getSetting('min_withdrawal_amount') || 40000;
 
-      // Check reconciliation exists and status is 'confirmed'
-      const reconciliationQuery = `
-        SELECT * FROM reconciliations WHERE id = $1
-      `;
-      const reconciliationResult = await db.query(reconciliationQuery, [reconciliationId]);
+      // Check for pending requests
+      const pendingResult = await db.query(`
+        SELECT COUNT(*) as count, COALESCE(SUM(requested_amount), 0) as total
+        FROM payment_requests
+        WHERE user_id = $1
+          AND status IN ('pending', 'confirmed')
+          AND cancelled_at IS NULL
+      `, [userId]);
 
-      if (reconciliationResult.rows.length === 0) {
-        throw new Error('Kỳ đối soát không tồn tại');
-      }
+      const pendingCount = parseInt(pendingResult.rows[0].count);
+      const pendingTotal = parseFloat(pendingResult.rows[0].total);
 
-      const reconciliation = reconciliationResult.rows[0];
+      // Get total confirmed cashback (approved conversions not yet paid)
+      const confirmedResult = await db.query(`
+        SELECT COALESCE(SUM(cashback_amount), 0) as total
+        FROM system_conversions
+        WHERE user_id = $1
+          AND status = 'approved'
+          AND (payment_status IS NULL OR payment_status = 'unpaid')
+      `, [userId]);
 
-      if (reconciliation.status !== 'confirmed') {
-        throw new Error('Chỉ có thể thêm đơn hàng vào kỳ đối soát đã xác nhận (confirmed)');
-      }
+      const totalConfirmedCashback = parseFloat(confirmedResult.rows[0].total);
 
-      if (reconciliation.status === 'paid') {
-        throw new Error('Không thể thêm đơn hàng vào kỳ đối soát đã thanh toán');
-      }
+      // Check debt
+      const debt = parseFloat(balance.debt_balance || 0);
 
-      const client = await db.pool.connect();
-
-      try {
-        await client.query('BEGIN');
-
-        // Insert reconciliation items
-        const insertQuery = `
-          INSERT INTO reconciliation_items (
-            reconciliation_id,
-            conversion_id,
-            order_code,
-            merchant_name,
-            order_amount,
-            commission,
-            cashback_amount,
-            order_time,
-            confirmed_time,
-            utm_source,
-            utm_campaign
-          )
-          SELECT
-            $1,
-            c.id,
-            c.order_code,
-            c.merchant_name,
-            c.order_amount,
-            c.commission,
-            c.cashback_amount,
-            c.order_time,
-            c.confirmed_time,
-            c.utm_source,
-            c.utm_campaign
-          FROM conversions c
-          WHERE c.id = ANY($2::uuid[])
-            AND c.status = 'approved'
-            AND c.is_confirmed = 1
-          RETURNING *
-        `;
-
-        const insertResult = await client.query(insertQuery, [reconciliationId, conversionIds]);
-        const addedItems = insertResult.rows;
-
-        // Update reconciliation totals
-        const updateQuery = `
-          UPDATE reconciliations
-          SET total_orders = (SELECT COUNT(*) FROM reconciliation_items WHERE reconciliation_id = $1),
-              total_cashback = (SELECT COALESCE(SUM(cashback_amount), 0) FROM reconciliation_items WHERE reconciliation_id = $1)
-          WHERE id = $1
-          RETURNING *
-        `;
-
-        const updateResult = await client.query(updateQuery, [reconciliationId]);
-
-        // Log the action
-        const logQuery = `
-          INSERT INTO reconciliation_logs (
-            reconciliation_id,
-            action,
-            performed_by,
-            notes,
-            metadata
-          ) VALUES ($1, $2, $3, $4, $5)
-        `;
-
-        await client.query(logQuery, [
-          reconciliationId,
-          'late_items_added',
-          adminId,
-          `Đã thêm ${addedItems.length} đơn hàng muộn vào kỳ đối soát`,
-          JSON.stringify({ conversionIds, addedCount: addedItems.length })
-        ]);
-
-        await client.query('COMMIT');
-
-        logger.success('Late items added to reconciliation', {
-          reconciliationId,
-          addedCount: addedItems.length
-        });
-
-        return {
-          reconciliation: updateResult.rows[0],
-          addedItems,
-          addedCount: addedItems.length
-        };
-
-      } catch (error) {
-        await client.query('ROLLBACK');
-        throw error;
-      } finally {
-        client.release();
-      }
-
-    } catch (error) {
-      logger.error('Failed to add late items', {
-        error: error.message,
-        reconciliationId,
-        conversionIds
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Get order payment status
-   * @param {string} conversionId
-   * @returns {Promise<Object>}
-   */
-  async getOrderPaymentStatus(conversionId) {
-    try {
-      const query = `
-        SELECT
-          c.id,
-          c.order_code,
-          c.user_id,
-          c.cashback_amount,
-          c.status as conversion_status,
-          c.is_confirmed,
-          -- Check if in payment request
-          pr.id as payment_request_id,
-          pr.status as payment_status,
-          pr.requested_amount,
-          pr.created_at as payment_created_at,
-          pr.paid_at,
-          -- Check if in reconciliation
-          ri.id as reconciliation_item_id,
-          r.id as reconciliation_id,
-          r.status as reconciliation_status,
-          r.period_label
-        FROM conversions c
-        LEFT JOIN reconciliation_items ri ON c.id = ri.conversion_id
-        LEFT JOIN reconciliations r ON ri.reconciliation_id = r.id
-        LEFT JOIN payment_reconciliation_mapping prm ON ri.id = prm.reconciliation_item_id
-        LEFT JOIN payment_requests pr ON prm.payment_request_id = pr.id
-        WHERE c.id = $1
-      `;
-
-      const result = await db.query(query, [conversionId]);
-
-      if (result.rows.length === 0) {
-        throw new Error('Conversion not found');
-      }
-
-      const data = result.rows[0];
-
-      // Determine payment status
-      let paymentStatusLabel = 'not_reconciled';
-      let statusDisplay = 'Chưa đối soát';
-      let statusColor = 'gray';
-
-      if (data.payment_request_id) {
-        if (data.payment_status === 'paid') {
-          paymentStatusLabel = 'paid';
-          statusDisplay = 'Đã thanh toán';
-          statusColor = 'green';
-        } else if (data.payment_status === 'confirmed') {
-          paymentStatusLabel = 'payment_confirmed';
-          statusDisplay = 'Đang xử lý thanh toán';
-          statusColor = 'blue';
-        } else if (data.payment_status === 'pending') {
-          paymentStatusLabel = 'payment_pending';
-          statusDisplay = 'Chờ duyệt thanh toán';
-          statusColor = 'yellow';
-        } else if (data.payment_status === 'rejected') {
-          paymentStatusLabel = 'payment_rejected';
-          statusDisplay = 'Yêu cầu thanh toán bị từ chối';
-          statusColor = 'red';
-        }
-      } else if (data.reconciliation_id && data.reconciliation_status === 'confirmed') {
-        paymentStatusLabel = 'reconciled';
-        statusDisplay = 'Đã đối soát - Chưa tạo yêu cầu thanh toán';
-        statusColor = 'blue';
-      }
+      const isEligible = (
+        availableBalance >= minAmount &&
+        debt === 0 &&
+        pendingCount === 0
+      );
 
       return {
-        conversionId: data.id,
-        orderCode: data.order_code,
-        paymentStatusLabel,
-        statusDisplay,
-        statusColor,
-        paymentRequestId: data.payment_request_id,
-        reconciliationId: data.reconciliation_id,
-        periodLabel: data.period_label,
-        paidAt: data.paid_at
+        isEligible: isEligible,
+        eligible: isEligible, // Backward compatibility
+        availableBalance: availableBalance,
+        available_balance: availableBalance, // Backward compatibility
+        totalConfirmedCashback: totalConfirmedCashback, // For frontend display
+        totalRequested: pendingTotal, // For frontend display
+        minAmount: minAmount,
+        min_withdrawal_amount: minAmount, // Backward compatibility
+        pendingRequests: pendingCount,
+        pending_requests: pendingCount, // Backward compatibility
+        pendingAmount: pendingTotal,
+        pending_amount: pendingTotal, // Backward compatibility
+        debtBalance: debt,
+        debt_balance: debt, // Backward compatibility
+        totalEarned: parseFloat(balance.total_earned),
+        total_earned: parseFloat(balance.total_earned), // Backward compatibility
+        totalWithdrawn: parseFloat(balance.total_withdrawn),
+        total_withdrawn: parseFloat(balance.total_withdrawn), // Backward compatibility
+        reasons: isEligible ? [] : [
+          availableBalance < minAmount && `Số dư khả dụng thấp hơn mức tối thiểu (${minAmount.toLocaleString('vi-VN')}đ)`,
+          debt > 0 && `Có khoản nợ chưa thanh toán (${debt.toLocaleString('vi-VN')}đ)`,
+          pendingCount > 0 && `Có ${pendingCount} yêu cầu đang chờ xử lý`
+        ].filter(Boolean)
       };
 
     } catch (error) {
-      logger.error('Failed to get order payment status', { error: error.message, conversionId });
+      logger.error('Failed to check eligibility', {
+        userId,
+        error: error.message
+      });
       throw error;
     }
   }
 
   /**
-   * Create payment history record from paid payment request
-   * This is called automatically when payment is marked as paid
-   * @param {Object} paymentRequest - The paid payment request
-   * @returns {Promise<Object>} Created payment history and details
-   * @private
+   * Get Payment Requests for User
+   *
+   * @param {string} userId
+   * @param {Object} filters - { status, limit, offset }
+   * @returns {Promise<Array>}
    */
-  async _createPaymentHistoryFromRequest(paymentRequest) {
+  async getPaymentRequestsForUser(userId, filters = {}) {
+    const {
+      status = null,
+      limit = 20,
+      offset = 0
+    } = filters;
+
+    let query = `
+      SELECT *
+      FROM payment_requests
+      WHERE user_id = $1
+        AND cancelled_at IS NULL
+    `;
+
+    const params = [userId];
+    let paramCount = 1;
+
+    if (status) {
+      paramCount++;
+      query += ` AND status = $${paramCount}`;
+      params.push(status);
+    }
+
+    query += ` ORDER BY created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
+    params.push(limit, offset);
+
+    const result = await db.query(query, params);
+    return result.rows;
+  }
+
+  /**
+   * Get Payment Request by ID
+   *
+   * @param {string} paymentRequestId
+   * @param {string} userId - Optional, for access control
+   * @returns {Promise<Object>}
+   */
+  async getPaymentRequestById(paymentRequestId, userId = null) {
+    let query = `
+      SELECT pr.*,
+        u.full_name as user_name,
+        u.email as user_email
+      FROM payment_requests pr
+      LEFT JOIN users u ON pr.user_id = u.id
+      WHERE pr.id = $1
+    `;
+
+    const params = [paymentRequestId];
+
+    if (userId) {
+      query += ` AND pr.user_id = $2`;
+      params.push(userId);
+    }
+
+    const result = await db.query(query, params);
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    return result.rows[0];
+  }
+
+  /**
+   * Confirm Payment Request (Admin)
+   *
+   * Flow:
+   * 1. Validate request exists & status
+   * 2. Update status to 'confirmed'
+   * 3. Log action
+   * 4. Send email notification
+   *
+   * NOTE: No balance changes - balance was already reserved on create
+   *
+   * @param {string} paymentRequestId
+   * @param {Object} adminInfo - { id, full_name, email }
+   * @param {string} adminNotes - Optional admin notes
+   * @returns {Promise<Object>}
+   */
+  async confirmPaymentRequest(paymentRequestId, adminInfo, adminNotes = null) {
     const client = await db.pool.connect();
 
     try {
       await client.query('BEGIN');
 
-      logger.info('Creating payment history from payment request', {
-        paymentRequestId: paymentRequest.id,
-        userId: paymentRequest.user_id,
-        amount: paymentRequest.requested_amount
-      });
+      // Get payment request
+      const prResult = await client.query(`
+        SELECT * FROM payment_requests
+        WHERE id = $1
+        FOR UPDATE
+      `, [paymentRequestId]);
 
-      // 1. Determine payment period from payment date (YYYY-MM format)
-      const paymentDate = new Date(paymentRequest.updated_at);
-      const paymentPeriod = `${paymentDate.getFullYear()}-${String(paymentDate.getMonth() + 1).padStart(2, '0')}`;
-
-      // 2. Get all linked reconciliation items from payment_reconciliation_mapping
-      const itemsQuery = `
-        SELECT
-          prm.reconciliation_item_id,
-          prm.cashback_amount,
-          sri.conversion_id,
-          sri.merchant_name,
-          sri.order_value,
-          sri.system_reconciliation_id,
-          sr.period_month as reconciliation_month
-        FROM payment_reconciliation_mapping prm
-        INNER JOIN system_reconciliation_items sri ON sri.id = prm.reconciliation_item_id
-        INNER JOIN system_reconciliations sr ON sr.id = sri.system_reconciliation_id
-        WHERE prm.payment_request_id = $1
-        ORDER BY sri.order_time ASC
-      `;
-
-      const itemsResult = await client.query(itemsQuery, [paymentRequest.id]);
-      const reconciliationItems = itemsResult.rows;
-
-      logger.info('Found reconciliation items for payment history', {
-        paymentRequestId: paymentRequest.id,
-        itemsCount: reconciliationItems.length
-      });
-
-      // Handle case where payment request has no linked items (legacy payment requests)
-      if (reconciliationItems.length === 0) {
-        logger.warn('Payment request has no linked reconciliation items - this is a legacy payment request', {
-          paymentRequestId: paymentRequest.id
-        });
-
-        // For legacy payment requests, we still create payment history but without details
-        // Just commit and return early
-        await client.query('COMMIT');
-
-        logger.info('Skipped payment history creation for legacy payment request', {
-          paymentRequestId: paymentRequest.id
-        });
-
-        return {
-          paymentHistory: null,
-          details: [],
-          legacy: true
-        };
+      if (prResult.rows.length === 0) {
+        throw new Error('Không tìm thấy yêu cầu thanh toán');
       }
 
-      // 3. Check if payment history already exists for this user and period
-      const existingHistoryQuery = `
-        SELECT id FROM user_payment_history
-        WHERE user_id = $1 AND payment_period = $2
-      `;
-      const existingHistoryResult = await client.query(existingHistoryQuery, [
-        paymentRequest.user_id,
-        paymentPeriod
-      ]);
+      const paymentRequest = prResult.rows[0];
 
-      let paymentHistory;
+      // Validate can confirm
+      if (paymentRequest.status !== 'pending') {
+        throw new Error(
+          `Không thể xác nhận yêu cầu từ trạng thái: ${paymentRequest.status}`
+        );
+      }
 
-      if (existingHistoryResult.rows.length > 0) {
-        // Update existing payment history
-        paymentHistory = existingHistoryResult.rows[0];
-        logger.info('Payment history already exists, will append details', {
-          paymentHistoryId: paymentHistory.id,
-          paymentPeriod
-        });
+      logger.info('Confirming payment request', {
+        paymentRequestId,
+        adminId: adminInfo.id
+      });
 
-        // Update total_cashback
-        const updateHistoryQuery = `
-          UPDATE user_payment_history
-          SET
-            total_cashback = total_cashback + $1,
+      // Update status
+      await client.query(`
+        UPDATE payment_requests
+        SET status = 'confirmed',
+            confirmed_at = NOW(),
+            confirmed_by = $2,
+            admin_notes = $3,
             updated_at = NOW()
-          WHERE id = $2
-          RETURNING *
-        `;
-        const updateResult = await client.query(updateHistoryQuery, [
-          paymentRequest.requested_amount,
-          paymentHistory.id
-        ]);
-        paymentHistory = updateResult.rows[0];
+        WHERE id = $1
+      `, [paymentRequestId, adminInfo.id, adminNotes]);
 
-      } else {
-        // Create new payment history record
-        const createHistoryQuery = `
-          INSERT INTO user_payment_history (
-            user_id,
-            payment_period,
-            total_cashback,
-            reconciliation_date,
-            payment_date,
-            status,
-            payment_method,
-            payment_details
-          )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-          RETURNING *
-        `;
-
-        const historyValues = [
-          paymentRequest.user_id,
-          paymentPeriod,
-          paymentRequest.requested_amount,
-          new Date(), // reconciliation_date
-          paymentDate, // payment_date
-          'paid',
-          'bank_transfer', // default payment method
-          JSON.stringify({
-            payment_request_id: paymentRequest.id,
-            bank_name: paymentRequest.bank_name,
-            bank_account_number: paymentRequest.bank_account_number_decrypted || paymentRequest.bank_account_number
-          })
-        ];
-
-        const historyResult = await client.query(createHistoryQuery, historyValues);
-        paymentHistory = historyResult.rows[0];
-
-        logger.info('Created new payment history', {
-          paymentHistoryId: paymentHistory.id,
-          paymentPeriod,
-          totalCashback: paymentHistory.total_cashback
-        });
-      }
-
-      // 4. Create payment details for each reconciliation item
-      const createdDetails = [];
-
-      for (const item of reconciliationItems) {
-        // Get conversion order_id for order_code
-        const conversionQuery = `
-          SELECT order_id FROM conversions WHERE id = $1
-        `;
-        const conversionResult = await client.query(conversionQuery, [item.conversion_id]);
-        const orderCode = conversionResult.rows[0]?.order_id || 'N/A';
-
-        const createDetailQuery = `
-          INSERT INTO user_payment_details (
-            payment_history_id,
-            conversion_id,
-            merchant_name,
-            order_code,
-            cashback_amount,
-            reconciliation_month,
-            payment_month,
-            status,
-            metadata
-          )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-          RETURNING *
-        `;
-
-        const detailValues = [
-          paymentHistory.id,
-          item.conversion_id,
-          item.merchant_name,
-          orderCode,
-          item.cashback_amount,
-          item.reconciliation_month,
-          paymentPeriod, // payment_month
-          'paid',
-          JSON.stringify({
-            payment_request_id: paymentRequest.id,
-            reconciliation_item_id: item.reconciliation_item_id,
-            system_reconciliation_id: item.system_reconciliation_id
-          })
-        ];
-
-        const detailResult = await client.query(createDetailQuery, detailValues);
-        createdDetails.push(detailResult.rows[0]);
-      }
+      // Log action
+      await client.query(`
+        INSERT INTO payment_request_logs (
+          payment_request_id,
+          action,
+          old_status,
+          new_status,
+          performed_by,
+          performed_by_name,
+          performed_by_email,
+          notes
+        ) VALUES ($1, 'confirmed', 'pending', 'confirmed', $2, $3, $4, $5)
+      `, [
+        paymentRequestId,
+        adminInfo.id,
+        adminInfo.full_name,
+        adminInfo.email,
+        adminNotes || 'Yêu cầu thanh toán đã được xác nhận'
+      ]);
 
       await client.query('COMMIT');
 
-      logger.success('Payment history created successfully', {
-        paymentRequestId: paymentRequest.id,
-        paymentHistoryId: paymentHistory.id,
-        paymentPeriod,
-        detailsCount: createdDetails.length,
-        totalCashback: paymentHistory.total_cashback
+      logger.success('Payment request confirmed', {
+        paymentRequestId,
+        adminId: adminInfo.id
+      });
+
+      // Send email (async)
+      setImmediate(async () => {
+        try {
+          const { sendPaymentConfirmedEmail } = require('./emailHelpers/paymentEmailHelper');
+          await sendPaymentConfirmedEmail({
+            ...paymentRequest,
+            status: 'confirmed',
+            confirmed_at: new Date()
+          });
+          logger.info('Payment confirmed email sent', { paymentRequestId });
+        } catch (emailError) {
+          logger.error('Failed to send payment email', {
+            paymentRequestId,
+            error: emailError.message
+          });
+        }
       });
 
       return {
-        paymentHistory,
-        details: createdDetails
+        ...paymentRequest,
+        status: 'confirmed',
+        confirmed_at: new Date(),
+        confirmed_by: adminInfo.id,
+        admin_notes: adminNotes
       };
 
     } catch (error) {
       await client.query('ROLLBACK');
-      logger.error('Failed to create payment history from payment request', {
-        error: error.message,
-        paymentRequestId: paymentRequest.id,
-        stack: error.stack
+
+      logger.error('Failed to confirm payment request', {
+        paymentRequestId,
+        error: error.message
       });
+
       throw error;
+
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Reject Payment Request with Balance Release (Admin)
+   *
+   * Flow:
+   * 1. Validate request exists & status
+   * 2. Update status to 'rejected'
+   * 3. RELEASE balance (add back to available_balance)
+   * 4. Log action
+   * 5. Send email notification
+   *
+   * @param {string} paymentRequestId
+   * @param {Object} adminInfo - { id, full_name, email }
+   * @param {string} rejectionReason - REQUIRED
+   * @returns {Promise<Object>}
+   */
+  async rejectPaymentRequest(paymentRequestId, adminInfo, rejectionReason) {
+    const client = await db.pool.connect();
+
+    try {
+      if (!rejectionReason) {
+        throw new Error('Lý do từ chối là bắt buộc');
+      }
+
+      await client.query('BEGIN');
+      await client.query('SET TRANSACTION ISOLATION LEVEL SERIALIZABLE');
+
+      // Get payment request
+      const prResult = await client.query(`
+        SELECT * FROM payment_requests
+        WHERE id = $1
+        FOR UPDATE
+      `, [paymentRequestId]);
+
+      if (prResult.rows.length === 0) {
+        throw new Error('Không tìm thấy yêu cầu thanh toán');
+      }
+
+      const paymentRequest = prResult.rows[0];
+
+      // Validate can reject
+      if (!['pending', 'confirmed'].includes(paymentRequest.status)) {
+        throw new Error(
+          `Không thể từ chối yêu cầu từ trạng thái: ${paymentRequest.status}`
+        );
+      }
+
+      logger.info('Rejecting payment request', {
+        paymentRequestId,
+        adminId: adminInfo.id,
+        amount: paymentRequest.requested_amount
+      });
+
+      // Update status
+      await client.query(`
+        UPDATE payment_requests
+        SET status = 'rejected',
+            rejected_at = NOW(),
+            rejected_by = $2,
+            rejection_reason = $3,
+            release_balance_at = NOW(),
+            updated_at = NOW()
+        WHERE id = $1
+      `, [paymentRequestId, adminInfo.id, rejectionReason]);
+
+      // RELEASE BALANCE (add back)
+      await BalanceManagementService.releaseBalance(
+        client,
+        paymentRequest.user_id,
+        parseFloat(paymentRequest.requested_amount),
+        paymentRequestId
+      );
+
+      logger.success('Balance released on rejection', {
+        paymentRequestId,
+        userId: paymentRequest.user_id,
+        amount: paymentRequest.requested_amount
+      });
+
+      // Log action
+      await client.query(`
+        INSERT INTO payment_request_logs (
+          payment_request_id,
+          action,
+          old_status,
+          new_status,
+          performed_by,
+          performed_by_name,
+          performed_by_email,
+          notes
+        ) VALUES ($1, 'rejected', $2, 'rejected', $3, $4, $5, $6)
+      `, [
+        paymentRequestId,
+        paymentRequest.status,
+        adminInfo.id,
+        adminInfo.full_name,
+        adminInfo.email,
+        rejectionReason
+      ]);
+
+      await client.query('COMMIT');
+
+      logger.success('Payment request rejected', {
+        paymentRequestId,
+        adminId: adminInfo.id
+      });
+
+      // Send email (async)
+      setImmediate(async () => {
+        try {
+          const { sendPaymentRejectedEmail } = require('./emailHelpers/paymentEmailHelper');
+          await sendPaymentRejectedEmail({
+            ...paymentRequest,
+            status: 'rejected',
+            rejected_at: new Date(),
+            rejection_reason: rejectionReason
+          });
+          logger.info('Payment rejected email sent', { paymentRequestId });
+        } catch (emailError) {
+          logger.error('Failed to send payment email', {
+            paymentRequestId,
+            error: emailError.message
+          });
+        }
+      });
+
+      return {
+        ...paymentRequest,
+        status: 'rejected',
+        rejected_at: new Date(),
+        rejected_by: adminInfo.id,
+        rejection_reason: rejectionReason
+      };
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+
+      logger.error('Failed to reject payment request', {
+        paymentRequestId,
+        error: error.message
+      });
+
+      throw error;
+
     } finally {
       client.release();
     }

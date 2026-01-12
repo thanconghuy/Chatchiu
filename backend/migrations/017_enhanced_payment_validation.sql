@@ -32,7 +32,7 @@ BEGIN
     SELECT
         sri.id,
         sri.system_reconciliation_id,
-        sri.conversion_id,
+        COALESCE(sri.system_conversion_id, sri.conversion_id) as conversion_id,
         sri.cashback_amount,
         sri.merchant_name,
         sri.order_time,
@@ -73,8 +73,12 @@ RETURNS TABLE (
 DECLARE
     v_available_balance DECIMAL(15,2);
     v_pending_count INTEGER;
-    v_min_amount DECIMAL(15,2) := 100000; -- 100,000 VND
+    v_min_amount DECIMAL(15,2);
 BEGIN
+    -- Get minimum amount from system settings
+    SELECT COALESCE((SELECT setting_value::DECIMAL FROM system_settings WHERE setting_key = 'min_withdrawal_amount'), 50000)
+    INTO v_min_amount;
+
     -- Calculate available balance
     v_available_balance := calculate_user_available_balance_from_system_recon(p_user_id);
 

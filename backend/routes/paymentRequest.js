@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticateAdmin } = require('../middleware/adminAuth');
 const { authenticateToken } = require('../middleware/auth');
+const { validateIdempotencyKey } = require('../middleware/idempotency');
 const PaymentRequest = require('../models/PaymentRequestEncrypted');
 const paymentRequestService = require('../services/paymentRequestService');
 const logger = require('../utils/logger');
@@ -109,10 +110,11 @@ router.get('/eligibility', authenticateToken, async (req, res) => {
 /**
  * POST /api/payment-requests
  * Create a new payment request
- * Enhanced with validation balance checking and audit logging
+ * Enhanced with idempotency, validation balance checking and audit logging
+ * Headers: { Idempotency-Key: <UUID v4> }
  * Body: { requestedAmount, bankName, bankAccountNumber, bankAccountName, bankBranch, notes, paymentAccountId }
  */
-router.post('/', authenticateToken, async (req, res) => {
+router.post('/', authenticateToken, validateIdempotencyKey, async (req, res) => {
   try {
     const userId = req.userId;
     const {
@@ -148,6 +150,7 @@ router.post('/', authenticateToken, async (req, res) => {
       bankBranch: bankBranch || null,
       notes: notes || null,
       paymentAccountId: paymentAccountId ? parseInt(paymentAccountId) : null,
+      idempotencyKey: req.idempotencyKey, // NEW: Pass idempotency key
       context
     });
 
@@ -309,30 +312,25 @@ router.get('/:id', authenticateToken, async (req, res) => {
 
 /**
  * DELETE /api/payment-requests/:id
- * Cancel pending payment request
+ * Cancel pending payment request (NEW LOGIC - releases balance)
  */
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.userId;
+    const { reason } = req.body;
 
-    // Unlink items first
-    const PaymentSystemReconciliationService = require('../services/paymentSystemReconciliationService');
-    await PaymentSystemReconciliationService.unlinkPaymentItems(id);
-
-    // Then cancel the payment request
-    const deleted = await PaymentRequest.cancel(id, userId);
-
-    if (!deleted) {
-      return res.status(404).json({
-        success: false,
-        message: 'Không tìm thấy yêu cầu thanh toán hoặc không thể hủy'
-      });
-    }
+    // Use new service method that handles balance release
+    const cancelled = await paymentRequestService.cancelPaymentRequest(
+      id,
+      userId,
+      reason || 'Người dùng hủy yêu cầu'
+    );
 
     res.json({
       success: true,
-      message: 'Đã hủy yêu cầu thanh toán'
+      message: 'Đã hủy yêu cầu thanh toán và hoàn lại số dư',
+      data: cancelled
     });
   } catch (error) {
     logger.error('Cancel payment request failed', {

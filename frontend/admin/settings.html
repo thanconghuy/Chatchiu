@@ -599,10 +599,11 @@
                             <i class="fas fa-envelope"></i>
                             <span>Email Settings</span>
                         </button>
-                        <button class="tab-button" data-action="switch-tab" data-tab="email-templates">
+                        <!-- DEPRECATED: Email Templates tab - Moved to Notification Settings -->
+                        <!-- <button class="tab-button" data-action="switch-tab" data-tab="email-templates">
                             <i class="fas fa-file-code"></i>
                             <span>Email Templates</span>
-                        </button>
+                        </button> -->
                         <button class="tab-button" data-action="switch-tab" data-tab="ai">
                             <i class="fas fa-robot"></i>
                             <span>AI/ML</span>
@@ -1146,11 +1147,38 @@
                     <div class="settings-section">
                         <h2>📧 Email Templates</h2>
 
+                        <!-- DEPRECATION NOTICE -->
+                        <div style="margin-bottom: 24px; padding: 20px; background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); border-radius: 12px; color: white; border-left: 6px solid #dc2626;">
+                            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                <i class="fas fa-exclamation-triangle" style="font-size: 32px;"></i>
+                                <div>
+                                    <h3 style="margin: 0; font-size: 1.3rem;">⚠️ DEPRECATED - Tính năng đã lỗi thời</h3>
+                                    <p style="margin: 4px 0 0 0; opacity: 0.95; font-size: 0.95rem;">
+                                        File-based email templates đã được chuyển sang database-based templates
+                                    </p>
+                                </div>
+                            </div>
+                            <div style="background: rgba(0, 0, 0, 0.15); padding: 16px; border-radius: 8px; margin-top: 16px;">
+                                <p style="margin: 0 0 12px 0; font-size: 0.95rem; font-weight: 600;">
+                                    <i class="fas fa-arrow-right"></i>
+                                    TẤT CẢ email templates (Cashback, Payment, Reconciliation) đã được tập trung tại:
+                                </p>
+                                <a href="/admin/notification-settings"
+                                   style="display: inline-flex; align-items: center; gap: 8px; background: white; color: #f59e0b; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 700; font-size: 1.05rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: all 0.2s;">
+                                    <i class="fas fa-external-link-alt"></i>
+                                    Mở Notification Settings
+                                </a>
+                                <p style="margin: 16px 0 0 0; font-size: 0.9rem; opacity: 0.9;">
+                                    💡 Tại đó bạn có thể quản lý tất cả templates, test gửi email, và chỉnh sửa trực tiếp từ database.
+                                </p>
+                            </div>
+                        </div>
+
                         <div class="alert-box" style="margin-bottom: 20px;">
-                            <div class="alert-title">📝 Quản Lý Email Templates</div>
+                            <div class="alert-title">📝 File-based Templates (Legacy)</div>
                             <p style="color: var(--gray-700);">
-                                Customize email templates cho các notification khác nhau trong hệ thống.
-                                Templates hỗ trợ HTML và có thể sử dụng variables động.
+                                Các templates dưới đây vẫn còn trên filesystem nhưng không còn được sử dụng.
+                                Chúng đã được migrate sang database-based templates trong Notification Settings.
                             </p>
                         </div>
 
@@ -1272,6 +1300,35 @@
                                         Chỉnh Sửa
                                     </button>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- Unified Email Templates Section -->
+                        <div style="margin-top: 32px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;">
+                            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                <i class="fas fa-envelope-open-text" style="font-size: 28px;"></i>
+                                <div>
+                                    <h3 style="margin: 0; font-size: 1.2rem;">📧 TẤT CẢ Email Templates</h3>
+                                    <p style="margin: 4px 0 0 0; opacity: 0.9; font-size: 0.9rem;">
+                                        Cashback Notifications • Payment Requests • Reconciliation
+                                    </p>
+                                </div>
+                            </div>
+                            <div style="background: rgba(255, 255, 255, 0.15); padding: 16px; border-radius: 8px; margin-top: 16px;">
+                                <p style="margin: 0 0 12px 0; font-size: 0.95rem;">
+                                    <i class="fas fa-info-circle"></i>
+                                    <strong>Tất cả email templates</strong> được quản lý tập trung tại <strong>Email Notification Settings</strong>
+                                </p>
+                                <div style="margin: 12px 0; padding: 12px; background: rgba(255, 255, 255, 0.1); border-radius: 6px; font-size: 0.9rem;">
+                                    ✅ Cashback: Instant, Reminder, Urgent<br>
+                                    ✅ Payment: Confirmed, Rejected, Paid<br>
+                                    ✅ Reconciliation: Finalized
+                                </div>
+                                <a href="/admin/notification-settings"
+                                   style="display: inline-flex; align-items: center; gap: 8px; background: white; color: #667eea; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 600; transition: all 0.2s;">
+                                    <i class="fas fa-external-link-alt"></i>
+                                    Mở Notification Settings
+                                </a>
                             </div>
                         </div>
 
@@ -2113,10 +2170,19 @@
 
         // Test Email Configuration
         async function testEmail() {
-            const modalTitle = document.getElementById('modalTitle');
-            const modalBody = document.getElementById('modalBody');
+            console.log('[testEmail] Function called');
+            try {
+                const modalTitle = document.getElementById('modalTitle');
+                const modalBody = document.getElementById('modalBody');
 
-            modalTitle.textContent = '📧 Gửi Test Email';
+                console.log('[testEmail] Elements found:', { modalTitle, modalBody });
+
+                if (!modalTitle || !modalBody) {
+                    console.error('[testEmail] Modal elements not found!');
+                    return;
+                }
+
+                modalTitle.textContent = '📧 Gửi Test Email';
 
             modalBody.innerHTML = `
                 <div class="form-group">
@@ -2156,7 +2222,18 @@ ChatChiu Cashback System</textarea>
                 </div>
             `;
 
-            document.getElementById('editModal').classList.add('show');
+                const modal = document.getElementById('editModal');
+                console.log('[testEmail] Modal element:', modal);
+
+                if (modal) {
+                    modal.classList.add('show');
+                    console.log('[testEmail] Modal shown successfully');
+                } else {
+                    console.error('[testEmail] Modal element not found!');
+                }
+            } catch (error) {
+                console.error('[testEmail] Error:', error);
+            }
         }
 
         async function sendTestEmail() {

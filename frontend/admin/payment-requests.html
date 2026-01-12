@@ -990,23 +990,53 @@
 
     <!-- Confirm Modal -->
     <div id="confirmModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Xác nhận yêu cầu</h2>
+        <div class="modal-content paid-modal-content">
+            <div class="modal-header paid-modal-header" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+                <div class="modal-title-wrapper">
+                    <div class="modal-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <h2>Xác Nhận Yêu Cầu Thanh Toán</h2>
+                </div>
                 <button class="close-modal" data-modal="confirmModal">&times;</button>
             </div>
             <form id="confirmForm">
                 <input type="hidden" id="confirmRequestId">
-                <div class="form-group">
-                    <label>Ghi chú (tùy chọn)</label>
-                    <textarea id="confirmNotes" placeholder="Ghi chú cho yêu cầu này..."></textarea>
+                <div class="paid-modal-body">
+                    <div class="form-group">
+                        <label>
+                            <i class="fas fa-user" style="color: #3b82f6;"></i>
+                            Thông Tin Yêu Cầu
+                        </label>
+                        <div class="input-hint" id="confirmRequestInfo" style="background: #eff6ff; border: 2px solid #3b82f6; padding: 12px;">
+                            <i class="fas fa-info-circle" style="color: #3b82f6;"></i>
+                            <span id="confirmRequestInfoText">Đang tải thông tin...</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <i class="fas fa-edit" style="color: #3b82f6;"></i>
+                            Ghi Chú
+                        </label>
+                        <textarea
+                            id="confirmNotes"
+                            placeholder="Ghi chú sẽ được tự động điền..."
+                            class="form-textarea"
+                            rows="4"></textarea>
+                        <div class="input-hint">
+                            <i class="fas fa-lightbulb" style="color: #3b82f6;"></i>
+                            Ghi chú được tự động tạo, bạn có thể chỉnh sửa nếu cần
+                        </div>
+                    </div>
                 </div>
-                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-                    <button type="button" class="btn-secondary btn-cancel-modal" data-modal="confirmModal" style="flex: 1;">
-                        Hủy
+                <div class="modal-footer">
+                    <button type="button" class="btn-modal-cancel btn-cancel-modal" data-modal="confirmModal">
+                        <i class="fas fa-times"></i>
+                        Hủy Bỏ
                     </button>
-                    <button type="submit" class="btn-confirm" style="flex: 2;">
-                        Xác nhận
+                    <button type="submit" class="btn-modal-confirm" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">
+                        <i class="fas fa-check-double"></i>
+                        Xác Nhận Yêu Cầu
                     </button>
                 </div>
             </form>
@@ -1098,6 +1128,6 @@
     <script src="/js/config.js"></script>
     <script src="/admin/sidebar.js"></script>
     <script>initSidebar();</script>
-    <script src="/admin/js/payment-requests.js?v=20251210"></script>
+    <script src="/admin/js/payment-requests.js?v=20260110"></script>
 </body>
 </html>

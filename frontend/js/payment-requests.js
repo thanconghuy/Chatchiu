@@ -163,10 +163,16 @@ function displayEligibility(data) {
         reasonsList.innerHTML = data.reasons.map(r => `<li>${r}</li>`).join('');
     }
 
-    // Update max amount in form
+    // Update min and max amount in form
+    const minAmount = data.minAmount || 50000;
+    document.getElementById('minAmount').textContent =
+        minAmount.toLocaleString('vi-VN');
     document.getElementById('maxAmount').textContent =
         data.availableBalance.toLocaleString('vi-VN');
-    document.getElementById('requestedAmount').max = data.availableBalance;
+
+    const requestedAmountInput = document.getElementById('requestedAmount');
+    requestedAmountInput.min = minAmount;
+    requestedAmountInput.max = data.availableBalance;
 }
 
 // Load payment requests
@@ -592,7 +598,7 @@ async function handleCreateRequest(e) {
             paymentAccountId = selectedAccount.id;
 
             // Fetch decrypted data from API
-            const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
+            const token = localStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN);
             const response = await fetch(`${API_BASE_URL}/user/payment-accounts/${selectedAccount.id}/decrypt`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -648,8 +654,9 @@ async function handleCreateRequest(e) {
         return;
     }
 
-    if (data.requestedAmount < 100000) {
-        showToast('Số tiền tối thiểu là 100,000 VNĐ', 'error');
+    const minAmount = eligibilityData?.minAmount || 50000;
+    if (data.requestedAmount < minAmount) {
+        showToast(`Số tiền tối thiểu là ${minAmount.toLocaleString('vi-VN')} VNĐ`, 'error');
         return;
     }
 
@@ -665,11 +672,16 @@ async function handleCreateRequest(e) {
 
     try {
         const token = localStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN);
+
+        // Generate idempotency key for this request
+        const idempotencyKey = crypto.randomUUID();
+
         const response = await fetch(`${API_BASE_URL}/payment-requests`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+                'Authorization': `Bearer ${token}`,
+                'Idempotency-Key': idempotencyKey
             },
             body: JSON.stringify(data)
         });
