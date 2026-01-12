@@ -464,6 +464,11 @@ body {
     color: #6c757d;
 }
 
+.status-na {
+    background: #e9ecef;
+    color: #6c757d;
+}
+
 .status-warning {
     background: #fff3cd;
     color: #856404;

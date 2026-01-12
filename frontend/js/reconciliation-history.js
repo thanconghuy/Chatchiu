@@ -86,12 +86,36 @@ function getStatusBadge(status) {
         'draft': { label: 'Chờ duyệt', class: 'status-pending', icon: '🕐' },
         'finalized': { label: 'Đã duyệt', class: 'status-approved', icon: '✅' },
         'confirmed': { label: 'Đã duyệt', class: 'status-approved', icon: '✅' },
-        'paid': { label: 'Đã thanh toán', class: 'status-approved', icon: '💰' },
+        'paid': { label: 'Đã duyệt', class: 'status-approved', icon: '✅' },
         'cancelled': { label: 'Đã hủy', class: 'status-rejected', icon: '❌' }
     };
 
     const statusInfo = statusMap[status] || { label: status, class: 'status-pending', icon: '❓' };
     return `<span class="status-badge ${statusInfo.class}">${statusInfo.icon} ${statusInfo.label}</span>`;
+}
+
+// Get reconciliation status badge HTML
+function getReconciliationStatusBadge(status) {
+    const statusMap = {
+        'draft': { label: 'Nháp', class: 'status-pending', icon: '🕐' },
+        'finalized': { label: 'Đã duyệt', class: 'status-approved', icon: '✅' },
+        'paid': { label: 'Đã duyệt', class: 'status-approved', icon: '✅' },
+        'cancelled': { label: 'Đã hủy', class: 'status-rejected', icon: '❌' }
+    };
+
+    const statusInfo = statusMap[status] || { label: status, class: 'status-pending', icon: '❓' };
+    return `<span class="status-badge ${statusInfo.class}">${statusInfo.icon} ${statusInfo.label}</span>`;
+}
+
+// Get payment status badge HTML
+function getPaymentStatusBadge(status) {
+    if (status === 'paid') {
+        return `<span class="status-badge status-approved">💰 Đã thanh toán</span>`;
+    } else if (status === 'finalized') {
+        return `<span class="status-badge status-pending">⏳ Chờ thanh toán</span>`;
+    } else {
+        return `<span class="status-badge status-na">➖ N/A</span>`;
+    }
 }
 
 // Load reconciliations
@@ -101,7 +125,7 @@ async function loadReconciliations() {
         const tableBody = document.getElementById('reconciliationTable');
         const cardsContainer = document.getElementById('reconciliationCards');
 
-        tableBody.innerHTML = '<tr class="loading-state"><td colspan="7"><div class="loading">Đang tải...</div></td></tr>';
+        tableBody.innerHTML = '<tr class="loading-state"><td colspan="8"><div class="loading">Đang tải...</div></td></tr>';
         if (cardsContainer) {
             cardsContainer.innerHTML = '<div class="loading">Đang tải...</div>';
         }
@@ -128,7 +152,7 @@ async function loadReconciliations() {
         const tableBody = document.getElementById('reconciliationTable');
         const cardsContainer = document.getElementById('reconciliationCards');
 
-        tableBody.innerHTML = '<tr class="error-state"><td colspan="7"><div class="error">Không thể tải dữ liệu</div></td></tr>';
+        tableBody.innerHTML = '<tr class="error-state"><td colspan="8"><div class="error">Không thể tải dữ liệu</div></td></tr>';
         if (cardsContainer) {
             cardsContainer.innerHTML = '<div class="error">Không thể tải dữ liệu</div>';
         }
@@ -160,7 +184,8 @@ function displayReconciliations(reconciliations) {
             <td>${formatDate(rec.period_start)} - ${formatDate(rec.period_end)}</td>
             <td>${rec.item_count || 0}</td>
             <td><strong style="color: #10b981;">${formatCurrency(rec.total_cashback || 0)}</strong></td>
-            <td>${getStatusBadge(rec.status)}</td>
+            <td>${getReconciliationStatusBadge(rec.status)}</td>
+            <td>${getPaymentStatusBadge(rec.status)}</td>
             <td>${formatDate(rec.created_at)}</td>
             <td>
                 <button class="btn-secondary btn-view-details" data-id="${rec.id}" style="padding: 6px 12px; font-size: 0.875rem;">
@@ -211,6 +236,24 @@ function displayReconciliations(reconciliations) {
                             </div>
                             <div class="reconciliation-card-value highlight">
                                 ${formatCurrency(rec.total_cashback || 0)}
+                            </div>
+                        </div>
+
+                        <div class="reconciliation-card-row">
+                            <div class="reconciliation-card-label">
+                                <i class="fas fa-clipboard-check"></i> Trạng thái đối soát
+                            </div>
+                            <div class="reconciliation-card-value">
+                                ${getReconciliationStatusBadge(rec.status)}
+                            </div>
+                        </div>
+
+                        <div class="reconciliation-card-row">
+                            <div class="reconciliation-card-label">
+                                <i class="fas fa-dollar-sign"></i> Trạng thái thanh toán
+                            </div>
+                            <div class="reconciliation-card-value">
+                                ${getPaymentStatusBadge(rec.status)}
                             </div>
                         </div>
                     </div>

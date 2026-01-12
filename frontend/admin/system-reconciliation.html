@@ -95,6 +95,16 @@
             color: #721c24;
         }
 
+        .status-pending-payment {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-na {
+            background: #e9ecef;
+            color: #6c757d;
+        }
+
         .recon-stats {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -1154,13 +1164,14 @@
                             <th>Ngày Tạo</th>
                             <th class="text-center">Tổng Đơn Hàng</th>
                             <th class="text-right">Tổng Cashback</th>
-                            <th class="text-center">Trạng Thái</th>
+                            <th class="text-center">Trạng Thái Đối Soát</th>
+                            <th class="text-center">Trạng Thái Thanh Toán</th>
                             <th class="text-center">Thao Tác</th>
                         </tr>
                     </thead>
                     <tbody id="reconciliationsList">
                         <tr>
-                            <td colspan="6" class="table-empty">
+                            <td colspan="7" class="table-empty">
                                 <i class="fas fa-spinner fa-spin"></i>
                                 <p>Đang tải danh sách đối soát...</p>
                             </td>
@@ -1900,7 +1911,7 @@
                     const tbody = document.getElementById('reconciliationsList');
                     tbody.innerHTML = `
                         <tr>
-                            <td colspan="6" class="table-empty">
+                            <td colspan="7" class="table-empty">
                                 <i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i>
                                 <p style="margin-top: 16px; color: #ef4444;">Lỗi: ${result.message || 'Không thể tải dữ liệu'}</p>
                             </td>
@@ -1912,7 +1923,7 @@
                 const tbody = document.getElementById('reconciliationsList');
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="6" class="table-empty">
+                        <td colspan="7" class="table-empty">
                             <i class="fas fa-times-circle" style="color: #ef4444;"></i>
                             <p style="margin-top: 16px; color: #ef4444;">Lỗi: ${error.message}</p>
                         </td>
@@ -1932,7 +1943,7 @@
             if (!reconciliations || reconciliations.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="6" class="table-empty">
+                        <td colspan="7" class="table-empty">
                             <i class="fas fa-inbox"></i>
                             <p style="margin-top: 16px; font-size: 16px; font-weight: 500;">Chưa có kỳ đối soát nào</p>
                             <p style="margin-top: 8px; color: #999;">Tạo kỳ đối soát mới hoặc sử dụng Auto-Sync</p>
@@ -1984,9 +1995,14 @@
                             ${formatMoney(recon.total_cashback)}
                         </td>
 
-                        <!-- Trạng Thái -->
+                        <!-- Trạng Thái Đối Soát -->
                         <td class="text-center">
-                            <span class="status-badge status-${recon.status}">${getStatusLabel(recon.status)}</span>
+                            <span class="status-badge status-${recon.status}">${getReconciliationStatusLabel(recon.status)}</span>
+                        </td>
+
+                        <!-- Trạng Thái Thanh Toán -->
+                        <td class="text-center">
+                            <span class="status-badge ${getPaymentStatusLabel(recon.status).class}">${getPaymentStatusLabel(recon.status).label}</span>
                         </td>
 
                         <!-- Thao Tác -->
@@ -2033,7 +2049,7 @@
                         console.error('Lỗi rendering row:', err, recon);
                         return `
                             <tr>
-                                <td colspan="6" style="padding: 12px; color: #ef4444;">
+                                <td colspan="7" style="padding: 12px; color: #ef4444;">
                                     Lỗi hiển thị row: ${err.message}
                                 </td>
                             </tr>
@@ -2046,7 +2062,7 @@
                 console.error('Lỗi in displayReconciliations:', err);
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="6" class="table-empty">
+                        <td colspan="7" class="table-empty">
                             <i class="fas fa-times-circle" style="color: #ef4444;"></i>
                             <p style="margin-top: 16px; color: #ef4444;">Lỗi hiển thị: ${err.message}</p>
                         </td>
@@ -2915,10 +2931,30 @@
             const labels = {
                 'draft': 'Nháp',
                 'finalized': 'Đã Hoàn Tất',
-                'paid': 'Đã Thanh Toán',
+                'paid': 'Đã Hoàn Tất',
                 'cancelled': 'Đã Hủy'
             };
             return labels[status] || status;
+        }
+
+        function getReconciliationStatusLabel(status) {
+            const labels = {
+                'draft': 'Nháp',
+                'finalized': 'Đã Duyệt',
+                'paid': 'Đã Duyệt',
+                'cancelled': 'Đã Hủy'
+            };
+            return labels[status] || status;
+        }
+
+        function getPaymentStatusLabel(status) {
+            if (status === 'paid') {
+                return { label: 'Đã Thanh Toán', class: 'status-paid' };
+            } else if (status === 'finalized') {
+                return { label: 'Chờ Thanh Toán', class: 'status-pending-payment' };
+            } else {
+                return { label: 'N/A', class: 'status-na' };
+            }
         }
 
         function getRiskClass(score) {
