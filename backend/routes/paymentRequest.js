@@ -116,6 +116,11 @@ router.get('/eligibility', authenticateToken, async (req, res) => {
  */
 router.post('/', authenticateToken, validateIdempotencyKey, async (req, res) => {
   try {
+    console.log('=== CREATE PAYMENT REQUEST START ===');
+    console.log('User ID:', req.userId);
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    console.log('Idempotency Key:', req.idempotencyKey);
+
     const userId = req.userId;
     const {
       requestedAmount,
@@ -160,9 +165,16 @@ router.post('/', authenticateToken, validateIdempotencyKey, async (req, res) => 
       data: paymentRequest
     });
   } catch (error) {
+    console.error('=== CREATE PAYMENT REQUEST ERROR ===');
+    console.error('Error:', error.message);
+    console.error('Stack:', error.stack);
+    console.error('Code:', error.code);
+
     logger.error('Create payment request failed', {
       error: error.message,
-      userId: req.user?.id,
+      stack: error.stack,
+      code: error.code,
+      userId: req.userId,
       body: req.body
     });
 

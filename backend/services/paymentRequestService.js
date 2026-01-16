@@ -655,10 +655,14 @@ class PaymentRequestService {
       // Check debt
       const debt = parseFloat(balance.debt_balance || 0);
 
+      // FIXED: Cho phép tạo request mới nếu còn đủ số dư khả dụng
+      // Không chặn vì có pending requests (vì balance đã được reserve)
       const isEligible = (
         availableBalance >= minAmount &&
-        debt === 0 &&
-        pendingCount === 0
+        debt === 0
+        // REMOVED: pendingCount === 0
+        // Lý do: Balance đã được reserve khi tạo pending request,
+        // nên available_balance đã phản ánh đúng số dư có thể rút
       );
 
       return {
@@ -682,8 +686,8 @@ class PaymentRequestService {
         total_withdrawn: parseFloat(balance.total_withdrawn), // Backward compatibility
         reasons: isEligible ? [] : [
           availableBalance < minAmount && `Số dư khả dụng thấp hơn mức tối thiểu (${minAmount.toLocaleString('vi-VN')}đ)`,
-          debt > 0 && `Có khoản nợ chưa thanh toán (${debt.toLocaleString('vi-VN')}đ)`,
-          pendingCount > 0 && `Có ${pendingCount} yêu cầu đang chờ xử lý`
+          debt > 0 && `Có khoản nợ chưa thanh toán (${debt.toLocaleString('vi-VN')}đ)`
+          // REMOVED: pendingCount check from reasons
         ].filter(Boolean)
       };
 

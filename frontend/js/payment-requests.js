@@ -686,7 +686,15 @@ async function handleCreateRequest(e) {
             body: JSON.stringify(data)
         });
 
+        // Log response for debugging
+        console.log('Create payment request response:', {
+            status: response.status,
+            statusText: response.statusText,
+            ok: response.ok
+        });
+
         const result = await response.json();
+        console.log('Create payment request result:', result);
 
         if (result.success) {
             showToast('Tạo yêu cầu thanh toán thành công!', 'success');
@@ -694,11 +702,13 @@ async function handleCreateRequest(e) {
             loadEligibility();
             loadPaymentRequests();
         } else {
+            console.error('Create payment request failed:', result);
             showToast(result.message || 'Không thể tạo yêu cầu', 'error');
         }
     } catch (error) {
         console.error('Error creating request:', error);
-        showToast('Lỗi kết nối', 'error');
+        console.error('Error stack:', error.stack);
+        showToast('Lỗi kết nối: ' + error.message, 'error');
     }
 }
 
