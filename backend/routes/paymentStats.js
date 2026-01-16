@@ -64,6 +64,25 @@ router.get('/summary', authenticateAdmin, async (req, res) => {
       ? parseFloat(summary.total_amount_paid) / parseInt(summary.total_users)
       : 0;
 
+    // NEW: Get available balance statistics from user_system_balance
+    const balanceQuery = `
+      SELECT
+        COALESCE(SUM(total_earned - total_withdrawn - pending_reserved), 0) as total_available_balance,
+        COUNT(*) FILTER (WHERE (total_earned - total_withdrawn - pending_reserved) > 0) as users_with_balance,
+        COALESCE(AVG(CASE WHEN (total_earned - total_withdrawn - pending_reserved) > 0
+                          THEN (total_earned - total_withdrawn - pending_reserved)
+                          ELSE NULL END), 0) as avg_balance_per_user
+      FROM user_system_balance
+    `;
+
+    const balanceResult = await pool.query(balanceQuery);
+    const balanceStats = balanceResult.rows[0];
+
+    // Merge balance stats into summary
+    summary.total_available_balance = parseFloat(balanceStats.total_available_balance || 0);
+    summary.users_with_balance = parseInt(balanceStats.users_with_balance || 0);
+    summary.avg_balance_per_user = parseFloat(balanceStats.avg_balance_per_user || 0);
+
     res.json({
       success: true,
       data: summary,
@@ -154,7 +173,7 @@ router.get('/users', authenticateAdmin, async (req, res) => {
     const total = parseInt(countResult.rows[0]?.total || 0);
 
     // Validate sort column
-    const validSortColumns = ['total_paid', 'total_requests', 'email', 'full_name', 'first_payment_date', 'last_payment_date'];
+    const validSortColumns = ['total_paid', 'total_requests', 'email', 'full_name', 'first_payment_date', 'last_payment_date', 'available_balance', 'pending_reserved'];
     const sortColumn = validSortColumns.includes(sort_by) ? sort_by : 'total_paid';
     const sortDirection = sort_order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
@@ -182,14 +201,19 @@ router.get('/users', authenticateAdmin, async (req, res) => {
 
         -- Timestamps
         MIN(pr.paid_at) as first_payment_date,
-        MAX(pr.paid_at) as last_payment_date
+        MAX(pr.paid_at) as last_payment_date,
+
+        -- Balance information from user_system_balance
+        COALESCE(usb.total_earned - usb.total_withdrawn - usb.pending_reserved, 0) as available_balance,
+        COALESCE(usb.pending_reserved, 0) as pending_reserved
 
       FROM users u
       INNER JOIN payment_requests pr ON u.id = pr.user_id
+      LEFT JOIN user_system_balance usb ON u.id = usb.user_id
       WHERE pr.status = 'paid'
         ${dateFilter}
         ${searchFilter}
-      GROUP BY u.id, u.email, u.full_name, u.phone
+      GROUP BY u.id, u.email, u.full_name, u.phone, usb.total_earned, usb.total_withdrawn, usb.pending_reserved
       ORDER BY ${sortColumn} ${sortDirection}
       LIMIT $${limitIndex} OFFSET $${offsetIndex}
     `;
@@ -451,3 +475,5 @@ router.get('/export', authenticateAdmin, async (req, res) => {
 });
 
 module.exports = router;
+
+// trigger restart

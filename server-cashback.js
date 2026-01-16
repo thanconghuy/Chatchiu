@@ -111,6 +111,7 @@ const userProfileRoutes = require('./backend/routes/userProfile');
 const paymentAccountRoutes = require('./backend/routes/paymentAccount');
 const notificationsRoutes = require('./backend/routes/notifications');
 const paymentStatsRoutes = require('./backend/routes/paymentStats');
+const cashbackStatsRoutes = require('./backend/routes/cashbackStats');
 
 // Mount API routes (BEFORE static files)
 app.use('/api/auth', authRoutes); // Keep old auth for backward compatibility
@@ -128,6 +129,7 @@ app.use('/api/user', userPaymentHistoryRoutes); // User payment history module
 app.use('/api/user/payment-accounts', paymentAccountRoutes); // Payment account management
 app.use('/api/notifications', notificationsRoutes); // Cashback notification system (Phase 1)
 app.use('/api/admin/payment-stats', paymentStatsRoutes); // Payment statistics module (admin only)
+app.use('/api/admin/cashback-stats', cashbackStatsRoutes); // Cashback statistics module (admin only)
 
 // Health check endpoint with database check
 app.get('/health', async (req, res) => {

@@ -1,15 +1,25 @@
 /**
- * Payment Request Service - REDESIGNED
+ * Payment Request Service - FIXED LOGIC
  *
- * Version: 2.0
- * Date: 2026-01-10
+ * Version: 4.0
+ * Date: 2026-01-16
  *
- * KEY CHANGES:
- * 1. createPaymentRequest() - RESERVES balance immediately
- * 2. cancelPaymentRequest() - RELEASES balance back
- * 3. markAsPaid() - Only records withdrawal (no balance deduction)
- * 4. Idempotency support
- * 5. Complete audit trail
+ * KEY CHANGES (v4.0 - WORKFLOW CHÍNH XÁC):
+ * - available_balance = GENERATED COLUMN (total_earned - total_withdrawn - pending_reserved)
+ * - Số dư khả dụng chỉ tính từ conversions ĐÃ ĐỐI SOÁT (system_reconciliation_status = 'reconciled')
+ *
+ * WORKFLOW THANH TOÁN:
+ * 1. User tạo request (pending) → KHÔNG trừ balance
+ * 2. Admin confirm (confirmed) → TRỪ pending_reserved
+ * 3. Admin thanh toán (paid) → Chuyển từ pending_reserved sang total_withdrawn
+ * 4. Admin hủy (rejected/cancelled) → Hoàn lại pending_reserved (nếu đã confirm)
+ *
+ * FUNCTIONS:
+ * - createPaymentRequest() - Validate số dư từ conversions reconciled, KHÔNG reserve
+ * - confirmPaymentRequest() - RESERVE balance (tăng pending_reserved)
+ * - cancelPaymentRequest() - RELEASE balance nếu đã confirm (giảm pending_reserved)
+ * - markAsPaid() - Tăng total_withdrawn, giảm pending_reserved
+ * - FIFO chỉ lấy conversions ĐÃ ĐỐI SOÁT
  */
 
 const db = require('../config/database');
@@ -118,10 +128,23 @@ class PaymentRequestService {
       // ========================================
       // STEP 3: Check Balance (with lock)
       // ========================================
+      // IMPORTANT: Phải tính số dư từ các conversions ĐÃ ĐỐI SOÁT
+      // Không dùng available_balance trực tiếp vì nó tính từ TẤT CẢ conversions
       const balanceResult = await client.query(`
-        SELECT available_balance, total_earned, total_withdrawn
-        FROM user_system_balance
-        WHERE user_id = $1
+        SELECT
+          usb.total_withdrawn,
+          usb.pending_reserved,
+          -- Tính từ conversions ĐÃ ĐỐI SOÁT (reconciled)
+          COALESCE((
+            SELECT SUM(cashback_amount)
+            FROM system_conversions
+            WHERE user_id = $1
+              AND status = 'approved'
+              AND system_reconciliation_status = 'reconciled'
+              AND (payment_status IS NULL OR payment_status = 'unpaid')
+          ), 0) as reconciled_balance
+        FROM user_system_balance usb
+        WHERE usb.user_id = $1
         FOR UPDATE
       `, [userId]);
 
@@ -130,7 +153,16 @@ class PaymentRequestService {
       }
 
       const currentBalance = balanceResult.rows[0];
-      const availableBalance = parseFloat(currentBalance.available_balance);
+      const reconciledBalance = parseFloat(currentBalance.reconciled_balance);
+      const totalWithdrawn = parseFloat(currentBalance.total_withdrawn);
+      const pendingReserved = parseFloat(currentBalance.pending_reserved);
+
+      // Số dư khả dụng ĐÚNG = Đã đối soát - Đã rút - Đang chờ xử lý
+      const availableBalance = reconciledBalance - totalWithdrawn - pendingReserved;
+
+      if (availableBalance <= 0) {
+        throw new Error('Bạn chưa có số dư khả dụng. Vui lòng chờ đối soát hoàn tất.');
+      }
 
       if (requestedAmount > availableBalance) {
         const error = new Error(
@@ -141,7 +173,10 @@ class PaymentRequestService {
         error.details = {
           available: availableBalance,
           requested: requestedAmount,
-          shortage: requestedAmount - availableBalance
+          shortage: requestedAmount - availableBalance,
+          reconciled_balance: reconciledBalance,
+          total_withdrawn: totalWithdrawn,
+          pending_reserved: pendingReserved
         };
         throw error;
       }
@@ -186,21 +221,18 @@ class PaymentRequestService {
       });
 
       // ========================================
-      // STEP 5: RESERVE BALANCE
+      // STEP 5: NO BALANCE CHANGE YET!
       // ========================================
-      await BalanceManagementService.reserveBalance(
-        client,
-        userId,
-        requestedAmount,
-        paymentRequest.id
-      );
+      // IMPORTANT: Theo workflow mới, pending_reserved chỉ được trừ khi:
+      // - Admin CONFIRM payment request (status = 'confirmed')
+      // - KHÔNG trừ ngay khi user tạo request (status = 'pending')
+      // Lý do: Tránh user tạo nhiều request rồi hủy gây lock balance
 
-      logger.success('Balance reserved successfully', {
+      logger.info('Payment request created - balance NOT reserved yet', {
         paymentRequestId: paymentRequest.id,
         userId,
-        amount: requestedAmount,
-        availableBefore: availableBalance,
-        availableAfter: availableBalance - requestedAmount
+        requestedAmount,
+        note: 'Balance will be reserved when admin confirms (status=confirmed)'
       });
 
       // ========================================
@@ -388,16 +420,18 @@ class PaymentRequestService {
       `, [paymentRequestId, userId, reason]);
 
       // ========================================
-      // STEP 4: RELEASE BALANCE
+      // STEP 4: RELEASE pending_reserved (FIXED LOGIC)
       // ========================================
-      await BalanceManagementService.releaseBalance(
-        client,
-        userId,
-        parseFloat(paymentRequest.requested_amount),
-        paymentRequestId
-      );
+      // Giảm pending_reserved để available_balance tự động tăng trở lại
+      await client.query(`
+        UPDATE user_system_balance
+        SET
+          pending_reserved = pending_reserved - $1,
+          updated_at = NOW()
+        WHERE user_id = $2
+      `, [parseFloat(paymentRequest.requested_amount), userId]);
 
-      logger.success('Balance released successfully', {
+      logger.success('Pending reserved released successfully', {
         paymentRequestId,
         userId,
         amount: paymentRequest.requested_amount
@@ -572,18 +606,22 @@ class PaymentRequestService {
       `, [paymentRequestId, adminInfo.id, transactionReference, adminNotes]);
 
       // ========================================
-      // STEP 4: RECORD WITHDRAWAL (no balance deduction)
+      // STEP 4: UPDATE total_withdrawn AND RELEASE pending_reserved (FIXED LOGIC)
       // ========================================
-      await BalanceManagementService.recordWithdrawal(
-        client,
-        paymentRequest.user_id,
-        requestedAmount,
-        paymentRequestId,
-        adminInfo.id,
-        { transactionReference }
-      );
+      // Khi thanh toán thành công:
+      // 1. Tăng total_withdrawn
+      // 2. Giảm pending_reserved (release số dư đã reserve)
+      // => available_balance = total_earned - total_withdrawn - pending_reserved (auto computed)
+      await client.query(`
+        UPDATE user_system_balance
+        SET
+          total_withdrawn = total_withdrawn + $1,
+          pending_reserved = pending_reserved - $1,
+          updated_at = NOW()
+        WHERE user_id = $2
+      `, [requestedAmount, paymentRequest.user_id]);
 
-      logger.success('Withdrawal recorded successfully', {
+      logger.success('Withdrawal recorded and pending released successfully', {
         paymentRequestId,
         userId: paymentRequest.user_id,
         amount: requestedAmount
@@ -592,6 +630,7 @@ class PaymentRequestService {
       // ========================================
       // STEP 5: Mark Conversions as Paid (FIFO)
       // ========================================
+      // IMPORTANT: CHỈ lấy conversions ĐÃ ĐỐI SOÁT (reconciled)
       const fifoQuery = `
         WITH selected_conversions AS (
           SELECT
@@ -604,6 +643,7 @@ class PaymentRequestService {
           FROM system_conversions
           WHERE user_id = $1
             AND status = 'approved'
+            AND system_reconciliation_status = 'reconciled'
             AND (payment_status IS NULL OR payment_status = 'unpaid')
         )
         UPDATE system_conversions
@@ -917,6 +957,25 @@ class PaymentRequestService {
         adminId: adminInfo.id
       });
 
+      // ========================================
+      // RESERVE BALANCE - Trừ pending_reserved
+      // ========================================
+      const requestedAmount = parseFloat(paymentRequest.requested_amount);
+
+      await client.query(`
+        UPDATE user_system_balance
+        SET
+          pending_reserved = pending_reserved + $1,
+          updated_at = NOW()
+        WHERE user_id = $2
+      `, [requestedAmount, paymentRequest.user_id]);
+
+      logger.success('Balance reserved', {
+        paymentRequestId,
+        userId: paymentRequest.user_id,
+        amount: requestedAmount
+      });
+
       // Update status
       await client.query(`
         UPDATE payment_requests
@@ -1060,15 +1119,16 @@ class PaymentRequestService {
         WHERE id = $1
       `, [paymentRequestId, adminInfo.id, rejectionReason]);
 
-      // RELEASE BALANCE (add back)
-      await BalanceManagementService.releaseBalance(
-        client,
-        paymentRequest.user_id,
-        parseFloat(paymentRequest.requested_amount),
-        paymentRequestId
-      );
+      // RELEASE pending_reserved (FIXED LOGIC)
+      await client.query(`
+        UPDATE user_system_balance
+        SET
+          pending_reserved = pending_reserved - $1,
+          updated_at = NOW()
+        WHERE user_id = $2
+      `, [parseFloat(paymentRequest.requested_amount), paymentRequest.user_id]);
 
-      logger.success('Balance released on rejection', {
+      logger.success('Pending reserved released on rejection', {
         paymentRequestId,
         userId: paymentRequest.user_id,
         amount: paymentRequest.requested_amount

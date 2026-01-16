@@ -126,6 +126,11 @@ async function loadSummary() {
             document.getElementById('totalAmount').textContent = formatCurrency(data.total_amount_paid);
             document.getElementById('totalRequests').textContent = formatNumber(data.total_requests);
             document.getElementById('avgPerUser').textContent = formatCurrency(data.avg_amount_per_user);
+
+            // New balance statistics
+            document.getElementById('totalAvailableBalance').textContent = formatCurrency(data.total_available_balance || 0);
+            document.getElementById('usersWithBalance').textContent = formatNumber(data.users_with_balance || 0);
+            document.getElementById('avgBalancePerUser').textContent = formatCurrency(data.avg_balance_per_user || 0);
         }
 
     } catch (error) {
@@ -140,7 +145,7 @@ async function loadSummary() {
 async function loadData() {
     try {
         const tbody = document.getElementById('dataTableBody');
-        tbody.innerHTML = '<tr><td colspan="9" class="loading"><i class="fas fa-spinner fa-spin"></i><div>Đang tải...</div></td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" class="loading"><i class="fas fa-spinner fa-spin"></i><div>Đang tải...</div></td></tr>';
 
         const params = new URLSearchParams({
             period: currentFilters.period,
@@ -172,7 +177,7 @@ async function loadData() {
     } catch (error) {
         console.error('Error loading data:', error);
         const tbody = document.getElementById('dataTableBody');
-        tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><i class="fas fa-exclamation-triangle"></i><div>Lỗi khi tải dữ liệu</div></td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" class="empty-state"><i class="fas fa-exclamation-triangle"></i><div>Lỗi khi tải dữ liệu</div></td></tr>';
         showToast('Không thể tải dữ liệu', 'error');
     }
 }
@@ -186,7 +191,7 @@ function renderDataTable(data) {
     if (data.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="9" class="empty-state">
+                <td colspan="11" class="empty-state">
                     <i class="fas fa-inbox"></i>
                     <div><strong>Chưa có dữ liệu</strong></div>
                     <small>Không có thanh toán nào trong kỳ này</small>
@@ -204,6 +209,8 @@ function renderDataTable(data) {
             <td class="text-right amount">${formatCurrency(row.total_paid)}</td>
             <td class="text-center">${formatNumber(row.total_requests)}</td>
             <td class="text-right">${formatCurrency(row.avg_per_request)}</td>
+            <td class="text-right amount" style="color: ${row.available_balance > 0 ? '#10b981' : '#6b7280'}">${formatCurrency(row.available_balance || 0)}</td>
+            <td class="text-right" style="color: ${row.pending_reserved > 0 ? '#f59e0b' : '#6b7280'}">${formatCurrency(row.pending_reserved || 0)}</td>
             <td class="text-center">${formatDate(row.first_payment_date)}</td>
             <td class="text-center">${formatDate(row.last_payment_date)}</td>
             <td class="text-center">

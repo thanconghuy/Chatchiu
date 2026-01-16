@@ -153,6 +153,72 @@
             font-weight: 700;
             color: #333;
         }
+
+        /* Action Dropdown Menu */
+        .action-menu {
+            position: relative;
+            display: inline-block;
+        }
+
+        .action-btn {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            color: #666;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: #f3f4f6;
+            color: #667eea;
+        }
+
+        .action-dropdown {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            min-width: 180px;
+            z-index: 1000;
+            margin-top: 4px;
+        }
+
+        .action-dropdown.show {
+            display: block;
+        }
+
+        .action-dropdown-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-bottom: 1px solid #f3f4f6;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+            color: #374151;
+        }
+
+        .action-dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .action-dropdown-item:hover {
+            background: #f9fafb;
+            color: #667eea;
+        }
+
+        .action-dropdown-item i {
+            width: 16px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -214,16 +280,16 @@
                     <p class="stat-value" id="totalUsersCount">-</p>
                 </div>
                 <div class="stat-card">
-                    <h3>Tổng Đơn Hàng</h3>
+                    <h3>Tổng Cashback</h3>
+                    <p class="stat-value" id="totalCashback">-</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Đã Thanh Toán</h3>
                     <p class="stat-value" id="totalOrdersCount">-</p>
                 </div>
                 <div class="stat-card">
-                    <h3>Tổng Giá Trị</h3>
+                    <h3>Số Dư Khả Dụng</h3>
                     <p class="stat-value" id="totalOrderValue">-</p>
-                </div>
-                <div class="stat-card">
-                    <h3>Tổng Cashback</h3>
-                    <p class="stat-value" id="totalCashback">-</p>
                 </div>
             </div>
 
@@ -237,18 +303,20 @@
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>Username</th>
-                                <th>Email</th>
-                                <th>Họ Tên</th>
-                                <th>Tổng Đơn</th>
-                                <th>Tổng Giá Trị</th>
-                                <th>Cashback</th>
-                                <th>Action</th>
+                                <th style="width: 50px; text-align: center;">STT</th>
+                                <th style="width: 200px;">User</th>
+                                <th style="width: 140px; text-align: right;">Tổng Cashback</th>
+                                <th style="width: 120px; text-align: right;">Chờ Duyệt</th>
+                                <th style="width: 120px; text-align: right;">Đã Duyệt</th>
+                                <th style="width: 110px; text-align: right;">Đã Hủy</th>
+                                <th style="width: 130px; text-align: right;">Đã Thanh Toán</th>
+                                <th style="width: 130px; text-align: right;">Số Dư Còn Lại</th>
+                                <th style="width: 80px; text-align: center;">Action</th>
                             </tr>
                         </thead>
                         <tbody id="statsTableBody">
                             <tr>
-                                <td colspan="7" class="loading-cell">
+                                <td colspan="9" class="loading-cell">
                                     <div class="loading-spinner"></div>
                                     Đang tải...
                                 </td>

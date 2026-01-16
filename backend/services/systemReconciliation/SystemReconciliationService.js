@@ -265,31 +265,28 @@ class SystemReconciliationService {
       const itemsResult = await client.query(itemsQuery, [reconciliationId]);
       const userBalances = itemsResult.rows;
 
-      // Pay 100% cashback immediately (no reserved balance)
+      // Ensure user_system_balance records exist
+      // NOTE: total_earned is auto-synced by trigger sync_user_balance_on_conversion()
+      // available_balance is GENERATED COLUMN = total_earned - total_withdrawn - pending_reserved
+      // So we DON'T need to manually update balance here anymore!
       for (const userBalance of userBalances) {
-        const totalCashback = parseFloat(userBalance.total_cashback);
-
-        // Update or insert user_system_balance - Pay 100% to available
+        // Just ensure record exists and update last_reconciliation_date
         await client.query(`
           INSERT INTO user_system_balance (
-            user_id, available_balance, total_earned,
+            user_id, total_earned, total_withdrawn, pending_reserved,
             last_reconciliation_date, updated_at
-          ) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+          ) VALUES ($1, 0, 0, 0, $2, CURRENT_TIMESTAMP)
           ON CONFLICT (user_id) DO UPDATE SET
-            available_balance = user_system_balance.available_balance + EXCLUDED.available_balance,
-            total_earned = user_system_balance.total_earned + EXCLUDED.total_earned,
             last_reconciliation_date = EXCLUDED.last_reconciliation_date,
             updated_at = CURRENT_TIMESTAMP
         `, [
           userBalance.user_id,
-          totalCashback,  // 100% goes to available
-          totalCashback,
           recon.period_end
         ]);
 
-        // NOTE: Transaction logging is handled automatically by database trigger
-        // See migration 015_create_user_balance_transactions.sql
-        // The trigger `log_balance_transaction()` automatically logs all balance changes
+        // NOTE: Balance is automatically correct because:
+        // 1. total_earned synced by trigger when conversions inserted/updated
+        // 2. available_balance = total_earned - total_withdrawn - pending_reserved (GENERATED)
       }
 
       // Update conversions status to 'reconciled' (old API table - for backward compatibility)
@@ -309,7 +306,9 @@ class SystemReconciliationService {
       await client.query(`
         UPDATE system_conversions sc
         SET
-          system_reconciliation_id = $1
+          system_reconciliation_id = $1,
+          system_reconciliation_status = 'reconciled',
+          system_reconciled_at = CURRENT_TIMESTAMP
         FROM system_reconciliation_items sri
         WHERE sc.id = sri.system_conversion_id
           AND sri.system_reconciliation_id = $1
@@ -876,20 +875,24 @@ class SystemReconciliationService {
         await client.query(`
           UPDATE system_conversions
           SET
-            system_reconciliation_id = NULL
+            system_reconciliation_id = NULL,
+            system_reconciliation_status = NULL,
+            system_reconciled_at = NULL
           WHERE system_reconciliation_id = $1
         `, [reconciliationId]);
 
-        // Revert user balances
+        // NOTE: NO need to revert user balances manually!
+        // total_earned is auto-synced by trigger
+        // available_balance is GENERATED COLUMN
+        // Just update last_reconciliation_date to NULL for affected users
         for (const item of itemsResult.rows) {
           await client.query(`
             UPDATE user_system_balance
             SET
-              available_balance = available_balance - $1,
-              total_earned = total_earned - $1,
+              last_reconciliation_date = NULL,
               updated_at = CURRENT_TIMESTAMP
-            WHERE user_id = $2
-          `, [item.total_cashback, item.user_id]);
+            WHERE user_id = $1
+          `, [item.user_id]);
         }
       }
 

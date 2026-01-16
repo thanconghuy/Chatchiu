@@ -169,12 +169,42 @@ async function loadCashbackStats() {
     try {
         showLoading(true);
 
+        // Map old sort format to new API format
+        let sortBy = 'total_cashback';
+        let sortOrder = 'DESC';
+
+        switch(currentSortBy) {
+            case 'cashback_desc':
+                sortBy = 'total_cashback';
+                sortOrder = 'DESC';
+                break;
+            case 'cashback_asc':
+                sortBy = 'total_cashback';
+                sortOrder = 'ASC';
+                break;
+            case 'available_desc':
+                sortBy = 'available_balance';
+                sortOrder = 'DESC';
+                break;
+            case 'available_asc':
+                sortBy = 'available_balance';
+                sortOrder = 'ASC';
+                break;
+            case 'paid_desc':
+                sortBy = 'paid_cashback';
+                sortOrder = 'DESC';
+                break;
+            case 'paid_asc':
+                sortBy = 'paid_cashback';
+                sortOrder = 'ASC';
+                break;
+        }
+
         const params = new URLSearchParams({
-            from_date: currentFromDate,
-            to_date: currentToDate,
-            page: currentPage,
+            sortBy: sortBy,
+            sortOrder: sortOrder,
             limit: currentLimit,
-            sort_by: currentSortBy
+            offset: currentPage * currentLimit
         });
 
         console.log('Fetching cashback stats with params:', Object.fromEntries(params));
@@ -186,7 +216,8 @@ async function loadCashbackStats() {
             throw new Error('No authentication token found. Please login again.');
         }
 
-        const response = await fetch(`${API_URL}/admin/users/cashback-stats?${params}`, {
+        // NEW ENDPOINT: /api/admin/cashback-stats
+        const response = await fetch(`${API_URL}/admin/cashback-stats?${params}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -204,77 +235,60 @@ async function loadCashbackStats() {
         console.log('Received data:', data);
 
         if (data.success) {
-            renderStats(data.stats);
-            await loadSummaryStats(); // Load summary separately
+            renderStats(data.data);
+            renderSummaryCards(data.summary);
             updatePagination(data.pagination);
         } else {
             showToast(data.message || 'Không thể tải dữ liệu', 'error');
             renderStats([]);
-            renderSummaryCards({ totalUsers: 0, totalOrders: 0, totalOrderValue: 0, totalCashback: 0 });
-            // Still show pagination structure
-            updatePagination({ currentPage: 0, totalPages: 1, totalUsers: 0, limit: currentLimit });
+            renderSummaryCards({
+                total_users: 0,
+                total_cashback_all: 0,
+                total_paid_all: 0,
+                total_available_all: 0
+            });
+            updatePagination({ offset: 0, limit: currentLimit, total: 0, hasMore: false });
         }
 
     } catch (error) {
         console.error('Load cashback stats error:', error);
         showToast('Lỗi tải dữ liệu thống kê: ' + error.message, 'error');
         renderStats([]);
-        renderSummaryCards({ totalUsers: 0, totalOrders: 0, totalOrderValue: 0, totalCashback: 0 });
-        updatePagination({ currentPage: 0, totalPages: 1, totalUsers: 0, limit: currentLimit });
+        renderSummaryCards({
+            total_users: 0,
+            total_cashback_all: 0,
+            total_paid_all: 0,
+            total_available_all: 0
+        });
+        updatePagination({ offset: 0, limit: currentLimit, total: 0, hasMore: false });
     } finally {
         showLoading(false);
     }
 }
 
-// ========================================
-// Load Summary Stats (not paginated)
-// ========================================
-async function loadSummaryStats() {
-    try {
-        const params = new URLSearchParams({
-            from_date: currentFromDate,
-            to_date: currentToDate
-        });
-
-        const API_URL = CONFIG.API_BASE_URL;
-        const token = getAuthToken();
-
-        const response = await fetch(`${API_URL}/admin/users/cashback-stats/summary?${params}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        if (!response.ok) {
-            console.error('Failed to fetch summary stats:', response.status);
-            return;
-        }
-
-        const data = await response.json();
-
-        if (data.success && data.summary) {
-            renderSummaryCards(data.summary);
-        }
-
-    } catch (error) {
-        console.error('Load summary stats error:', error);
-    }
-}
+// loadSummaryStats() - REMOVED
+// Summary is now included in main API response
 
 // ========================================
 // Render Summary Cards
 // ========================================
 function renderSummaryCards(summary) {
-    // summary is an object with: totalUsers, totalOrders, totalOrderValue, totalCashback
-    const totalUsers = summary.totalUsers || 0;
-    const totalOrders = summary.totalOrders || 0;
-    const totalOrderValue = summary.totalOrderValue || 0;
-    const totalCashback = summary.totalCashback || 0;
+    // NEW API format: { total_users, total_cashback_all, total_paid_all, total_available_all, total_pending_reserved_all }
+    const totalUsers = summary.total_users || 0;
+    const totalCashback = summary.total_cashback_all || 0;
+    const totalPaid = summary.total_paid_all || 0;
+    const totalAvailable = summary.total_available_all || 0;
 
-    document.getElementById('totalUsersCount').textContent = totalUsers.toLocaleString('vi-VN');
-    document.getElementById('totalOrdersCount').textContent = totalOrders.toLocaleString('vi-VN');
-    document.getElementById('totalOrderValue').textContent = formatCurrency(totalOrderValue);
-    document.getElementById('totalCashback').textContent = formatCurrency(totalCashback);
+    // Update summary cards with new data
+    const totalUsersEl = document.getElementById('totalUsersCount');
+    const totalCashbackEl = document.getElementById('totalCashback');
+    const totalPaidEl = document.getElementById('totalOrdersCount') || document.getElementById('totalPaid');
+    const totalAvailableEl = document.getElementById('totalOrderValue') || document.getElementById('totalAvailable');
+
+    if (totalUsersEl) totalUsersEl.textContent = totalUsers.toLocaleString('vi-VN');
+    if (totalCashbackEl) totalCashbackEl.textContent = formatCurrency(totalCashback);
+    if (totalPaidEl) totalPaidEl.textContent = formatCurrency(totalPaid);
+    if (totalAvailableEl) totalAvailableEl.textContent = formatCurrency(totalAvailable);
 }
 
 // ========================================
@@ -286,56 +300,101 @@ function renderStats(stats) {
     if (!stats || stats.length === 0) {
         tbody.innerHTML = `
             <tr class="empty-state">
-                <td colspan="7" style="text-align: center; padding: 40px; color: #999;">
-                    Không có dữ liệu trong khoảng thời gian này
+                <td colspan="9" style="text-align: center; padding: 40px; color: #999;">
+                    Không có dữ liệu
                 </td>
             </tr>
         `;
         return;
     }
 
-    tbody.innerHTML = stats.map(stat => `
+    // NEW API format:
+    // { user_id, email, username, full_name, total_cashback, pending_cashback, approved_cashback, rejected_cashback, paid_cashback, available_balance }
+    tbody.innerHTML = stats.map((stat, index) => `
         <tr>
-            <td><strong>${escapeHtml(stat.username)}</strong></td>
-            <td>${escapeHtml(stat.email)}</td>
-            <td>${escapeHtml(stat.fullName || '-')}</td>
+            <td style="text-align: center;">${(currentPage * currentLimit) + index + 1}</td>
+            <td>
+                <div style="display: flex; flex-direction: column;">
+                    <strong>${escapeHtml(stat.email)}</strong>
+                    <small style="color: #666;">${escapeHtml(stat.username || stat.full_name || '-')}</small>
+                </div>
+            </td>
+            <td style="text-align: right; font-weight: 600; color: #667eea;">
+                ${formatCurrency(stat.total_cashback)}
+            </td>
+            <td style="text-align: right; font-weight: 500; color: #f59e0b;">
+                ${formatCurrency(stat.pending_cashback)}
+            </td>
+            <td style="text-align: right; font-weight: 500; color: #10b981;">
+                ${formatCurrency(stat.approved_cashback)}
+            </td>
+            <td style="text-align: right; font-weight: 500; color: #ef4444;">
+                ${formatCurrency(stat.rejected_cashback || 0)}
+            </td>
+            <td style="text-align: right; font-weight: 600; color: #3b82f6;">
+                ${formatCurrency(stat.paid_cashback)}
+            </td>
+            <td style="text-align: right; font-weight: 600; color: ${stat.available_balance > 0 ? '#10b981' : '#6b7280'};">
+                ${formatCurrency(stat.available_balance)}
+            </td>
             <td style="text-align: center;">
-                <span style="font-weight: 600; color: #667eea;">${stat.periodStats.totalOrders}</span>
-            </td>
-            <td style="text-align: right; font-weight: 500;">
-                ${formatCurrency(stat.periodStats.totalOrderValue)}
-            </td>
-            <td style="text-align: right; font-weight: 600; color: #10b981;">
-                ${formatCurrency(stat.periodStats.totalCashbackEarned)}
-            </td>
-            <td style="text-align: center;">
-                <button class="btn-secondary" style="padding: 6px 12px; font-size: 0.85rem;"
-                        data-action="show-user-detail" data-user-id="${stat.userId}" data-username="${escapeHtml(stat.username)}">
-                    Xem chi tiết
-                </button>
+                <div class="action-menu">
+                    <button class="action-btn" data-action="toggle-menu" data-user-id="${stat.user_id}">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                    <div class="action-dropdown" id="menu-${stat.user_id}">
+                        <div class="action-dropdown-item" data-action="view-detail" data-user-id="${stat.user_id}">
+                            <i class="fas fa-eye"></i> Xem chi tiết
+                        </div>
+                        <div class="action-dropdown-item" data-action="view-history" data-user-id="${stat.user_id}">
+                            <i class="fas fa-history"></i> Lịch sử giao dịch
+                        </div>
+                        <div class="action-dropdown-item" data-action="send-reminder" data-user-id="${stat.user_id}">
+                            <i class="fas fa-envelope"></i> Gửi nhắc nhở
+                        </div>
+                    </div>
+                </div>
             </td>
         </tr>
     `).join('');
+
+    // Add event listeners for action buttons
+    addActionMenuListeners();
 }
 
 // ========================================
 // Pagination
 // ========================================
 function updatePagination(pagination) {
-    totalPages = pagination.totalPages;
-    const currentPageNum = pagination.currentPage;
+    // NEW API format: { offset, limit, total, hasMore }
+    const total = pagination.total || 0;
+    const offset = pagination.offset || 0;
+    const limit = pagination.limit || currentLimit;
+    const hasMore = pagination.hasMore || false;
+
+    totalPages = Math.ceil(total / limit);
+    currentPage = Math.floor(offset / limit);
 
     const pageInfo = document.getElementById('pageInfo');
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
     const paginationDiv = document.getElementById('pagination');
 
-    // Always show pagination
-    paginationDiv.style.display = 'flex';
-    pageInfo.textContent = `Trang ${currentPageNum + 1}`;
+    if (paginationDiv) {
+        paginationDiv.style.display = 'flex';
+    }
 
-    prevBtn.disabled = currentPageNum === 0;
-    nextBtn.disabled = currentPageNum >= totalPages - 1;
+    if (pageInfo) {
+        pageInfo.textContent = `Trang ${currentPage + 1} / ${totalPages || 1} (Tổng: ${total} users)`;
+    }
+
+    if (prevBtn) {
+        prevBtn.disabled = currentPage === 0;
+    }
+
+    if (nextBtn) {
+        nextBtn.disabled = !hasMore || currentPage >= totalPages - 1;
+    }
 }
 
 // ========================================
@@ -454,7 +513,7 @@ function showLoading(show) {
     if (show) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="7" style="text-align: center; padding: 40px;">
+                <td colspan="9" style="text-align: center; padding: 40px;">
                     <div class="loading-spinner"></div>
                     <p style="margin-top: 16px; color: #666;">Đang tải dữ liệu...</p>
                 </td>
@@ -511,18 +570,177 @@ function showToast(message, type = 'info') {
 // ============ CSP FIX: Event Delegation ============
 document.addEventListener('click', (e) => {
     const button = e.target.closest('[data-action]');
+
+    // Close all dropdowns when clicking outside
+    if (!button || button.dataset.action !== 'toggle-menu') {
+        document.querySelectorAll('.action-dropdown.show').forEach(dropdown => {
+            dropdown.classList.remove('show');
+        });
+    }
+
     if (!button) return;
 
     const action = button.dataset.action;
+    const userId = button.dataset.userId;
 
     switch (action) {
+        case 'toggle-menu':
+            toggleActionMenu(userId);
+            break;
+        case 'view-detail':
+            viewUserDetail(userId);
+            break;
+        case 'view-history':
+            viewTransactionHistory(userId);
+            break;
+        case 'send-reminder':
+            sendReminder(userId);
+            break;
         case 'show-user-detail':
-            showUserDetail(button.dataset.userId, button.dataset.username);
+            showUserDetail(userId, button.dataset.username);
             break;
         case 'close-detail-modal':
             closeDetailModal();
             break;
     }
 });
+
+// ========================================
+// Action Menu Functions
+// ========================================
+function toggleActionMenu(userId) {
+    const dropdown = document.getElementById(`menu-${userId}`);
+    if (!dropdown) return;
+
+    // Close all other dropdowns
+    document.querySelectorAll('.action-dropdown.show').forEach(d => {
+        if (d.id !== `menu-${userId}`) {
+            d.classList.remove('show');
+        }
+    });
+
+    dropdown.classList.toggle('show');
+}
+
+async function viewUserDetail(userId) {
+    try {
+        const API_URL = CONFIG.API_BASE_URL;
+        const token = getAuthToken();
+
+        // Call the new API endpoint
+        const response = await fetch(`${API_URL}/admin/cashback-stats/${userId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch user details');
+        }
+
+        const result = await response.json();
+
+        if (!result.success) {
+            showToast('Không tìm thấy thông tin user', 'error');
+            return;
+        }
+
+        const user = result.data;
+
+        // Render modal
+        const modalContent = document.getElementById('modalContent');
+        modalContent.innerHTML = `
+            <div style="padding: 20px;">
+                <div style="margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #f0f0f0;">
+                    <h3 style="margin: 0 0 8px 0; color: #333;">👤 ${escapeHtml(user.username || user.email)}</h3>
+                    <p style="margin: 0; color: #666; font-size: 0.95rem;">
+                        📧 ${escapeHtml(user.email)}
+                        ${user.full_name ? `<br/>📝 ${escapeHtml(user.full_name)}` : ''}
+                        ${user.phone ? `<br/>📱 ${escapeHtml(user.phone)}` : ''}
+                    </p>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px;">
+                    <div style="padding: 16px; background: #f0fdf4; border-radius: 8px;">
+                        <p style="margin: 0 0 4px 0; color: #059669; font-size: 0.85rem; font-weight: 600;">Số dư khả dụng</p>
+                        <h3 style="margin: 0; color: #047857; font-size: 1.3rem;">${formatCurrency(user.available_balance)}</h3>
+                    </div>
+                    <div style="padding: 16px; background: #fef3c7; border-radius: 8px;">
+                        <p style="margin: 0 0 4px 0; color: #d97706; font-size: 0.85rem; font-weight: 600;">Đang chờ xử lý</p>
+                        <h3 style="margin: 0; color: #b45309; font-size: 1.3rem;">${formatCurrency(user.pending_reserved)}</h3>
+                    </div>
+                </div>
+
+                <div style="padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white; margin-bottom: 24px;">
+                    <h4 style="margin: 0 0 16px 0; font-size: 1rem; opacity: 0.9;">📊 Tổng quan Cashback</h4>
+
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 20px;">
+                        <div>
+                            <p style="margin: 0 0 4px 0; opacity: 0.8; font-size: 0.85rem;">💰 Tổng Cashback</p>
+                            <p style="margin: 0; font-size: 1.1rem; font-weight: 600;">${formatCurrency(user.total_cashback)}</p>
+                        </div>
+                        <div>
+                            <p style="margin: 0 0 4px 0; opacity: 0.8; font-size: 0.85rem;">✅ Đã Thanh Toán</p>
+                            <p style="margin: 0; font-size: 1.1rem; font-weight: 600;">${formatCurrency(user.paid_cashback)}</p>
+                        </div>
+                        <div>
+                            <p style="margin: 0 0 4px 0; opacity: 0.8; font-size: 0.85rem;">⏳ Chờ Duyệt</p>
+                            <p style="margin: 0; font-size: 1.1rem; font-weight: 600;">${user.pending_conversions_count || 0} đơn - ${formatCurrency(user.pending_cashback)}</p>
+                        </div>
+                        <div>
+                            <p style="margin: 0 0 4px 0; opacity: 0.8; font-size: 0.85rem;">✔️ Đã Duyệt</p>
+                            <p style="margin: 0; font-size: 1.1rem; font-weight: 600;">${user.approved_conversions_count || 0} đơn - ${formatCurrency(user.approved_cashback)}</p>
+                        </div>
+                        <div>
+                            <p style="margin: 0 0 4px 0; opacity: 0.8; font-size: 0.85rem;">❌ Đã Hủy</p>
+                            <p style="margin: 0; font-size: 1.1rem; font-weight: 600;">${user.rejected_conversions_count || 0} đơn - ${formatCurrency(user.rejected_cashback || 0)}</p>
+                        </div>
+                    </div>
+
+                    <div style="padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.2);">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span style="font-size: 0.95rem;">💳 Đơn đã thanh toán:</span>
+                            <span style="font-size: 1.2rem; font-weight: 700;">${user.paid_conversions_count || 0} đơn</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="font-size: 0.95rem;">📝 Yêu cầu thanh toán:</span>
+                            <span style="font-size: 1.2rem; font-weight: 700;">${user.paid_payment_requests || 0} / ${user.total_payment_requests || 0}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="text-align: center;">
+                    <button class="btn-secondary" data-action="close-detail-modal" style="padding: 10px 24px;">
+                        Đóng
+                    </button>
+                </div>
+            </div>
+        `;
+
+        const modal = document.getElementById('detailModal');
+        modal.classList.add('show');
+
+    } catch (error) {
+        console.error('View user detail error:', error);
+        showToast('Lỗi tải chi tiết user', 'error');
+    }
+}
+
+function viewTransactionHistory(userId) {
+    console.log('View transaction history for user:', userId);
+    showToast('Tính năng đang phát triển', 'info');
+    // TODO: Implement view transaction history
+}
+
+function sendReminder(userId) {
+    console.log('Send reminder to user:', userId);
+    showToast('Tính năng đang phát triển', 'info');
+    // TODO: Implement send reminder email
+}
+
+function addActionMenuListeners() {
+    // Event listeners are handled by event delegation above
+    console.log('Action menu listeners ready');
+}
 
 console.log('[cashback-stats.js] CSP-compliant');
