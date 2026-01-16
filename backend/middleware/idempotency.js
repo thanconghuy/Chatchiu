@@ -83,7 +83,7 @@ function validateIdempotencyKey(req, res, next) {
   // Attach to request object for use in route handler
   req.idempotencyKey = key;
 
-  logger.debug('Idempotency key validated', {
+  logger.info('Idempotency key validated', {
     path: req.path,
     userId: req.userId,
     idempotencyKey: key
