@@ -18,6 +18,7 @@ const PaymentAccount = require('../models/PaymentAccount');
 const BalanceManagementService = require('./systemReconciliation/BalanceManagementService');
 const SystemSettingsService = require('./systemSettingsService');
 const logger = require('../utils/logger');
+const paymentEmailHelper = require('./emailHelpers/paymentEmailHelper'); // NEW
 
 class PaymentRequestService {
 
@@ -232,6 +233,67 @@ class PaymentRequestService {
         idempotencyKey
       });
 
+      // ========================================
+      // STEP 8: Send Email Notification to Admin (async, non-blocking)
+      // ========================================
+      setImmediate(async () => {
+        try {
+          // Get full payment request with user info for email
+          const fullPaymentRequest = await PaymentRequest.findById(paymentRequest.id);
+
+          // Get user balance info
+          const userBalanceResult = await db.query(`
+            SELECT
+              total_earned - total_withdrawn - pending_reserved AS available_balance,
+              total_earned,
+              total_withdrawn
+            FROM user_system_balance
+            WHERE user_id = $1
+          `, [userId]);
+
+          const userBalance = userBalanceResult.rows[0] || {
+            available_balance: 0,
+            total_earned: 0,
+            total_withdrawn: 0
+          };
+
+          // Get user payment request stats
+          const statsResult = await db.query(`
+            SELECT
+              COUNT(*) FILTER (WHERE status = 'pending') AS pending_count,
+              COUNT(*) AS total_count
+            FROM payment_requests
+            WHERE user_id = $1
+          `, [userId]);
+
+          const stats = statsResult.rows[0] || { pending_count: 0, total_count: 0 };
+
+          // Send email to admin
+          await paymentEmailHelper.sendPaymentRequestCreatedAdminEmail(
+            fullPaymentRequest,
+            {
+              availableBalance: userBalance.available_balance,
+              totalBalance: userBalance.total_earned,
+              totalWithdrawn: userBalance.total_withdrawn
+            },
+            {
+              pendingCount: parseInt(stats.pending_count),
+              totalCount: parseInt(stats.total_count)
+            }
+          );
+
+          logger.info('Admin notification email sent successfully', {
+            paymentRequestId: paymentRequest.id
+          });
+        } catch (emailError) {
+          logger.error('Failed to send admin notification email', {
+            paymentRequestId: paymentRequest.id,
+            error: emailError.message
+          });
+          // Don't throw - email failure shouldn't affect payment request creation
+        }
+      });
+
       return paymentRequest;
 
     } catch (error) {
@@ -369,6 +431,44 @@ class PaymentRequestService {
         userId,
         amount: paymentRequest.requested_amount,
         reason
+      });
+
+      // ========================================
+      // STEP 7: Send Email Confirmation to User (async, non-blocking)
+      // ========================================
+      setImmediate(async () => {
+        try {
+          // Get full payment request with user info for email
+          const fullPaymentRequest = await PaymentRequest.findById(paymentRequestId);
+
+          // Get current balance after cancellation
+          const balanceResult = await db.query(`
+            SELECT total_earned - total_withdrawn - pending_reserved AS available_balance
+            FROM user_system_balance
+            WHERE user_id = $1
+          `, [userId]);
+
+          const currentBalance = balanceResult.rows[0]?.available_balance || 0;
+
+          // Send email to user
+          await paymentEmailHelper.sendPaymentCancelledEmail(
+            {
+              ...fullPaymentRequest,
+              cancellation_reason: reason
+            },
+            currentBalance
+          );
+
+          logger.info('Cancellation confirmation email sent successfully', {
+            paymentRequestId
+          });
+        } catch (emailError) {
+          logger.error('Failed to send cancellation confirmation email', {
+            paymentRequestId,
+            error: emailError.message
+          });
+          // Don't throw - email failure shouldn't affect cancellation
+        }
       });
 
       return {

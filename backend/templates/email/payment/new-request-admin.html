@@ -1,0 +1,69 @@
+<p>Xin chào <strong>Admin</strong>,</p>
+
+<p>Có một <strong style="color: #f59e0b;">yêu cầu rút tiền mới</strong> cần được xử lý!</p>
+
+<!-- Alert Icon -->
+<div style="text-align: center; margin: 30px 0;">
+  <div style="font-size: 64px; color: #f59e0b;">🔔</div>
+  <p style="font-size: 20px; font-weight: 600; color: #f59e0b; margin: 10px 0;">Yêu Cầu Mới</p>
+</div>
+
+<!-- User Info -->
+<div class="info-box" style="background: #fef3c7; border-left-color: #f59e0b;">
+  <h3>👤 Thông tin người dùng</h3>
+  <p><strong>Tên:</strong> {{userName}}</p>
+  <p><strong>Email:</strong> {{userEmail}}</p>
+  <p><strong>User ID:</strong> <code style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px;">{{userId}}</code></p>
+</div>
+
+<!-- Request Details -->
+<div class="info-box">
+  <h3>💳 Chi tiết yêu cầu rút tiền</h3>
+  <p><strong>Mã yêu cầu:</strong> <code style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px;">{{requestId}}</code></p>
+  <p><strong>Số tiền yêu cầu:</strong> <span style="color: #dc2626; font-weight: 700; font-size: 24px;">{{requestedAmount}}</span></p>
+  <p><strong>Số dư khả dụng:</strong> {{availableBalance}}</p>
+  <p><strong>Ngân hàng:</strong> {{bankName}}</p>
+  <p><strong>Số tài khoản:</strong> {{bankAccountNumber}}</p>
+  <p><strong>Chủ tài khoản:</strong> {{bankAccountName}}</p>
+  {{#if bankBranch}}
+  <p><strong>Chi nhánh:</strong> {{bankBranch}}</p>
+  {{/if}}
+  <p><strong>Thời gian tạo:</strong> {{createdAt}}</p>
+</div>
+
+<!-- User Notes (if any) -->
+{{#if notes}}
+<div class="info-box" style="background: #e0e7ff; border-left-color: #667eea;">
+  <p><strong>📝 Ghi chú từ người dùng:</strong></p>
+  <p style="font-style: italic;">"{{notes}}"</p>
+</div>
+{{/if}}
+
+<!-- Action Required -->
+<div class="warning-box">
+  <p><strong>⚠️ Cần xử lý:</strong></p>
+  <p>Vui lòng kiểm tra và xét duyệt yêu cầu này trong vòng <strong>24 giờ</strong>.</p>
+</div>
+
+<!-- Action Buttons -->
+<div class="button-container" style="margin: 30px 0;">
+  <a href="{{adminPanelUrl}}" class="button" style="background: #10b981; margin-right: 10px;">
+    ✅ Xem & Xét Duyệt
+  </a>
+  <a href="{{userProfileUrl}}" class="button" style="background: #667eea;">
+    👤 Xem Hồ Sơ User
+  </a>
+</div>
+
+<!-- Statistics -->
+<div class="info-box" style="background: #f0fdf4; border-left-color: #10b981;">
+  <h3>📊 Thống kê người dùng</h3>
+  <p><strong>Tổng số dư:</strong> {{totalBalance}}</p>
+  <p><strong>Tổng đã rút:</strong> {{totalWithdrawn}}</p>
+  <p><strong>Số yêu cầu đang chờ:</strong> {{pendingRequestsCount}}</p>
+  <p><strong>Tổng yêu cầu:</strong> {{totalRequestsCount}}</p>
+</div>
+
+<p>Email này được gửi tự động khi có yêu cầu rút tiền mới.</p>
+
+<p>Trân trọng,<br><strong>ChatChiu System</strong></p>

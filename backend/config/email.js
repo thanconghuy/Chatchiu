@@ -22,12 +22,17 @@ module.exports = {
   SUPPORT_URL: `${FRONTEND_URL}/support`,
   SETTINGS_URL: `${FRONTEND_URL}/settings`,
   NOTIFICATION_SETTINGS_URL: `${FRONTEND_URL}/settings/notifications`,
+  // Admin URLs
+  ADMIN_PANEL_URL: `${FRONTEND_URL}/admin/payment-requests`,
+  ADMIN_USER_PROFILE_URL: (userId) => `${FRONTEND_URL}/admin/users/${userId}`,
 
   // Email Types (for logging và stats)
   EMAIL_TYPES: {
     RECONCILIATION_FINALIZED: 'reconciliation_finalized',
+    PAYMENT_REQUEST_CREATED_ADMIN: 'payment_request_created_admin', // NEW: Admin notification
     PAYMENT_CONFIRMED: 'payment_confirmed',
     PAYMENT_REJECTED: 'payment_rejected',
+    PAYMENT_CANCELLED: 'payment_cancelled', // NEW: User cancellation
     PAYMENT_PAID: 'payment_paid'
   },
 

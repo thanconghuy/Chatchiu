@@ -1,0 +1,72 @@
+<p>Xin chào <strong>{{userName}}</strong>,</p>
+
+<p>Yêu cầu rút tiền của bạn đã được <strong style="color: #6b7280;">hủy thành công</strong>.</p>
+
+<!-- Cancel Icon -->
+<div style="text-align: center; margin: 30px 0;">
+  <div style="font-size: 64px; color: #6b7280;">🚫</div>
+  <p style="font-size: 20px; font-weight: 600; color: #6b7280; margin: 10px 0;">Đã Hủy</p>
+</div>
+
+<!-- Details -->
+<div class="info-box">
+  <h3>💳 Thông tin yêu cầu đã hủy</h3>
+  <p><strong>Mã yêu cầu:</strong> <code style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px;">{{requestId}}</code></p>
+  <p><strong>Số tiền:</strong> <span style="color: #6b7280; font-weight: 700; font-size: 20px;">{{requestedAmount}}</span></p>
+  <p><strong>Ngân hàng:</strong> {{bankName}}</p>
+  <p><strong>Số tài khoản:</strong> {{bankAccountNumber}}</p>
+  <p><strong>Trạng thái:</strong> <span style="color: #6b7280; font-weight: 600;">Đã hủy</span></p>
+  <p><strong>Hủy lúc:</strong> {{cancelledAt}}</p>
+</div>
+
+<!-- Balance Info -->
+<div class="success-box">
+  <p><strong>💰 Số dư của bạn:</strong></p>
+  <p>Số tiền <strong>{{requestedAmount}}</strong> đã được hoàn trả về số dư khả dụng của bạn.</p>
+  <p><strong>Số dư khả dụng hiện tại:</strong> <span style="color: #10b981; font-weight: 700; font-size: 18px;">{{currentBalance}}</span></p>
+</div>
+
+<!-- Timeline -->
+<div class="timeline">
+  <div class="timeline-item">
+    <div class="timeline-icon completed">✓</div>
+    <div class="timeline-text completed">Yêu cầu đã gửi</div>
+  </div>
+  <div class="timeline-item">
+    <div class="timeline-icon cancelled">✕</div>
+    <div class="timeline-text" style="color: #6b7280; font-weight: 600;">Đã hủy</div>
+  </div>
+</div>
+
+<!-- Cancellation Reason (if provided) -->
+{{#if cancellationReason}}
+<div class="info-box" style="background: #fef3c7; border-left-color: #f59e0b;">
+  <p><strong>📝 Lý do hủy:</strong></p>
+  <p style="font-style: italic;">"{{cancellationReason}}"</p>
+</div>
+{{/if}}
+
+<!-- Next Steps -->
+<div class="info-box" style="background: #e0e7ff; border-left-color: #667eea;">
+  <p><strong>💡 Bạn có thể:</strong></p>
+  <ul style="margin: 10px 0; padding-left: 20px;">
+    <li>Tạo yêu cầu rút tiền mới bất kỳ lúc nào</li>
+    <li>Số dư đã được hoàn trả và sẵn sàng sử dụng</li>
+    <li>Kiểm tra lịch sử giao dịch của bạn</li>
+  </ul>
+</div>
+
+<p>Nếu bạn không thực hiện thao tác hủy này, vui lòng liên hệ ngay với chúng tôi!</p>
+
+<div class="button-container">
+  <a href="{{createNewRequestUrl}}" class="button" style="background: #10b981; margin-right: 10px;">
+    Tạo Yêu Cầu Mới
+  </a>
+  <a href="{{paymentHistoryUrl}}" class="button">
+    Xem Lịch Sử
+  </a>
+</div>
+
+<p>Nếu có thắc mắc, vui lòng liên hệ <a href="{{supportUrl}}">Hỗ trợ</a> với mã yêu cầu: <code>{{requestId}}</code></p>
+
+<p>Trân trọng,<br><strong>ChatChiu Team</strong></p>
