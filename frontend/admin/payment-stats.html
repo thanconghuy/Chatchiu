@@ -404,6 +404,39 @@
                             <div class="stat-subtext">Số tiền trung bình</div>
                         </div>
                     </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon green">
+                            <i class="fas fa-wallet"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-label">Số Dư Khả Dụng</div>
+                            <div class="stat-value" id="totalAvailableBalance">-</div>
+                            <div class="stat-subtext">Chưa thanh toán</div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon blue">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-label">Users Có Số Dư</div>
+                            <div class="stat-value" id="usersWithBalance">-</div>
+                            <div class="stat-subtext">Đang có cashback</div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon purple">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-label">TB Số Dư/User</div>
+                            <div class="stat-value" id="avgBalancePerUser">-</div>
+                            <div class="stat-subtext">Trung bình khả dụng</div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Filters -->
@@ -500,6 +533,8 @@
                                     <th class="text-right">Tổng Tiền</th>
                                     <th class="text-center">Số Requests</th>
                                     <th class="text-right">TB/Request</th>
+                                    <th class="text-right">Số Dư KD</th>
+                                    <th class="text-right">Pending</th>
                                     <th class="text-center">Lần Đầu</th>
                                     <th class="text-center">Lần Cuối</th>
                                     <th class="text-center">Actions</th>
@@ -507,7 +542,7 @@
                             </thead>
                             <tbody id="dataTableBody">
                                 <tr>
-                                    <td colspan="9" class="loading">
+                                    <td colspan="11" class="loading">
                                         <i class="fas fa-spinner fa-spin"></i>
                                         <div>Đang tải dữ liệu...</div>
                                     </td>

@@ -283,15 +283,12 @@ router.post('/generate-link', authenticateToken, async (req, res) => {
     }
 
     // ========================================
-    // PRIORITY LOGIC:
-    // - Button click (Đi đến merchant): Deeplink FIRST → API fallback
-    // - Link creation (Tạo link): API FIRST → Deeplink fallback
+    // PRIORITY LOGIC (UPDATED):
+    // - TẤT CẢ: API AccessTrade FIRST → Deeplink fallback
+    // - Lý do: API có tracking tốt hơn, conversion rate cao hơn
     // ========================================
-    const preferDeeplink = clickType === 'button';
-
-    console.log('[Link Generation] Priority mode:', {
+    console.log('[Link Generation] Priority: API First → Deeplink Fallback', {
       clickType,
-      preferDeeplink: preferDeeplink ? 'Deeplink → API' : 'API → Deeplink',
       userId: req.userId
     });
 
@@ -349,7 +346,7 @@ router.post('/generate-link', authenticateToken, async (req, res) => {
       const utmContent = click.id;
 
       // ========================================
-      // PRIORITY LOGIC IMPLEMENTATION
+      // PRIORITY LOGIC: API FIRST → DEEPLINK FALLBACK
       // ========================================
       let linkData;
       let linkSource = 'diy';
@@ -361,84 +358,82 @@ router.post('/generate-link', authenticateToken, async (req, res) => {
       const isTikTokShop = isTikTokShopMerchant || isTikTokShopUrl;
 
       // ========================================
-      // BUTTON CLICK: Deeplink FIRST → API fallback
+      // STEP 1: TRY API FIRST (AccessTrade hoặc TikTok Shop)
       // ========================================
-      if (preferDeeplink) {
-        console.log('[Link Generation] 🔵 Button click - Trying Deeplink first...');
+      let apiSuccess = false;
+
+      if (useApiMode) {
+        console.log('[Link Generation] 🟢 Trying API first...', {
+          clickType,
+          isTikTokShop,
+          merchant: merchant.name
+        });
 
         try {
-          // Try DIY deeplink first
-          linkData = generateAffiliateLink(user, merchant, click.id, clickType, productUrl, utmMedium, utmContent);
-          linkSource = 'deeplink';
+          // TikTok Shop API (if applicable)
+          if (isTikTokShop && await tiktokShopLinkService.isAvailable()) {
+            linkData = await tiktokShopLinkService.generateLink(user, click.id, productUrl);
+            linkSource = 'tiktok-api';
+            apiSuccess = true;
 
-          console.log('[Link Generation] ✅ Deeplink success (button)', {
+            // Save product info
+            if (linkData.productInfo?.id) {
+              await Click.updateProductInfo(click.id, linkData.productInfo);
+            }
+
+            console.log('[Link Generation] ✅ TikTok Shop API success', {
+              clickId: click.id,
+              duration: Date.now() - startTime
+            });
+          }
+          // AccessTrade API (for all other merchants)
+          else if (await accessTradeLinkService.isAvailable()) {
+            linkData = await accessTradeLinkService.generateLink(user, merchant, click.id, clickType, productUrl);
+            linkSource = 'api';
+            apiSuccess = true;
+
+            console.log('[Link Generation] ✅ AccessTrade API success', {
+              clickId: click.id,
+              merchant: merchant.name,
+              duration: Date.now() - startTime
+            });
+          }
+          // No API available
+          else {
+            console.warn('[Link Generation] ⚠️ API mode enabled but no service available');
+          }
+        } catch (apiError) {
+          console.error('[Link Generation] ❌ API failed:', {
+            error: apiError.message,
+            merchant: merchant.name
+          });
+          // Will fallback to deeplink below
+        }
+      }
+
+      // ========================================
+      // STEP 2: DEEPLINK FALLBACK (if API failed or disabled)
+      // ========================================
+      if (!apiSuccess) {
+        console.log('[Link Generation] 🔵 Using Deeplink (fallback)...', {
+          reason: useApiMode ? 'API failed' : 'API disabled',
+          merchant: merchant.name
+        });
+
+        try {
+          linkData = generateAffiliateLink(user, merchant, click.id, clickType, productUrl, utmMedium, utmContent);
+          linkSource = useApiMode ? 'deeplink-fallback' : 'deeplink';
+
+          console.log('[Link Generation] ✅ Deeplink success', {
             clickId: click.id,
-            affSid: linkData.affSid,
+            linkSource,
             duration: Date.now() - startTime
           });
         } catch (deeplinkError) {
-          console.error('[Link Generation] ❌ Deeplink failed, trying API...', {
+          console.error('[Link Generation] ❌ Deeplink also failed:', {
             error: deeplinkError.message
           });
-
-          // Fallback to API
-          if (useApiMode && isTikTokShop && await tiktokShopLinkService.isAvailable()) {
-            linkData = await tiktokShopLinkService.generateLink(user, click.id, productUrl);
-            linkSource = 'tiktok-api-fallback';
-          } else if (useApiMode && await accessTradeLinkService.isAvailable()) {
-            linkData = await accessTradeLinkService.generateLink(user, merchant, click.id, clickType, productUrl);
-            linkSource = 'api-fallback';
-          } else {
-            throw deeplinkError; // No API available, throw original error
-          }
-        }
-      }
-      // ========================================
-      // LINK CREATION: API FIRST → Deeplink fallback
-      // ========================================
-      else {
-        console.log('[Link Generation] 🟢 Link creation - Trying API first...');
-
-        if (useApiMode) {
-          try {
-            // Try TikTok Shop API first if applicable
-            if (isTikTokShop && await tiktokShopLinkService.isAvailable()) {
-              linkData = await tiktokShopLinkService.generateLink(user, click.id, productUrl);
-              linkSource = 'tiktok-api';
-
-              // Save product info
-              if (linkData.productInfo?.id) {
-                await Click.updateProductInfo(click.id, linkData.productInfo);
-              }
-            }
-            // Try AccessTrade API
-            else if (await accessTradeLinkService.isAvailable()) {
-              linkData = await accessTradeLinkService.generateLink(user, merchant, click.id, clickType, productUrl);
-              linkSource = 'api';
-            }
-            // No API available
-            else {
-              throw new Error('API mode enabled but no token configured');
-            }
-
-            console.log('[Link Generation] ✅ API success (link creation)', {
-              clickId: click.id,
-              source: linkSource,
-              duration: Date.now() - startTime
-            });
-          } catch (apiError) {
-            console.error('[Link Generation] ❌ API failed, falling back to Deeplink...', {
-              error: apiError.message
-            });
-
-            // Fallback to DIY deeplink
-            linkData = generateAffiliateLink(user, merchant, click.id, clickType, productUrl, utmMedium, utmContent);
-            linkSource = 'deeplink-fallback';
-          }
-        } else {
-          // API disabled, use deeplink
-          linkData = generateAffiliateLink(user, merchant, click.id, clickType, productUrl, utmMedium, utmContent);
-          linkSource = 'deeplink';
+          throw deeplinkError;
         }
       }
 
