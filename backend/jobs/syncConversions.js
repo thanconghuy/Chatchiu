@@ -166,6 +166,88 @@ async function syncConversions(syncDays = 7, syncType = 'auto') {
         logger.error('Failed to update auto_sync_config', { error: configError.message });
         // Don't throw - this is not critical
       }
+
+      // CRITICAL: Sync matched conversions to system_conversions
+      // This ensures the Conversion Management module shows all orders
+      try {
+        logger.info('Syncing matched conversions to system_conversions...');
+
+        // Find conversions that have click_id but not yet in system_conversions
+        const missingConversions = await pool.query(`
+          SELECT
+            c.id as conversion_id,
+            c.click_id,
+            cl.user_id,
+            c.merchant_id,
+            c.order_code,
+            c.order_amount,
+            c.cashback_amount,
+            c.status,
+            c.order_time,
+            c.conversion_time,
+            c.products_count,
+            c.order_approved,
+            c.order_pending,
+            c.order_reject
+          FROM conversions c
+          INNER JOIN clicks cl ON c.click_id = cl.id
+          LEFT JOIN system_conversions sc ON sc.at_conversion_id = c.id
+          WHERE sc.id IS NULL
+            AND cl.user_id IS NOT NULL
+        `);
+
+        if (missingConversions.rows.length > 0) {
+          logger.info(`Found ${missingConversions.rows.length} conversions to sync to system_conversions`);
+
+          let syncedCount = 0;
+          for (const conv of missingConversions.rows) {
+            try {
+              await pool.query(`
+                INSERT INTO system_conversions (
+                  at_conversion_id, click_id, user_id, merchant_id,
+                  order_code, order_amount, cashback_amount, status,
+                  order_time, conversion_time, products_count,
+                  order_approved, order_pending, order_reject,
+                  created_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW())
+                ON CONFLICT (at_conversion_id) DO NOTHING
+              `, [
+                conv.conversion_id,
+                conv.click_id,
+                conv.user_id,
+                conv.merchant_id,
+                conv.order_code,
+                conv.order_amount,
+                conv.cashback_amount,
+                conv.status,
+                conv.order_time,
+                conv.conversion_time,
+                conv.products_count || 0,
+                conv.order_approved || 0,
+                conv.order_pending || 0,
+                conv.order_reject || 0
+              ]);
+              syncedCount++;
+            } catch (insertError) {
+              logger.error('Failed to insert system_conversion', {
+                conversionId: conv.conversion_id,
+                error: insertError.message
+              });
+            }
+          }
+
+          logger.success(`Synced ${syncedCount}/${missingConversions.rows.length} conversions to system_conversions`);
+
+          // Add to results
+          results.systemConversionsSynced = syncedCount;
+        } else {
+          logger.info('No new conversions to sync to system_conversions');
+          results.systemConversionsSynced = 0;
+        }
+      } catch (syncError) {
+        logger.error('Failed to sync to system_conversions', { error: syncError.message });
+        // Don't throw - the main sync was successful
+      }
     }
 
     // Return format compatible with autoSyncService
