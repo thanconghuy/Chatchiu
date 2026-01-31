@@ -1278,10 +1278,201 @@
             <h2 style="margin-bottom: 20px;">
                 <i class="fas fa-chart-bar"></i> Thống Kê Đối Soát
             </h2>
-            <div class="card">
-                <div class="card-body" style="padding: 40px; text-align: center; color: #666;">
-                    <i class="fas fa-chart-line" style="font-size: 48px; opacity: 0.3;"></i>
-                    <p style="margin-top: 16px; font-size: 16px;">Chức năng thống kê đang được phát triển</p>
+
+            <!-- Stats Loading -->
+            <div id="statsLoading" style="text-align: center; padding: 40px;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 32px; color: #6366f1;"></i>
+                <p style="margin-top: 16px;">Đang tải thống kê...</p>
+            </div>
+
+            <!-- Stats Content -->
+            <div id="statsContent" style="display: none;">
+                <!-- Overview Cards Row 1 -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                    <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                        <div class="card-body" style="padding: 20px;">
+                            <div style="font-size: 14px; opacity: 0.9;">Tổng Conversions</div>
+                            <div id="statsTotalConversions" style="font-size: 28px; font-weight: 700; margin-top: 8px;">0</div>
+                            <div style="font-size: 12px; margin-top: 4px; opacity: 0.8;">
+                                <span id="statsApprovedCount">0</span> approved •
+                                <span id="statsPendingCount">0</span> pending
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+                        <div class="card-body" style="padding: 20px;">
+                            <div style="font-size: 14px; opacity: 0.9;">Tổng Cashback</div>
+                            <div id="statsTotalCashback" style="font-size: 28px; font-weight: 700; margin-top: 8px;">0đ</div>
+                            <div style="font-size: 12px; margin-top: 4px; opacity: 0.8;">
+                                Approved: <span id="statsApprovedCashback">0đ</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+                        <div class="card-body" style="padding: 20px;">
+                            <div style="font-size: 14px; opacity: 0.9;">Đã Đối Soát</div>
+                            <div id="statsReconciledCashback" style="font-size: 28px; font-weight: 700; margin-top: 8px;">0đ</div>
+                            <div style="font-size: 12px; margin-top: 4px; opacity: 0.8;">
+                                <span id="statsReconciledCount">0</span> đơn hàng
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
+                        <div class="card-body" style="padding: 20px;">
+                            <div style="font-size: 14px; opacity: 0.9;">Đã Thanh Toán</div>
+                            <div id="statsPaidCashback" style="font-size: 28px; font-weight: 700; margin-top: 8px;">0đ</div>
+                            <div style="font-size: 12px; margin-top: 4px; opacity: 0.8;">
+                                <span id="statsPaidOrders">0</span> đơn hàng
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Overview Cards Row 2 -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                    <div class="card">
+                        <div class="card-body" style="padding: 20px;">
+                            <div style="font-size: 14px; color: #666;">Số Kỳ Đối Soát</div>
+                            <div id="statsTotalReconciliations" style="font-size: 24px; font-weight: 700; color: #1f2937; margin-top: 8px;">0</div>
+                            <div style="font-size: 12px; margin-top: 4px; color: #6b7280;">
+                                <span id="statsReconDraft" style="color: #f59e0b;">0 Draft</span> •
+                                <span id="statsReconFinalized" style="color: #10b981;">0 Finalized</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-body" style="padding: 20px;">
+                            <div style="font-size: 14px; color: #666;">Tổng Người Dùng</div>
+                            <div id="statsUniqueUsers" style="font-size: 24px; font-weight: 700; color: #1f2937; margin-top: 8px;">0</div>
+                            <div style="font-size: 12px; margin-top: 4px; color: #6b7280;">
+                                <span id="statsUsersWithEarnings">0</span> có cashback
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-body" style="padding: 20px;">
+                            <div style="font-size: 14px; color: #666;">Tổng Merchant</div>
+                            <div id="statsUniqueMerchants" style="font-size: 24px; font-weight: 700; color: #1f2937; margin-top: 8px;">0</div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-body" style="padding: 20px;">
+                            <div style="font-size: 14px; color: #666;">Số Dư Khả Dụng</div>
+                            <div id="statsTotalAvailable" style="font-size: 24px; font-weight: 700; color: #10b981; margin-top: 8px;">0đ</div>
+                            <div style="font-size: 12px; margin-top: 4px; color: #6b7280;">
+                                Chờ rút tiền
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Two Column Layout -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+                    <!-- Monthly Trend -->
+                    <div class="card">
+                        <div class="card-header" style="padding: 16px 20px; border-bottom: 1px solid #e5e7eb;">
+                            <h3 style="font-size: 16px; font-weight: 600; margin: 0;">
+                                <i class="fas fa-chart-line" style="color: #6366f1; margin-right: 8px;"></i>
+                                Xu Hướng Theo Tháng
+                            </h3>
+                        </div>
+                        <div class="card-body" style="padding: 20px; max-height: 350px; overflow-y: auto;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                <thead>
+                                    <tr style="background: #f9fafb;">
+                                        <th style="padding: 10px; text-align: left; border-bottom: 1px solid #e5e7eb;">Tháng</th>
+                                        <th style="padding: 10px; text-align: right; border-bottom: 1px solid #e5e7eb;">Đơn hàng</th>
+                                        <th style="padding: 10px; text-align: right; border-bottom: 1px solid #e5e7eb;">Users</th>
+                                        <th style="padding: 10px; text-align: right; border-bottom: 1px solid #e5e7eb;">Cashback</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="statsMonthlyTrend">
+                                    <tr><td colspan="4" style="padding: 20px; text-align: center; color: #999;">Đang tải...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Top Merchants -->
+                    <div class="card">
+                        <div class="card-header" style="padding: 16px 20px; border-bottom: 1px solid #e5e7eb;">
+                            <h3 style="font-size: 16px; font-weight: 600; margin: 0;">
+                                <i class="fas fa-store" style="color: #10b981; margin-right: 8px;"></i>
+                                Top 10 Merchant
+                            </h3>
+                        </div>
+                        <div class="card-body" style="padding: 20px; max-height: 350px; overflow-y: auto;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                <thead>
+                                    <tr style="background: #f9fafb;">
+                                        <th style="padding: 10px; text-align: left; border-bottom: 1px solid #e5e7eb;">Merchant</th>
+                                        <th style="padding: 10px; text-align: right; border-bottom: 1px solid #e5e7eb;">Đơn</th>
+                                        <th style="padding: 10px; text-align: right; border-bottom: 1px solid #e5e7eb;">Cashback</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="statsTopMerchants">
+                                    <tr><td colspan="3" style="padding: 20px; text-align: center; color: #999;">Đang tải...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Two Column Layout Row 2 -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                    <!-- Recent Reconciliations -->
+                    <div class="card">
+                        <div class="card-header" style="padding: 16px 20px; border-bottom: 1px solid #e5e7eb;">
+                            <h3 style="font-size: 16px; font-weight: 600; margin: 0;">
+                                <i class="fas fa-history" style="color: #f59e0b; margin-right: 8px;"></i>
+                                Kỳ Đối Soát Gần Đây
+                            </h3>
+                        </div>
+                        <div class="card-body" style="padding: 20px; max-height: 350px; overflow-y: auto;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                <thead>
+                                    <tr style="background: #f9fafb;">
+                                        <th style="padding: 10px; text-align: left; border-bottom: 1px solid #e5e7eb;">Kỳ</th>
+                                        <th style="padding: 10px; text-align: center; border-bottom: 1px solid #e5e7eb;">Trạng thái</th>
+                                        <th style="padding: 10px; text-align: right; border-bottom: 1px solid #e5e7eb;">Cashback</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="statsRecentReconciliations">
+                                    <tr><td colspan="3" style="padding: 20px; text-align: center; color: #999;">Đang tải...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Top Users -->
+                    <div class="card">
+                        <div class="card-header" style="padding: 16px 20px; border-bottom: 1px solid #e5e7eb;">
+                            <h3 style="font-size: 16px; font-weight: 600; margin: 0;">
+                                <i class="fas fa-users" style="color: #ef4444; margin-right: 8px;"></i>
+                                Top 10 Users (Số Dư Cao)
+                            </h3>
+                        </div>
+                        <div class="card-body" style="padding: 20px; max-height: 350px; overflow-y: auto;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                <thead>
+                                    <tr style="background: #f9fafb;">
+                                        <th style="padding: 10px; text-align: left; border-bottom: 1px solid #e5e7eb;">User</th>
+                                        <th style="padding: 10px; text-align: right; border-bottom: 1px solid #e5e7eb;">Đơn</th>
+                                        <th style="padding: 10px; text-align: right; border-bottom: 1px solid #e5e7eb;">Số dư</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="statsTopUsers">
+                                    <tr><td colspan="3" style="padding: 20px; text-align: center; color: #999;">Đang tải...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1822,6 +2013,7 @@
 
                 if (result.success) {
                     displayStats(result.data);
+                    displayComprehensiveStats(result.data);
                 } else {
                     console.error('[System Recon] Stats failed:', result.message);
                     document.getElementById('statsCards').innerHTML = `<div class="error">Lỗi: ${result.message}</div>`;
@@ -1871,6 +2063,146 @@
             `;
 
             document.getElementById('statsCards').innerHTML = html;
+        }
+
+        // Comprehensive Stats Display for Stats Tab
+        function displayComprehensiveStats(data) {
+            // Hide loading, show content
+            const statsLoading = document.getElementById('statsLoading');
+            const statsContent = document.getElementById('statsContent');
+            if (statsLoading) statsLoading.style.display = 'none';
+            if (statsContent) statsContent.style.display = 'block';
+
+            const conv = data.conversions_stats || {};
+            const recon = data.reconciliation_stats || {};
+            const balance = data.user_balance_stats || {};
+
+            // Overview Cards - Row 1
+            setText('statsTotalConversions', formatNumber(conv.total_conversions));
+            setText('statsApprovedCount', formatNumber(conv.approved_count));
+            setText('statsPendingCount', formatNumber(conv.pending_count));
+            setText('statsTotalCashback', formatMoney(conv.total_cashback));
+            setText('statsApprovedCashback', formatMoney(conv.approved_cashback));
+            setText('statsReconciledCashback', formatMoney(conv.reconciled_cashback));
+            setText('statsReconciledCount', formatNumber(conv.reconciled_count));
+            setText('statsPaidCashback', formatMoney(conv.paid_cashback));
+            setText('statsPaidOrders', formatNumber(conv.paid_orders));
+
+            // Overview Cards - Row 2
+            setText('statsTotalReconciliations', formatNumber(recon.total_reconciliations));
+            setText('statsReconDraft', `${formatNumber(recon.draft_count)} Draft`);
+            setText('statsReconFinalized', `${formatNumber(recon.finalized_count)} Finalized`);
+            setText('statsUniqueUsers', formatNumber(conv.unique_users));
+            setText('statsUsersWithEarnings', formatNumber(balance.users_with_earnings));
+            setText('statsUniqueMerchants', formatNumber(conv.unique_merchants));
+            setText('statsTotalAvailable', formatMoney(balance.total_available_balance));
+
+            // Monthly Trend Table
+            const monthlyTrend = data.monthly_trend || [];
+            const monthlyTrendHtml = monthlyTrend.length > 0 ? monthlyTrend.map(row => `
+                <tr>
+                    <td style="padding: 10px; border-bottom: 1px solid #f3f4f6;">${formatMonthLabel(row.month)}</td>
+                    <td style="padding: 10px; text-align: right; border-bottom: 1px solid #f3f4f6;">${formatNumber(row.order_count)}</td>
+                    <td style="padding: 10px; text-align: right; border-bottom: 1px solid #f3f4f6;">${formatNumber(row.user_count)}</td>
+                    <td style="padding: 10px; text-align: right; border-bottom: 1px solid #f3f4f6; color: #10b981; font-weight: 500;">${formatMoney(row.cashback_amount)}</td>
+                </tr>
+            `).join('') : '<tr><td colspan="4" style="padding: 20px; text-align: center; color: #999;">Chưa có dữ liệu</td></tr>';
+            document.getElementById('statsMonthlyTrend').innerHTML = monthlyTrendHtml;
+
+            // Top Merchants Table
+            const topMerchants = data.top_merchants || [];
+            const merchantsHtml = topMerchants.length > 0 ? topMerchants.map((m, i) => `
+                <tr>
+                    <td style="padding: 10px; border-bottom: 1px solid #f3f4f6;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="background: ${i < 3 ? '#fef3c7' : '#f3f4f6'}; color: ${i < 3 ? '#d97706' : '#6b7280'}; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600;">${i+1}</span>
+                            <span style="font-weight: 500;">${escapeHtml(m.merchant_name || m.merchant_id)}</span>
+                        </div>
+                    </td>
+                    <td style="padding: 10px; text-align: right; border-bottom: 1px solid #f3f4f6;">${formatNumber(m.order_count)}</td>
+                    <td style="padding: 10px; text-align: right; border-bottom: 1px solid #f3f4f6; color: #10b981; font-weight: 500;">${formatMoney(m.total_cashback)}</td>
+                </tr>
+            `).join('') : '<tr><td colspan="3" style="padding: 20px; text-align: center; color: #999;">Chưa có dữ liệu</td></tr>';
+            document.getElementById('statsTopMerchants').innerHTML = merchantsHtml;
+
+            // Recent Reconciliations Table
+            const recentRecons = data.recent_reconciliations || [];
+            const reconsHtml = recentRecons.length > 0 ? recentRecons.map(r => `
+                <tr>
+                    <td style="padding: 10px; border-bottom: 1px solid #f3f4f6;">
+                        <div style="font-weight: 500;">${escapeHtml(r.period_label)}</div>
+                        <div style="font-size: 11px; color: #6b7280;">${r.total_orders || 0} đơn • ${r.total_users || 0} users</div>
+                    </td>
+                    <td style="padding: 10px; text-align: center; border-bottom: 1px solid #f3f4f6;">
+                        <span style="padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; ${getStatusStyle(r.status)}">${getStatusLabel(r.status)}</span>
+                    </td>
+                    <td style="padding: 10px; text-align: right; border-bottom: 1px solid #f3f4f6; color: #10b981; font-weight: 500;">${formatMoney(r.total_cashback)}</td>
+                </tr>
+            `).join('') : '<tr><td colspan="3" style="padding: 20px; text-align: center; color: #999;">Chưa có kỳ đối soát</td></tr>';
+            document.getElementById('statsRecentReconciliations').innerHTML = reconsHtml;
+
+            // Top Users Table
+            const topUsers = data.top_users || [];
+            const usersHtml = topUsers.length > 0 ? topUsers.map((u, i) => `
+                <tr>
+                    <td style="padding: 10px; border-bottom: 1px solid #f3f4f6;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="background: ${i < 3 ? '#dbeafe' : '#f3f4f6'}; color: ${i < 3 ? '#2563eb' : '#6b7280'}; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600;">${i+1}</span>
+                            <div>
+                                <div style="font-weight: 500;">${escapeHtml(u.full_name || 'N/A')}</div>
+                                <div style="font-size: 11px; color: #6b7280;">${escapeHtml(u.email || '')}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td style="padding: 10px; text-align: right; border-bottom: 1px solid #f3f4f6;">${formatNumber(u.order_count)}</td>
+                    <td style="padding: 10px; text-align: right; border-bottom: 1px solid #f3f4f6; color: #10b981; font-weight: 600;">${formatMoney(u.available_balance)}</td>
+                </tr>
+            `).join('') : '<tr><td colspan="3" style="padding: 20px; text-align: center; color: #999;">Chưa có dữ liệu</td></tr>';
+            document.getElementById('statsTopUsers').innerHTML = usersHtml;
+        }
+
+        // Helper functions for stats display
+        function setText(id, value) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value;
+        }
+
+        function formatNumber(num) {
+            if (num === null || num === undefined) return '0';
+            return parseInt(num).toLocaleString('vi-VN');
+        }
+
+        function formatMonthLabel(monthStr) {
+            if (!monthStr) return 'N/A';
+            const [year, month] = monthStr.split('-');
+            return `Tháng ${parseInt(month)}/${year}`;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function getStatusStyle(status) {
+            switch(status) {
+                case 'draft': return 'background: #fef3c7; color: #d97706;';
+                case 'finalized': return 'background: #d1fae5; color: #059669;';
+                case 'paid': return 'background: #dbeafe; color: #2563eb;';
+                case 'cancelled': return 'background: #fee2e2; color: #dc2626;';
+                default: return 'background: #f3f4f6; color: #6b7280;';
+            }
+        }
+
+        function getStatusLabel(status) {
+            switch(status) {
+                case 'draft': return 'Chờ duyệt';
+                case 'finalized': return 'Đã duyệt';
+                case 'paid': return 'Đã TT';
+                case 'cancelled': return 'Đã hủy';
+                default: return status || 'N/A';
+            }
         }
 
         async function loadReconciliations() {
@@ -3507,6 +3839,8 @@
                 loadStats();
             } else if (tabName === 'auto-sync') {
                 loadAutoSyncData();
+            } else if (tabName === 'stats') {
+                loadStats();
             }
         }
 

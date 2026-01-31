@@ -65,14 +65,28 @@ router.get('/summary', authenticateAdmin, async (req, res) => {
       : 0;
 
     // NEW: Get available balance statistics from user_system_balance
+    // FIXED: Tính từ conversions ĐÃ ĐỐI SOÁT
     const balanceQuery = `
+      WITH user_balances AS (
+        SELECT
+          usb.user_id,
+          GREATEST(0,
+            COALESCE((
+              SELECT SUM(cashback_amount)
+              FROM system_conversions sc
+              WHERE sc.user_id = usb.user_id
+                AND sc.status = 'approved'
+                AND sc.system_reconciliation_status = 'reconciled'
+                AND (sc.payment_status IS NULL OR sc.payment_status = 'unpaid')
+            ), 0) - COALESCE(usb.total_withdrawn, 0) - COALESCE(usb.pending_reserved, 0)
+          ) as available_balance
+        FROM user_system_balance usb
+      )
       SELECT
-        COALESCE(SUM(total_earned - total_withdrawn - pending_reserved), 0) as total_available_balance,
-        COUNT(*) FILTER (WHERE (total_earned - total_withdrawn - pending_reserved) > 0) as users_with_balance,
-        COALESCE(AVG(CASE WHEN (total_earned - total_withdrawn - pending_reserved) > 0
-                          THEN (total_earned - total_withdrawn - pending_reserved)
-                          ELSE NULL END), 0) as avg_balance_per_user
-      FROM user_system_balance
+        COALESCE(SUM(available_balance), 0) as total_available_balance,
+        COUNT(*) FILTER (WHERE available_balance > 0) as users_with_balance,
+        COALESCE(AVG(CASE WHEN available_balance > 0 THEN available_balance ELSE NULL END), 0) as avg_balance_per_user
+      FROM user_balances
     `;
 
     const balanceResult = await pool.query(balanceQuery);
@@ -203,8 +217,17 @@ router.get('/users', authenticateAdmin, async (req, res) => {
         MIN(pr.paid_at) as first_payment_date,
         MAX(pr.paid_at) as last_payment_date,
 
-        -- Balance information from user_system_balance
-        COALESCE(usb.total_earned - usb.total_withdrawn - usb.pending_reserved, 0) as available_balance,
+        -- FIXED: Balance information - tính từ conversions ĐÃ ĐỐI SOÁT
+        GREATEST(0,
+          COALESCE((
+            SELECT SUM(cashback_amount)
+            FROM system_conversions sc
+            WHERE sc.user_id = u.id
+              AND sc.status = 'approved'
+              AND sc.system_reconciliation_status = 'reconciled'
+              AND (sc.payment_status IS NULL OR sc.payment_status = 'unpaid')
+          ), 0) - COALESCE(usb.total_withdrawn, 0) - COALESCE(usb.pending_reserved, 0)
+        ) as available_balance,
         COALESCE(usb.pending_reserved, 0) as pending_reserved
 
       FROM users u
@@ -213,7 +236,7 @@ router.get('/users', authenticateAdmin, async (req, res) => {
       WHERE pr.status = 'paid'
         ${dateFilter}
         ${searchFilter}
-      GROUP BY u.id, u.email, u.full_name, u.phone, usb.total_earned, usb.total_withdrawn, usb.pending_reserved
+      GROUP BY u.id, u.email, u.full_name, u.phone, usb.total_withdrawn, usb.pending_reserved
       ORDER BY ${sortColumn} ${sortDirection}
       LIMIT $${limitIndex} OFFSET $${offsetIndex}
     `;

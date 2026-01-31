@@ -117,7 +117,8 @@ class PaymentRequestService {
       // STEP 2: Start Transaction
       // ========================================
       await client.query('BEGIN');
-      await client.query('SET TRANSACTION ISOLATION LEVEL SERIALIZABLE');
+      // Note: Using READ COMMITTED (default) + FOR UPDATE for row-level locking
+      // SERIALIZABLE was causing performance issues with Neon serverless
 
       logger.info('Creating payment request with reserve logic', {
         userId,
@@ -759,14 +760,52 @@ class PaymentRequestService {
   /**
    * Check Eligibility for Payment Request
    *
+   * FIXED: Tính available_balance từ conversions ĐÃ ĐỐI SOÁT (reconciled)
+   *
    * @param {string} userId
    * @returns {Promise<Object>}
    */
   async checkEligibility(userId) {
     try {
-      // Get current balance
-      const balance = await BalanceManagementService.getUserBalance(userId);
-      const availableBalance = parseFloat(balance.available_balance);
+      // Get balance info from user_system_balance
+      const balanceResult = await db.query(`
+        SELECT
+          COALESCE(total_earned, 0) as total_earned,
+          COALESCE(total_withdrawn, 0) as total_withdrawn,
+          COALESCE(pending_reserved, 0) as pending_reserved,
+          COALESCE(debt_balance, 0) as debt_balance
+        FROM user_system_balance
+        WHERE user_id = $1
+      `, [userId]);
+
+      const balanceRow = balanceResult.rows[0] || {
+        total_earned: 0,
+        total_withdrawn: 0,
+        pending_reserved: 0,
+        debt_balance: 0
+      };
+
+      const totalEarned = parseFloat(balanceRow.total_earned);
+      const totalWithdrawn = parseFloat(balanceRow.total_withdrawn);
+      const pendingReserved = parseFloat(balanceRow.pending_reserved);
+      const debt = parseFloat(balanceRow.debt_balance);
+
+      // FIXED: Tính số dư khả dụng từ conversions ĐÃ ĐỐI SOÁT
+      // Số dư khả dụng = Cashback đã đối soát - Đã rút - Đang chờ xử lý
+      const reconciledResult = await db.query(`
+        SELECT COALESCE(SUM(cashback_amount), 0) as reconciled_cashback
+        FROM system_conversions
+        WHERE user_id = $1
+          AND status = 'approved'
+          AND system_reconciliation_status = 'reconciled'
+          AND (payment_status IS NULL OR payment_status = 'unpaid')
+      `, [userId]);
+
+      const reconciledCashback = parseFloat(reconciledResult.rows[0].reconciled_cashback);
+
+      // SỐ DƯ KHẢ DỤNG ĐÚNG = Đã đối soát - Đã rút - Đang chờ xử lý
+      const availableBalance = Math.max(0, reconciledCashback - totalWithdrawn - pendingReserved);
+
       const minAmount = await SystemSettingsService.getSetting('min_withdrawal_amount') || 40000;
 
       // Check for pending requests
@@ -781,7 +820,7 @@ class PaymentRequestService {
       const pendingCount = parseInt(pendingResult.rows[0].count);
       const pendingTotal = parseFloat(pendingResult.rows[0].total);
 
-      // Get total confirmed cashback (approved conversions not yet paid)
+      // Get total confirmed cashback (approved conversions not yet paid - for display)
       const confirmedResult = await db.query(`
         SELECT COALESCE(SUM(cashback_amount), 0) as total
         FROM system_conversions
@@ -792,17 +831,9 @@ class PaymentRequestService {
 
       const totalConfirmedCashback = parseFloat(confirmedResult.rows[0].total);
 
-      // Check debt
-      const debt = parseFloat(balance.debt_balance || 0);
-
-      // FIXED: Cho phép tạo request mới nếu còn đủ số dư khả dụng
-      // Không chặn vì có pending requests (vì balance đã được reserve)
       const isEligible = (
         availableBalance >= minAmount &&
         debt === 0
-        // REMOVED: pendingCount === 0
-        // Lý do: Balance đã được reserve khi tạo pending request,
-        // nên available_balance đã phản ánh đúng số dư có thể rút
       );
 
       return {
@@ -810,8 +841,9 @@ class PaymentRequestService {
         eligible: isEligible, // Backward compatibility
         availableBalance: availableBalance,
         available_balance: availableBalance, // Backward compatibility
-        totalConfirmedCashback: totalConfirmedCashback, // For frontend display
-        totalRequested: pendingTotal, // For frontend display
+        reconciledCashback: reconciledCashback, // NEW: Hiển thị cashback đã đối soát
+        totalConfirmedCashback: totalConfirmedCashback, // Tổng cashback đã duyệt (bao gồm chưa đối soát)
+        totalRequested: pendingTotal,
         minAmount: minAmount,
         min_withdrawal_amount: minAmount, // Backward compatibility
         pendingRequests: pendingCount,
@@ -820,14 +852,14 @@ class PaymentRequestService {
         pending_amount: pendingTotal, // Backward compatibility
         debtBalance: debt,
         debt_balance: debt, // Backward compatibility
-        totalEarned: parseFloat(balance.total_earned),
-        total_earned: parseFloat(balance.total_earned), // Backward compatibility
-        totalWithdrawn: parseFloat(balance.total_withdrawn),
-        total_withdrawn: parseFloat(balance.total_withdrawn), // Backward compatibility
+        totalEarned: totalEarned,
+        total_earned: totalEarned, // Backward compatibility
+        totalWithdrawn: totalWithdrawn,
+        total_withdrawn: totalWithdrawn, // Backward compatibility
+        pendingReserved: pendingReserved, // NEW: Số dư đang chờ xử lý
         reasons: isEligible ? [] : [
           availableBalance < minAmount && `Số dư khả dụng thấp hơn mức tối thiểu (${minAmount.toLocaleString('vi-VN')}đ)`,
           debt > 0 && `Có khoản nợ chưa thanh toán (${debt.toLocaleString('vi-VN')}đ)`
-          // REMOVED: pendingCount check from reasons
         ].filter(Boolean)
       };
 
