@@ -3253,19 +3253,34 @@ router.get('/tools/test-at-api', authenticateAdmin, async (req, res) => {
 });
 
 /**
- * POST /api/admin/cron/auto-sync
+ * GET/POST /api/admin/cron/auto-sync
  * Endpoint for Vercel Cron Jobs to trigger auto-sync
- * Requires CRON_SECRET in Authorization header for security
+ *
+ * Authentication (any of these):
+ * - CRON_SECRET in Authorization header
+ * - x-vercel-cron header (Vercel Cron)
+ *
+ * WORKFLOW:
+ * 1. Sync conversions from AccessTrade API → conversions table
+ * 2. Sync matched conversions → system_conversions table
  */
-router.post('/cron/auto-sync', async (req, res) => {
+async function handleCronAutoSync(req, res) {
   try {
-    // Verify cron secret
+    // Verify authorization - multiple methods supported
     const cronSecret = req.headers.authorization?.replace('Bearer ', '');
+    const vercelCron = req.headers['x-vercel-cron'];
     const expectedSecret = process.env.CRON_SECRET;
 
-    if (!expectedSecret || cronSecret !== expectedSecret) {
+    // Allow if: valid CRON_SECRET OR Vercel Cron header present
+    const isAuthorized =
+      (expectedSecret && cronSecret === expectedSecret) ||
+      vercelCron === '1' ||
+      vercelCron === 'true';
+
+    if (!isAuthorized) {
       logger.warn('Unauthorized cron request', {
         hasSecret: !!cronSecret,
+        hasVercelHeader: !!vercelCron,
         ip: req.ip
       });
       return res.status(401).json({
@@ -3274,21 +3289,95 @@ router.post('/cron/auto-sync', async (req, res) => {
       });
     }
 
-    // Get config to determine sync days
+    // Check if auto sync is enabled
     const config = await AutoSyncConfig.getConfig();
+
+    if (!config.enabled) {
+      logger.info('Cron auto-sync skipped - disabled in config');
+      return res.json({
+        success: true,
+        message: 'Auto-sync is disabled',
+        skipped: true
+      });
+    }
+
     const syncDays = config.sync_days || 2;
 
     logger.info('Cron auto-sync triggered', {
       syncDays,
-      ip: req.ip
+      ip: req.ip,
+      method: req.method
     });
 
-    const result = await autoSyncService.triggerManualSync(syncDays);
+    // STEP 1: Sync from AccessTrade API
+    const syncResult = await autoSyncService.triggerManualSync(syncDays);
+
+    // STEP 2: Sync matched conversions to system_conversions
+    let systemSyncCount = 0;
+    try {
+      const missingQuery = `
+        SELECT
+          c.id as conversion_id,
+          c.click_id,
+          cl.user_id,
+          c.merchant_id,
+          c.merchant_name,
+          c.order_code,
+          c.order_amount,
+          c.commission,
+          c.cashback_amount,
+          c.status,
+          c.order_time,
+          c.created_at
+        FROM conversions c
+        INNER JOIN clicks cl ON c.click_id = cl.id
+        LEFT JOIN system_conversions sc ON sc.at_conversion_id = c.id
+        WHERE sc.id IS NULL
+          AND cl.user_id IS NOT NULL
+        ORDER BY c.order_time DESC
+      `;
+
+      const { pool } = require('../config/database');
+      const missingResult = await pool.query(missingQuery);
+
+      for (const conv of missingResult.rows) {
+        try {
+          await pool.query(`
+            INSERT INTO system_conversions (
+              at_conversion_id, user_id, click_id, merchant_id, merchant_name,
+              order_code, order_amount, commission, cashback_amount, status,
+              order_time, created_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            ON CONFLICT (at_conversion_id) DO NOTHING
+          `, [
+            conv.conversion_id, conv.user_id, conv.click_id, conv.merchant_id,
+            conv.merchant_name, conv.order_code, conv.order_amount, conv.commission,
+            conv.cashback_amount, conv.status, conv.order_time, conv.created_at
+          ]);
+          systemSyncCount++;
+        } catch (err) {
+          logger.warn('Failed to sync conversion to system', {
+            conversionId: conv.conversion_id,
+            error: err.message
+          });
+        }
+      }
+
+      logger.info('Synced conversions to system_conversions', {
+        count: systemSyncCount,
+        total: missingResult.rows.length
+      });
+    } catch (err) {
+      logger.error('Failed to sync to system_conversions', { error: err.message });
+    }
 
     res.json({
       success: true,
       message: 'Cron sync completed successfully',
-      result
+      result: {
+        ...syncResult,
+        systemSynced: systemSyncCount
+      }
     });
   } catch (error) {
     logger.error('Cron auto-sync error:', error);
@@ -3297,7 +3386,11 @@ router.post('/cron/auto-sync', async (req, res) => {
       message: error.message || 'Failed to run cron sync'
     });
   }
-});
+}
+
+// Support both GET and POST for Vercel Cron compatibility
+router.get('/cron/auto-sync', handleCronAutoSync);
+router.post('/cron/auto-sync', handleCronAutoSync);
 
 /**
  * GET /api/admin/tools/link-mode-status
