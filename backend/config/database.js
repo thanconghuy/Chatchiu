@@ -29,8 +29,9 @@ const poolConfig = {
 
 // Optimize pool settings for serverless vs local
 if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-  // Serverless optimization - allow a few connections for concurrent requests
-  poolConfig.max = 3; // Allow up to 3 connections per serverless instance
+  // Serverless optimization - allow more connections for concurrent requests
+  // Neon free tier allows up to 100 concurrent connections
+  poolConfig.max = 5; // Increased from 3 to handle concurrent payment requests
   poolConfig.idleTimeoutMillis = 10000; // Close idle after 10s
   poolConfig.connectionTimeoutMillis = 30000; // 30s timeout (Neon cold start can take time)
   poolConfig.allowExitOnIdle = true; // Allow exit when idle (serverless)

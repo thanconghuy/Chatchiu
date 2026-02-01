@@ -70,11 +70,40 @@ class PaymentRequestService {
       paymentAccountId = null
     } = params;
 
+    // ========================================
+    // STEP 0: Get settings BEFORE acquiring pool connection
+    // This prevents pool exhaustion when SystemSettingsService makes its own queries
+    // ========================================
+    const minAmount = await SystemSettingsService.getSetting('min_withdrawal_amount') || 40000;
+    const maxAmount = await SystemSettingsService.getSetting('max_withdrawal_amount') || 500000;
+
+    // ========================================
+    // STEP 1: Validate Input (before acquiring connection)
+    // ========================================
+    if (requestedAmount < minAmount) {
+      const error = new Error(`Số tiền tối thiểu là ${minAmount.toLocaleString('vi-VN')}đ`);
+      error.code = 'BELOW_MIN_AMOUNT';
+      throw error;
+    }
+
+    if (requestedAmount > maxAmount) {
+      const error = new Error(`Số tiền tối đa là ${maxAmount.toLocaleString('vi-VN')}đ`);
+      error.code = 'ABOVE_MAX_AMOUNT';
+      throw error;
+    }
+
+    if (!bankName || !bankAccountNumber || !bankAccountName) {
+      const error = new Error('Thông tin ngân hàng không đầy đủ');
+      error.code = 'INVALID_BANK_INFO';
+      throw error;
+    }
+
+    // Now acquire pool connection for transaction
     const client = await db.pool.connect();
 
     try {
       // ========================================
-      // STEP 0: Idempotency Check
+      // STEP 2: Idempotency Check
       // ========================================
       const existingRequest = await client.query(`
         SELECT * FROM payment_requests
@@ -86,35 +115,12 @@ class PaymentRequestService {
           idempotencyKey,
           existingRequestId: existingRequest.rows[0].id
         });
+        client.release(); // Release early for idempotent requests
         return existingRequest.rows[0];
       }
 
       // ========================================
-      // STEP 1: Validate Input
-      // ========================================
-      const minAmount = await SystemSettingsService.getSetting('min_withdrawal_amount') || 40000;
-      const maxAmount = await SystemSettingsService.getSetting('max_withdrawal_amount') || 500000;
-
-      if (requestedAmount < minAmount) {
-        const error = new Error(`Số tiền tối thiểu là ${minAmount.toLocaleString('vi-VN')}đ`);
-        error.code = 'BELOW_MIN_AMOUNT';
-        throw error;
-      }
-
-      if (requestedAmount > maxAmount) {
-        const error = new Error(`Số tiền tối đa là ${maxAmount.toLocaleString('vi-VN')}đ`);
-        error.code = 'ABOVE_MAX_AMOUNT';
-        throw error;
-      }
-
-      if (!bankName || !bankAccountNumber || !bankAccountName) {
-        const error = new Error('Thông tin ngân hàng không đầy đủ');
-        error.code = 'INVALID_BANK_INFO';
-        throw error;
-      }
-
-      // ========================================
-      // STEP 2: Start Transaction
+      // STEP 3: Start Transaction
       // ========================================
       await client.query('BEGIN');
       // Note: Using READ COMMITTED (default) + FOR UPDATE for row-level locking
