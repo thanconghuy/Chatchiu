@@ -89,11 +89,29 @@ router.get('/', authenticateAdmin, async (req, res) => {
         -- Cashback đã thanh toán
         COALESCE(usb.total_withdrawn, 0) as paid_cashback,
 
-        -- Số dư còn lại (available_balance - auto computed)
-        COALESCE(usb.available_balance, 0) as available_balance,
+        -- FIXED: Số dư khả dụng = Đã đối soát - Đã rút - Đang chờ xử lý
+        GREATEST(0,
+          COALESCE((
+            SELECT SUM(cashback_amount)
+            FROM system_conversions
+            WHERE user_id = u.id
+              AND status = 'approved'
+              AND system_reconciliation_status = 'reconciled'
+              AND (payment_status IS NULL OR payment_status = 'unpaid')
+          ), 0) - COALESCE(usb.total_withdrawn, 0) - COALESCE(usb.pending_reserved, 0)
+        ) as available_balance,
 
         -- Số dư đang chờ xử lý payment request
-        COALESCE(usb.pending_reserved, 0) as pending_reserved
+        COALESCE(usb.pending_reserved, 0) as pending_reserved,
+
+        -- NEW: Cashback đã đối soát (reconciled)
+        COALESCE((
+          SELECT SUM(cashback_amount)
+          FROM system_conversions
+          WHERE user_id = u.id
+            AND status = 'approved'
+            AND system_reconciliation_status = 'reconciled'
+        ), 0) as reconciled_cashback
 
       FROM users u
       LEFT JOIN user_system_balance usb ON u.id = usb.user_id
@@ -195,8 +213,28 @@ router.get('/:userId', authenticateAdmin, async (req, res) => {
         -- Balance info
         COALESCE(usb.total_earned, 0) as total_cashback,
         COALESCE(usb.total_withdrawn, 0) as paid_cashback,
-        COALESCE(usb.available_balance, 0) as available_balance,
         COALESCE(usb.pending_reserved, 0) as pending_reserved,
+
+        -- FIXED: Số dư khả dụng = Đã đối soát - Đã rút - Đang chờ xử lý
+        GREATEST(0,
+          COALESCE((
+            SELECT SUM(cashback_amount)
+            FROM system_conversions
+            WHERE user_id = u.id
+              AND status = 'approved'
+              AND system_reconciliation_status = 'reconciled'
+              AND (payment_status IS NULL OR payment_status = 'unpaid')
+          ), 0) - COALESCE(usb.total_withdrawn, 0) - COALESCE(usb.pending_reserved, 0)
+        ) as available_balance,
+
+        -- NEW: Cashback đã đối soát
+        COALESCE((
+          SELECT SUM(cashback_amount)
+          FROM system_conversions
+          WHERE user_id = u.id
+            AND status = 'approved'
+            AND system_reconciliation_status = 'reconciled'
+        ), 0) as reconciled_cashback,
 
         -- Conversion stats
         (

@@ -32,13 +32,26 @@ router.get('/profile', authenticateToken, async (req, res) => {
         const stats = await User.getStats(userId);
 
         // Get system reconciliation balance (from finalized reconciliations)
+        // FIXED: Tính available_balance từ conversions ĐÃ ĐỐI SOÁT
         const systemBalanceQuery = `
             SELECT
-                COALESCE(available_balance, 0) as system_available,
-                COALESCE(pending_balance, 0) as system_pending,
-                COALESCE(total_earned, 0) as system_total
-            FROM user_system_balance
-            WHERE user_id = $1
+                COALESCE(usb.pending_balance, 0) as system_pending,
+                COALESCE(usb.total_earned, 0) as system_total,
+                COALESCE(usb.total_withdrawn, 0) as system_withdrawn,
+                COALESCE(usb.pending_reserved, 0) as system_reserved,
+                -- Số dư khả dụng = Đã đối soát - Đã rút - Đang chờ xử lý
+                GREATEST(0,
+                  COALESCE((
+                    SELECT SUM(cashback_amount)
+                    FROM system_conversions
+                    WHERE user_id = $1
+                      AND status = 'approved'
+                      AND system_reconciliation_status = 'reconciled'
+                      AND (payment_status IS NULL OR payment_status = 'unpaid')
+                  ), 0) - COALESCE(usb.total_withdrawn, 0) - COALESCE(usb.pending_reserved, 0)
+                ) as system_available
+            FROM user_system_balance usb
+            WHERE usb.user_id = $1
         `;
         const systemBalanceResult = await pool.query(systemBalanceQuery, [userId]);
         const systemBalance = systemBalanceResult.rows[0] || {

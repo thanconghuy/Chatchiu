@@ -47,30 +47,182 @@ router.get('/', async (req, res) => {
 
 /**
  * GET /api/admin/system-reconciliation/stats
- * Get overall statistics
+ * Get comprehensive statistics for the stats tab
  */
 router.get('/stats', async (req, res) => {
   try {
-    const query = `
+    // 1. Overall Reconciliation Stats
+    const reconciliationStatsQuery = `
       SELECT
         COUNT(*) as total_reconciliations,
         COUNT(CASE WHEN status = 'draft' THEN 1 END) as draft_count,
         COUNT(CASE WHEN status = 'finalized' THEN 1 END) as finalized_count,
         COUNT(CASE WHEN status = 'paid' THEN 1 END) as paid_count,
-        SUM(total_cashback) as total_cashback_all_time,
-        SUM(CASE WHEN status = 'finalized' THEN total_cashback ELSE 0 END) as total_cashback_finalized,
-        SUM(CASE WHEN status = 'draft' THEN total_cashback ELSE 0 END) as total_cashback_pending,
-        SUM(reserved_amount) as total_reserved
+        COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled_count,
+        COALESCE(SUM(total_cashback), 0) as total_cashback_all_time,
+        COALESCE(SUM(CASE WHEN status = 'finalized' THEN total_cashback ELSE 0 END), 0) as total_cashback_finalized,
+        COALESCE(SUM(CASE WHEN status = 'draft' THEN total_cashback ELSE 0 END), 0) as total_cashback_pending,
+        COALESCE(SUM(total_orders), 0) as total_orders_processed,
+        COALESCE(SUM(total_users), 0) as total_users_in_reconciliations
       FROM system_reconciliations
     `;
 
-    const statsResult = await pool.query(query);
-    const stats = statsResult.rows[0];
+    // 2. System Conversions Stats (from system_conversions table)
+    const conversionsStatsQuery = `
+      SELECT
+        COUNT(*) as total_conversions,
+        COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved_count,
+        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
+        COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected_count,
+        COALESCE(SUM(cashback_amount), 0) as total_cashback,
+        COALESCE(SUM(CASE WHEN status = 'approved' THEN cashback_amount ELSE 0 END), 0) as approved_cashback,
+        COALESCE(SUM(CASE WHEN status = 'pending' THEN cashback_amount ELSE 0 END), 0) as pending_cashback,
+        COALESCE(SUM(commission), 0) as total_commission,
+        COALESCE(SUM(order_amount), 0) as total_order_amount,
+        COUNT(DISTINCT user_id) as unique_users,
+        COUNT(DISTINCT merchant_id) as unique_merchants,
+        -- Reconciliation status breakdown
+        COUNT(CASE WHEN system_reconciliation_status = 'reconciled' THEN 1 END) as reconciled_count,
+        COUNT(CASE WHEN system_reconciliation_status = 'pending' OR system_reconciliation_status IS NULL THEN 1 END) as not_reconciled_count,
+        COALESCE(SUM(CASE WHEN system_reconciliation_status = 'reconciled' THEN cashback_amount ELSE 0 END), 0) as reconciled_cashback,
+        -- Payment status breakdown
+        COUNT(CASE WHEN payment_status = 'paid' THEN 1 END) as paid_orders,
+        COALESCE(SUM(CASE WHEN payment_status = 'paid' THEN cashback_amount ELSE 0 END), 0) as paid_cashback
+      FROM system_conversions
+    `;
+
+    // 3. User Balance Stats
+    const userBalanceStatsQuery = `
+      SELECT
+        COUNT(*) as total_users,
+        COUNT(CASE WHEN total_earned > 0 THEN 1 END) as users_with_earnings,
+        COALESCE(SUM(total_earned), 0) as total_earned_all,
+        COALESCE(SUM(total_withdrawn), 0) as total_withdrawn_all,
+        COALESCE(SUM(pending_reserved), 0) as total_pending_reserved,
+        -- Số dư khả dụng ĐÚNG tính từ conversions đã đối soát
+        COALESCE((
+          SELECT SUM(GREATEST(0,
+            COALESCE((
+              SELECT SUM(sc.cashback_amount)
+              FROM system_conversions sc
+              WHERE sc.user_id = usb.user_id
+                AND sc.status = 'approved'
+                AND sc.system_reconciliation_status = 'reconciled'
+                AND (sc.payment_status IS NULL OR sc.payment_status = 'unpaid')
+            ), 0) - COALESCE(usb.total_withdrawn, 0) - COALESCE(usb.pending_reserved, 0)
+          ))
+          FROM user_system_balance usb
+        ), 0) as total_available_balance
+      FROM user_system_balance
+    `;
+
+    // 4. Monthly Trend (last 12 months)
+    const monthlyTrendQuery = `
+      SELECT
+        TO_CHAR(DATE_TRUNC('month', order_time), 'YYYY-MM') as month,
+        COUNT(*) as order_count,
+        COUNT(DISTINCT user_id) as user_count,
+        COALESCE(SUM(cashback_amount), 0) as cashback_amount,
+        COALESCE(SUM(commission), 0) as commission_amount,
+        COALESCE(SUM(order_amount), 0) as order_amount,
+        COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved_count,
+        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
+        COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected_count
+      FROM system_conversions
+      WHERE order_time >= DATE_TRUNC('month', NOW()) - INTERVAL '11 months'
+      GROUP BY DATE_TRUNC('month', order_time)
+      ORDER BY month DESC
+    `;
+
+    // 5. Top Merchants
+    const topMerchantsQuery = `
+      SELECT
+        merchant_id,
+        COALESCE(MAX(merchant_name), merchant_id) as merchant_name,
+        COUNT(*) as order_count,
+        COUNT(DISTINCT user_id) as user_count,
+        COALESCE(SUM(cashback_amount), 0) as total_cashback,
+        COALESCE(SUM(order_amount), 0) as total_order_amount,
+        ROUND(COUNT(CASE WHEN status = 'approved' THEN 1 END)::numeric / NULLIF(COUNT(*), 0) * 100, 1) as approval_rate
+      FROM system_conversions
+      WHERE status = 'approved'
+      GROUP BY merchant_id
+      ORDER BY total_cashback DESC
+      LIMIT 10
+    `;
+
+    // 6. Recent Reconciliations
+    const recentReconciliationsQuery = `
+      SELECT
+        id,
+        period_label,
+        period_start,
+        period_end,
+        status,
+        total_orders,
+        total_users,
+        total_cashback,
+        created_at,
+        finalized_at
+      FROM system_reconciliations
+      ORDER BY created_at DESC
+      LIMIT 5
+    `;
+
+    // 7. Users with highest balance (top 10)
+    const topUsersQuery = `
+      SELECT
+        usb.user_id,
+        u.email,
+        u.full_name,
+        COALESCE(usb.total_earned, 0) as total_earned,
+        COALESCE(usb.total_withdrawn, 0) as total_withdrawn,
+        GREATEST(0,
+          COALESCE((
+            SELECT SUM(sc.cashback_amount)
+            FROM system_conversions sc
+            WHERE sc.user_id = usb.user_id
+              AND sc.status = 'approved'
+              AND sc.system_reconciliation_status = 'reconciled'
+              AND (sc.payment_status IS NULL OR sc.payment_status = 'unpaid')
+          ), 0) - COALESCE(usb.total_withdrawn, 0) - COALESCE(usb.pending_reserved, 0)
+        ) as available_balance,
+        (SELECT COUNT(*) FROM system_conversions WHERE user_id = usb.user_id AND status = 'approved') as order_count
+      FROM user_system_balance usb
+      LEFT JOIN users u ON usb.user_id = u.id
+      ORDER BY available_balance DESC
+      LIMIT 10
+    `;
+
+    // Execute all queries in parallel
+    const [
+      reconciliationStats,
+      conversionsStats,
+      userBalanceStats,
+      monthlyTrend,
+      topMerchants,
+      recentReconciliations,
+      topUsers
+    ] = await Promise.all([
+      pool.query(reconciliationStatsQuery),
+      pool.query(conversionsStatsQuery),
+      pool.query(userBalanceStatsQuery),
+      pool.query(monthlyTrendQuery),
+      pool.query(topMerchantsQuery),
+      pool.query(recentReconciliationsQuery),
+      pool.query(topUsersQuery)
+    ]);
 
     res.json({
       success: true,
       data: {
-        reconciliation_stats: stats
+        reconciliation_stats: reconciliationStats.rows[0],
+        conversions_stats: conversionsStats.rows[0],
+        user_balance_stats: userBalanceStats.rows[0],
+        monthly_trend: monthlyTrend.rows,
+        top_merchants: topMerchants.rows,
+        recent_reconciliations: recentReconciliations.rows,
+        top_users: topUsers.rows
       }
     });
 

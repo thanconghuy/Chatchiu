@@ -27,16 +27,41 @@ router.get('/stats', authenticateToken, async (req, res) => {
     const clickStats = await Click.getStats(req.userId);
     console.log('[Dashboard Stats] Click stats:', clickStats);
 
-    // Get balance from user_system_balance table (NEW LOGIC V2.0)
-    // This table maintains the correct balance using reserve/release pattern
+    // Get balance with CORRECT available_balance calculation
+    // IMPORTANT: Số dư khả dụng = Cashback đã đối soát - Đã thanh toán
+    // available_balance = reconciled_cashback - total_withdrawn
     const balanceQuery = `
       SELECT
-        usb.available_balance,
         usb.pending_balance,
         usb.reserved_balance,
         usb.total_earned,
         usb.total_withdrawn,
         usb.debt_balance,
+        usb.pending_reserved,
+        -- Tổng cashback đã duyệt (tất cả, bao gồm chưa đối soát)
+        COALESCE((
+          SELECT SUM(cashback_amount)
+          FROM system_conversions
+          WHERE user_id = $1 AND status = 'approved'
+        ), 0) as total_approved_cashback,
+        -- Cashback ĐÃ ĐỐI SOÁT (chỉ những đơn reconciled)
+        COALESCE((
+          SELECT SUM(cashback_amount)
+          FROM system_conversions
+          WHERE user_id = $1
+            AND status = 'approved'
+            AND system_reconciliation_status = 'reconciled'
+        ), 0) as reconciled_cashback,
+        -- SỐ DƯ KHẢ DỤNG = Đã đối soát - Đã thanh toán
+        GREATEST(0,
+          COALESCE((
+            SELECT SUM(cashback_amount)
+            FROM system_conversions
+            WHERE user_id = $1
+              AND status = 'approved'
+              AND system_reconciliation_status = 'reconciled'
+          ), 0) - COALESCE(usb.total_withdrawn, 0)
+        ) as available_balance,
         COALESCE(
           (SELECT SUM(requested_amount)
            FROM payment_requests
@@ -50,24 +75,37 @@ router.get('/stats', authenticateToken, async (req, res) => {
     `;
     const balanceResult = await pool.query(balanceQuery, [req.userId]);
 
+    let balanceStats;
     if (balanceResult.rows.length === 0) {
-      // No balance record found - return zeros
-      const balanceStats = {
-        available_balance: 0,
+      // No balance record - calculate from system_conversions directly
+      const directQuery = `
+        SELECT
+          COALESCE(SUM(CASE WHEN status = 'approved' THEN cashback_amount ELSE 0 END), 0) as total_approved_cashback,
+          COALESCE(SUM(CASE WHEN status = 'approved' AND system_reconciliation_status = 'reconciled' THEN cashback_amount ELSE 0 END), 0) as reconciled_cashback
+        FROM system_conversions
+        WHERE user_id = $1
+      `;
+      const directResult = await pool.query(directQuery, [req.userId]);
+      const direct = directResult.rows[0];
+
+      balanceStats = {
+        available_balance: parseFloat(direct.reconciled_cashback) || 0,
         pending_balance: 0,
         reserved_balance: 0,
-        total_earned: 0,
+        total_earned: parseFloat(direct.total_approved_cashback) || 0,
         total_withdrawn: 0,
-        total_requested: 0
+        total_requested: 0,
+        total_approved_cashback: parseFloat(direct.total_approved_cashback) || 0,
+        reconciled_cashback: parseFloat(direct.reconciled_cashback) || 0
       };
-      console.log('[Dashboard Stats] No balance record found, using zeros');
+      console.log('[Dashboard Stats] No balance record, calculated from conversions');
     } else {
-      var balanceStats = balanceResult.rows[0];
-      console.log('[Dashboard Stats] Balance from user_system_balance:', {
+      balanceStats = balanceResult.rows[0];
+      console.log('[Dashboard Stats] Balance calculated:', {
         availableBalance: balanceStats.available_balance,
-        totalEarned: balanceStats.total_earned,
-        totalWithdrawn: balanceStats.total_withdrawn,
-        totalRequested: balanceStats.total_requested
+        totalApprovedCashback: balanceStats.total_approved_cashback,
+        reconciledCashback: balanceStats.reconciled_cashback,
+        totalWithdrawn: balanceStats.total_withdrawn
       });
     }
 
@@ -92,9 +130,15 @@ router.get('/stats', authenticateToken, async (req, res) => {
     const responseData = {
       success: true,
       stats: {
+        // Số dư khả dụng = Đã đối soát - Đã thanh toán
         availableBalance: parseFloat(balanceStats.available_balance) || 0,
         pendingBalance: parseFloat(balanceStats.pending_balance) || 0,
-        totalCashback: parseFloat(balanceStats.total_cashback) || 0,
+        // Tổng cashback = Tất cả cashback đã duyệt (bao gồm chưa đối soát)
+        totalCashback: parseFloat(balanceStats.total_approved_cashback) || parseFloat(conversionStats.total_approved_cashback) || 0,
+        // Cashback đã đối soát (có thể rút)
+        reconciledCashback: parseFloat(balanceStats.reconciled_cashback) || 0,
+        // Đã thanh toán
+        totalWithdrawn: parseFloat(balanceStats.total_withdrawn) || 0,
         approvedBalance: parseFloat(conversionStats.total_approved_cashback) || 0, // Alias for totalApprovedCashback
         totalConversions: parseInt(conversionStats.total_conversions) || 0,
         approvedConversions: parseInt(conversionStats.approved_conversions) || 0,
