@@ -97,6 +97,7 @@
         }
 
         #statusFilter,
+        #reconciliationFilter,
         #userSearch,
         #dateFrom,
         #dateTo {
@@ -109,7 +110,8 @@
             background: white;
         }
 
-        #statusFilter {
+        #statusFilter,
+        #reconciliationFilter {
             cursor: pointer;
         }
 
@@ -123,6 +125,7 @@
         }
 
         #statusFilter:hover,
+        #reconciliationFilter:hover,
         #userSearch:hover,
         #dateFrom:hover,
         #dateTo:hover {
@@ -130,6 +133,7 @@
         }
 
         #statusFilter:focus,
+        #reconciliationFilter:focus,
         #userSearch:focus,
         #dateFrom:focus,
         #dateTo:focus {
@@ -744,7 +748,7 @@
             <!-- Filter Bar -->
             <div class="filter-bar">
                 <div class="filter-group">
-                    <label for="statusFilter">🔍 Lọc theo trạng thái:</label>
+                    <label for="statusFilter">Trạng thái:</label>
                     <select id="statusFilter">
                         <option value="">Tất cả</option>
                         <option value="pending">Đang xử lý</option>
@@ -753,15 +757,24 @@
                     </select>
                 </div>
                 <div class="filter-group">
-                    <label for="userSearch">👤 Tìm kiếm user:</label>
+                    <label for="reconciliationFilter">Đối soát:</label>
+                    <select id="reconciliationFilter">
+                        <option value="">Tất cả</option>
+                        <option value="reconciled">Đã đối soát</option>
+                        <option value="not_reconciled">Chưa đối soát</option>
+                        <option value="paid">Đã thanh toán</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="userSearch">Tìm user:</label>
                     <input type="text" id="userSearch" placeholder="Nhập tên hoặc email...">
                 </div>
                 <div class="filter-group">
-                    <label for="dateFrom">📅 Từ ngày:</label>
+                    <label for="dateFrom">Từ ngày:</label>
                     <input type="date" id="dateFrom">
                 </div>
                 <div class="filter-group">
-                    <label for="dateTo">📅 Đến ngày:</label>
+                    <label for="dateTo">Đến ngày:</label>
                     <input type="date" id="dateTo">
                 </div>
                 <div class="action-buttons">

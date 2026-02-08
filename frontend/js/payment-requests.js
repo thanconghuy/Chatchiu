@@ -145,34 +145,48 @@ async function loadEligibility() {
 function displayEligibility(data) {
     document.getElementById('availableBalance').textContent =
         formatCurrency(data.availableBalance);
+    // Hiển thị TỔNG CASHBACK (totalEarned) để nhất quán với các trang khác
     document.getElementById('totalCashback').textContent =
-        formatCurrency(data.totalConfirmedCashback);
+        formatCurrency(data.totalEarned || data.total_earned || 0);
     document.getElementById('totalRequested').textContent =
         formatCurrency(data.totalRequested);
+
+    // Calculate min and max amounts FIRST (before using them)
+    // IMPORTANT: maxPayable = floor(availableBalance / minAmount) * minAmount
+    // This ensures user cannot pay into debt
+    const minAmount = data.minAmount || 50000;
+    const maxPayable = data.maxPayable || Math.floor(data.availableBalance / minAmount) * minAmount;
 
     const createBtn = document.getElementById('createRequestBtn');
     const reasonsDiv = document.getElementById('ineligibleReasons');
     const reasonsList = document.getElementById('ineligibleReasonsList');
 
-    if (data.isEligible) {
+    // Also check if maxPayable >= minAmount (user can withdraw at least 1 unit)
+    const canWithdraw = data.isEligible && maxPayable >= minAmount;
+
+    if (canWithdraw) {
         createBtn.disabled = false;
         reasonsDiv.style.display = 'none';
     } else {
         createBtn.disabled = true;
         reasonsDiv.style.display = 'block';
-        reasonsList.innerHTML = data.reasons.map(r => `<li>${r}</li>`).join('');
+        const reasons = data.reasons || [];
+        if (maxPayable < minAmount && !reasons.some(r => r.includes('tối thiểu'))) {
+            reasons.push(`Số dư khả dụng không đủ để rút tối thiểu ${minAmount.toLocaleString('vi-VN')}đ`);
+        }
+        reasonsList.innerHTML = reasons.map(r => `<li>${r}</li>`).join('');
     }
 
-    // Update min and max amount in form
-    const minAmount = data.minAmount || 50000;
+    // Update min and max amount display
     document.getElementById('minAmount').textContent =
         minAmount.toLocaleString('vi-VN');
     document.getElementById('maxAmount').textContent =
-        data.availableBalance.toLocaleString('vi-VN');
+        maxPayable.toLocaleString('vi-VN');
 
     const requestedAmountInput = document.getElementById('requestedAmount');
     requestedAmountInput.min = minAmount;
-    requestedAmountInput.max = data.availableBalance;
+    requestedAmountInput.max = maxPayable;
+    requestedAmountInput.step = minAmount; // Enforce step as minAmount
 }
 
 // Load payment requests
@@ -403,7 +417,10 @@ function showLoading(show) {
 
 // Show create modal
 function showCreateModal() {
-    if (!eligibilityData || !eligibilityData.isEligible) {
+    const minAmount = eligibilityData?.minAmount || 50000;
+    const maxPayable = eligibilityData?.maxPayable || Math.floor((eligibilityData?.availableBalance || 0) / minAmount) * minAmount;
+
+    if (!eligibilityData || !eligibilityData.isEligible || maxPayable < minAmount) {
         showToast('Bạn chưa đủ điều kiện tạo yêu cầu thanh toán', 'warning');
         return;
     }
@@ -655,13 +672,22 @@ async function handleCreateRequest(e) {
     }
 
     const minAmount = eligibilityData?.minAmount || 50000;
+    const maxPayable = eligibilityData?.maxPayable || Math.floor((eligibilityData?.availableBalance || 0) / minAmount) * minAmount;
+
     if (data.requestedAmount < minAmount) {
         showToast(`Số tiền tối thiểu là ${minAmount.toLocaleString('vi-VN')} VNĐ`, 'error');
         return;
     }
 
-    if (eligibilityData && data.requestedAmount > eligibilityData.availableBalance) {
-        showToast('Số tiền yêu cầu vượt quá số dư khả dụng', 'error');
+    // IMPORTANT: Amount must be a multiple of minAmount
+    if (data.requestedAmount % minAmount !== 0) {
+        showToast(`Số tiền phải là bội số của ${minAmount.toLocaleString('vi-VN')} VNĐ (ví dụ: 50.000, 100.000, 150.000...)`, 'error');
+        return;
+    }
+
+    // Check against maxPayable (not availableBalance) to prevent debt
+    if (data.requestedAmount > maxPayable) {
+        showToast(`Số tiền tối đa có thể rút là ${maxPayable.toLocaleString('vi-VN')} VNĐ`, 'error');
         return;
     }
 

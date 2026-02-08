@@ -512,239 +512,587 @@ router.get('/data-check', async (req, res) => {
 });
 
 /**
- * GET /api/admin/system-reconciliation/data-check/eligible-orders
- * Get detailed list of eligible orders not yet reconciled
+ * GET /api/admin/system-reconciliation/data-check/eligible
+ * Lấy danh sách chi tiết đơn hàng đủ điều kiện chưa đối soát
  */
-router.get('/data-check/eligible-orders', async (req, res) => {
+router.get('/data-check/eligible', async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
-    const offset = (page - 1) * limit;
+    const { issue_type, page = 1, limit = 50 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
 
-    // Get total count
-    const countResult = await pool.query(`
-      SELECT COUNT(*) as total
-      FROM system_conversions
-      WHERE status = 'approved'
-        AND approval_time IS NOT NULL
-        AND approval_time <= NOW() - INTERVAL '15 days'
-        AND (system_reconciliation_status IS NULL OR system_reconciliation_status != 'reconciled')
-        AND (payment_status IS NULL OR payment_status != 'paid')
-    `);
+    let query, countQuery, params;
 
-    const total = parseInt(countResult.rows[0].total);
+    switch (issue_type) {
+      case 'orphan_items':
+        countQuery = `SELECT COUNT(*) FROM system_reconciliation_items WHERE system_conversion_id IS NULL`;
+        query = `
+          SELECT sri.*, sr.period_label
+          FROM system_reconciliation_items sri
+          JOIN system_reconciliations sr ON sri.system_reconciliation_id = sr.id
+          WHERE sri.system_conversion_id IS NULL
+          ORDER BY sri.created_at DESC
+          LIMIT $1 OFFSET $2
+        `;
+        params = [parseInt(limit), offset];
+        break;
 
-    // Get paginated orders
-    const ordersResult = await pool.query(`
-      SELECT
-        sc.order_code,
-        sc.cashback_amount,
-        sc.approval_time,
-        sc.order_time,
-        sc.system_reconciliation_status,
-        sc.payment_status,
-        EXTRACT(DAY FROM (NOW() - sc.approval_time)) as days_since_approval,
-        u.email as user_email,
-        u.username as user_username,
-        sc.merchant_name
-      FROM system_conversions sc
-      LEFT JOIN users u ON sc.user_id = u.id
-      WHERE sc.status = 'approved'
-        AND sc.approval_time IS NOT NULL
-        AND sc.approval_time <= NOW() - INTERVAL '15 days'
-        AND (sc.system_reconciliation_status IS NULL OR sc.system_reconciliation_status != 'reconciled')
-        AND (sc.payment_status IS NULL OR sc.payment_status != 'paid')
-      ORDER BY sc.approval_time ASC
-      LIMIT $1 OFFSET $2
-    `, [limit, offset]);
+      case 'paid_items':
+        countQuery = `
+          SELECT COUNT(*)
+          FROM system_reconciliation_items sri
+          JOIN system_conversions sc ON sri.system_conversion_id = sc.id
+          WHERE sc.payment_status = 'paid'
+        `;
+        query = `
+          SELECT
+            sri.id as item_id,
+            sri.merchant_name,
+            sri.cashback_amount,
+            sc.order_code,
+            sc.payment_status,
+            sr.period_label
+          FROM system_reconciliation_items sri
+          JOIN system_conversions sc ON sri.system_conversion_id = sc.id
+          JOIN system_reconciliations sr ON sri.system_reconciliation_id = sr.id
+          WHERE sc.payment_status = 'paid'
+          ORDER BY sri.created_at DESC
+          LIMIT $1 OFFSET $2
+        `;
+        params = [parseInt(limit), offset];
+        break;
+
+      case 'not_reconciled':
+        countQuery = `
+          SELECT COUNT(*)
+          FROM system_reconciliation_items sri
+          JOIN system_conversions sc ON sri.system_conversion_id = sc.id
+          WHERE sc.system_reconciliation_status IS DISTINCT FROM 'reconciled'
+        `;
+        query = `
+          SELECT
+            sc.id as conversion_id,
+            sc.order_code,
+            sc.merchant_name,
+            sc.cashback_amount,
+            sc.system_reconciliation_status,
+            sc.system_reconciliation_id as conv_recon_id,
+            sri.system_reconciliation_id as item_recon_id,
+            sr.period_label
+          FROM system_conversions sc
+          JOIN system_reconciliation_items sri ON sc.id = sri.system_conversion_id
+          JOIN system_reconciliations sr ON sri.system_reconciliation_id = sr.id
+          WHERE sc.system_reconciliation_status IS DISTINCT FROM 'reconciled'
+          ORDER BY sc.order_time DESC
+          LIMIT $1 OFFSET $2
+        `;
+        params = [parseInt(limit), offset];
+        break;
+
+      case 'totals_mismatch':
+        countQuery = `
+          SELECT COUNT(*)
+          FROM system_reconciliations sr
+          WHERE sr.total_orders != (
+            SELECT COUNT(*) FROM system_reconciliation_items sri
+            WHERE sri.system_reconciliation_id = sr.id
+          )
+        `;
+        query = `
+          SELECT
+            sr.id,
+            sr.period_label,
+            sr.status,
+            sr.total_orders as recorded_orders,
+            (SELECT COUNT(*) FROM system_reconciliation_items sri WHERE sri.system_reconciliation_id = sr.id) as actual_orders,
+            sr.total_cashback as recorded_cashback,
+            (SELECT COALESCE(SUM(cashback_amount), 0) FROM system_reconciliation_items sri WHERE sri.system_reconciliation_id = sr.id) as actual_cashback
+          FROM system_reconciliations sr
+          WHERE sr.total_orders != (
+            SELECT COUNT(*) FROM system_reconciliation_items sri
+            WHERE sri.system_reconciliation_id = sr.id
+          )
+          ORDER BY sr.created_at DESC
+          LIMIT $1 OFFSET $2
+        `;
+        params = [parseInt(limit), offset];
+        break;
+
+      case 'negative_pending':
+        countQuery = `SELECT COUNT(*) FROM user_system_balance WHERE pending_reserved < 0`;
+        query = `
+          SELECT
+            usb.user_id,
+            u.email,
+            u.full_name,
+            usb.total_earned,
+            usb.total_withdrawn,
+            usb.pending_reserved,
+            usb.available_balance
+          FROM user_system_balance usb
+          JOIN users u ON usb.user_id = u.id
+          WHERE usb.pending_reserved < 0
+          ORDER BY usb.pending_reserved ASC
+          LIMIT $1 OFFSET $2
+        `;
+        params = [parseInt(limit), offset];
+        break;
+
+      default:
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid issue_type. Use: orphan_items, paid_items, not_reconciled, totals_mismatch, negative_pending'
+        });
+    }
+
+    const [countResult, dataResult] = await Promise.all([
+      pool.query(countQuery),
+      pool.query(query, params)
+    ]);
 
     res.json({
       success: true,
       data: {
-        orders: ordersResult.rows,
-        pagination: {
-          page,
-          limit,
-          total,
-          total_pages: Math.ceil(total / limit)
-        }
+        issue_type,
+        total: parseInt(countResult.rows[0].count),
+        page: parseInt(page),
+        limit: parseInt(limit),
+        items: dataResult.rows
       }
     });
 
   } catch (error) {
-    console.error('[DATA-CHECK] Error getting eligible orders:', error);
+    console.error('Error getting issue details:', error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi lấy danh sách đơn hàng đủ điều kiện: ' + error.message
+      message: error.message
     });
   }
 });
 
 /**
- * GET /api/admin/system-reconciliation/data-check/pending-orders
- * Get detailed list of orders stuck in pending status for too long
+ * GET /api/admin/system-reconciliation/data-check/reconciliation/:id
+ * Check data integrity for a specific reconciliation
  */
-router.get('/data-check/pending-orders', async (req, res) => {
+router.get('/data-check/reconciliation/:id', async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
-    const offset = (page - 1) * limit;
+    const { id } = req.params;
 
-    // Get total count
-    const countResult = await pool.query(`
-      SELECT COUNT(*) as total
-      FROM system_conversions
-      WHERE status = 'pending'
-        AND order_time <= NOW() - INTERVAL '30 days'
-    `);
+    // Get reconciliation info
+    const reconResult = await pool.query(
+      'SELECT * FROM system_reconciliations WHERE id = $1',
+      [id]
+    );
 
-    const total = parseInt(countResult.rows[0].total);
+    if (reconResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Kỳ đối soát không tồn tại'
+      });
+    }
 
-    // Get paginated orders
-    const ordersResult = await pool.query(`
+    const reconciliation = reconResult.rows[0];
+
+    // Check all items in this reconciliation
+    const itemsCheck = await pool.query(`
       SELECT
-        sc.id,
+        sri.id as item_id,
+        sri.system_conversion_id,
+        sri.merchant_name as item_merchant,
+        sri.cashback_amount as item_cashback,
+        sc.id as conversion_id,
         sc.order_code,
-        sc.cashback_amount,
-        sc.order_time,
-        sc.status,
-        sc.system_reconciliation_status,
-        EXTRACT(DAY FROM (NOW() - sc.order_time)) as days_pending,
-        u.email as user_email,
-        u.username as user_username,
-        sc.merchant_name
-      FROM system_conversions sc
-      LEFT JOIN users u ON sc.user_id = u.id
-      WHERE sc.status = 'pending'
-        AND sc.order_time <= NOW() - INTERVAL '30 days'
-      ORDER BY sc.order_time ASC
-      LIMIT $1 OFFSET $2
-    `, [limit, offset]);
+        sc.merchant_name as conv_merchant,
+        sc.cashback_amount as conv_cashback,
+        sc.status as conv_status,
+        sc.system_reconciliation_id as conv_recon_id,
+        sc.system_reconciliation_status as conv_recon_status,
+        sc.payment_status,
+        CASE
+          WHEN sri.system_conversion_id IS NULL THEN 'orphan'
+          WHEN sc.system_reconciliation_status IS DISTINCT FROM 'reconciled' THEN 'status_not_reconciled'
+          WHEN sc.system_reconciliation_id IS DISTINCT FROM $1 THEN 'recon_id_mismatch'
+          WHEN sc.status != 'approved' THEN 'not_approved'
+          WHEN sc.payment_status = 'paid' THEN 'already_paid'
+          ELSE 'ok'
+        END as issue
+      FROM system_reconciliation_items sri
+      LEFT JOIN system_conversions sc ON sri.system_conversion_id = sc.id
+      WHERE sri.system_reconciliation_id = $1
+      ORDER BY
+        CASE
+          WHEN sri.system_conversion_id IS NULL THEN 0
+          WHEN sc.system_reconciliation_status IS DISTINCT FROM 'reconciled' THEN 1
+          ELSE 2
+        END,
+        sri.created_at DESC
+    `, [id]);
+
+    // Count issues
+    const issues = {
+      orphan: 0,
+      status_not_reconciled: 0,
+      recon_id_mismatch: 0,
+      not_approved: 0,
+      already_paid: 0,
+      ok: 0
+    };
+
+    const problemItems = [];
+
+    itemsCheck.rows.forEach(item => {
+      issues[item.issue]++;
+      if (item.issue !== 'ok') {
+        problemItems.push(item);
+      }
+    });
+
+    // Check totals
+    const actualOrders = itemsCheck.rows.length;
+    const actualCashback = itemsCheck.rows.reduce((sum, i) => sum + parseFloat(i.item_cashback || 0), 0);
+    const totalsMismatch = parseInt(reconciliation.total_orders) !== actualOrders;
 
     res.json({
       success: true,
       data: {
-        orders: ordersResult.rows,
-        pagination: {
-          page,
-          limit,
-          total,
-          total_pages: Math.ceil(total / limit)
-        }
+        reconciliation: {
+          id: reconciliation.id,
+          period_label: reconciliation.period_label,
+          status: reconciliation.status,
+          recorded_orders: reconciliation.total_orders,
+          actual_orders: actualOrders,
+          recorded_cashback: parseFloat(reconciliation.total_cashback),
+          actual_cashback: actualCashback,
+          totals_match: !totalsMismatch
+        },
+        issues_summary: issues,
+        total_issues: Object.values(issues).reduce((sum, v) => sum + v, 0) - issues.ok,
+        is_healthy: Object.values(issues).reduce((sum, v) => sum + v, 0) === issues.ok && !totalsMismatch,
+        problem_items: problemItems.slice(0, 50) // Limit to first 50
       }
     });
 
   } catch (error) {
-    console.error('[DATA-CHECK] Error getting pending orders:', error);
+    console.error('Error checking reconciliation data:', error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi lấy danh sách đơn hàng pending: ' + error.message
+      message: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/admin/system-reconciliation/data-check/fix
+ * Fix data integrity issues
+ */
+router.post('/data-check/fix', async (req, res) => {
+  try {
+    const { fix_type } = req.body;
+    const results = {};
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      switch (fix_type) {
+        case 'reconciliation_status':
+          // Fix conversions that should be marked as 'reconciled'
+          const statusFixResult = await client.query(`
+            UPDATE system_conversions sc
+            SET
+              system_reconciliation_id = sri.system_reconciliation_id,
+              system_reconciliation_status = 'reconciled',
+              system_reconciled_at = COALESCE(sc.system_reconciled_at, NOW()),
+              updated_at = NOW()
+            FROM system_reconciliation_items sri
+            WHERE sc.id = sri.system_conversion_id
+              AND (sc.system_reconciliation_status IS DISTINCT FROM 'reconciled'
+                   OR sc.system_reconciliation_id IS DISTINCT FROM sri.system_reconciliation_id)
+            RETURNING sc.id
+          `);
+          results.fixed_status = statusFixResult.rowCount;
+          break;
+
+        case 'orphan_items':
+          // Delete orphan items
+          const orphanResult = await client.query(`
+            DELETE FROM system_reconciliation_items
+            WHERE system_conversion_id IS NULL
+            RETURNING id
+          `);
+          results.deleted_orphans = orphanResult.rowCount;
+          break;
+
+        case 'paid_items':
+          // Delete items for paid orders
+          const paidResult = await client.query(`
+            DELETE FROM system_reconciliation_items sri
+            USING system_conversions sc
+            WHERE sri.system_conversion_id = sc.id
+              AND sc.payment_status = 'paid'
+            RETURNING sri.id
+          `);
+          results.deleted_paid = paidResult.rowCount;
+          break;
+
+        case 'totals':
+          // Update reconciliation totals
+          const totalsResult = await client.query(`
+            UPDATE system_reconciliations sr
+            SET
+              total_orders = sub.actual_count,
+              total_cashback = sub.actual_cashback,
+              updated_at = NOW()
+            FROM (
+              SELECT
+                system_reconciliation_id,
+                COUNT(*) as actual_count,
+                COALESCE(SUM(cashback_amount), 0) as actual_cashback
+              FROM system_reconciliation_items
+              GROUP BY system_reconciliation_id
+            ) sub
+            WHERE sr.id = sub.system_reconciliation_id
+              AND (sr.total_orders != sub.actual_count OR sr.total_cashback != sub.actual_cashback)
+            RETURNING sr.id
+          `);
+          results.updated_totals = totalsResult.rowCount;
+          break;
+
+        case 'negative_pending':
+          // Reset negative pending_reserved to 0
+          const pendingResult = await client.query(`
+            UPDATE user_system_balance
+            SET pending_reserved = 0, updated_at = NOW()
+            WHERE pending_reserved < 0
+            RETURNING user_id
+          `);
+          results.fixed_pending = pendingResult.rowCount;
+          break;
+
+        case 'all':
+          // Fix all issues in order
+          // 1. Delete orphans
+          const r1 = await client.query(`
+            DELETE FROM system_reconciliation_items WHERE system_conversion_id IS NULL RETURNING id
+          `);
+          results.deleted_orphans = r1.rowCount;
+
+          // 2. Delete paid items
+          const r2 = await client.query(`
+            DELETE FROM system_reconciliation_items sri
+            USING system_conversions sc
+            WHERE sri.system_conversion_id = sc.id AND sc.payment_status = 'paid'
+            RETURNING sri.id
+          `);
+          results.deleted_paid = r2.rowCount;
+
+          // 3. Fix reconciliation status
+          const r3 = await client.query(`
+            UPDATE system_conversions sc
+            SET
+              system_reconciliation_id = sri.system_reconciliation_id,
+              system_reconciliation_status = 'reconciled',
+              system_reconciled_at = COALESCE(sc.system_reconciled_at, NOW()),
+              updated_at = NOW()
+            FROM system_reconciliation_items sri
+            WHERE sc.id = sri.system_conversion_id
+              AND (sc.system_reconciliation_status IS DISTINCT FROM 'reconciled'
+                   OR sc.system_reconciliation_id IS DISTINCT FROM sri.system_reconciliation_id)
+            RETURNING sc.id
+          `);
+          results.fixed_status = r3.rowCount;
+
+          // 4. Update totals
+          const r4 = await client.query(`
+            UPDATE system_reconciliations sr
+            SET
+              total_orders = sub.actual_count,
+              total_cashback = sub.actual_cashback,
+              updated_at = NOW()
+            FROM (
+              SELECT
+                system_reconciliation_id,
+                COUNT(*) as actual_count,
+                COALESCE(SUM(cashback_amount), 0) as actual_cashback
+              FROM system_reconciliation_items
+              GROUP BY system_reconciliation_id
+            ) sub
+            WHERE sr.id = sub.system_reconciliation_id
+            RETURNING sr.id
+          `);
+          results.updated_totals = r4.rowCount;
+
+          // 5. Fix negative pending
+          const r5 = await client.query(`
+            UPDATE user_system_balance
+            SET pending_reserved = 0, updated_at = NOW()
+            WHERE pending_reserved < 0
+            RETURNING user_id
+          `);
+          results.fixed_pending = r5.rowCount;
+          break;
+
+        default:
+          await client.query('ROLLBACK');
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid fix_type. Use: reconciliation_status, orphan_items, paid_items, totals, negative_pending, all'
+          });
+      }
+
+      await client.query('COMMIT');
+
+      // Log the fix action
+      await pool.query(`
+        INSERT INTO system_reconciliation_logs (
+          system_reconciliation_id,
+          action,
+          performed_by,
+          metadata
+        ) VALUES (NULL, 'data_fix', $1, $2)
+      `, [req.userId || 'system', JSON.stringify({ fix_type, results })]);
+
+      res.json({
+        success: true,
+        message: 'Đã sửa lỗi dữ liệu',
+        data: results
+      });
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+
+  } catch (error) {
+    console.error('Error fixing data:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
     });
   }
 });
 
 /**
  * GET /api/admin/system-reconciliation/data-check/user/:userId
- * Kiểm tra số dư user: so sánh user_system_balance vs tính toán từ system_conversions
+ * Check balance calculation for a specific user
  */
 router.get('/data-check/user/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
 
-    // 1. Lấy thông tin user
+    // Get user info
     const userResult = await pool.query(
-      `SELECT id, email, full_name, username FROM users WHERE id = $1`,
+      'SELECT id, email, full_name FROM users WHERE id = $1',
       [userId]
     );
 
     if (userResult.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy user' });
+      return res.status(404).json({
+        success: false,
+        message: 'User không tồn tại'
+      });
     }
 
     const user = userResult.rows[0];
 
-    // 2. Lấy số dư từ user_system_balance (nguồn chính thức)
-    const balanceResult = await pool.query(`
-      SELECT
-        COALESCE(total_earned, 0) as total_earned,
-        COALESCE(total_withdrawn, 0) as total_withdrawn,
-        COALESCE(pending_reserved, 0) as pending_reserved,
-        COALESCE(available_balance, 0) as available_balance
-      FROM user_system_balance
-      WHERE user_id = $1
-    `, [userId]);
+    // Get balance record
+    const balanceResult = await pool.query(
+      'SELECT * FROM user_system_balance WHERE user_id = $1',
+      [userId]
+    );
 
-    const balance = balanceResult.rows.length > 0
-      ? balanceResult.rows[0]
-      : { total_earned: 0, total_withdrawn: 0, pending_reserved: 0, available_balance: 0 };
+    const balance = balanceResult.rows[0] || {
+      total_earned: 0,
+      total_withdrawn: 0,
+      pending_reserved: 0,
+      available_balance: 0
+    };
 
-    // 3. Tính toán từ system_conversions
-    const conversionsResult = await pool.query(`
-      SELECT
-        COUNT(*) as total,
-        COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved,
-        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
-        COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected,
-        COUNT(CASE WHEN system_reconciliation_status = 'reconciled' THEN 1 END) as reconciled,
-        COUNT(CASE WHEN payment_status = 'paid' THEN 1 END) as paid,
-        COALESCE(SUM(cashback_amount), 0) as total_cashback,
-        COALESCE(SUM(CASE WHEN status = 'approved' AND system_reconciliation_status = 'reconciled'
-                      THEN cashback_amount ELSE 0 END), 0) as reconciled_cashback,
-        COALESCE(SUM(CASE WHEN status = 'pending' THEN cashback_amount ELSE 0 END), 0) as pending_cashback
-      FROM system_conversions
-      WHERE user_id = $1
-    `, [userId]);
+    // Calculate expected values
+    const [
+      reconciledConversions,
+      paidPayments,
+      confirmedPayments,
+      allConversions
+    ] = await Promise.all([
+      // Reconciled conversions (total_earned source)
+      pool.query(`
+        SELECT
+          COUNT(*) as count,
+          COALESCE(SUM(cashback_amount), 0) as total
+        FROM system_conversions
+        WHERE user_id = $1
+          AND system_reconciliation_status = 'reconciled'
+          AND status = 'approved'
+      `, [userId]),
 
-    const conv = conversionsResult.rows[0];
+      // Paid payment requests (total_withdrawn source)
+      pool.query(`
+        SELECT
+          COUNT(*) as count,
+          COALESCE(SUM(requested_amount), 0) as total
+        FROM payment_requests
+        WHERE user_id = $1 AND status = 'paid'
+      `, [userId]),
 
-    // 4. Tính từ payment_requests
-    const paymentsResult = await pool.query(`
-      SELECT
-        COUNT(CASE WHEN status = 'paid' THEN 1 END) as paid_count,
-        COALESCE(SUM(CASE WHEN status = 'paid' THEN requested_amount ELSE 0 END), 0) as paid_total,
-        COUNT(CASE WHEN status IN ('pending', 'confirmed') THEN 1 END) as pending_count,
-        COALESCE(SUM(CASE WHEN status IN ('pending', 'confirmed') THEN requested_amount ELSE 0 END), 0) as pending_total
-      FROM payment_requests
-      WHERE user_id = $1
-    `, [userId]);
+      // Confirmed payment requests (pending_reserved source)
+      pool.query(`
+        SELECT
+          COUNT(*) as count,
+          COALESCE(SUM(requested_amount), 0) as total
+        FROM payment_requests
+        WHERE user_id = $1 AND status = 'confirmed'
+      `, [userId]),
 
-    const payments = paymentsResult.rows[0];
+      // All conversions breakdown
+      pool.query(`
+        SELECT
+          COUNT(*) as total,
+          COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved,
+          COUNT(CASE WHEN system_reconciliation_status = 'reconciled' THEN 1 END) as reconciled,
+          COUNT(CASE WHEN payment_status = 'paid' THEN 1 END) as paid,
+          COALESCE(SUM(cashback_amount), 0) as total_cashback,
+          COALESCE(SUM(CASE WHEN system_reconciliation_status = 'reconciled' THEN cashback_amount ELSE 0 END), 0) as reconciled_cashback
+        FROM system_conversions
+        WHERE user_id = $1
+      `, [userId])
+    ]);
 
-    // 5. So sánh user_system_balance vs tính toán
+    const calcTotalEarned = parseFloat(reconciledConversions.rows[0].total);
+    const calcTotalWithdrawn = parseFloat(paidPayments.rows[0].total);
+    const calcPendingReserved = parseFloat(confirmedPayments.rows[0].total);
+    const calcAvailableBalance = calcTotalEarned - calcTotalWithdrawn - calcPendingReserved;
+
     const dbTotalEarned = parseFloat(balance.total_earned);
     const dbTotalWithdrawn = parseFloat(balance.total_withdrawn);
     const dbPendingReserved = parseFloat(balance.pending_reserved);
-    const dbAvailable = parseFloat(balance.available_balance);
+    const dbAvailableBalance = parseFloat(balance.available_balance);
 
-    const calcTotalEarned = parseFloat(conv.reconciled_cashback);
-    const calcTotalWithdrawn = parseFloat(payments.paid_total);
-    const calcPendingReserved = parseFloat(payments.pending_total);
-    const calcAvailable = calcTotalEarned - calcTotalWithdrawn - calcPendingReserved;
-
-    const balanceChecks = {
+    const checks = {
       total_earned: {
         db: dbTotalEarned,
         calculated: calcTotalEarned,
-        match: Math.abs(dbTotalEarned - calcTotalEarned) < 1
+        match: Math.abs(dbTotalEarned - calcTotalEarned) < 0.01
       },
       total_withdrawn: {
         db: dbTotalWithdrawn,
         calculated: calcTotalWithdrawn,
-        match: Math.abs(dbTotalWithdrawn - calcTotalWithdrawn) < 1
+        match: Math.abs(dbTotalWithdrawn - calcTotalWithdrawn) < 0.01
       },
       pending_reserved: {
         db: dbPendingReserved,
         calculated: calcPendingReserved,
-        match: Math.abs(dbPendingReserved - calcPendingReserved) < 1
+        match: Math.abs(dbPendingReserved - calcPendingReserved) < 0.01
       },
       available_balance: {
-        db: dbAvailable,
-        calculated: calcAvailable,
-        match: Math.abs(dbAvailable - calcAvailable) < 1
+        db: dbAvailableBalance,
+        calculated: calcAvailableBalance,
+        match: Math.abs(dbAvailableBalance - calcAvailableBalance) < 0.01
       }
     };
 
-    const isHealthy = Object.values(balanceChecks).every(c => c.match);
+    const isHealthy = Object.values(checks).every(c => c.match);
 
     res.json({
       success: true,
@@ -752,195 +1100,34 @@ router.get('/data-check/user/:userId', async (req, res) => {
         user: {
           id: user.id,
           email: user.email,
-          full_name: user.full_name,
-          username: user.username
+          full_name: user.full_name
         },
+        balance_checks: checks,
         is_healthy: isHealthy,
-        balance_checks: balanceChecks,
-        conversions_summary: {
-          total: parseInt(conv.total),
-          approved: parseInt(conv.approved),
-          pending: parseInt(conv.pending),
-          rejected: parseInt(conv.rejected),
-          reconciled: parseInt(conv.reconciled),
-          paid: parseInt(conv.paid),
-          total_cashback: parseFloat(conv.total_cashback),
-          reconciled_cashback: parseFloat(conv.reconciled_cashback)
-        },
+        conversions_summary: allConversions.rows[0],
         sources: {
           reconciled_conversions: {
-            count: parseInt(conv.reconciled),
-            total: parseFloat(conv.reconciled_cashback)
+            count: parseInt(reconciledConversions.rows[0].count),
+            total: calcTotalEarned
           },
           paid_payments: {
-            count: parseInt(payments.paid_count),
-            total: parseFloat(payments.paid_total)
+            count: parseInt(paidPayments.rows[0].count),
+            total: calcTotalWithdrawn
           },
-          pending_payments: {
-            count: parseInt(payments.pending_count),
-            total: parseFloat(payments.pending_total)
+          confirmed_payments: {
+            count: parseInt(confirmedPayments.rows[0].count),
+            total: calcPendingReserved
           }
         }
       }
     });
 
   } catch (error) {
-    console.error('[DATA-CHECK] Error checking user balance:', error);
+    console.error('Error checking user balance:', error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi kiểm tra số dư user: ' + error.message
+      message: error.message
     });
-  }
-});
-
-/**
- * POST /api/admin/system-reconciliation/data-check/user/:userId/sync
- * Đồng bộ lại số dư user: tính toán lại từ source tables và cập nhật user_system_balance
- */
-router.post('/data-check/user/:userId/sync', async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const { userId } = req.params;
-    const adminId = req.user.userId;
-
-    await client.query('BEGIN');
-
-    // 1. Kiểm tra user tồn tại
-    const userResult = await client.query(
-      `SELECT id, email FROM users WHERE id = $1`,
-      [userId]
-    );
-    if (userResult.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ success: false, message: 'Không tìm thấy user' });
-    }
-
-    // 2. Lấy giá trị hiện tại từ user_system_balance
-    const currentResult = await client.query(`
-      SELECT
-        COALESCE(total_earned, 0) as total_earned,
-        COALESCE(total_withdrawn, 0) as total_withdrawn,
-        COALESCE(pending_reserved, 0) as pending_reserved
-      FROM user_system_balance
-      WHERE user_id = $1
-    `, [userId]);
-
-    if (currentResult.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ success: false, message: 'User chưa có bản ghi số dư' });
-    }
-
-    const current = {
-      total_earned: parseFloat(currentResult.rows[0].total_earned),
-      total_withdrawn: parseFloat(currentResult.rows[0].total_withdrawn),
-      pending_reserved: parseFloat(currentResult.rows[0].pending_reserved)
-    };
-
-    // 3. Tính toán giá trị đúng từ source tables
-    const calcEarned = await client.query(`
-      SELECT COALESCE(SUM(cashback_amount), 0) as total
-      FROM system_conversions
-      WHERE user_id = $1 AND status = 'approved' AND system_reconciliation_status = 'reconciled'
-    `, [userId]);
-
-    const calcWithdrawn = await client.query(`
-      SELECT COALESCE(SUM(requested_amount), 0) as total
-      FROM payment_requests
-      WHERE user_id = $1 AND status = 'paid'
-    `, [userId]);
-
-    const calcReserved = await client.query(`
-      SELECT COALESCE(SUM(requested_amount), 0) as total
-      FROM payment_requests
-      WHERE user_id = $1 AND status = 'confirmed'
-    `, [userId]);
-
-    const correct = {
-      total_earned: parseFloat(calcEarned.rows[0].total),
-      total_withdrawn: parseFloat(calcWithdrawn.rows[0].total),
-      pending_reserved: parseFloat(calcReserved.rows[0].total)
-    };
-
-    // 4. So sánh và cập nhật từng field khác biệt
-    const changes = [];
-    const fieldLabels = {
-      total_earned: 'Tổng thu nhập (đã đối soát)',
-      total_withdrawn: 'Đã rút',
-      pending_reserved: 'Đang giữ (chờ thanh toán)'
-    };
-
-    for (const field of ['total_earned', 'total_withdrawn', 'pending_reserved']) {
-      if (Math.abs(current[field] - correct[field]) >= 1) {
-        // Cập nhật field
-        await client.query(
-          `UPDATE user_system_balance SET ${field} = $1, updated_at = NOW() WHERE user_id = $2`,
-          [correct[field], userId]
-        );
-
-        // Ghi audit log vào balance_transactions
-        const diff = correct[field] - current[field];
-        await client.query(`
-          INSERT INTO balance_transactions (
-            user_id, transaction_type, amount, balance_before, balance_after,
-            reference_type, description, created_by, metadata
-          ) VALUES ($1, 'manual_adjustment', $2, $3, $4, 'admin_balance_sync', $5, $6, $7)
-        `, [
-          userId,
-          diff,
-          current[field],
-          correct[field],
-          `Admin đồng bộ ${fieldLabels[field]}: ${current[field].toLocaleString()} → ${correct[field].toLocaleString()}`,
-          adminId,
-          JSON.stringify({
-            field,
-            old_value: current[field],
-            new_value: correct[field],
-            source: field === 'total_earned'
-              ? 'system_conversions (approved + reconciled)'
-              : field === 'total_withdrawn'
-                ? 'payment_requests (paid)'
-                : 'payment_requests (confirmed)'
-          })
-        ]);
-
-        changes.push({
-          field,
-          label: fieldLabels[field],
-          old_value: current[field],
-          new_value: correct[field],
-          diff
-        });
-      }
-    }
-
-    await client.query('COMMIT');
-
-    // 5. Lấy số dư sau khi sync
-    const updatedResult = await client.query(`
-      SELECT total_earned, total_withdrawn, pending_reserved, available_balance
-      FROM user_system_balance WHERE user_id = $1
-    `, [userId]);
-
-    res.json({
-      success: true,
-      message: changes.length > 0
-        ? `Đã đồng bộ ${changes.length} chỉ số cho user ${userResult.rows[0].email}`
-        : 'Dữ liệu đã chính xác, không cần đồng bộ',
-      data: {
-        changes,
-        updated_balance: updatedResult.rows[0]
-      }
-    });
-
-  } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('[DATA-CHECK] Error syncing user balance:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Lỗi đồng bộ số dư: ' + error.message
-    });
-  } finally {
-    client.release();
   }
 });
 

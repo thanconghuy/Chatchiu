@@ -51,6 +51,7 @@ router.get('/', authenticateAdmin, async (req, res) => {
     }
 
     // Main query
+    // FIXED 2026-02-02: Sửa logic tính toán theo METRICS_DEFINITIONS.md
     const query = `
       SELECT
         u.id as user_id,
@@ -58,8 +59,12 @@ router.get('/', authenticateAdmin, async (req, res) => {
         u.username,
         u.full_name,
 
-        -- Tổng cashback (từ user_system_balance)
-        COALESCE(usb.total_earned, 0) as total_cashback,
+        -- FIXED: Tổng cashback = TẤT CẢ đơn hàng (pending + approved + rejected)
+        COALESCE((
+          SELECT SUM(cashback_amount)
+          FROM system_conversions
+          WHERE user_id = u.id
+        ), 0) as total_cashback,
 
         -- Cashback chờ duyệt (pending conversions)
         COALESCE((
@@ -69,13 +74,12 @@ router.get('/', authenticateAdmin, async (req, res) => {
             AND status = 'pending'
         ), 0) as pending_cashback,
 
-        -- Cashback đã duyệt nhưng chưa thanh toán (approved conversions)
+        -- FIXED 2026-02-02: Đã duyệt = TẤT CẢ approved (để Tổng = Chờ Duyệt + Đã Duyệt + Đã Hủy)
         COALESCE((
           SELECT SUM(cashback_amount)
           FROM system_conversions
           WHERE user_id = u.id
             AND status = 'approved'
-            AND (payment_status IS NULL OR payment_status = 'unpaid')
         ), 0) as approved_cashback,
 
         -- Cashback đã hủy (rejected conversions)
@@ -86,10 +90,10 @@ router.get('/', authenticateAdmin, async (req, res) => {
             AND status = 'rejected'
         ), 0) as rejected_cashback,
 
-        -- Cashback đã thanh toán
+        -- Cashback đã thanh toán (từ payment_requests paid)
         COALESCE(usb.total_withdrawn, 0) as paid_cashback,
 
-        -- FIXED: Số dư khả dụng = Đã đối soát - Đã rút - Đang chờ xử lý
+        -- Số dư khả dụng = Đã đối soát (unpaid) - Đã rút - Đang chờ xử lý
         GREATEST(0,
           COALESCE((
             SELECT SUM(cashback_amount)
@@ -104,7 +108,7 @@ router.get('/', authenticateAdmin, async (req, res) => {
         -- Số dư đang chờ xử lý payment request
         COALESCE(usb.pending_reserved, 0) as pending_reserved,
 
-        -- NEW: Cashback đã đối soát (reconciled)
+        -- Cashback đã đối soát (reconciled) - có thể rút
         COALESCE((
           SELECT SUM(cashback_amount)
           FROM system_conversions
@@ -137,12 +141,30 @@ router.get('/', authenticateAdmin, async (req, res) => {
     const total = parseInt(countResult.rows[0].total);
 
     // Calculate summary statistics
+    // FIXED 2026-02-02: Tính total_cashback từ ALL approved conversions
     const summaryQuery = `
       SELECT
         COUNT(DISTINCT u.id) as total_users,
-        COALESCE(SUM(usb.total_earned), 0) as total_cashback_all,
+        -- FIXED 2026-02-02: Tổng cashback = TẤT CẢ đơn hàng (pending + approved + rejected)
+        COALESCE((
+          SELECT SUM(cashback_amount)
+          FROM system_conversions
+        ), 0) as total_cashback_all,
         COALESCE(SUM(usb.total_withdrawn), 0) as total_paid_all,
-        COALESCE(SUM(usb.available_balance), 0) as total_available_all,
+        -- Tính available từ reconciled
+        COALESCE((
+          SELECT SUM(GREATEST(0,
+            COALESCE((
+              SELECT SUM(sc2.cashback_amount)
+              FROM system_conversions sc2
+              WHERE sc2.user_id = usb2.user_id
+                AND sc2.status = 'approved'
+                AND sc2.system_reconciliation_status = 'reconciled'
+                AND (sc2.payment_status IS NULL OR sc2.payment_status = 'unpaid')
+            ), 0) - COALESCE(usb2.total_withdrawn, 0) - COALESCE(usb2.pending_reserved, 0)
+          ))
+          FROM user_system_balance usb2
+        ), 0) as total_available_all,
         COALESCE(SUM(usb.pending_reserved), 0) as total_pending_reserved_all
       FROM users u
       LEFT JOIN user_system_balance usb ON u.id = usb.user_id
@@ -202,6 +224,7 @@ router.get('/:userId', authenticateAdmin, async (req, res) => {
   try {
     const { userId } = req.params;
 
+    // FIXED 2026-02-02: Cập nhật theo METRICS_DEFINITIONS.md
     const query = `
       SELECT
         u.id as user_id,
@@ -210,12 +233,16 @@ router.get('/:userId', authenticateAdmin, async (req, res) => {
         u.full_name,
         u.phone,
 
-        -- Balance info
-        COALESCE(usb.total_earned, 0) as total_cashback,
+        -- FIXED 2026-02-02: Tổng cashback = TẤT CẢ đơn hàng (pending + approved + rejected)
+        COALESCE((
+          SELECT SUM(cashback_amount)
+          FROM system_conversions
+          WHERE user_id = u.id
+        ), 0) as total_cashback,
         COALESCE(usb.total_withdrawn, 0) as paid_cashback,
         COALESCE(usb.pending_reserved, 0) as pending_reserved,
 
-        -- FIXED: Số dư khả dụng = Đã đối soát - Đã rút - Đang chờ xử lý
+        -- Số dư khả dụng = Đã đối soát (unpaid) - Đã rút - Đang chờ xử lý
         GREATEST(0,
           COALESCE((
             SELECT SUM(cashback_amount)
@@ -227,7 +254,7 @@ router.get('/:userId', authenticateAdmin, async (req, res) => {
           ), 0) - COALESCE(usb.total_withdrawn, 0) - COALESCE(usb.pending_reserved, 0)
         ) as available_balance,
 
-        -- NEW: Cashback đã đối soát
+        -- Cashback đã đối soát (có thể rút)
         COALESCE((
           SELECT SUM(cashback_amount)
           FROM system_conversions
@@ -236,7 +263,7 @@ router.get('/:userId', authenticateAdmin, async (req, res) => {
             AND system_reconciliation_status = 'reconciled'
         ), 0) as reconciled_cashback,
 
-        -- Conversion stats
+        -- Conversion stats: Chờ duyệt
         (
           SELECT COUNT(*)
           FROM system_conversions
@@ -248,17 +275,21 @@ router.get('/:userId', authenticateAdmin, async (req, res) => {
           WHERE user_id = u.id AND status = 'pending'
         ) as pending_cashback,
 
+        -- FIXED 2026-02-02: Đã duyệt = TẤT CẢ approved
         (
           SELECT COUNT(*)
           FROM system_conversions
-          WHERE user_id = u.id AND status = 'approved' AND (payment_status IS NULL OR payment_status = 'unpaid')
+          WHERE user_id = u.id
+            AND status = 'approved'
         ) as approved_conversions_count,
         (
           SELECT COALESCE(SUM(cashback_amount), 0)
           FROM system_conversions
-          WHERE user_id = u.id AND status = 'approved' AND (payment_status IS NULL OR payment_status = 'unpaid')
+          WHERE user_id = u.id
+            AND status = 'approved'
         ) as approved_cashback,
 
+        -- Đã hủy
         (
           SELECT COUNT(*)
           FROM system_conversions
@@ -270,6 +301,7 @@ router.get('/:userId', authenticateAdmin, async (req, res) => {
           WHERE user_id = u.id AND status = 'rejected'
         ) as rejected_cashback,
 
+        -- Đã thanh toán (conversion level)
         (
           SELECT COUNT(*)
           FROM system_conversions

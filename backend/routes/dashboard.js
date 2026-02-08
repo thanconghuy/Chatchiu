@@ -28,8 +28,8 @@ router.get('/stats', authenticateToken, async (req, res) => {
     console.log('[Dashboard Stats] Click stats:', clickStats);
 
     // Get balance with CORRECT available_balance calculation
-    // IMPORTANT: Số dư khả dụng = Cashback đã đối soát - Đã thanh toán
-    // available_balance = reconciled_cashback - total_withdrawn
+    // IMPORTANT: Số dư khả dụng = Cashback đã đối soát (chưa thanh toán) - Đã thanh toán - Đang chờ xử lý
+    // available_balance = reconciled_cashback (unpaid) - total_withdrawn - pending_reserved
     const balanceQuery = `
       SELECT
         usb.pending_balance,
@@ -44,15 +44,16 @@ router.get('/stats', authenticateToken, async (req, res) => {
           FROM system_conversions
           WHERE user_id = $1 AND status = 'approved'
         ), 0) as total_approved_cashback,
-        -- Cashback ĐÃ ĐỐI SOÁT (chỉ những đơn reconciled)
+        -- Cashback ĐÃ ĐỐI SOÁT và CHƯA THANH TOÁN
         COALESCE((
           SELECT SUM(cashback_amount)
           FROM system_conversions
           WHERE user_id = $1
             AND status = 'approved'
             AND system_reconciliation_status = 'reconciled'
+            AND (payment_status IS NULL OR payment_status = 'unpaid')
         ), 0) as reconciled_cashback,
-        -- SỐ DƯ KHẢ DỤNG = Đã đối soát - Đã thanh toán
+        -- SỐ DƯ KHẢ DỤNG = Đã đối soát (chưa TT) - Đã rút - Đang chờ xử lý
         GREATEST(0,
           COALESCE((
             SELECT SUM(cashback_amount)
@@ -60,7 +61,8 @@ router.get('/stats', authenticateToken, async (req, res) => {
             WHERE user_id = $1
               AND status = 'approved'
               AND system_reconciliation_status = 'reconciled'
-          ), 0) - COALESCE(usb.total_withdrawn, 0)
+              AND (payment_status IS NULL OR payment_status = 'unpaid')
+          ), 0) - COALESCE(usb.total_withdrawn, 0) - COALESCE(usb.pending_reserved, 0)
         ) as available_balance,
         COALESCE(
           (SELECT SUM(requested_amount)
@@ -81,7 +83,9 @@ router.get('/stats', authenticateToken, async (req, res) => {
       const directQuery = `
         SELECT
           COALESCE(SUM(CASE WHEN status = 'approved' THEN cashback_amount ELSE 0 END), 0) as total_approved_cashback,
-          COALESCE(SUM(CASE WHEN status = 'approved' AND system_reconciliation_status = 'reconciled' THEN cashback_amount ELSE 0 END), 0) as reconciled_cashback
+          COALESCE(SUM(CASE WHEN status = 'approved' AND system_reconciliation_status = 'reconciled'
+                            AND (payment_status IS NULL OR payment_status = 'unpaid')
+                        THEN cashback_amount ELSE 0 END), 0) as reconciled_cashback
         FROM system_conversions
         WHERE user_id = $1
       `;
@@ -89,12 +93,13 @@ router.get('/stats', authenticateToken, async (req, res) => {
       const direct = directResult.rows[0];
 
       balanceStats = {
-        available_balance: parseFloat(direct.reconciled_cashback) || 0,
+        available_balance: parseFloat(direct.reconciled_cashback) || 0, // No withdrawn/pending when no balance record
         pending_balance: 0,
         reserved_balance: 0,
         total_earned: parseFloat(direct.total_approved_cashback) || 0,
         total_withdrawn: 0,
         total_requested: 0,
+        pending_reserved: 0,
         total_approved_cashback: parseFloat(direct.total_approved_cashback) || 0,
         reconciled_cashback: parseFloat(direct.reconciled_cashback) || 0
       };

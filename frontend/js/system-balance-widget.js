@@ -82,11 +82,12 @@
     const pendingEl = document.getElementById('systemPendingBalance');
 
     if (availableEl) {
-      availableEl.textContent = formatMoney(balance.available_balance || 0);
+      // Hiển thị TỔNG CASHBACK (total_earned) thay vì available_balance
+      availableEl.textContent = formatMoney(balance.total_earned || 0);
     }
 
     if (pendingEl) {
-      pendingEl.textContent = formatMoney(balance.pending_balance || 0);
+      pendingEl.textContent = formatMoney(balance.pending_reserved || balance.pending_balance || 0);
     }
 
     // Store balance in global scope for other components to use
@@ -122,13 +123,9 @@
         </div>
 
         <div class="balance-info-section">
-          <h3>💰 Số dư khả dụng</h3>
-          <p>Đây là số tiền bạn có thể rút ngay lập tức. Số tiền này đã được hệ thống xác nhận qua đối soát nội bộ và sẵn sàng để thanh toán.</p>
-          <p><strong>Nguồn số dư:</strong></p>
-          <ul>
-            <li>Cashback từ đối soát nội bộ (Tháng + 15 ngày)</li>
-            <li>Cashback từ đối soát API (65-105 ngày)</li>
-          </ul>
+          <h3>💰 Tổng Cashback</h3>
+          <p>Đây là tổng số tiền cashback từ tất cả đơn hàng đã được duyệt, bao gồm cả những đơn chưa đến kỳ đối soát.</p>
+          <p><strong>Lưu ý:</strong> Số tiền này chưa chắc có thể rút được ngay. Để rút tiền, đơn hàng phải được đối soát.</p>
         </div>
 
         <div class="balance-info-section">

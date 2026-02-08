@@ -300,7 +300,10 @@ class TrackingService {
 
     // Parse order time - AccessTrade uses sales_time and click_time
     const orderTime = new Date(accesstradeData.sales_time || accesstradeData.click_time || accesstradeData.order_time);
-    const approvalTime = status === 'approved' ? new Date() : null;
+    // Use confirmed_time from API if available, otherwise use current time for approved orders
+    const approvalTime = status === 'approved'
+      ? (confirmationData.confirmedTime || new Date())
+      : null;
 
     // Get order ID and merchant ID
     const orderId = accesstradeData.order_id || accesstradeData._id;
@@ -579,7 +582,10 @@ class TrackingService {
 
       // Parse timestamps
       const orderTime = new Date(accesstradeData.sales_time || accesstradeData.click_time || accesstradeData.order_time);
-      const approvalTime = status === 'approved' ? new Date() : null;
+      // Use confirmed_time from API if available, otherwise use current time for approved orders
+      const approvalTime = status === 'approved'
+        ? (confirmationData.confirmedTime || new Date())
+        : null;
 
       // Get merchant ID
       const merchantId = accesstradeData.merchant_id || accesstradeData.merchant;

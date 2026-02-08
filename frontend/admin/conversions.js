@@ -14,6 +14,7 @@ requireAuth();
 // State
 let currentPage = 0;
 let currentStatus = '';
+let currentReconciliationStatus = ''; // Reconciliation status filter
 let itemsPerPage = 20; // Default items per page
 let currentUserSearch = '';
 let currentDateFrom = '';
@@ -22,6 +23,7 @@ let currentDateTo = '';
 // DOM Elements
 // const userName = document.getElementById('userName');
 const statusFilter = document.getElementById('statusFilter');
+const reconciliationFilter = document.getElementById('reconciliationFilter');
 const userSearch = document.getElementById('userSearch');
 const dateFrom = document.getElementById('dateFrom');
 const dateTo = document.getElementById('dateTo');
@@ -105,6 +107,16 @@ function setupEventListeners() {
             loadConversions();
         });
         console.log('✓ Status filter listener attached');
+    }
+
+    // Reconciliation status filter
+    if (reconciliationFilter) {
+        reconciliationFilter.addEventListener('change', () => {
+            currentReconciliationStatus = reconciliationFilter.value;
+            currentPage = 0;
+            loadConversions();
+        });
+        console.log('✓ Reconciliation filter listener attached');
     }
 
     // User search filter with debounce
@@ -223,6 +235,10 @@ async function loadConversions() {
 
         if (currentStatus) {
             url += `&status=${currentStatus}`;
+        }
+
+        if (currentReconciliationStatus) {
+            url += `&reconciliationStatus=${currentReconciliationStatus}`;
         }
 
         if (currentUserSearch) {

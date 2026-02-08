@@ -777,6 +777,7 @@ router.get('/conversions', authenticateAdmin, async (req, res) => {
     const userSearch = req.query.userSearch || null;
     const dateFrom = req.query.dateFrom || null;
     const dateTo = req.query.dateTo || null;
+    const reconciliationStatus = req.query.reconciliationStatus || null; // 'reconciled', 'not_reconciled', 'paid'
 
     // Query from system_conversions (cashback system only)
     let query = `
@@ -827,6 +828,17 @@ router.get('/conversions', authenticateAdmin, async (req, res) => {
       query += ` AND sc.order_time < $${values.length}`;
     }
 
+    // Reconciliation status filter
+    if (reconciliationStatus) {
+      if (reconciliationStatus === 'reconciled') {
+        query += ` AND sc.system_reconciliation_status = 'reconciled'`;
+      } else if (reconciliationStatus === 'not_reconciled') {
+        query += ` AND (sc.system_reconciliation_status IS NULL OR sc.system_reconciliation_status != 'reconciled')`;
+      } else if (reconciliationStatus === 'paid') {
+        query += ` AND sc.payment_status = 'paid'`;
+      }
+    }
+
     query += ` ORDER BY sc.order_time DESC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`;
     values.push(limit, offset);
 
@@ -841,15 +853,9 @@ router.get('/conversions', authenticateAdmin, async (req, res) => {
         COUNT(CASE WHEN sc.status = 'pending' THEN 1 END) as pending_count,
         COUNT(CASE WHEN sc.status = 'rejected' THEN 1 END) as rejected_count,
         COUNT(CASE WHEN sc.status = 'approved' THEN 1 END) as approved_count,
-        -- Reconciliation status
-        COUNT(CASE WHEN EXISTS (
-          SELECT 1 FROM system_reconciliation_items sri
-          WHERE sri.conversion_id = sc.at_conversion_id
-        ) THEN 1 END) as reconciled_count,
-        COUNT(CASE WHEN NOT EXISTS (
-          SELECT 1 FROM system_reconciliation_items sri
-          WHERE sri.conversion_id = sc.at_conversion_id
-        ) THEN 1 END) as not_reconciled_count,
+        -- Reconciliation status (FIXED: use system_conversion_id = sc.id, not conversion_id)
+        COUNT(CASE WHEN sc.system_reconciliation_status = 'reconciled' THEN 1 END) as reconciled_count,
+        COUNT(CASE WHEN sc.system_reconciliation_status IS NULL OR sc.system_reconciliation_status != 'reconciled' THEN 1 END) as not_reconciled_count,
         -- Amounts by status
         COALESCE(SUM(CASE WHEN sc.status = 'pending' THEN sc.order_amount ELSE 0 END), 0) as pending_amount,
         COALESCE(SUM(CASE WHEN sc.status = 'rejected' THEN sc.order_amount ELSE 0 END), 0) as rejected_amount,
@@ -897,6 +903,17 @@ router.get('/conversions', authenticateAdmin, async (req, res) => {
       endDate.setDate(endDate.getDate() + 1);
       statsValues.push(endDate.toISOString().split('T')[0]);
       statsQuery += ` AND sc.order_time < $${statsValues.length}`;
+    }
+
+    // Reconciliation status filter for stats
+    if (reconciliationStatus) {
+      if (reconciliationStatus === 'reconciled') {
+        statsQuery += ` AND sc.system_reconciliation_status = 'reconciled'`;
+      } else if (reconciliationStatus === 'not_reconciled') {
+        statsQuery += ` AND (sc.system_reconciliation_status IS NULL OR sc.system_reconciliation_status != 'reconciled')`;
+      } else if (reconciliationStatus === 'paid') {
+        statsQuery += ` AND sc.payment_status = 'paid'`;
+      }
     }
 
     let stats = {};

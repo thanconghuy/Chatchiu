@@ -50,11 +50,16 @@ class SystemReconciliationService {
 
       // Collect selected orders from system_conversions (internal orders)
       // Filter by selectedOrderIds array
+      // CONDITIONS (consistent with get_eligible_conversions_for_waiting_list):
+      // - status = 'approved'
+      // - system_reconciliation_id IS NULL
+      // - NOT EXISTS in system_reconciliation_items
+      // - payment_status != 'paid'
       const ordersQuery = `
         SELECT
           sc.id as conversion_id,
           sc.user_id,
-          sc.merchant_id,
+          COALESCE(sc.merchant_id, 'unknown') as merchant_id,
           COALESCE(sc.merchant_name, 'Unknown') as merchant_name,
           sc.order_time,
           sc.approval_time as confirmed_time,
@@ -67,6 +72,7 @@ class SystemReconciliationService {
         LEFT JOIN users u ON sc.user_id = u.id
         WHERE sc.id = ANY($1)
           AND sc.status = 'approved'
+          AND sc.system_reconciliation_id IS NULL
           AND (sc.payment_status IS NULL OR sc.payment_status != 'paid')
           AND NOT EXISTS (
             -- Exclude already reconciled orders
@@ -79,8 +85,36 @@ class SystemReconciliationService {
       const ordersResult = await client.query(ordersQuery, [selectedOrderIds]);
       const orders = ordersResult.rows;
 
+      // Log if some orders were filtered out
+      if (orders.length !== selectedOrderIds.length) {
+        const foundIds = orders.map(o => o.conversion_id);
+        const skippedIds = selectedOrderIds.filter(id => !foundIds.includes(id));
+        console.log(`[createReconciliation] WARNING: ${skippedIds.length} orders filtered out:`, skippedIds);
+        console.log(`[createReconciliation] Selected: ${selectedOrderIds.length}, Found: ${orders.length}`);
+
+        // Get reasons for skipped orders
+        const skippedReasons = await client.query(`
+          SELECT
+            sc.id,
+            sc.status,
+            sc.payment_status,
+            sc.system_reconciliation_id,
+            CASE
+              WHEN sc.status != 'approved' THEN 'not_approved'
+              WHEN sc.payment_status = 'paid' THEN 'already_paid'
+              WHEN sc.system_reconciliation_id IS NOT NULL THEN 'in_other_reconciliation'
+              WHEN EXISTS (SELECT 1 FROM system_reconciliation_items sri WHERE sri.system_conversion_id = sc.id) THEN 'in_reconciliation_items'
+              ELSE 'unknown'
+            END as skip_reason
+          FROM system_conversions sc
+          WHERE sc.id = ANY($1)
+        `, [skippedIds]);
+
+        console.log('[createReconciliation] Skipped reasons:', skippedReasons.rows);
+      }
+
       if (orders.length === 0) {
-        throw new Error(`Không có đơn hàng nào được duyệt trong ${periodLabel}`);
+        throw new Error(`Không có đơn hàng nào được duyệt trong ${periodLabel}. Có thể các đơn đã được thanh toán hoặc đã có trong kỳ đối soát khác.`);
       }
 
       // Calculate stats
@@ -303,6 +337,9 @@ class SystemReconciliationService {
       `, [reconciliationId]);
 
       // Update system_conversions status to 'reconciled' (new system table)
+      // FIXED: Remove condition "sc.system_reconciliation_id IS NULL"
+      // because createReconciliation() already sets system_reconciliation_id
+      // The old condition caused system_reconciliation_status to NEVER be updated!
       await client.query(`
         UPDATE system_conversions sc
         SET
@@ -312,7 +349,7 @@ class SystemReconciliationService {
         FROM system_reconciliation_items sri
         WHERE sc.id = sri.system_conversion_id
           AND sri.system_reconciliation_id = $1
-          AND sc.system_reconciliation_id IS NULL
+          AND (sc.system_reconciliation_status IS NULL OR sc.system_reconciliation_status != 'reconciled')
       `, [reconciliationId]);
 
       // Update reconciliation status
@@ -587,11 +624,16 @@ class SystemReconciliationService {
       }
 
       // 2. Get order details from system_conversions (only approved, not already in any reconciliation)
+      // CONDITIONS (consistent with get_eligible_conversions_for_waiting_list):
+      // - status = 'approved'
+      // - system_reconciliation_id IS NULL
+      // - NOT EXISTS in system_reconciliation_items
+      // - payment_status != 'paid'
       const ordersQuery = `
         SELECT
           sc.id as conversion_id,
           sc.user_id,
-          sc.merchant_id,
+          COALESCE(sc.merchant_id, 'unknown') as merchant_id,
           COALESCE(sc.merchant_name, 'Unknown') as merchant_name,
           sc.order_time,
           sc.order_time as confirmed_time,
@@ -605,6 +647,11 @@ class SystemReconciliationService {
         WHERE sc.id = ANY($1)
           AND sc.status = 'approved'
           AND sc.system_reconciliation_id IS NULL
+          AND (sc.payment_status IS NULL OR sc.payment_status != 'paid')
+          AND NOT EXISTS (
+            SELECT 1 FROM system_reconciliation_items sri
+            WHERE sri.system_conversion_id = sc.id
+          )
         ORDER BY sc.order_time ASC
       `;
 

@@ -1057,6 +1057,9 @@
                 <button class="tab-btn" data-tab="stats">
                     <i class="fas fa-chart-bar"></i> Thống Kê
                 </button>
+                <button class="tab-btn" data-tab="data-check">
+                    <i class="fas fa-stethoscope"></i> Kiểm Tra Dữ Liệu
+                </button>
             </div>
 
             <!-- Tab Content -->
@@ -1180,15 +1183,19 @@
                 </table>
 
                 <!-- Table Pagination -->
-                <div class="table-pagination" id="tablePagination" style="display: none;">
-                    <div class="pagination-info" id="paginationInfo">
-                        Hiển thị <strong>1-10</strong> trong tổng <strong>0</strong> kỳ đối soát
+                <div class="pagination" id="reconPaginationWrapper" style="padding: 20px; border-top: 1px solid #e5e7eb; display: none;">
+                    <div class="rows-per-page">
+                        <label for="reconRowsPerPage">Hiển thị:</label>
+                        <select id="reconRowsPerPage">
+                            <option value="10">10</option>
+                            <option value="20" selected>20</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
                     </div>
-                    <div class="pagination-controls">
-                        <button class="btn-prev" id="prevPage" disabled>« Trước</button>
-                        <span id="pageNumbers"></span>
-                        <button class="btn-next" id="nextPage">Sau »</button>
-                    </div>
+                    <button id="reconPrevBtn" disabled>« Trước</button>
+                    <span id="reconPageInfo">Trang 1</span>
+                    <button id="reconNextBtn">Sau »</button>
                 </div>
             </div>
         </div>
@@ -1478,6 +1485,213 @@
         </div>
         <!-- End Stats Tab -->
 
+        <!-- Data Check Tab -->
+        <div class="tab-content" id="dataCheckTab" style="display: none;">
+            <h2 style="margin-bottom: 20px;">
+                <i class="fas fa-stethoscope"></i> Kiểm Tra Tính Toàn Vẹn Dữ Liệu
+            </h2>
+
+            <!-- Health Status Card -->
+            <div id="dataCheckStatus" style="margin-bottom: 24px;">
+                <div class="card" style="padding: 24px; text-align: center;">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 32px; color: #6366f1;"></i>
+                    <p style="margin-top: 16px;">Đang kiểm tra...</p>
+                </div>
+            </div>
+
+            <!-- Issues Summary -->
+            <div id="dataCheckIssues" style="display: none;">
+                <h3 style="margin-bottom: 16px;">📋 Chi Tiết Vấn Đề</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                    <!-- Issue cards will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Tab Navigation -->
+            <div id="dataCheckTabs" style="display: none; margin-bottom: 24px;">
+                <div style="display: flex; gap: 8px; border-bottom: 2px solid #e5e7eb; margin-bottom: 24px;">
+                    <button class="data-check-tab active" data-tab="overview" onclick="switchDataCheckTab('overview')"
+                            style="padding: 12px 24px; border: none; background: none; cursor: pointer; border-bottom: 3px solid #6366f1; color: #6366f1; font-weight: 600;">
+                        📊 Tổng Quan
+                    </button>
+                    <button class="data-check-tab" data-tab="eligible" onclick="switchDataCheckTab('eligible')"
+                            style="padding: 12px 24px; border: none; background: none; cursor: pointer; border-bottom: 3px solid transparent; color: #6b7280; font-weight: 500;">
+                        ✅ Đơn Hàng Đủ Điều Kiện
+                    </button>
+                    <button class="data-check-tab" data-tab="pending" onclick="switchDataCheckTab('pending')"
+                            style="padding: 12px 24px; border: none; background: none; cursor: pointer; border-bottom: 3px solid transparent; color: #6b7280; font-weight: 500;">
+                        ⏳ Đơn Hàng Pending Quá Lâu
+                    </button>
+                </div>
+
+                <!-- Tab Contents -->
+                <div id="dataCheckTabOverview" class="data-check-tab-content">
+                    <!-- Overview content (existing sections will be moved here via JS) -->
+                </div>
+
+                <div id="dataCheckTabEligible" class="data-check-tab-content" style="display: none;">
+                    <div class="card">
+                        <div style="padding: 20px; border-bottom: 1px solid #e5e7eb;">
+                            <h3 style="margin: 0;">✅ Đơn Hàng Đủ Điều Kiện Chưa Đối Soát</h3>
+                            <p style="color: #6b7280; margin: 8px 0 0 0;">Đơn hàng đã duyệt, đủ 15 ngày, chưa được đối soát</p>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Mã Đơn</th>
+                                        <th>User</th>
+                                        <th>Merchant</th>
+                                        <th>Cashback</th>
+                                        <th>Ngày Duyệt</th>
+                                        <th>Số Ngày</th>
+                                        <th>Trạng Thái</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="eligibleOrdersTable">
+                                    <tr><td colspan="7" style="text-align: center; padding: 20px;">Đang tải...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="eligibleOrdersPagination" class="pagination" style="padding: 20px; border-top: 1px solid #e5e7eb;">
+                            <div class="rows-per-page">
+                                <label for="eligibleRowsPerPage">Hiển thị:</label>
+                                <select id="eligibleRowsPerPage">
+                                    <option value="10">10</option>
+                                    <option value="20" selected>20</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select>
+                            </div>
+                            <button id="eligiblePrevBtn" disabled>« Trước</button>
+                            <span id="eligiblePageInfo">Trang 1</span>
+                            <button id="eligibleNextBtn">Sau »</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="dataCheckTabPending" class="data-check-tab-content" style="display: none;">
+                    <div class="card">
+                        <div style="padding: 20px; border-bottom: 1px solid #e5e7eb;">
+                            <h3 style="margin: 0;">⏳ Đơn Hàng Pending Quá Lâu</h3>
+                            <p style="color: #6b7280; margin: 8px 0 0 0;">Đơn hàng ở trạng thái pending hơn 30 ngày</p>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Mã Đơn</th>
+                                        <th>User</th>
+                                        <th>Merchant</th>
+                                        <th>Cashback</th>
+                                        <th>Ngày Tạo</th>
+                                        <th>Số Ngày</th>
+                                        <th>Trạng Thái Đối Soát</th>
+                                        <th>Thao Tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pendingOrdersTable">
+                                    <tr><td colspan="8" style="text-align: center; padding: 20px;">Đang tải...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="pendingOrdersPagination" class="pagination" style="padding: 20px; border-top: 1px solid #e5e7eb;">
+                            <div class="rows-per-page">
+                                <label for="pendingRowsPerPage">Hiển thị:</label>
+                                <select id="pendingRowsPerPage">
+                                    <option value="10">10</option>
+                                    <option value="20" selected>20</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select>
+                            </div>
+                            <button id="pendingPrevBtn" disabled>« Trước</button>
+                            <span id="pendingPageInfo">Trang 1</span>
+                            <button id="pendingNextBtn">Sau »</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div id="dataCheckActions" style="display: none; margin-bottom: 24px;">
+                <div class="card" style="padding: 20px;">
+                    <h3 style="margin-bottom: 16px;">🔧 Sửa Lỗi Tự Động</h3>
+                    <p style="color: #6b7280; margin-bottom: 16px;">Chọn loại lỗi cần sửa hoặc sửa tất cả:</p>
+                    <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+                        <button class="btn btn-warning" onclick="fixDataIssue('reconciliation_status')" style="padding: 10px 20px;">
+                            <i class="fas fa-sync"></i> Fix Trạng Thái Reconciled
+                        </button>
+                        <button class="btn btn-warning" onclick="fixDataIssue('orphan_items')" style="padding: 10px 20px;">
+                            <i class="fas fa-trash"></i> Xóa Orphan Items
+                        </button>
+                        <button class="btn btn-warning" onclick="fixDataIssue('paid_items')" style="padding: 10px 20px;">
+                            <i class="fas fa-trash"></i> Xóa Paid Items
+                        </button>
+                        <button class="btn btn-warning" onclick="fixDataIssue('totals')" style="padding: 10px 20px;">
+                            <i class="fas fa-calculator"></i> Cập Nhật Totals
+                        </button>
+                        <button class="btn btn-warning" onclick="fixDataIssue('negative_pending')" style="padding: 10px 20px;">
+                            <i class="fas fa-minus-circle"></i> Fix Pending Âm
+                        </button>
+                        <button class="btn btn-danger" onclick="fixDataIssue('all')" style="padding: 10px 20px;">
+                            <i class="fas fa-magic"></i> Sửa Tất Cả
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reconciliation List Check -->
+            <div id="dataCheckReconciliations" style="margin-bottom: 24px;">
+                <h3 style="margin-bottom: 16px;">📅 Kiểm Tra Từng Kỳ Đối Soát</h3>
+                <div class="card">
+                    <div style="overflow-x: auto;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Kỳ Đối Soát</th>
+                                    <th>Status</th>
+                                    <th>Recorded</th>
+                                    <th>Actual</th>
+                                    <th>Match</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dataCheckReconciliationsTable">
+                                <tr><td colspan="6" style="text-align: center; padding: 20px;">Đang tải...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="reconciliationsCheckPagination" style="padding: 20px; border-top: 1px solid #e5e7eb; display: none; justify-content: space-between; align-items: center;">
+                        <!-- Pagination will be inserted here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- User Balance Check -->
+            <div id="dataCheckUsers" style="margin-bottom: 24px;">
+                <h3 style="margin-bottom: 16px;">👤 Kiểm Tra Số Dư User</h3>
+                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                    <input type="text" id="userCheckEmail" placeholder="Nhập email hoặc user ID..."
+                           style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
+                    <button class="btn btn-primary" onclick="checkUserBalance()" style="padding: 10px 20px;">
+                        <i class="fas fa-search"></i> Kiểm Tra
+                    </button>
+                </div>
+                <div id="userCheckResult" style="display: none;">
+                    <!-- User check result will be shown here -->
+                </div>
+            </div>
+
+            <!-- Refresh Button -->
+            <div id="dataCheckRefreshSection" style="text-align: center; margin-top: 24px;">
+                <button class="btn btn-primary" onclick="loadDataCheck()" style="padding: 12px 32px;">
+                    <i class="fas fa-refresh"></i> Kiểm Tra Lại
+                </button>
+            </div>
+        </div>
+        <!-- End Data Check Tab -->
+
         </main>
     </div>
 
@@ -1693,13 +1907,68 @@
         </div>
     </div>
 
+    <!-- Loading Modal for long-running operations -->
+    <div id="loadingModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 400px; text-align: center; padding: 40px;">
+            <div style="margin-bottom: 24px;">
+                <div class="loading-spinner" style="
+                    width: 60px;
+                    height: 60px;
+                    border: 4px solid #e2e8f0;
+                    border-top: 4px solid #6366f1;
+                    border-radius: 50%;
+                    animation: spin 1s linear infinite;
+                    margin: 0 auto;
+                "></div>
+            </div>
+            <h3 id="loadingTitle" style="color: #1e293b; margin-bottom: 12px; font-size: 18px;">
+                Đang xử lý...
+            </h3>
+            <p id="loadingMessage" style="color: #64748b; font-size: 14px; margin-bottom: 16px;">
+                Vui lòng đợi trong giây lát
+            </p>
+            <div id="loadingProgress" style="display: none;">
+                <div style="background: #e2e8f0; border-radius: 8px; height: 8px; overflow: hidden; margin-bottom: 8px;">
+                    <div id="loadingProgressBar" style="background: #6366f1; height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+                </div>
+                <span id="loadingProgressText" style="color: #64748b; font-size: 12px;">0%</span>
+            </div>
+            <p style="color: #94a3b8; font-size: 12px; margin-top: 16px;">
+                <i class="fas fa-info-circle"></i> Không đóng trang này trong khi đang xử lý
+            </p>
+        </div>
+    </div>
+
+    <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #loadingModal .modal-content {
+            animation: fadeInScale 0.3s ease-out;
+        }
+
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+    </style>
+
     <script src="../js/config.js"></script>
+    <script src="../js/auth.js"></script>
     <!-- Include reconciliation.js for deleteReconciliation function -->
     <script src="/admin/reconciliation.js"></script>
     <script>
         let currentPage = 1;
         let currentReconId = null;
-        let itemsPerPage = 10;
+        let itemsPerPage = 20;
 
         // Items modal pagination
         let itemsModalPage = 1;
@@ -1708,7 +1977,16 @@
 
         // Eligible orders pagination
         let eligibleOrdersPage = 1;
-        let eligibleOrdersLimit = 50;
+        let eligibleOrdersLimit = 20;
+
+        // Pending orders pagination
+        let pendingOrdersPage = 1;
+        let pendingOrdersLimit = 20;
+
+        // PaginationManager instances (initialized in DOMContentLoaded)
+        let reconPager = null;
+        let eligiblePager = null;
+        let pendingPager = null;
 
         // Check auth
         const token = localStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN);
@@ -1725,9 +2003,15 @@
         // Override deleteReconciliation from reconciliation.js
         // Use system-reconciliation API endpoint instead
         async function deleteReconciliation(reconciliationId) {
-            if (!confirm('Bạn có chắc muốn xóa kỳ đối soát này?')) {
+            if (!confirm('Bạn có chắc muốn xóa kỳ đối soát này?\n\nCác đơn hàng trong kỳ sẽ được khôi phục về trạng thái chưa đối soát.')) {
                 return;
             }
+
+            // Show loading modal
+            showLoadingModal(
+                'Đang xóa kỳ đối soát...',
+                'Đang khôi phục các đơn hàng. Vui lòng đợi trong giây lát.'
+            );
 
             try {
                 const response = await fetch(
@@ -1742,13 +2026,21 @@
 
                 const result = await response.json();
 
+                // Hide loading modal
+                hideLoadingModal();
+
                 if (result.success) {
                     showToast(result.message || 'Đã xóa kỳ đối soát thành công', 'success');
+
+                    // Reload all data
+                    await loadStats();
                     await loadReconciliations();
+                    await loadEligibleOrders(1); // Reload eligible orders (restored orders)
                 } else {
                     showToast(result.message || 'Xóa thất bại', 'error');
                 }
             } catch (error) {
+                hideLoadingModal();
                 console.error('Delete reconciliation error:', error);
                 showToast('Lỗi khi xóa: ' + error.message, 'error');
             }
@@ -1756,6 +2048,40 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize PaginationManager instances
+            reconPager = new PaginationManager({
+                prefix: 'recon',
+                defaultLimit: 20,
+                pageSizes: [10, 20, 50, 100],
+                onPageChange: (page, limit) => {
+                    currentPage = page;
+                    itemsPerPage = limit;
+                    loadReconciliations();
+                }
+            });
+
+            eligiblePager = new PaginationManager({
+                prefix: 'eligible',
+                defaultLimit: 20,
+                pageSizes: [10, 20, 50, 100],
+                onPageChange: (page, limit) => {
+                    eligibleOrdersPage = page;
+                    eligibleOrdersLimit = limit;
+                    loadEligibleOrders(page);
+                }
+            });
+
+            pendingPager = new PaginationManager({
+                prefix: 'pending',
+                defaultLimit: 20,
+                pageSizes: [10, 20, 50, 100],
+                onPageChange: (page, limit) => {
+                    pendingOrdersPage = page;
+                    pendingOrdersLimit = limit;
+                    loadPendingOrders(page);
+                }
+            });
+
             // Show reconciliations tab first
             switchTab('reconciliations');
             setDefaultDateRange();
@@ -1806,31 +2132,7 @@
                 });
             }
 
-            // Rows per page - REMOVED (no longer exists in table layout)
-            // document.getElementById('rowsPerPage').addEventListener('change', (e) => {
-            //     itemsPerPage = parseInt(e.target.value);
-            //     currentPage = 1; // Reset to first page
-            //     loadReconciliations();
-            // });
-
-            // Pagination
-            const prevPageBtn = document.getElementById('prevPage');
-            if (prevPageBtn) {
-                prevPageBtn.addEventListener('click', () => {
-                    if (currentPage > 1) {
-                        currentPage--;
-                        loadReconciliations();
-                    }
-                });
-            }
-
-            const nextPageBtn = document.getElementById('nextPage');
-            if (nextPageBtn) {
-                nextPageBtn.addEventListener('click', () => {
-                    currentPage++;
-                    loadReconciliations();
-                });
-            }
+            // Pagination for main reconciliation list is handled by reconPager (PaginationManager)
 
             // Filters
             const statusFilter = document.getElementById('statusFilter');
@@ -2404,48 +2706,19 @@
         }
 
         function updatePagination(pagination) {
-            const paginationEl = document.getElementById('tablePagination');
-            paginationEl.style.display = 'flex';
-
-            // Update pagination info
-            const start = (pagination.page - 1) * pagination.limit + 1;
-            const end = Math.min(pagination.page * pagination.limit, pagination.total);
-            document.getElementById('paginationInfo').innerHTML = `
-                Hiển thị <strong>${start}-${end}</strong> trong tổng <strong>${pagination.total}</strong> kỳ đối soát
-            `;
-
-            // Update page numbers
-            const pageNumbers = document.getElementById('pageNumbers');
-            let pagesHTML = '';
-
-            const maxPages = 5; // Show max 5 page numbers
-            let startPage = Math.max(1, pagination.page - 2);
-            let endPage = Math.min(pagination.totalPages, startPage + maxPages - 1);
-
-            // Adjust startPage if we're near the end
-            if (endPage - startPage < maxPages - 1) {
-                startPage = Math.max(1, endPage - maxPages + 1);
+            const paginationEl = document.getElementById('reconPaginationWrapper');
+            if (paginationEl) {
+                paginationEl.style.display = 'flex';
             }
 
-            for (let i = startPage; i <= endPage; i++) {
-                pagesHTML += `
-                    <button class="page-btn ${i === pagination.page ? 'active' : ''}"
-                            data-action="change-page" data-page="${i}">${i}</button>
-                `;
+            if (reconPager) {
+                reconPager.update({
+                    page: pagination.page,
+                    totalPages: pagination.totalPages,
+                    total: pagination.total,
+                    limit: pagination.limit
+                });
             }
-            pageNumbers.innerHTML = pagesHTML;
-
-            // Update prev/next buttons
-            const prevBtn = document.getElementById('prevPage');
-            const nextBtn = document.getElementById('nextPage');
-
-            prevBtn.disabled = pagination.page === 1;
-            nextBtn.disabled = pagination.page >= pagination.totalPages;
-        }
-
-        function changePage(page) {
-            currentPage = page;
-            loadReconciliations();
         }
 
         async function createReconciliation() {
@@ -2457,13 +2730,13 @@
             const periodLabel = formData.get('periodLabel');
 
             if (!periodStart || !periodEnd || !periodLabel) {
-                alert('Vui lòng điền đầy đủ thông tin (từ ngày, đến ngày, nhãn kỳ)');
+                showToast('Vui lòng điền đầy đủ thông tin (từ ngày, đến ngày, nhãn kỳ)', 'error');
                 return;
             }
 
             // Validate dates
             if (new Date(periodStart) > new Date(periodEnd)) {
-                alert('Từ ngày phải nhỏ hơn đến ngày');
+                showToast('Từ ngày phải nhỏ hơn đến ngày', 'error');
                 return;
             }
 
@@ -2472,13 +2745,19 @@
             const selectedOrderIds = Array.from(selectedCheckboxes).map(cb => cb.value);
 
             if (selectedOrderIds.length === 0) {
-                alert('Vui lòng chọn ít nhất một đơn hàng để tạo kỳ đối soát');
+                showToast('Vui lòng chọn ít nhất một đơn hàng để tạo kỳ đối soát', 'error');
                 return;
             }
 
             if (!confirm(`Bạn chắc chắn muốn tạo kỳ đối soát "${periodLabel}" với ${selectedOrderIds.length} đơn hàng đã chọn?`)) {
                 return;
             }
+
+            // Show loading modal
+            showLoadingModal(
+                'Đang tạo kỳ đối soát...',
+                `Đang xử lý ${selectedOrderIds.length} đơn hàng. Quá trình này có thể mất vài phút.`
+            );
 
             try {
                 const response = await fetch(`${CONFIG.API_BASE_URL}/admin/system-reconciliation/create`, {
@@ -2497,17 +2776,28 @@
 
                 const result = await response.json();
 
+                // Hide loading modal
+                hideLoadingModal();
+
                 if (result.success) {
-                    alert(result.message);
+                    showToast(result.message || 'Tạo kỳ đối soát thành công!', 'success');
                     form.reset();
-                    loadStats();
-                    loadReconciliations();
+
+                    // Reload data with await
+                    await loadStats();
+                    await loadReconciliations();
+                    await loadEligibleOrders(1); // Reload eligible orders to remove added ones
+
+                    // Switch to reconciliations tab to show the new reconciliation
+                    switchTab('reconciliations');
                 } else {
-                    alert('Lỗi: ' + result.message);
+                    showToast('Lỗi: ' + result.message, 'error');
                 }
             } catch (error) {
+                // Hide loading modal on error
+                hideLoadingModal();
                 console.error('Error creating reconciliation:', error);
-                alert('Có lỗi xảy ra khi tạo kỳ đối soát');
+                showToast('Có lỗi xảy ra khi tạo kỳ đối soát', 'error');
             }
         }
 
@@ -2515,6 +2805,12 @@
             if (!confirm('Bạn có chắc chắn muốn hoàn tất kỳ đối soát này?\n\nSau khi hoàn tất, số dư người dùng sẽ được cập nhật và không thể hoàn tác.')) {
                 return;
             }
+
+            // Show loading modal
+            showLoadingModal(
+                'Đang hoàn tất kỳ đối soát...',
+                'Đang cập nhật số dư người dùng. Quá trình này có thể mất vài phút.'
+            );
 
             try {
                 const response = await fetch(`${CONFIG.API_BASE_URL}/admin/system-reconciliation/${reconId}/finalize`, {
@@ -2526,15 +2822,21 @@
 
                 const result = await response.json();
 
+                // Hide loading modal
+                hideLoadingModal();
+
                 if (result.success) {
                     // Show success message with styled alert
                     showSuccessAlert(result.message || 'Hoàn tất thành công! Số dư người dùng đã được cập nhật.');
-                    loadStats();
-                    loadReconciliations();
+
+                    // Reload data with await
+                    await loadStats();
+                    await loadReconciliations();
                 } else {
                     showErrorAlert('Lỗi: ' + result.message);
                 }
             } catch (error) {
+                hideLoadingModal();
                 console.error('Error finalizing reconciliation:', error);
                 showErrorAlert('Có lỗi xảy ra khi hoàn tất kỳ đối soát');
             }
@@ -3221,33 +3523,20 @@
             const paginationEl = document.getElementById('eligibleOrdersPagination');
 
             if (!pagination || pagination.totalPages <= 1) {
-                paginationEl.style.display = 'none';
+                if (paginationEl) paginationEl.style.display = 'none';
                 return;
             }
 
-            paginationEl.style.display = 'flex';
+            if (paginationEl) paginationEl.style.display = 'flex';
 
-            let html = '';
-
-            // Previous button
-            if (pagination.page > 1) {
-                html += `<button data-action="change-eligible-orders-page" data-page="${pagination.page - 1}" style="padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-weight: 500;">Trước</button>`;
+            if (eligiblePager) {
+                eligiblePager.update({
+                    page: pagination.page,
+                    totalPages: pagination.totalPages,
+                    total: pagination.total,
+                    limit: pagination.limit || eligibleOrdersLimit
+                });
             }
-
-            // Page numbers
-            html += `<span style="padding: 8px 16px; font-weight: 600;">Trang ${pagination.page} / ${pagination.totalPages}</span>`;
-            html += `<span style="padding: 8px 16px; color: #64748b; font-size: 0.875rem;">(${pagination.total} đơn hàng)</span>`;
-
-            // Next button
-            if (pagination.page < pagination.totalPages) {
-                html += `<button data-action="change-eligible-orders-page" data-page="${pagination.page + 1}" style="padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-weight: 500;">Sau</button>`;
-            }
-
-            paginationEl.innerHTML = html;
-        }
-
-        function changeEligibleOrdersPage(page) {
-            loadEligibleOrders(page);
         }
 
         function getOrderStatusClass(status) {
@@ -3841,6 +4130,8 @@
                 loadAutoSyncData();
             } else if (tabName === 'stats') {
                 loadStats();
+            } else if (tabName === 'data-check') {
+                loadDataCheck();
             }
         }
 
@@ -4510,6 +4801,12 @@
                     actionMessage = `Tạo kỳ mới "${periodLabel}"`;
                 }
 
+                // Show loading modal before API call
+                showLoadingModal(
+                    'Đang tạo kỳ đối soát...',
+                    `${actionMessage}. Quá trình này có thể mất vài phút, vui lòng không đóng trang.`
+                );
+
                 // Create or add to reconciliation
                 const response = await fetch(
                     `${CONFIG.API_BASE_URL}/admin/system-reconciliation/auto-sync/create-from-waiting`,
@@ -4528,6 +4825,7 @@
                 );
 
                 if (!response.ok) {
+                    hideLoadingModal();
                     const errorData = await response.json().catch(() => ({ message: 'Lỗi không xác định' }));
                     showToast(errorData.message || `Lỗi ${response.status}: ${response.statusText}`, 'error');
                     return;
@@ -4536,16 +4834,25 @@
                 const result = await response.json();
                 console.log('[createReconciliationFromWaiting] Response:', result);
 
+                // Hide loading modal
+                hideLoadingModal();
+
                 if (result.success) {
                     showToast(result.message || 'Tạo kỳ đối soát thành công', 'success');
+
+                    // Reload all data
                     await loadWaitingList();
                     await loadNewOrdersPreview();
-                    // Optionally reload reconciliations list to show updated data
                     await loadReconciliations();
+                    await loadStats();
+
+                    // Switch to reconciliations tab to show the new reconciliation
+                    switchTab('reconciliations');
                 } else {
                     showToast(result.message || 'Có lỗi xảy ra', 'error');
                 }
             } catch (error) {
+                hideLoadingModal();
                 console.error('Error creating/adding to reconciliation:', error);
                 showToast(`Lỗi: ${error.message}`, 'error');
             }
@@ -4725,9 +5032,7 @@
                         deleteReconciliation(id);
                     }
                     break;
-                case 'change-page':
-                    changePage(parseInt(page));
-                    break;
+                // change-page: handled by reconPager (PaginationManager)
                 case 'clear-selection':
                     clearSelection();
                     break;
@@ -4740,9 +5045,7 @@
                 case 'confirm-add-to-draft':
                     confirmAddToDraft();
                     break;
-                case 'change-eligible-orders-page':
-                    changeEligibleOrdersPage(parseInt(page));
-                    break;
+                // change-eligible-orders-page: handled by eligiblePager (PaginationManager)
                 case 'change-add-orders-page':
                     changeAddOrdersPage(parseInt(page));
                     break;
@@ -4791,6 +5094,21 @@
                     break;
                 case 'load-eligible-orders':
                     loadEligibleOrders();
+                    break;
+                case 'sync-user-balance':
+                    syncUserBalance();
+                    break;
+                case 'check-at-pending':
+                    checkATPendingOrder(id);
+                    break;
+                case 'close-at-pending-modal':
+                    closeATPendingModal();
+                    break;
+                case 'confirm-update-at-pending':
+                    const atDataStr = button.dataset.atData;
+                    if (atDataStr && id) {
+                        confirmUpdatePendingFromAT(id, JSON.parse(atDataStr));
+                    }
                     break;
             }
         });
@@ -4858,11 +5176,946 @@
                 toast.style.display = 'none';
             }, 5000);
         }
+
+        // ============ Loading Modal Functions ============
+        function showLoadingModal(title = 'Đang xử lý...', message = 'Vui lòng đợi trong giây lát', showProgress = false) {
+            const modal = document.getElementById('loadingModal');
+            const titleEl = document.getElementById('loadingTitle');
+            const messageEl = document.getElementById('loadingMessage');
+            const progressEl = document.getElementById('loadingProgress');
+
+            if (titleEl) titleEl.textContent = title;
+            if (messageEl) messageEl.textContent = message;
+            if (progressEl) progressEl.style.display = showProgress ? 'block' : 'none';
+
+            if (modal) {
+                modal.style.display = 'flex';
+                modal.style.alignItems = 'center';
+                modal.style.justifyContent = 'center';
+            }
+        }
+
+        function hideLoadingModal() {
+            const modal = document.getElementById('loadingModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        function updateLoadingProgress(percent, text = null) {
+            const progressBar = document.getElementById('loadingProgressBar');
+            const progressText = document.getElementById('loadingProgressText');
+
+            if (progressBar) progressBar.style.width = `${percent}%`;
+            if (progressText) progressText.textContent = text || `${percent}%`;
+        }
+
+        function updateLoadingMessage(message) {
+            const messageEl = document.getElementById('loadingMessage');
+            if (messageEl) messageEl.textContent = message;
+        }
+
+        // ============================================
+        // DATA CHECK FUNCTIONS
+        // ============================================
+        async function loadDataCheck() {
+            try {
+                // Show loading
+                document.getElementById('dataCheckStatus').innerHTML = `
+                    <div class="card" style="padding: 24px; text-align: center;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 32px; color: #6366f1;"></i>
+                        <p style="margin-top: 16px;">Đang kiểm tra dữ liệu...</p>
+                    </div>
+                `;
+
+                const response = await fetch('/api/admin/system-reconciliation/data-check', {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+
+                const result = await response.json();
+
+                if (!result.success) throw new Error(result.message);
+
+                const {summary, total_issues, is_healthy} = result.data;
+
+                // Show health status
+                document.getElementById('dataCheckStatus').innerHTML = `
+                    <div class="card" style="padding: 24px; text-align: center; background: ${is_healthy ? 'linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%)' : 'linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%)'};">
+                        <i class="fas ${is_healthy ? 'fa-check-circle' : 'fa-exclamation-triangle'}" style="font-size: 48px; color: ${is_healthy ? '#28a745' : '#dc3545'};"></i>
+                        <h2 style="margin-top: 16px; color: ${is_healthy ? '#155724' : '#721c24'};">
+                            ${is_healthy ? '✅ Dữ Liệu Toàn Vẹn' : '⚠️ Có ' + total_issues + ' Vấn Đề'}
+                        </h2>
+                        <p style="color: ${is_healthy ? '#155724' : '#721c24'}; margin-top: 8px;">
+                            Kiểm tra lúc: ${new Date(result.data.checked_at).toLocaleString('vi-VN')}
+                        </p>
+                    </div>
+                `;
+
+                // Show summary
+                const issuesContainer = document.getElementById('dataCheckIssues');
+                issuesContainer.style.display = 'block';
+                issuesContainer.innerHTML = `
+                    <h3 style="margin-bottom: 16px;">📊 Tóm Tắt Kiểm Tra</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;">
+                        <div class="card" style="padding: 20px; border-left: 4px solid ${summary.eligible_orders.count > 0 ? '#dc3545' : '#28a745'};">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-weight: 600; font-size: 16px;">✨ Đủ Điều Kiện Chưa Đối Soát</div>
+                                    <div style="font-size: 13px; color: #6c757d; margin-top: 4px;">Đơn hàng đã duyệt 15+ ngày, chưa đối soát</div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 32px; font-weight: 700; color: ${summary.eligible_orders.count > 0 ? '#dc3545' : '#28a745'};">${summary.eligible_orders.count}</div>
+                                    <div style="font-size: 13px; color: #6c757d;">${new Intl.NumberFormat('vi-VN').format(summary.eligible_orders.total_cashback)} đ</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card" style="padding: 20px; border-left: 4px solid ${summary.pending_too_long.count > 0 ? '#fd7e14' : '#28a745'};">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-weight: 600; font-size: 16px;">⏰ Pending Quá Lâu</div>
+                                    <div style="font-size: 13px; color: #6c757d; margin-top: 4px;">Chờ duyệt hơn 30 ngày</div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 32px; font-weight: 700; color: ${summary.pending_too_long.count > 0 ? '#fd7e14' : '#28a745'};">${summary.pending_too_long.count}</div>
+                                    <div style="font-size: 13px; color: #6c757d;">${new Intl.NumberFormat('vi-VN').format(summary.pending_too_long.total_cashback)} đ</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card" style="padding: 20px; border-left: 4px solid ${summary.status_mismatch.count > 0 ? '#ffc107' : '#28a745'};">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-weight: 600; font-size: 16px;">⚠️ Status Không Khớp</div>
+                                    <div style="font-size: 13px; color: #6c757d; margin-top: 4px;">Đơn hàng trong items nhưng status sai</div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 32px; font-weight: 700; color: ${summary.status_mismatch.count > 0 ? '#ffc107' : '#28a745'};">${summary.status_mismatch.count}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // Show tabs navigation
+                document.getElementById('dataCheckTabs').style.display = 'block';
+
+                // Move overview sections into tab
+                const overviewTab = document.getElementById('dataCheckTabOverview');
+                const actions = document.getElementById('dataCheckActions');
+                const reconciliations = document.getElementById('dataCheckReconciliations');
+                const users = document.getElementById('dataCheckUsers');
+                const refreshSection = document.getElementById('dataCheckRefreshSection');
+
+                overviewTab.innerHTML = '';
+                if (actions) overviewTab.appendChild(actions);
+                if (reconciliations) overviewTab.appendChild(reconciliations);
+                if (users) overviewTab.appendChild(users);
+                if (refreshSection) overviewTab.appendChild(refreshSection);
+
+                // Load reconciliations check
+                await loadReconciliationsCheck();
+
+            } catch (error) {
+                console.error('Error loading data check:', error);
+                document.getElementById('dataCheckStatus').innerHTML = `
+                    <div class="card" style="padding: 24px; text-align: center; background: #f8d7da;">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 32px; color: #dc3545;"></i>
+                        <p style="margin-top: 16px; color: #721c24;">Lỗi: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function loadReconciliationsCheck(page = 1) {
+            try {
+                const limit = 20;
+                const response = await fetch(`/api/admin/system-reconciliation?page=${page}&limit=${limit}`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                const result = await response.json();
+
+                if (!result.success) throw new Error(result.message);
+
+                const reconciliations = result.data.items || [];
+                const tbody = document.getElementById('dataCheckReconciliationsTable');
+                const paginationDiv = document.getElementById('reconciliationsCheckPagination');
+
+                if (reconciliations.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">Không có kỳ đối soát nào</td></tr>';
+                    paginationDiv.style.display = 'none';
+                    return;
+                }
+
+                tbody.innerHTML = reconciliations.map(r => {
+                    const recordedOrders = parseInt(r.total_orders || 0);
+                    const actualOrders = parseInt(r.actual_items || r.total_orders || 0);
+                    const match = recordedOrders === actualOrders;
+
+                    return `
+                        <tr>
+                            <td style="font-weight: 500;">${r.period_label}</td>
+                            <td><span class="badge badge-${r.status === 'finalized' ? 'success' : r.status === 'draft' ? 'warning' : 'secondary'}">${r.status}</span></td>
+                            <td style="color: #374151;">${recordedOrders} đơn / ${formatCurrency(r.total_cashback)}đ</td>
+                            <td style="color: #374151;">${actualOrders} đơn</td>
+                            <td><span style="font-size: 18px;">${match ? '✅' : '❌'}</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-info" onclick="checkReconciliation('${r.id}')" style="padding: 6px 12px; font-size: 13px;">
+                                    <i class="fas fa-search"></i> Chi tiết
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+                // Show pagination if more than 1 page
+                const pagination = result.data.pagination;
+                if (pagination && pagination.totalPages > 1) {
+                    paginationDiv.style.display = 'flex';
+                    renderPagination('reconciliationsCheckPagination', pagination, loadReconciliationsCheck);
+                } else {
+                    paginationDiv.style.display = 'none';
+                }
+
+            } catch (error) {
+                console.error('Error loading reconciliations check:', error);
+                const tbody = document.getElementById('dataCheckReconciliationsTable');
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #dc3545;">❌ Lỗi tải dữ liệu</td></tr>';
+            }
+        }
+
+        async function checkReconciliation(reconId) {
+            try {
+                showLoadingModal('Kiểm Tra Kỳ Đối Soát', 'Đang kiểm tra chi tiết...', false);
+
+                const response = await fetch(`/api/admin/system-reconciliation/data-check/reconciliation/${reconId}`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                const result = await response.json();
+
+                hideLoadingModal();
+
+                if (!result.success) throw new Error(result.message);
+
+                const data = result.data;
+                const isHealthy = data.is_healthy;
+
+                let html = `
+                    <div style="padding: 20px;">
+                        <h3 style="margin-bottom: 16px;">${data.reconciliation.period_label}</h3>
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 20px;">
+                            <div>
+                                <strong>Status:</strong> ${data.reconciliation.status}<br>
+                                <strong>Recorded:</strong> ${data.reconciliation.recorded_orders} đơn / ${formatCurrency(data.reconciliation.recorded_cashback)}đ<br>
+                                <strong>Actual:</strong> ${data.reconciliation.actual_orders} đơn / ${formatCurrency(data.reconciliation.actual_cashback)}đ<br>
+                                <strong>Totals Match:</strong> ${data.reconciliation.totals_match ? '✅ Yes' : '❌ No'}
+                            </div>
+                            <div>
+                                <strong>Health:</strong> ${isHealthy ? '✅ Healthy' : '⚠️ Has Issues'}<br>
+                                <strong>Total Issues:</strong> ${data.total_issues}
+                            </div>
+                        </div>
+                        <h4>Issues Summary:</h4>
+                        <ul style="margin: 8px 0;">
+                            ${Object.entries(data.issues_summary).map(([k, v]) => `<li>${k}: ${v}</li>`).join('')}
+                        </ul>
+                        ${data.problem_items.length > 0 ? `
+                            <h4 style="margin-top: 16px;">Problem Items (first 10):</h4>
+                            <table class="table" style="font-size: 12px;">
+                                <thead>
+                                    <tr>
+                                        <th>Merchant</th>
+                                        <th>Cashback</th>
+                                        <th>Issue</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.problem_items.slice(0, 10).map(item => `
+                                        <tr>
+                                            <td>${item.item_merchant || 'N/A'}</td>
+                                            <td>${formatCurrency(item.item_cashback)}đ</td>
+                                            <td style="color: #dc3545;">${item.issue}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        ` : ''}
+                    </div>
+                `;
+
+                // Show in modal
+                document.getElementById('modalTitle').textContent = 'Kiểm Tra Kỳ Đối Soát';
+                document.getElementById('itemsContent').innerHTML = html;
+                document.getElementById('itemsModal').style.display = 'flex';
+
+            } catch (error) {
+                hideLoadingModal();
+                showToast(error.message, 'error');
+            }
+        }
+
+        async function fixDataIssue(fixType) {
+            if (!confirm(`Bạn có chắc muốn sửa lỗi: ${fixType}?`)) return;
+
+            try {
+                showLoadingModal('Sửa Lỗi Dữ Liệu', `Đang sửa: ${fixType}...`, false);
+
+                const response = await fetch('/api/admin/system-reconciliation/data-check/fix', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ fix_type: fixType })
+                });
+                const result = await response.json();
+
+                hideLoadingModal();
+
+                if (!result.success) throw new Error(result.message);
+
+                showToast(`Đã sửa lỗi thành công: ${JSON.stringify(result.data)}`, 'success');
+
+                // Reload data check
+                await loadDataCheck();
+
+            } catch (error) {
+                hideLoadingModal();
+                showToast(error.message, 'error');
+            }
+        }
+
+        let lastCheckedUserId = null;
+
+        async function checkUserBalance() {
+            const input = document.getElementById('userCheckEmail').value.trim();
+            if (!input) {
+                showToast('Vui lòng nhập email hoặc user ID', 'error');
+                return;
+            }
+
+            try {
+                // First, try to find user by email
+                let userId = input;
+                if (input.includes('@')) {
+                    // Search by email first
+                    const searchResponse = await fetch(`/api/admin/users?search=${encodeURIComponent(input)}&limit=1`, {
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    });
+                    const searchResult = await searchResponse.json();
+                    if (searchResult.success && searchResult.users && searchResult.users.length > 0) {
+                        userId = searchResult.users[0].id;
+                    } else {
+                        throw new Error('Không tìm thấy user với email này');
+                    }
+                }
+
+                lastCheckedUserId = userId;
+
+                const response = await fetch(`/api/admin/system-reconciliation/data-check/user/${userId}`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                const result = await response.json();
+
+                if (!result.success) throw new Error(result.message);
+
+                const data = result.data;
+                const resultDiv = document.getElementById('userCheckResult');
+                resultDiv.style.display = 'block';
+
+                const metricLabels = {
+                    total_earned: 'Tổng thu nhập (đã đối soát)',
+                    total_withdrawn: 'Đã rút',
+                    pending_reserved: 'Đang giữ (chờ thanh toán)',
+                    available_balance: 'Số dư khả dụng'
+                };
+
+                const matchCount = Object.values(data.balance_checks).filter(c => c.match).length;
+                const totalChecks = Object.values(data.balance_checks).length;
+
+                resultDiv.innerHTML = `
+                    <div class="card" style="padding: 24px; ${data.is_healthy ? 'border-left: 4px solid #10b981' : 'border-left: 4px solid #ef4444'};">
+                        <!-- Header -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #e5e7eb;">
+                            <div>
+                                <h4 style="margin: 0 0 4px 0; font-size: 1.1rem; color: #1e293b;">
+                                    ${data.is_healthy ? '✅' : '⚠️'} ${data.user.email}
+                                </h4>
+                                <span style="font-size: 0.875rem; color: #64748b;">${data.user.full_name || data.user.username || 'N/A'}</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                ${!data.is_healthy ? `
+                                    <button data-action="sync-user-balance" class="btn btn-primary" style="padding: 6px 14px; font-size: 0.8rem; font-weight: 600; background: #ef4444; border-color: #ef4444; border-radius: 20px; cursor: pointer; color: white;">
+                                        🔄 Đồng bộ lại
+                                    </button>
+                                ` : ''}
+                                <span style="padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;
+                                    ${data.is_healthy
+                                        ? 'background: #d1fae5; color: #065f46;'
+                                        : 'background: #fee2e2; color: #991b1b;'}">
+                                    ${data.is_healthy ? 'Đã khớp' : 'Chưa khớp'}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Balance Check Table -->
+                        <div style="overflow-x: auto; margin-bottom: 20px;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                                <thead>
+                                    <tr style="background: #f8fafc;">
+                                        <th style="padding: 10px 14px; text-align: left; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0;">Chỉ số</th>
+                                        <th style="padding: 10px 14px; text-align: right; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0;">Giá trị DB</th>
+                                        <th style="padding: 10px 14px; text-align: right; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0;">Tính toán</th>
+                                        <th style="padding: 10px 14px; text-align: right; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0;">Chênh lệch</th>
+                                        <th style="padding: 10px 14px; text-align: center; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0;">Kết quả</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${Object.entries(data.balance_checks).map(([key, check]) => {
+                                        const diff = check.db - check.calculated;
+                                        return `
+                                        <tr style="border-bottom: 1px solid #f1f5f9;">
+                                            <td style="padding: 12px 14px; font-weight: 500; color: #334155;">${metricLabels[key] || key}</td>
+                                            <td style="padding: 12px 14px; text-align: right; font-weight: 600; color: #1e293b;">${formatCurrency(check.db)}</td>
+                                            <td style="padding: 12px 14px; text-align: right; font-weight: 600; color: #1e293b;">${formatCurrency(check.calculated)}</td>
+                                            <td style="padding: 12px 14px; text-align: right; font-weight: 600; color: ${check.match ? '#10b981' : '#ef4444'};">
+                                                ${check.match ? '0' : (diff > 0 ? '+' : '') + formatCurrency(diff)}
+                                            </td>
+                                            <td style="padding: 12px 14px; text-align: center;">
+                                                <span style="display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 600;
+                                                    ${check.match
+                                                        ? 'background: #d1fae5; color: #065f46;'
+                                                        : 'background: #fee2e2; color: #991b1b;'}">
+                                                    ${check.match ? '✓ Đã khớp' : '✗ Chưa khớp'}
+                                                </span>
+                                            </td>
+                                        </tr>`;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Two columns: Conversions + Sources -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <!-- Conversions Summary -->
+                            <div style="padding: 16px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0;">
+                                <h5 style="margin: 0 0 12px 0; font-size: 0.9rem; color: #475569;">📊 Tổng quan Conversions</h5>
+                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                                    <div style="padding: 8px; background: white; border-radius: 6px; text-align: center;">
+                                        <div style="font-size: 1.25rem; font-weight: 700; color: #1e293b;">${data.conversions_summary.total}</div>
+                                        <div style="font-size: 0.75rem; color: #94a3b8;">Tổng đơn</div>
+                                    </div>
+                                    <div style="padding: 8px; background: white; border-radius: 6px; text-align: center;">
+                                        <div style="font-size: 1.25rem; font-weight: 700; color: #f59e0b;">${data.conversions_summary.pending || 0}</div>
+                                        <div style="font-size: 0.75rem; color: #94a3b8;">Pending</div>
+                                    </div>
+                                    <div style="padding: 8px; background: white; border-radius: 6px; text-align: center;">
+                                        <div style="font-size: 1.25rem; font-weight: 700; color: #10b981;">${data.conversions_summary.approved}</div>
+                                        <div style="font-size: 0.75rem; color: #94a3b8;">Đã duyệt</div>
+                                    </div>
+                                    <div style="padding: 8px; background: white; border-radius: 6px; text-align: center;">
+                                        <div style="font-size: 1.25rem; font-weight: 700; color: #3b82f6;">${data.conversions_summary.reconciled}</div>
+                                        <div style="font-size: 0.75rem; color: #94a3b8;">Đã đối soát</div>
+                                    </div>
+                                    <div style="padding: 8px; background: white; border-radius: 6px; text-align: center;">
+                                        <div style="font-size: 1.25rem; font-weight: 700; color: #8b5cf6;">${data.conversions_summary.paid}</div>
+                                        <div style="font-size: 0.75rem; color: #94a3b8;">Đã thanh toán</div>
+                                    </div>
+                                    <div style="padding: 8px; background: white; border-radius: 6px; text-align: center;">
+                                        <div style="font-size: 1.25rem; font-weight: 700; color: #ef4444;">${data.conversions_summary.rejected || 0}</div>
+                                        <div style="font-size: 0.75rem; color: #94a3b8;">Đã hủy</div>
+                                    </div>
+                                </div>
+                                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e2e8f0; font-size: 0.85rem; color: #475569;">
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                        <span>Tổng cashback:</span>
+                                        <strong style="color: #1e293b;">${formatCurrency(data.conversions_summary.total_cashback)}</strong>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between;">
+                                        <span>Cashback đã đối soát:</span>
+                                        <strong style="color: #10b981;">${formatCurrency(data.conversions_summary.reconciled_cashback)}</strong>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sources -->
+                            <div style="padding: 16px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0;">
+                                <h5 style="margin: 0 0 12px 0; font-size: 0.9rem; color: #475569;">💰 Nguồn tính toán</h5>
+                                <div style="display: flex; flex-direction: column; gap: 10px;">
+                                    <div style="padding: 10px 12px; background: white; border-radius: 6px; border-left: 3px solid #3b82f6;">
+                                        <div style="font-size: 0.8rem; color: #64748b; margin-bottom: 2px;">Conversions đã đối soát (= total_earned)</div>
+                                        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                                            <span style="font-size: 0.9rem; color: #475569;">${data.sources.reconciled_conversions.count} đơn</span>
+                                            <strong style="font-size: 1rem; color: #1e293b;">${formatCurrency(data.sources.reconciled_conversions.total)}</strong>
+                                        </div>
+                                    </div>
+                                    <div style="padding: 10px 12px; background: white; border-radius: 6px; border-left: 3px solid #ef4444;">
+                                        <div style="font-size: 0.8rem; color: #64748b; margin-bottom: 2px;">Đã rút (= total_withdrawn)</div>
+                                        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                                            <span style="font-size: 0.9rem; color: #475569;">${data.sources.paid_payments.count} lần</span>
+                                            <strong style="font-size: 1rem; color: #1e293b;">${formatCurrency(data.sources.paid_payments.total)}</strong>
+                                        </div>
+                                    </div>
+                                    <div style="padding: 10px 12px; background: white; border-radius: 6px; border-left: 3px solid #f59e0b;">
+                                        <div style="font-size: 0.8rem; color: #64748b; margin-bottom: 2px;">Đang giữ chờ thanh toán (= pending_reserved)</div>
+                                        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                                            <span style="font-size: 0.9rem; color: #475569;">${data.sources.pending_payments.count} yêu cầu</span>
+                                            <strong style="font-size: 1rem; color: #1e293b;">${formatCurrency(data.sources.pending_payments.total)}</strong>
+                                        </div>
+                                    </div>
+                                    <div style="padding: 10px 12px; background: #f0fdf4; border-radius: 6px; border-left: 3px solid #10b981;">
+                                        <div style="font-size: 0.8rem; color: #64748b; margin-bottom: 2px;">Công thức: available = earned - withdrawn - reserved</div>
+                                        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                                            <span style="font-size: 0.9rem; color: #475569;">Số dư khả dụng</span>
+                                            <strong style="font-size: 1rem; color: #10b981;">${formatCurrency(data.sources.reconciled_conversions.total - data.sources.paid_payments.total - data.sources.pending_payments.total)}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+            } catch (error) {
+                showToast(error.message, 'error');
+                document.getElementById('userCheckResult').style.display = 'none';
+            }
+        }
+
+        async function syncUserBalance() {
+            if (!lastCheckedUserId) {
+                showToast('Vui lòng kiểm tra user trước', 'error');
+                return;
+            }
+
+            if (!confirm('Xác nhận đồng bộ lại số dư cho user này?\n\nHệ thống sẽ tính toán lại từ dữ liệu gốc và cập nhật user_system_balance.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/admin/system-reconciliation/data-check/user/${lastCheckedUserId}/sync`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const result = await response.json();
+
+                if (!result.success) throw new Error(result.message);
+
+                const changeCount = result.data.changes.length;
+                showToast(
+                    changeCount > 0
+                        ? `Đã đồng bộ ${changeCount} chỉ số thành công`
+                        : 'Dữ liệu đã chính xác, không cần đồng bộ',
+                    'success'
+                );
+
+                // Re-run check to refresh display
+                await checkUserBalance();
+            } catch (error) {
+                showToast('Lỗi đồng bộ: ' + error.message, 'error');
+            }
+        }
+
+        // ============================================
+        // KIỂM TRA AT - Pending Orders
+        // ============================================
+        async function checkATPendingOrder(conversionId) {
+            try {
+                showToast('Đang kiểm tra trạng thái trên AccessTrade...', 'info');
+
+                const response = await fetch(`/api/admin/conversion/${conversionId}/check-at-status`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                const result = await response.json();
+
+                if (!result.success) throw new Error(result.message);
+
+                const { hasDifference, current, accessTrade, differences } = result;
+
+                if (hasDifference) {
+                    showATPendingComparisonModal(conversionId, current, accessTrade, differences);
+                } else {
+                    const statusMap = { 'pending': 'Đang xử lý', 'approved': 'Đã duyệt', 'rejected': 'Đã hủy' };
+                    const confirmedText = current.isConfirmed ? 'Đã đối soát' : 'Chưa đối soát';
+                    showToast(`Trạng thái giống nhau: ${statusMap[current.status]} - ${confirmedText}`, 'info');
+                }
+            } catch (error) {
+                console.error('Error checking AT order status:', error);
+                showToast(error.message || 'Lỗi khi kiểm tra trạng thái trên AccessTrade', 'error');
+            }
+        }
+
+        function showATPendingComparisonModal(conversionId, current, accessTrade, differences) {
+            const statusMap = { 'pending': 'Đang xử lý', 'approved': 'Đã duyệt', 'rejected': 'Đã hủy' };
+            const getStatusColor = (status) => status === 'approved' ? '#10b981' : status === 'pending' ? '#f59e0b' : '#ef4444';
+            const getConfirmedColor = (confirmed) => confirmed ? '#10b981' : '#f59e0b';
+
+            let changesHTML = '';
+            if (differences.status) {
+                changesHTML += `
+                    <div style="margin-bottom: 16px; padding: 12px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px;">
+                        <strong>Trạng thái đơn hàng:</strong><br>
+                        <span style="color: ${getStatusColor(differences.status.old)}; font-weight: 600;">${statusMap[differences.status.old]}</span>
+                        →
+                        <span style="color: ${getStatusColor(differences.status.new)}; font-weight: 600;">${statusMap[differences.status.new]}</span>
+                    </div>`;
+            }
+            if (differences.isConfirmed) {
+                changesHTML += `
+                    <div style="margin-bottom: 16px; padding: 12px; background: #dbeafe; border-left: 4px solid #3b82f6; border-radius: 4px;">
+                        <strong>Trạng thái đối soát:</strong><br>
+                        <span style="color: ${getConfirmedColor(differences.isConfirmed.old)}; font-weight: 600;">${differences.isConfirmed.old ? 'Đã đối soát' : 'Chưa đối soát'}</span>
+                        →
+                        <span style="color: ${getConfirmedColor(differences.isConfirmed.new)}; font-weight: 600;">${differences.isConfirmed.new ? 'Đã đối soát' : 'Chưa đối soát'}</span>
+                    </div>`;
+            }
+
+            const modalContent = `
+                <div class="detail-modal-overlay" id="atPendingModal" data-action="close-at-pending-modal">
+                    <div class="detail-modal" style="max-width: 700px;" onclick="event.stopPropagation()">
+                        <div class="detail-modal-header">
+                            <h2>🔍 So Sánh Trạng Thái AT</h2>
+                            <button class="close-btn" data-action="close-at-pending-modal">✕</button>
+                        </div>
+                        <div class="detail-modal-body">
+                            <div style="background: #fee2e2; padding: 16px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ef4444;">
+                                <strong style="color: #991b1b;">Phát hiện sự khác biệt!</strong>
+                                <p style="margin: 8px 0 0 0; color: #7f1d1d;">Trạng thái trên AccessTrade khác với database hiện tại.</p>
+                            </div>
+                            ${changesHTML}
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px;">
+                                <div style="padding: 16px; background: #f9fafb; border-radius: 8px; border: 2px solid #e5e7eb;">
+                                    <h3 style="margin: 0 0 12px 0; color: #6b7280; font-size: 0.9rem;">DATABASE HIỆN TẠI</h3>
+                                    <div style="font-size: 0.9rem;">
+                                        <div style="margin-bottom: 8px;"><strong>Trạng thái:</strong>
+                                            <span style="color: ${getStatusColor(current.status)}; font-weight: 600;">${statusMap[current.status]}</span></div>
+                                        <div style="margin-bottom: 8px;"><strong>Đối soát:</strong>
+                                            <span style="color: ${getConfirmedColor(current.isConfirmed)}; font-weight: 600;">${current.isConfirmed ? 'Đã đối soát' : 'Chưa đối soát'}</span></div>
+                                        <div style="margin-bottom: 8px;"><strong>Giá trị:</strong> ${formatCurrency(current.orderAmount)}</div>
+                                        <div><strong>Cashback:</strong> ${formatCurrency(current.cashbackAmount)}</div>
+                                    </div>
+                                </div>
+                                <div style="padding: 16px; background: #ecfdf5; border-radius: 8px; border: 2px solid #10b981;">
+                                    <h3 style="margin: 0 0 12px 0; color: #059669; font-size: 0.9rem;">ACCESSTRADE API</h3>
+                                    <div style="font-size: 0.9rem;">
+                                        <div style="margin-bottom: 8px;"><strong>Trạng thái:</strong>
+                                            <span style="color: ${getStatusColor(accessTrade.status)}; font-weight: 600;">${statusMap[accessTrade.status]}</span></div>
+                                        <div style="margin-bottom: 8px;"><strong>Đối soát:</strong>
+                                            <span style="color: ${getConfirmedColor(accessTrade.isConfirmed)}; font-weight: 600;">${accessTrade.isConfirmed ? 'Đã đối soát' : 'Chưa đối soát'}</span></div>
+                                        <div style="margin-bottom: 8px;"><strong>Giá trị:</strong> ${formatCurrency(accessTrade.billing)}</div>
+                                        <div><strong>Hoa hồng:</strong> ${formatCurrency(accessTrade.commission)}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="margin-top: 20px; padding: 12px; background: #f0f9ff; border-radius: 6px; font-size: 0.9rem;">
+                                <strong>Lưu ý:</strong> Nếu cập nhật, hệ thống sẽ tự động điều chỉnh số dư user nếu trạng thái thay đổi.
+                            </div>
+                        </div>
+                        <div class="detail-modal-footer">
+                            <button class="btn btn-secondary" data-action="close-at-pending-modal">Hủy</button>
+                            <button class="btn btn-primary" data-action="confirm-update-at-pending"
+                                data-id="${conversionId}" data-at-data='${JSON.stringify(accessTrade)}'>
+                                Cập Nhật Từ AT
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
+
+            document.body.insertAdjacentHTML('beforeend', modalContent);
+        }
+
+        function closeATPendingModal() {
+            const modal = document.getElementById('atPendingModal');
+            if (modal) modal.remove();
+        }
+
+        async function confirmUpdatePendingFromAT(conversionId, atData) {
+            try {
+                closeATPendingModal();
+                showToast('Đang cập nhật từ AccessTrade...', 'info');
+
+                const response = await fetch(`/api/admin/conversion/${conversionId}/sync-from-at`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        newStatus: atData.status,
+                        newIsConfirmed: atData.isConfirmed
+                    })
+                });
+                const result = await response.json();
+
+                if (!result.success) throw new Error(result.message);
+
+                let message = 'Đã cập nhật thành công!';
+                if (result.changes && result.changes.status) {
+                    message += ` Trạng thái: ${result.changes.status.old} → ${result.changes.status.new}`;
+                }
+                if (result.updated && result.updated.balanceUpdated) {
+                    message += ' (Số dư đã được cập nhật)';
+                }
+
+                showToast(message, 'success');
+                await loadPendingOrders();
+            } catch (error) {
+                console.error('Error updating from AT:', error);
+                showToast(error.message || 'Lỗi khi cập nhật từ AccessTrade', 'error');
+            }
+        }
+
+        // ============================================
+        // TAB SWITCHING FUNCTIONS
+        // ============================================
+        function switchDataCheckTab(tabName) {
+            // Update tab buttons
+            const tabs = document.querySelectorAll('.data-check-tab');
+            tabs.forEach(tab => {
+                const isActive = tab.getAttribute('data-tab') === tabName;
+                tab.style.borderBottomColor = isActive ? '#6366f1' : 'transparent';
+                tab.style.color = isActive ? '#6366f1' : '#6b7280';
+                tab.style.fontWeight = isActive ? '600' : '500';
+            });
+
+            // Update tab contents
+            const contents = document.querySelectorAll('.data-check-tab-content');
+            contents.forEach(content => {
+                content.style.display = 'none';
+            });
+
+            // Show selected tab
+            const selectedTab = document.getElementById(`dataCheckTab${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`);
+            if (selectedTab) {
+                selectedTab.style.display = 'block';
+            }
+
+            // Load data for the selected tab
+            if (tabName === 'eligible' && !window.eligibleOrdersLoaded) {
+                loadEligibleOrders(1);
+                window.eligibleOrdersLoaded = true;
+            } else if (tabName === 'pending' && !window.pendingOrdersLoaded) {
+                loadPendingOrders(1);
+                window.pendingOrdersLoaded = true;
+            }
+        }
+
+        // ============================================
+        // ELIGIBLE ORDERS TAB
+        // ============================================
+        async function loadEligibleOrders(page = eligibleOrdersPage) {
+            try {
+                eligibleOrdersPage = page;
+                const tbody = document.getElementById('eligibleOrdersTable');
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Đang tải...</td></tr>';
+
+                const response = await fetch(`/api/admin/system-reconciliation/data-check/eligible-orders?page=${page}&limit=${eligibleOrdersLimit}`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.message);
+                }
+
+                const { orders, pagination } = result.data;
+
+                if (orders.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">✅ Không có đơn hàng đủ điều kiện chưa đối soát</td></tr>';
+                    // Hide pagination controls
+                    document.getElementById('eligiblePrevBtn').disabled = true;
+                    document.getElementById('eligibleNextBtn').disabled = true;
+                    document.getElementById('eligiblePageInfo').textContent = 'Không có dữ liệu';
+                    return;
+                }
+
+                // Render table rows
+                tbody.innerHTML = orders.map(order => `
+                    <tr>
+                        <td>
+                            <code style="background: #f3f4f6; padding: 4px 8px; border-radius: 4px; font-size: 13px; color: #374151;">
+                                ${order.order_code || 'N/A'}
+                            </code>
+                        </td>
+                        <td>
+                            <div style="font-weight: 500; color: #111827;">${order.user_email || 'N/A'}</div>
+                            <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">${order.user_username || ''}</div>
+                        </td>
+                        <td style="color: #374151;">${order.merchant_name || 'N/A'}</td>
+                        <td>
+                            <span style="font-weight: 600; color: #059669; font-size: 14px;">
+                                ${formatCurrency(order.cashback_amount)} đ
+                            </span>
+                        </td>
+                        <td>
+                            <div style="color: #111827; font-size: 13px;">${new Date(order.approval_time).toLocaleDateString('vi-VN')}</div>
+                            <div style="font-size: 12px; color: #9ca3af; margin-top: 2px;">${new Date(order.approval_time).toLocaleTimeString('vi-VN')}</div>
+                        </td>
+                        <td>
+                            <span class="badge" style="background: #fef3c7; color: #92400e;">
+                                ${Math.floor(order.days_since_approval)} ngày
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge ${order.payment_status === 'paid' ? 'badge-success' : 'badge-pending'}">
+                                ${order.system_reconciliation_status || 'Chưa đối soát'}
+                            </span>
+                        </td>
+                    </tr>
+                `).join('');
+
+                // Setup pagination controls
+                const prevBtn = document.getElementById('eligiblePrevBtn');
+                const nextBtn = document.getElementById('eligibleNextBtn');
+                const pageInfo = document.getElementById('eligiblePageInfo');
+                const rowsPerPageSelect = document.getElementById('eligibleRowsPerPage');
+
+                if (prevBtn) {
+                    prevBtn.disabled = pagination.page <= 1;
+                    prevBtn.onclick = () => {
+                        if (pagination.page > 1) loadEligibleOrders(pagination.page - 1);
+                    };
+                }
+
+                if (nextBtn) {
+                    nextBtn.disabled = pagination.page >= pagination.total_pages;
+                    nextBtn.onclick = () => {
+                        if (pagination.page < pagination.total_pages) loadEligibleOrders(pagination.page + 1);
+                    };
+                }
+
+                if (pageInfo) {
+                    pageInfo.textContent = pagination.total > 0
+                        ? `Trang ${pagination.page}/${pagination.total_pages} (${pagination.total} mục)`
+                        : 'Không có dữ liệu';
+                }
+
+                if (rowsPerPageSelect) {
+                    rowsPerPageSelect.value = eligibleOrdersLimit;
+                    rowsPerPageSelect.onchange = (e) => {
+                        eligibleOrdersLimit = parseInt(e.target.value);
+                        loadEligibleOrders(1);
+                    };
+                }
+
+            } catch (error) {
+                console.error('Error loading eligible orders:', error);
+                const tbody = document.getElementById('eligibleOrdersTable');
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 20px; color: #dc3545;">❌ Lỗi: ${error.message}</td></tr>`;
+            }
+        }
+
+        // ============================================
+        // PENDING ORDERS TAB
+        // ============================================
+        async function loadPendingOrders(page = pendingOrdersPage) {
+            try {
+                pendingOrdersPage = page;
+                const tbody = document.getElementById('pendingOrdersTable');
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Đang tải...</td></tr>';
+
+                const response = await fetch(`/api/admin/system-reconciliation/data-check/pending-orders?page=${page}&limit=${pendingOrdersLimit}`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.message);
+                }
+
+                const { orders, pagination } = result.data;
+
+                if (orders.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px;">✅ Không có đơn hàng pending quá lâu</td></tr>';
+                    if (pendingPager) {
+                        pendingPager.update({ page: 1, totalPages: 1, total: 0, limit: pendingOrdersLimit });
+                    }
+                    return;
+                }
+
+                // Render table rows
+                tbody.innerHTML = orders.map(order => `
+                    <tr>
+                        <td>
+                            <code style="background: #f3f4f6; padding: 4px 8px; border-radius: 4px; font-size: 13px; color: #374151;">
+                                ${order.order_code || 'N/A'}
+                            </code>
+                        </td>
+                        <td>
+                            <div style="font-weight: 500; color: #111827;">${order.user_email || 'N/A'}</div>
+                            <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">${order.user_username || ''}</div>
+                        </td>
+                        <td style="color: #374151;">${order.merchant_name || 'N/A'}</td>
+                        <td>
+                            <span style="font-weight: 600; color: #059669; font-size: 14px;">
+                                ${formatCurrency(order.cashback_amount)} đ
+                            </span>
+                        </td>
+                        <td>
+                            <div style="color: #111827; font-size: 13px;">${new Date(order.order_time).toLocaleDateString('vi-VN')}</div>
+                            <div style="font-size: 12px; color: #9ca3af; margin-top: 2px;">${new Date(order.order_time).toLocaleTimeString('vi-VN')}</div>
+                        </td>
+                        <td>
+                            <span class="badge" style="background: #fee2e2; color: #991b1b;">
+                                ${Math.floor(order.days_pending)} ngày
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge ${order.system_reconciliation_status === 'reconciled' ? 'badge-success' : 'badge-pending'}">
+                                ${order.system_reconciliation_status || 'Chưa đối soát'}
+                            </span>
+                        </td>
+                        <td>
+                            <button data-action="check-at-pending" data-id="${order.id}"
+                                style="padding: 4px 10px; font-size: 12px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap;">
+                                🔍 Kiểm Tra AT
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+
+                // Update pagination via PaginationManager
+                if (pendingPager) {
+                    pendingPager.update({
+                        page: pagination.page,
+                        totalPages: pagination.total_pages,
+                        total: pagination.total,
+                        limit: pendingOrdersLimit
+                    });
+                }
+
+            } catch (error) {
+                console.error('Error loading pending orders:', error);
+                const tbody = document.getElementById('pendingOrdersTable');
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 20px; color: #dc3545;">❌ Lỗi: ${error.message}</td></tr>`;
+            }
+        }
+
     </script>
 
     <!-- Toast Container -->
     <div id="toast" class="toast" style="display: none;"></div>
 
+    <!-- Shared Utilities -->
+    <script src="/admin/shared/utils.js"></script>
     <!-- Sidebar Component -->
     <script src="/admin/sidebar.js"></script>
     <!-- CSP Fix: Remove inline event handlers -->

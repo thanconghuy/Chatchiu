@@ -7,6 +7,7 @@ let currentLimit = 20;
 let currentSortBy = 'cashback_desc';
 let currentFromDate = '';
 let currentToDate = '';
+let currentSearch = '';
 let totalPages = 1;
 
 // ========================================
@@ -36,6 +37,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('prevBtn')?.addEventListener('click', handlePrevPage);
     document.getElementById('nextBtn')?.addEventListener('click', handleNextPage);
     document.getElementById('closeModal')?.addEventListener('click', closeDetailModal);
+
+    // Search input - Enter key to search
+    document.getElementById('searchInput')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            handleApplyFilter();
+        }
+    });
 
     // Close modal when clicking overlay
     document.getElementById('detailModal')?.addEventListener('click', (e) => {
@@ -132,6 +140,9 @@ async function handleApplyFilter() {
         currentToDate = toDateInput;
     }
 
+    // Get search value
+    currentSearch = document.getElementById('searchInput')?.value?.trim() || '';
+
     currentPage = 0;
     await loadCashbackStats();
 }
@@ -206,6 +217,11 @@ async function loadCashbackStats() {
             limit: currentLimit,
             offset: currentPage * currentLimit
         });
+
+        // Add search param if provided
+        if (currentSearch) {
+            params.append('search', currentSearch);
+        }
 
         console.log('Fetching cashback stats with params:', Object.fromEntries(params));
 

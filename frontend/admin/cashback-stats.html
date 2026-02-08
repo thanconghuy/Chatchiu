@@ -33,7 +33,7 @@
 
         .search-filters {
             display: grid;
-            grid-template-columns: 200px 200px 180px 180px;
+            grid-template-columns: 280px 160px 160px 160px 160px;
             gap: 16px;
             align-items: end;
         }
@@ -186,8 +186,16 @@
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
             min-width: 180px;
-            z-index: 1000;
+            z-index: 9999;
             margin-top: 4px;
+        }
+
+        /* Position dropdown to the left on last column */
+        td:last-child .action-dropdown {
+            right: 100%;
+            left: auto;
+            margin-right: 8px;
+            margin-top: -8px;
         }
 
         .action-dropdown.show {
@@ -219,6 +227,15 @@
             width: 16px;
             text-align: center;
         }
+
+        /* Fix: Allow action dropdown to overflow table container */
+        .table-container {
+            overflow: visible;
+        }
+
+        .table-section {
+            overflow: visible;
+        }
     </style>
 </head>
 <body>
@@ -240,6 +257,10 @@
             <div class="search-bar">
                 <div class="search-row">
                     <div class="search-filters">
+                        <div class="search-input-group">
+                            <label for="searchInput">🔍 Tìm kiếm:</label>
+                            <input type="text" id="searchInput" class="input-field" placeholder="Email, username, họ tên...">
+                        </div>
                         <div class="search-input-group" id="customDateGroup">
                             <label for="fromDate">📅 Từ ngày:</label>
                             <input type="date" id="fromDate" class="input-field">

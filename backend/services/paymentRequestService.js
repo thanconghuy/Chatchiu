@@ -92,6 +92,17 @@ class PaymentRequestService {
       throw error;
     }
 
+    // IMPORTANT: Amount must be a multiple of minAmount
+    // E.g., if minAmount = 50,000đ, valid amounts are 50,000đ, 100,000đ, 150,000đ, etc.
+    if (requestedAmount % minAmount !== 0) {
+      const error = new Error(
+        `Số tiền phải là bội số của ${minAmount.toLocaleString('vi-VN')}đ. ` +
+        `Ví dụ: ${minAmount.toLocaleString('vi-VN')}đ, ${(minAmount * 2).toLocaleString('vi-VN')}đ, ${(minAmount * 3).toLocaleString('vi-VN')}đ...`
+      );
+      error.code = 'INVALID_AMOUNT_MULTIPLE';
+      throw error;
+    }
+
     if (!bankName || !bankAccountNumber || !bankAccountName) {
       const error = new Error('Thông tin ngân hàng không đầy đủ');
       error.code = 'INVALID_BANK_INFO';
@@ -167,20 +178,29 @@ class PaymentRequestService {
       // Số dư khả dụng ĐÚNG = Đã đối soát - Đã rút - Đang chờ xử lý
       const availableBalance = reconciledBalance - totalWithdrawn - pendingReserved;
 
-      if (availableBalance <= 0) {
-        throw new Error('Bạn chưa có số dư khả dụng. Vui lòng chờ đối soát hoàn tất.');
+      // IMPORTANT: Max payable = floor(available / minAmount) * minAmount
+      // This ensures user cannot pay into debt
+      // E.g., if available = 238,500đ and minAmount = 50,000đ, maxPayable = 200,000đ
+      const maxPayable = Math.floor(availableBalance / minAmount) * minAmount;
+
+      if (maxPayable < minAmount) {
+        throw new Error(
+          `Số dư khả dụng không đủ để rút tối thiểu ${minAmount.toLocaleString('vi-VN')}đ. ` +
+          `Số dư hiện tại: ${availableBalance.toLocaleString('vi-VN')}đ`
+        );
       }
 
-      if (requestedAmount > availableBalance) {
+      if (requestedAmount > maxPayable) {
         const error = new Error(
-          `Số dư không đủ. Khả dụng: ${availableBalance.toLocaleString('vi-VN')}đ, ` +
-          `Yêu cầu: ${requestedAmount.toLocaleString('vi-VN')}đ`
+          `Số tiền tối đa có thể rút là ${maxPayable.toLocaleString('vi-VN')}đ ` +
+          `(số dư khả dụng: ${availableBalance.toLocaleString('vi-VN')}đ, làm tròn xuống bội số ${minAmount.toLocaleString('vi-VN')}đ)`
         );
-        error.code = 'INSUFFICIENT_BALANCE';
+        error.code = 'EXCEEDS_MAX_PAYABLE';
         error.details = {
           available: availableBalance,
+          maxPayable: maxPayable,
           requested: requestedAmount,
-          shortage: requestedAmount - availableBalance,
+          minAmount: minAmount,
           reconciled_balance: reconciledBalance,
           total_withdrawn: totalWithdrawn,
           pending_reserved: pendingReserved
@@ -427,18 +447,20 @@ class PaymentRequestService {
       `, [paymentRequestId, userId, reason]);
 
       // ========================================
-      // STEP 4: RELEASE pending_reserved (FIXED LOGIC)
+      // STEP 4: NO BALANCE CHANGE FOR PENDING REQUESTS
       // ========================================
-      // Giảm pending_reserved để available_balance tự động tăng trở lại
-      await client.query(`
-        UPDATE user_system_balance
-        SET
-          pending_reserved = pending_reserved - $1,
-          updated_at = NOW()
-        WHERE user_id = $2
-      `, [parseFloat(paymentRequest.requested_amount), userId]);
+      // IMPORTANT: User can only cancel PENDING requests (line 398 validates this)
+      // PENDING requests have NOT reserved balance yet (balance is reserved on CONFIRM)
+      // Therefore, we do NOT need to release any balance here
+      //
+      // Balance lifecycle:
+      // - pending: NO balance reserved
+      // - confirmed: balance RESERVED (pending_reserved += amount)
+      // - paid: balance WITHDRAWN (pending_reserved -= amount, total_withdrawn += amount)
+      // - rejected (from confirmed): balance RELEASED (pending_reserved -= amount)
+      // - cancelled (from pending): NO balance change needed
 
-      logger.success('Pending reserved released successfully', {
+      logger.info('Payment request cancelled - no balance change needed (was pending)', {
         paymentRequestId,
         userId,
         amount: paymentRequest.requested_amount
@@ -591,11 +613,14 @@ class PaymentRequestService {
         );
       }
 
+      const previousStatus = paymentRequest.status;
+
       logger.info('Marking payment request as paid', {
         paymentRequestId,
         userId: paymentRequest.user_id,
         amount: requestedAmount,
-        adminId: adminInfo.id
+        adminId: adminInfo.id,
+        previousStatus
       });
 
       // ========================================
@@ -616,23 +641,42 @@ class PaymentRequestService {
       // STEP 4: UPDATE total_withdrawn AND RELEASE pending_reserved (FIXED LOGIC)
       // ========================================
       // Khi thanh toán thành công:
-      // 1. Tăng total_withdrawn
-      // 2. Giảm pending_reserved (release số dư đã reserve)
+      // - Nếu từ 'confirmed': pending_reserved đã được tăng → giảm pending_reserved
+      // - Nếu từ 'pending': pending_reserved chưa được tăng → KHÔNG giảm
       // => available_balance = total_earned - total_withdrawn - pending_reserved (auto computed)
-      await client.query(`
-        UPDATE user_system_balance
-        SET
-          total_withdrawn = total_withdrawn + $1,
-          pending_reserved = pending_reserved - $1,
-          updated_at = NOW()
-        WHERE user_id = $2
-      `, [requestedAmount, paymentRequest.user_id]);
 
-      logger.success('Withdrawal recorded and pending released successfully', {
-        paymentRequestId,
-        userId: paymentRequest.user_id,
-        amount: requestedAmount
-      });
+      if (previousStatus === 'confirmed') {
+        // Was confirmed → pending_reserved was increased → need to decrease
+        await client.query(`
+          UPDATE user_system_balance
+          SET
+            total_withdrawn = total_withdrawn + $1,
+            pending_reserved = pending_reserved - $1,
+            updated_at = NOW()
+          WHERE user_id = $2
+        `, [requestedAmount, paymentRequest.user_id]);
+
+        logger.success('Withdrawal recorded and pending released (was confirmed)', {
+          paymentRequestId,
+          userId: paymentRequest.user_id,
+          amount: requestedAmount
+        });
+      } else {
+        // Was pending → pending_reserved was NOT increased → only increase total_withdrawn
+        await client.query(`
+          UPDATE user_system_balance
+          SET
+            total_withdrawn = total_withdrawn + $1,
+            updated_at = NOW()
+          WHERE user_id = $2
+        `, [requestedAmount, paymentRequest.user_id]);
+
+        logger.success('Withdrawal recorded (was pending, no pending_reserved to release)', {
+          paymentRequestId,
+          userId: paymentRequest.user_id,
+          amount: requestedAmount
+        });
+      }
 
       // ========================================
       // STEP 5: Mark Conversions as Paid (FIFO)
@@ -812,7 +856,12 @@ class PaymentRequestService {
       // SỐ DƯ KHẢ DỤNG ĐÚNG = Đã đối soát - Đã rút - Đang chờ xử lý
       const availableBalance = Math.max(0, reconciledCashback - totalWithdrawn - pendingReserved);
 
-      const minAmount = await SystemSettingsService.getSetting('min_withdrawal_amount') || 40000;
+      const minAmount = await SystemSettingsService.getSetting('min_withdrawal_amount') || 50000;
+
+      // IMPORTANT: Max payable = floor(available / minAmount) * minAmount
+      // This ensures user cannot pay into debt
+      // E.g., if available = 238,500 and minAmount = 50,000, maxPayable = 200,000
+      const maxPayable = Math.floor(availableBalance / minAmount) * minAmount;
 
       // Check for pending requests
       const pendingResult = await db.query(`
@@ -837,8 +886,9 @@ class PaymentRequestService {
 
       const totalConfirmedCashback = parseFloat(confirmedResult.rows[0].total);
 
+      // User is eligible if maxPayable >= minAmount (can withdraw at least 1 unit)
       const isEligible = (
-        availableBalance >= minAmount &&
+        maxPayable >= minAmount &&
         debt === 0
       );
 
@@ -852,6 +902,8 @@ class PaymentRequestService {
         totalRequested: pendingTotal,
         minAmount: minAmount,
         min_withdrawal_amount: minAmount, // Backward compatibility
+        maxPayable: maxPayable, // NEW: Số tiền tối đa có thể rút (bội số của minAmount)
+        max_payable: maxPayable, // Backward compatibility
         pendingRequests: pendingCount,
         pending_requests: pendingCount, // Backward compatibility
         pendingAmount: pendingTotal,
@@ -864,7 +916,7 @@ class PaymentRequestService {
         total_withdrawn: totalWithdrawn, // Backward compatibility
         pendingReserved: pendingReserved, // NEW: Số dư đang chờ xử lý
         reasons: isEligible ? [] : [
-          availableBalance < minAmount && `Số dư khả dụng thấp hơn mức tối thiểu (${minAmount.toLocaleString('vi-VN')}đ)`,
+          maxPayable < minAmount && `Số dư khả dụng không đủ để rút tối thiểu ${minAmount.toLocaleString('vi-VN')}đ (cần ít nhất ${minAmount.toLocaleString('vi-VN')}đ)`,
           debt > 0 && `Có khoản nợ chưa thanh toán (${debt.toLocaleString('vi-VN')}đ)`
         ].filter(Boolean)
       };
@@ -1139,10 +1191,13 @@ class PaymentRequestService {
         );
       }
 
+      const previousStatus = paymentRequest.status;
+
       logger.info('Rejecting payment request', {
         paymentRequestId,
         adminId: adminInfo.id,
-        amount: paymentRequest.requested_amount
+        amount: paymentRequest.requested_amount,
+        previousStatus
       });
 
       // Update status
@@ -1157,20 +1212,29 @@ class PaymentRequestService {
         WHERE id = $1
       `, [paymentRequestId, adminInfo.id, rejectionReason]);
 
-      // RELEASE pending_reserved (FIXED LOGIC)
-      await client.query(`
-        UPDATE user_system_balance
-        SET
-          pending_reserved = pending_reserved - $1,
-          updated_at = NOW()
-        WHERE user_id = $2
-      `, [parseFloat(paymentRequest.requested_amount), paymentRequest.user_id]);
+      // RELEASE pending_reserved ONLY if was CONFIRMED
+      // (pending requests never had balance reserved)
+      if (previousStatus === 'confirmed') {
+        await client.query(`
+          UPDATE user_system_balance
+          SET
+            pending_reserved = pending_reserved - $1,
+            updated_at = NOW()
+          WHERE user_id = $2
+        `, [parseFloat(paymentRequest.requested_amount), paymentRequest.user_id]);
 
-      logger.success('Pending reserved released on rejection', {
-        paymentRequestId,
-        userId: paymentRequest.user_id,
-        amount: paymentRequest.requested_amount
-      });
+        logger.success('Pending reserved released on rejection (was confirmed)', {
+          paymentRequestId,
+          userId: paymentRequest.user_id,
+          amount: paymentRequest.requested_amount
+        });
+      } else {
+        logger.info('No balance release needed (was pending, never reserved)', {
+          paymentRequestId,
+          userId: paymentRequest.user_id,
+          previousStatus
+        });
+      }
 
       // Log action
       await client.query(`

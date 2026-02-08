@@ -167,7 +167,7 @@ function confirmAction(message, title = 'Xác nhận') {
 }
 
 /**
- * Setup pagination controls
+ * Setup pagination controls (legacy - use PaginationManager for new code)
  */
 function setupPagination(options) {
     const {
@@ -210,6 +210,169 @@ function setupPagination(options) {
             onPageSizeChange(parseInt(e.target.value));
         };
     }
+}
+
+/**
+ * PaginationManager - Reusable pagination class for any list/table module
+ *
+ * Usage:
+ *   const pager = new PaginationManager({
+ *       prefix: 'eligible',           // Element ID prefix
+ *       defaultLimit: 20,             // Default items per page
+ *       pageSizes: [10, 20, 50, 100], // Dropdown options
+ *       onPageChange: (page, limit) => loadData(page),
+ *   });
+ *
+ *   // After fetching data, update pagination:
+ *   pager.update({ page: 1, totalPages: 5, total: 100, limit: 20 });
+ *
+ * Required HTML structure (IDs use prefix):
+ *   <div class="pagination">
+ *       <div class="rows-per-page">
+ *           <label>Hiển thị:</label>
+ *           <select id="{prefix}RowsPerPage">...</select>
+ *       </div>
+ *       <button id="{prefix}PrevBtn">« Trước</button>
+ *       <span id="{prefix}PageInfo">Trang 1</span>
+ *       <button id="{prefix}NextBtn">Sau »</button>
+ *   </div>
+ */
+class PaginationManager {
+    constructor(options) {
+        this.prefix = options.prefix || '';
+        this.defaultLimit = options.defaultLimit || 20;
+        this.pageSizes = options.pageSizes || [10, 20, 50, 100];
+        this.onPageChange = options.onPageChange;
+
+        this.currentPage = 1;
+        this.totalPages = 1;
+        this.totalItems = 0;
+        this.limit = this.defaultLimit;
+
+        this._bindElements();
+        this._setupEvents();
+    }
+
+    _getElementId(suffix) {
+        return this.prefix ? `${this.prefix}${suffix}` : suffix.charAt(0).toLowerCase() + suffix.slice(1);
+    }
+
+    _bindElements() {
+        this.prevBtn = document.getElementById(this._getElementId('PrevBtn'));
+        this.nextBtn = document.getElementById(this._getElementId('NextBtn'));
+        this.pageInfo = document.getElementById(this._getElementId('PageInfo'));
+        this.rowsPerPage = document.getElementById(this._getElementId('RowsPerPage'));
+    }
+
+    _setupEvents() {
+        if (this.prevBtn) {
+            this.prevBtn.onclick = () => {
+                if (this.currentPage > 1) {
+                    this.currentPage--;
+                    this._triggerChange();
+                }
+            };
+        }
+
+        if (this.nextBtn) {
+            this.nextBtn.onclick = () => {
+                if (this.currentPage < this.totalPages) {
+                    this.currentPage++;
+                    this._triggerChange();
+                }
+            };
+        }
+
+        if (this.rowsPerPage) {
+            this.rowsPerPage.value = this.limit;
+            this.rowsPerPage.onchange = (e) => {
+                this.limit = parseInt(e.target.value);
+                this.currentPage = 1;
+                this._triggerChange();
+            };
+        }
+    }
+
+    _triggerChange() {
+        if (this.onPageChange) {
+            this.onPageChange(this.currentPage, this.limit);
+        }
+    }
+
+    /**
+     * Update pagination state after data load
+     * @param {Object} pagination - { page, totalPages, total, limit }
+     */
+    update(pagination) {
+        this.currentPage = pagination.page || 1;
+        this.totalPages = pagination.totalPages || 1;
+        this.totalItems = pagination.total || 0;
+        this.limit = pagination.limit || this.limit;
+
+        this._render();
+    }
+
+    _render() {
+        if (this.prevBtn) {
+            this.prevBtn.disabled = this.currentPage <= 1;
+        }
+
+        if (this.nextBtn) {
+            this.nextBtn.disabled = this.currentPage >= this.totalPages;
+        }
+
+        if (this.pageInfo) {
+            this.pageInfo.textContent = this.totalItems > 0
+                ? `Trang ${this.currentPage}/${this.totalPages} (${this.totalItems} mục)`
+                : 'Không có dữ liệu';
+        }
+
+        if (this.rowsPerPage) {
+            this.rowsPerPage.value = this.limit;
+        }
+    }
+
+    /** Get current limit value */
+    getLimit() {
+        return this.limit;
+    }
+
+    /** Get current page */
+    getPage() {
+        return this.currentPage;
+    }
+
+    /** Reset to page 1 (useful when filters change) */
+    reset() {
+        this.currentPage = 1;
+        this._render();
+    }
+}
+
+/**
+ * Helper to generate standard pagination HTML
+ * @param {string} prefix - Element ID prefix (e.g. 'eligible', 'pending', 'recon')
+ * @param {Array} pageSizes - Array of page size options, default [10, 20, 50, 100]
+ * @param {number} defaultSize - Default selected size, default 20
+ * @returns {string} HTML string
+ */
+function generatePaginationHTML(prefix, pageSizes = [10, 20, 50, 100], defaultSize = 20) {
+    const options = pageSizes.map(size =>
+        `<option value="${size}"${size === defaultSize ? ' selected' : ''}>${size}</option>`
+    ).join('\n                        ');
+
+    return `
+                <div class="pagination" style="padding: 20px; border-top: 1px solid #e5e7eb;">
+                    <div class="rows-per-page">
+                        <label for="${prefix}RowsPerPage">Hiển thị:</label>
+                        <select id="${prefix}RowsPerPage">
+                            ${options}
+                        </select>
+                    </div>
+                    <button id="${prefix}PrevBtn" disabled>« Trước</button>
+                    <span id="${prefix}PageInfo">Trang 1</span>
+                    <button id="${prefix}NextBtn">Sau »</button>
+                </div>`;
 }
 
 /**
