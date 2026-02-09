@@ -402,7 +402,9 @@
             (element.textContent === '×' && element.closest('.modal'))) {
             const modal = element.closest('.modal');
             if (modal) {
-                if (typeof window.closeEditModal === 'function') {
+                if (modal.id === 'orderDetailModal' && typeof window.closeOrderDetailModal === 'function') {
+                    window.closeOrderDetailModal();
+                } else if (typeof window.closeEditModal === 'function') {
                     window.closeEditModal();
                 } else {
                     modal.remove();
