@@ -5229,7 +5229,7 @@
                 `;
 
                 const response = await fetch('/api/admin/system-reconciliation/data-check', {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    headers: { 'Authorization': `Bearer ${getToken()}` }
                 });
 
                 if (!response.ok) {
@@ -5336,7 +5336,7 @@
             try {
                 const limit = 20;
                 const response = await fetch(`/api/admin/system-reconciliation?page=${page}&limit=${limit}`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    headers: { 'Authorization': `Bearer ${getToken()}` }
                 });
                 const result = await response.json();
 
@@ -5394,7 +5394,7 @@
                 showLoadingModal('Kiểm Tra Kỳ Đối Soát', 'Đang kiểm tra chi tiết...', false);
 
                 const response = await fetch(`/api/admin/system-reconciliation/data-check/reconciliation/${reconId}`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    headers: { 'Authorization': `Bearer ${getToken()}` }
                 });
                 const result = await response.json();
 
@@ -5468,7 +5468,7 @@
                 const response = await fetch('/api/admin/system-reconciliation/data-check/fix', {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        'Authorization': `Bearer ${getToken()}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ fix_type: fixType })
@@ -5505,7 +5505,7 @@
                 if (input.includes('@')) {
                     // Search by email first
                     const searchResponse = await fetch(`/api/admin/users?search=${encodeURIComponent(input)}&limit=1`, {
-                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                        headers: { 'Authorization': `Bearer ${getToken()}` }
                     });
                     const searchResult = await searchResponse.json();
                     if (searchResult.success && searchResult.users && searchResult.users.length > 0) {
@@ -5518,7 +5518,7 @@
                 lastCheckedUserId = userId;
 
                 const response = await fetch(`/api/admin/system-reconciliation/data-check/user/${userId}`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    headers: { 'Authorization': `Bearer ${getToken()}` }
                 });
                 const result = await response.json();
 
@@ -5701,7 +5701,7 @@
                 const response = await fetch(`/api/admin/system-reconciliation/data-check/user/${lastCheckedUserId}/sync`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        'Authorization': `Bearer ${getToken()}`,
                         'Content-Type': 'application/json'
                     }
                 });
@@ -5732,7 +5732,7 @@
                 showToast('Đang kiểm tra trạng thái trên AccessTrade...', 'info');
 
                 const response = await fetch(`/api/admin/conversion/${conversionId}/check-at-status`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    headers: { 'Authorization': `Bearer ${getToken()}` }
                 });
                 const result = await response.json();
 
@@ -5845,7 +5845,7 @@
                 const response = await fetch(`/api/admin/conversion/${conversionId}/sync-from-at`, {
                     method: 'PUT',
                     headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        'Authorization': `Bearer ${getToken()}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
@@ -5918,7 +5918,7 @@
                 tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Đang tải...</td></tr>';
 
                 const response = await fetch(`/api/admin/system-reconciliation/data-check/eligible-orders?page=${page}&limit=${eligibleOrdersLimit}`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    headers: { 'Authorization': `Bearer ${getToken()}` }
                 });
 
                 if (!response.ok) {
@@ -6028,7 +6028,7 @@
                 tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Đang tải...</td></tr>';
 
                 const response = await fetch(`/api/admin/system-reconciliation/data-check/pending-orders?page=${page}&limit=${pendingOrdersLimit}`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    headers: { 'Authorization': `Bearer ${getToken()}` }
                 });
 
                 if (!response.ok) {
