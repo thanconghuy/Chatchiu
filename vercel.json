@@ -33,7 +33,7 @@
   "crons": [
     {
       "path": "/api/admin/cron/auto-sync",
-      "schedule": "0 */6 * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }
