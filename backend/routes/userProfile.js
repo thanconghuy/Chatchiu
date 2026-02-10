@@ -31,41 +31,44 @@ router.get('/profile', authenticateToken, async (req, res) => {
         // Get user stats
         const stats = await User.getStats(userId);
 
-        // Get system reconciliation balance (from finalized reconciliations)
-        // FIXED: Tính available_balance từ conversions ĐÃ ĐỐI SOÁT
-        const systemBalanceQuery = `
+        // Tính toán số dư từ nguồn chính thức duy nhất: user_system_balance + system_conversions
+        const balanceQuery = `
             SELECT
-                COALESCE(usb.pending_balance, 0) as system_pending,
-                COALESCE(usb.total_earned, 0) as system_total,
-                COALESCE(usb.total_withdrawn, 0) as system_withdrawn,
-                COALESCE(usb.pending_reserved, 0) as system_reserved,
-                -- Số dư khả dụng = Đã đối soát - Đã rút - Đang chờ xử lý
-                GREATEST(0,
-                  COALESCE((
+                -- Từ user_system_balance (nguồn chính thức)
+                COALESCE(usb.total_earned, 0) as total_earned,
+                COALESCE(usb.total_withdrawn, 0) as total_withdrawn,
+                COALESCE(usb.pending_reserved, 0) as pending_reserved,
+                COALESCE(usb.available_balance, 0) as available_balance,
+                -- Tính pending cashback: đơn approved chưa đối soát
+                COALESCE((
                     SELECT SUM(cashback_amount)
                     FROM system_conversions
                     WHERE user_id = $1
-                      AND status = 'approved'
-                      AND system_reconciliation_status = 'reconciled'
-                      AND (payment_status IS NULL OR payment_status = 'unpaid')
-                  ), 0) - COALESCE(usb.total_withdrawn, 0) - COALESCE(usb.pending_reserved, 0)
-                ) as system_available
+                      AND status = 'pending'
+                ), 0) as pending_cashback,
+                -- Tổng cashback toàn bộ (approved + pending)
+                COALESCE((
+                    SELECT SUM(cashback_amount)
+                    FROM system_conversions
+                    WHERE user_id = $1
+                      AND status IN ('approved', 'pending')
+                ), 0) as total_cashback
             FROM user_system_balance usb
             WHERE usb.user_id = $1
         `;
-        const systemBalanceResult = await pool.query(systemBalanceQuery, [userId]);
-        const systemBalance = systemBalanceResult.rows[0] || {
-            system_available: 0,
-            system_pending: 0,
-            system_total: 0
+        const balanceResult = await pool.query(balanceQuery, [userId]);
+        const balance = balanceResult.rows[0] || {
+            available_balance: 0,
+            pending_cashback: 0,
+            total_cashback: 0,
+            total_earned: 0,
+            total_withdrawn: 0,
+            pending_reserved: 0
         };
 
-        // Combine balances from both sources:
-        // 1. user.available_balance: From AccessTrade API conversions
-        // 2. systemBalance.system_available: From System Reconciliation (finalized)
-        const totalAvailableBalance = parseFloat(user.available_balance || 0) + parseFloat(systemBalance.system_available || 0);
-        const totalPendingBalance = parseFloat(user.pending_balance || 0) + parseFloat(systemBalance.system_pending || 0);
-        const totalCashback = parseFloat(user.total_cashback || 0) + parseFloat(systemBalance.system_total || 0);
+        const totalAvailableBalance = parseFloat(balance.available_balance);
+        const totalPendingBalance = parseFloat(balance.pending_cashback);
+        const totalCashback = parseFloat(balance.total_cashback);
 
         // Build profile response
         const profile = {
@@ -79,20 +82,15 @@ router.get('/profile', authenticateToken, async (req, res) => {
             oauthProvider: user.oauth_provider,
             emailVerified: user.email_verified,
             isAdmin: user.is_admin || false,
-            // Combined balances from both API and System Reconciliation
+            // Số dư từ user_system_balance + system_conversions (nguồn chính thức duy nhất)
             availableBalance: totalAvailableBalance,
             pendingBalance: totalPendingBalance,
             totalCashback: totalCashback,
-            // Breakdown for debugging/transparency
-            apiBalance: {
-                available: parseFloat(user.available_balance || 0),
-                pending: parseFloat(user.pending_balance || 0),
-                total: parseFloat(user.total_cashback || 0)
-            },
-            systemBalance: {
-                available: parseFloat(systemBalance.system_available || 0),
-                pending: parseFloat(systemBalance.system_pending || 0),
-                total: parseFloat(systemBalance.system_total || 0)
+            // Chi tiết cho debugging
+            balanceDetail: {
+                total_earned: parseFloat(balance.total_earned),
+                total_withdrawn: parseFloat(balance.total_withdrawn),
+                pending_reserved: parseFloat(balance.pending_reserved)
             },
             // Include stats
             totalOrders: stats.totalOrders || 0,

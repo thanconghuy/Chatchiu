@@ -40,12 +40,22 @@ router.get('/balance', authenticateToken, async (req, res) => {
 router.get('/reconciliations', authenticateToken, async (req, res) => {
   try {
     const userId = req.userId;
-    const { page = 1, limit = 20 } = req.query;
+    const { page = 1, limit = 20, year } = req.query;
     const offset = (page - 1) * limit;
 
-    console.log('[User Reconciliations] Request:', { userId, page, limit, offset });
+    console.log('[User Reconciliations] Request:', { userId, page, limit, offset, year });
+
+    // Build year filter
+    const yearFilter = year ? `AND EXTRACT(YEAR FROM sr.period_start) = $4` : '';
+    const params = year
+      ? [userId, limit, offset, parseInt(year)]
+      : [userId, limit, offset];
+    const countParams = year
+      ? [userId, parseInt(year)]
+      : [userId];
 
     // Get reconciliation periods for this user
+    // Use system_conversions as primary source (covers both direct link and sri path)
     const reconciliationsQuery = `
       SELECT
         sr.id,
@@ -56,11 +66,11 @@ router.get('/reconciliations', authenticateToken, async (req, res) => {
         sr.status,
         sr.created_at,
         sr.finalized_at,
-        COUNT(sri.id) as item_count,
-        SUM(sri.cashback_amount) as total_cashback
+        COUNT(sc.id) as item_count,
+        COALESCE(SUM(sc.cashback_amount), 0) as total_cashback
       FROM system_reconciliations sr
-      JOIN system_reconciliation_items sri ON sri.system_reconciliation_id = sr.id
-      WHERE sri.user_id = $1
+      JOIN system_conversions sc ON sc.system_reconciliation_id = sr.id AND sc.user_id = $1
+      ${yearFilter}
       GROUP BY sr.id, sr.period_label, sr.period_start, sr.period_end, sr.reconciliation_date, sr.status, sr.created_at, sr.finalized_at
       ORDER BY sr.created_at DESC
       LIMIT $2 OFFSET $3
@@ -69,13 +79,13 @@ router.get('/reconciliations', authenticateToken, async (req, res) => {
     const countQuery = `
       SELECT COUNT(DISTINCT sr.id) as total
       FROM system_reconciliations sr
-      JOIN system_reconciliation_items sri ON sri.system_reconciliation_id = sr.id
-      WHERE sri.user_id = $1
+      JOIN system_conversions sc ON sc.system_reconciliation_id = sr.id AND sc.user_id = $1
+      ${year ? `AND EXTRACT(YEAR FROM sr.period_start) = $2` : ''}
     `;
 
     const [reconciliationsResult, countResult] = await Promise.all([
-      pool.query(reconciliationsQuery, [userId, limit, offset]),
-      pool.query(countQuery, [userId])
+      pool.query(reconciliationsQuery, params),
+      pool.query(countQuery, countParams)
     ]);
 
     const reconciliations = reconciliationsResult.rows;
@@ -142,24 +152,24 @@ router.get('/reconciliations/:id', authenticateToken, async (req, res) => {
     const reconciliation = reconResult.rows[0];
 
     // Get items for this user in this reconciliation
+    // Use system_conversions as primary source (covers both direct link and sri path)
     const itemsQuery = `
       SELECT
-        sri.id,
-        COALESCE(sri.conversion_id, sri.system_conversion_id) as conversion_id,
-        sri.order_time,
-        sri.cashback_amount,
-        sri.merchant_name,
-        sri.order_value,
-        sri.commission_amount,
-        sri.conversion_status,
-        sri.is_high_risk,
-        sri.risk_score,
-        COALESCE(sc.order_code, c.order_code, 'N/A') as order_code
-      FROM system_reconciliation_items sri
-      LEFT JOIN conversions c ON sri.conversion_id = c.id
-      LEFT JOIN system_conversions sc ON sri.system_conversion_id = sc.id
-      WHERE sri.system_reconciliation_id = $1 AND sri.user_id = $2
-      ORDER BY sri.order_time DESC
+        sc.id,
+        sc.id as conversion_id,
+        sc.order_time,
+        sc.cashback_amount,
+        sc.merchant_name,
+        sc.order_value,
+        sc.commission as commission_amount,
+        COALESCE(sri.conversion_status, sc.status) as conversion_status,
+        COALESCE(sri.is_high_risk, false) as is_high_risk,
+        COALESCE(sri.risk_score, 0) as risk_score,
+        sc.order_code
+      FROM system_conversions sc
+      LEFT JOIN system_reconciliation_items sri ON sri.system_conversion_id = sc.id AND sri.user_id = $2
+      WHERE sc.system_reconciliation_id = $1 AND sc.user_id = $2
+      ORDER BY sc.order_time DESC
     `;
 
     const itemsResult = await pool.query(itemsQuery, [reconciliationId, userId]);

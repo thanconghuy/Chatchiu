@@ -750,7 +750,7 @@ router.get('/conversions', authenticateToken, async (req, res) => {
           ELSE NULL
         END as system_reconciliation_status,
         COALESCE(sri.system_reconciliation_id, sc.system_reconciliation_id) as system_reconciliation_id,
-        NULL as system_reconciled_at,
+        COALESCE(sc.system_reconciled_at, sr.finalized_at) as system_reconciled_at,
         sri.id as system_reconciliation_item_id,
         sr.status as system_reconciliation_status_detail,
         sr.period_label as system_reconciliation_period,

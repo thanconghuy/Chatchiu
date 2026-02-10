@@ -2,6 +2,7 @@
 let currentPage = 0;
 const itemsPerPage = 50;
 let totalReconciliations = 0;
+let selectedYear = '';
 
 // Helper function to make API calls with authentication
 async function apiCall(url, options = {}) {
@@ -131,7 +132,8 @@ async function loadReconciliations() {
         }
 
         const page = currentPage + 1; // API uses 1-based pagination
-        const response = await apiCall(`/user/system-reconciliation/reconciliations?page=${page}&limit=${itemsPerPage}`);
+        const yearParam = selectedYear ? `&year=${selectedYear}` : '';
+        const response = await apiCall(`/user/system-reconciliation/reconciliations?page=${page}&limit=${itemsPerPage}${yearParam}`);
 
         if (!response || !response.success) {
             throw new Error(response?.message || 'Failed to load reconciliations');
@@ -188,9 +190,9 @@ function displayReconciliations(reconciliations) {
             <td>${getPaymentStatusBadge(rec.status)}</td>
             <td>${formatDate(rec.created_at)}</td>
             <td>
-                <button class="btn-secondary btn-view-details" data-id="${rec.id}" style="padding: 6px 12px; font-size: 0.875rem;">
-                    👁️ Chi tiết
-                </button>
+                <a href="#" class="btn-view-details" data-id="${rec.id}" style="color: #3b82f6; text-decoration: none; font-size: 0.875rem; font-weight: 500;">
+                    Xem chi tiết
+                </a>
             </td>
         `;
         tableBody.appendChild(row);
@@ -263,9 +265,9 @@ function displayReconciliations(reconciliations) {
                             <i class="fas fa-calendar-check"></i>
                             ${formatDate(rec.created_at)}
                         </div>
-                        <button class="reconciliation-card-action btn-view-details" data-id="${rec.id}">
-                            <i class="fas fa-eye"></i> Chi tiết
-                        </button>
+                        <a href="#" class="btn-view-details" data-id="${rec.id}" style="color: #3b82f6; text-decoration: none; font-size: 0.875rem; font-weight: 500;">
+                            Xem chi tiết
+                        </a>
                     </div>
                 </div>
             `;
@@ -483,6 +485,30 @@ document.addEventListener('DOMContentLoaded', async () => {
                 currentPage++;
                 loadReconciliations();
             }
+        });
+    }
+
+    // Setup year filter
+    const yearFilter = document.getElementById('yearFilter');
+    if (yearFilter) {
+        // Add "Tất cả" option first
+        const allOption = document.createElement('option');
+        allOption.value = '';
+        allOption.textContent = 'Tất cả';
+        yearFilter.appendChild(allOption);
+
+        const currentYear = new Date().getFullYear();
+        for (let y = currentYear; y >= currentYear - 3; y--) {
+            const option = document.createElement('option');
+            option.value = y;
+            option.textContent = `Năm ${y}`;
+            yearFilter.appendChild(option);
+        }
+        yearFilter.value = selectedYear;
+        yearFilter.addEventListener('change', () => {
+            selectedYear = yearFilter.value ? parseInt(yearFilter.value) : '';
+            currentPage = 0;
+            loadReconciliations();
         });
     }
 
