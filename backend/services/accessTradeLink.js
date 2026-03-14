@@ -1,6 +1,7 @@
 const axios = require('axios');
 const logger = require('../utils/logger');
 const { generateAffSid, buildUtmParams } = require('./linkGenerator');
+const SystemSettings = require('./systemSettings');
 
 /**
  * AccessTrade Link Service
@@ -29,11 +30,13 @@ class AccessTradeLinkService {
    * Load token from environment (updated by admin settings)
    */
   async loadToken() {
-    this.accessToken = process.env.ACCESSTRADE_ACCESS_TOKEN;
+    // Read from DB first (persistent across restarts), fallback to env var
+    const dbToken = await SystemSettings.get('accesstrade_api_token', null);
+    this.accessToken = dbToken || process.env.ACCESSTRADE_ACCESS_TOKEN;
     this.lastTokenCheck = Date.now();
 
     if (this.accessToken) {
-      logger.info('AccessTrade token loaded from environment');
+      logger.info('AccessTrade token loaded', { source: dbToken ? 'database' : 'environment' });
     } else {
       logger.warn('AccessTrade API token not configured - API mode disabled');
     }

@@ -93,16 +93,13 @@ router.get('/', authenticateAdmin, async (req, res) => {
         -- Cashback đã thanh toán (từ payment_requests paid)
         COALESCE(usb.total_withdrawn, 0) as paid_cashback,
 
-        -- Số dư khả dụng = Đã đối soát (unpaid) - Đã rút - Đang chờ xử lý
+        -- Số dư khả dụng = total_earned - total_withdrawn - pending_reserved (GENERATED COLUMN)
+        -- FIXED 2026-03-14: Dùng công thức đúng thay vì reconciled_unpaid - total_withdrawn
+        -- Bug cũ: reconciled_unpaid tính từ payment_status IS NULL (loại bỏ conversions đã mark paid)
+        -- nhưng total_withdrawn là số tiền thực tế rút từ payment_requests (2 nguồn khác nhau)
+        -- Kết quả: double deduction → available = 0 dù user vẫn còn số dư
         GREATEST(0,
-          COALESCE((
-            SELECT SUM(cashback_amount)
-            FROM system_conversions
-            WHERE user_id = u.id
-              AND status = 'approved'
-              AND system_reconciliation_status = 'reconciled'
-              AND (payment_status IS NULL OR payment_status = 'unpaid')
-          ), 0) - COALESCE(usb.total_withdrawn, 0) - COALESCE(usb.pending_reserved, 0)
+          COALESCE(usb.total_earned, 0) - COALESCE(usb.total_withdrawn, 0) - COALESCE(usb.pending_reserved, 0)
         ) as available_balance,
 
         -- Số dư đang chờ xử lý payment request
@@ -151,20 +148,10 @@ router.get('/', authenticateAdmin, async (req, res) => {
           FROM system_conversions
         ), 0) as total_cashback_all,
         COALESCE(SUM(usb.total_withdrawn), 0) as total_paid_all,
-        -- Tính available từ reconciled
-        COALESCE((
-          SELECT SUM(GREATEST(0,
-            COALESCE((
-              SELECT SUM(sc2.cashback_amount)
-              FROM system_conversions sc2
-              WHERE sc2.user_id = usb2.user_id
-                AND sc2.status = 'approved'
-                AND sc2.system_reconciliation_status = 'reconciled'
-                AND (sc2.payment_status IS NULL OR sc2.payment_status = 'unpaid')
-            ), 0) - COALESCE(usb2.total_withdrawn, 0) - COALESCE(usb2.pending_reserved, 0)
-          ))
-          FROM user_system_balance usb2
-        ), 0) as total_available_all,
+        -- FIXED 2026-03-14: Tổng available = SUM(total_earned - total_withdrawn - pending_reserved)
+        COALESCE(SUM(GREATEST(0,
+          COALESCE(usb.total_earned, 0) - COALESCE(usb.total_withdrawn, 0) - COALESCE(usb.pending_reserved, 0)
+        )), 0) as total_available_all,
         COALESCE(SUM(usb.pending_reserved), 0) as total_pending_reserved_all
       FROM users u
       LEFT JOIN user_system_balance usb ON u.id = usb.user_id
@@ -242,17 +229,8 @@ router.get('/:userId', authenticateAdmin, async (req, res) => {
         COALESCE(usb.total_withdrawn, 0) as paid_cashback,
         COALESCE(usb.pending_reserved, 0) as pending_reserved,
 
-        -- Số dư khả dụng = Đã đối soát (unpaid) - Đã rút - Đang chờ xử lý
-        GREATEST(0,
-          COALESCE((
-            SELECT SUM(cashback_amount)
-            FROM system_conversions
-            WHERE user_id = u.id
-              AND status = 'approved'
-              AND system_reconciliation_status = 'reconciled'
-              AND (payment_status IS NULL OR payment_status = 'unpaid')
-          ), 0) - COALESCE(usb.total_withdrawn, 0) - COALESCE(usb.pending_reserved, 0)
-        ) as available_balance,
+        -- Số dư khả dụng từ GENERATED COLUMN
+        GREATEST(0, COALESCE(usb.available_balance, 0)) as available_balance,
 
         -- Cashback đã đối soát (có thể rút)
         COALESCE((

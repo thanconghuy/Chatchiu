@@ -209,13 +209,6 @@
             return true;
         }
 
-        // Manual sync button
-        if (element.id === 'manualSyncBtn' && typeof window.runManualSync === 'function') {
-            window.runManualSync();
-            event.preventDefault();
-            return true;
-        }
-
         // Load sync history
         if ((element.textContent.includes('Tải lịch sử') || element.textContent.includes('Làm mới')) && typeof window.loadSyncHistory === 'function') {
             window.loadSyncHistory();

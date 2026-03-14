@@ -99,20 +99,8 @@ router.get('/stats', async (req, res) => {
         COALESCE(SUM(total_earned), 0) as total_earned_all,
         COALESCE(SUM(total_withdrawn), 0) as total_withdrawn_all,
         COALESCE(SUM(pending_reserved), 0) as total_pending_reserved,
-        -- Số dư khả dụng ĐÚNG tính từ conversions đã đối soát
-        COALESCE((
-          SELECT SUM(GREATEST(0,
-            COALESCE((
-              SELECT SUM(sc.cashback_amount)
-              FROM system_conversions sc
-              WHERE sc.user_id = usb.user_id
-                AND sc.status = 'approved'
-                AND sc.system_reconciliation_status = 'reconciled'
-                AND (sc.payment_status IS NULL OR sc.payment_status = 'unpaid')
-            ), 0) - COALESCE(usb.total_withdrawn, 0) - COALESCE(usb.pending_reserved, 0)
-          ))
-          FROM user_system_balance usb
-        ), 0) as total_available_balance
+        -- Số dư khả dụng từ GENERATED COLUMN
+        COALESCE(SUM(GREATEST(0, available_balance)), 0) as total_available_balance
       FROM user_system_balance
     `;
 
@@ -177,16 +165,7 @@ router.get('/stats', async (req, res) => {
         u.full_name,
         COALESCE(usb.total_earned, 0) as total_earned,
         COALESCE(usb.total_withdrawn, 0) as total_withdrawn,
-        GREATEST(0,
-          COALESCE((
-            SELECT SUM(sc.cashback_amount)
-            FROM system_conversions sc
-            WHERE sc.user_id = usb.user_id
-              AND sc.status = 'approved'
-              AND sc.system_reconciliation_status = 'reconciled'
-              AND (sc.payment_status IS NULL OR sc.payment_status = 'unpaid')
-          ), 0) - COALESCE(usb.total_withdrawn, 0) - COALESCE(usb.pending_reserved, 0)
-        ) as available_balance,
+        GREATEST(0, COALESCE(usb.available_balance, 0)) as available_balance,
         (SELECT COUNT(*) FROM system_conversions WHERE user_id = usb.user_id AND status = 'approved') as order_count
       FROM user_system_balance usb
       LEFT JOIN users u ON usb.user_id = u.id
@@ -702,8 +681,10 @@ router.get('/data-check/user/:userId', async (req, res) => {
       SELECT
         COUNT(CASE WHEN status = 'paid' THEN 1 END) as paid_count,
         COALESCE(SUM(CASE WHEN status = 'paid' THEN requested_amount ELSE 0 END), 0) as paid_total,
-        COUNT(CASE WHEN status IN ('pending', 'confirmed') THEN 1 END) as pending_count,
-        COALESCE(SUM(CASE WHEN status IN ('pending', 'confirmed') THEN requested_amount ELSE 0 END), 0) as pending_total
+        COUNT(CASE WHEN status = 'confirmed' AND cancelled_at IS NULL THEN 1 END) as pending_count,
+        -- FIXED 2026-03-14: pending_reserved chỉ từ 'confirmed' (đã reserve balance)
+        -- 'pending' chưa reserve → không tính vào pending_reserved
+        COALESCE(SUM(CASE WHEN status = 'confirmed' AND cancelled_at IS NULL THEN requested_amount ELSE 0 END), 0) as pending_total
       FROM payment_requests
       WHERE user_id = $1
     `, [userId]);

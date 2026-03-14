@@ -24,7 +24,8 @@
   }
 
   /**
-   * Load system balance from API
+   * Load system balance from dashboard stats API
+   * Dùng cùng endpoint với trang để đảm bảo số liệu nhất quán
    */
   async function loadSystemBalance() {
     try {
@@ -34,7 +35,7 @@
         return;
       }
 
-      const response = await fetch(`${API_BASE}/api/user/system-reconciliation/balance`, {
+      const response = await fetch(`${API_BASE}/api/dashboard/stats`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -42,56 +43,45 @@
       });
 
       if (!response.ok) {
-        // If 404 or balance not found, show zeros (user hasn't been reconciled yet)
-        if (response.status === 404 || response.status === 500) {
-          console.log('System balance not yet initialized');
-          updateBalanceUI({
-            available_balance: 0,
-            pending_balance: 0,
-            debt_balance: 0,
-            total_earned: 0,
-            total_withdrawn: 0
-          });
-          return;
-        }
-        throw new Error('Failed to load system balance');
+        updateBalanceUI({ availableBalance: 0, totalCashback: 0, pendingReserved: 0, totalWithdrawn: 0 });
+        return;
       }
 
       const result = await response.json();
       if (result.success) {
-        updateBalanceUI(result.data);
+        updateBalanceUI(result.stats);
       }
     } catch (error) {
       console.error('Error loading system balance:', error);
-      // Show zeros on error
-      updateBalanceUI({
-        available_balance: 0,
-        pending_balance: 0,
-        debt_balance: 0,
-        total_earned: 0,
-        total_withdrawn: 0
-      });
+      updateBalanceUI({ availableBalance: 0, totalCashback: 0, pendingReserved: 0, totalWithdrawn: 0 });
     }
   }
 
   /**
-   * Update balance UI with data
+   * Update balance UI with data from /api/dashboard/stats
    */
-  function updateBalanceUI(balance) {
+  function updateBalanceUI(stats) {
     const availableEl = document.getElementById('systemAvailableBalance');
     const pendingEl = document.getElementById('systemPendingBalance');
 
     if (availableEl) {
-      // Hiển thị TỔNG CASHBACK (total_earned) thay vì available_balance
-      availableEl.textContent = formatMoney(balance.total_earned || 0);
+      // Tổng cashback đã duyệt (approved từ system_conversions)
+      availableEl.textContent = formatMoney(stats.totalCashback || 0);
     }
 
     if (pendingEl) {
-      pendingEl.textContent = formatMoney(balance.pending_reserved || balance.pending_balance || 0);
+      // Đang bị giữ bởi payment request confirmed
+      pendingEl.textContent = formatMoney(stats.pendingReserved || 0);
     }
 
-    // Store balance in global scope for other components to use
-    window.userSystemBalance = balance;
+    // Store in global scope for other components (map camelCase → snake_case cho backward compat)
+    window.userSystemBalance = {
+      available_balance: stats.availableBalance || 0,
+      total_earned: stats.totalEarned || 0,
+      total_withdrawn: stats.totalWithdrawn || 0,
+      pending_reserved: stats.pendingReserved || 0,
+      total_approved_cashback: stats.totalCashback || 0
+    };
   }
 
   /**

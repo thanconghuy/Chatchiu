@@ -2035,7 +2035,7 @@
                     // Reload all data
                     await loadStats();
                     await loadReconciliations();
-                    await loadEligibleOrders(1); // Reload eligible orders (restored orders)
+                    await filterEligibleOrdersForCreate(1); // Reload eligible orders (restored orders)
                 } else {
                     showToast(result.message || 'Xóa thất bại', 'error');
                 }
@@ -2067,7 +2067,7 @@
                 onPageChange: (page, limit) => {
                     eligibleOrdersPage = page;
                     eligibleOrdersLimit = limit;
-                    loadEligibleOrders(page);
+                    filterEligibleOrdersForCreate(page);
                 }
             });
 
@@ -2786,7 +2786,6 @@
                     // Reload data with await
                     await loadStats();
                     await loadReconciliations();
-                    await loadEligibleOrders(1); // Reload eligible orders to remove added ones
 
                     // Switch to reconciliations tab to show the new reconciliation
                     switchTab('reconciliations');
@@ -3141,7 +3140,7 @@
             document.getElementById('itemsModal').classList.remove('show');
         }
 
-        async function loadEligibleOrders(page = 1) {
+        async function filterEligibleOrdersForCreate(page = 1) {
             eligibleOrdersPage = page;
 
             const periodStart = document.getElementById('periodStart').value;
@@ -3488,7 +3487,7 @@
                     // Reload eligible orders after 1.5s
                     setTimeout(() => {
                         closeAddToDraftModal();
-                        loadEligibleOrders(eligibleOrdersPage);
+                        filterEligibleOrdersForCreate(eligibleOrdersPage);
                         loadReconciliations(); // Refresh reconciliation list
                     }, 1500);
                 } else {
@@ -5093,7 +5092,7 @@
                     addSelectedOrdersToDraft(monthData);
                     break;
                 case 'load-eligible-orders':
-                    loadEligibleOrders();
+                    filterEligibleOrdersForCreate();
                     break;
                 case 'sync-user-balance':
                     syncUserBalance();

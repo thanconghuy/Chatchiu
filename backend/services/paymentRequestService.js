@@ -840,21 +840,13 @@ class PaymentRequestService {
       const pendingReserved = parseFloat(balanceRow.pending_reserved);
       const debt = parseFloat(balanceRow.debt_balance);
 
-      // FIXED: Tính số dư khả dụng từ conversions ĐÃ ĐỐI SOÁT
-      // Số dư khả dụng = Cashback đã đối soát - Đã rút - Đang chờ xử lý
-      const reconciledResult = await db.query(`
-        SELECT COALESCE(SUM(cashback_amount), 0) as reconciled_cashback
-        FROM system_conversions
-        WHERE user_id = $1
-          AND status = 'approved'
-          AND system_reconciliation_status = 'reconciled'
-          AND (payment_status IS NULL OR payment_status = 'unpaid')
-      `, [userId]);
-
-      const reconciledCashback = parseFloat(reconciledResult.rows[0].reconciled_cashback);
-
-      // SỐ DƯ KHẢ DỤNG ĐÚNG = Đã đối soát - Đã rút - Đang chờ xử lý
-      const availableBalance = Math.max(0, reconciledCashback - totalWithdrawn - pendingReserved);
+      // FIXED 2026-03-14: Tính số dư khả dụng từ user_system_balance
+      // Công thức đúng: available = total_earned - total_withdrawn - pending_reserved
+      // Bug cũ: dùng reconciled_unpaid (payment_status IS NULL) - total_withdrawn → double deduction
+      // Vì FIFO marking có thể mark nhiều conversion hơn số tiền thực tế rút,
+      // dẫn đến reconciled_unpaid < total_withdrawn → available = 0 (SAI)
+      const reconciledCashback = totalEarned; // Để backward compat với return value bên dưới
+      const availableBalance = Math.max(0, totalEarned - totalWithdrawn - pendingReserved);
 
       const minAmount = await SystemSettingsService.getSetting('min_withdrawal_amount') || 50000;
 

@@ -12,6 +12,7 @@ const accessTradeLinkService = require('../services/accessTradeLink');
 const tiktokShopLinkService = require('../services/tiktokShopLink');
 const reconciliationService = require('../services/reconciliationService');
 const { ActivityLogger, ACTIVITY_TYPES } = require('../services/activityLogger');
+const SystemSettings = require('../services/systemSettings');
 
 /**
  * GET /api/dashboard/stats
@@ -27,51 +28,29 @@ router.get('/stats', authenticateToken, async (req, res) => {
     const clickStats = await Click.getStats(req.userId);
     console.log('[Dashboard Stats] Click stats:', clickStats);
 
-    // Get balance with CORRECT available_balance calculation
-    // IMPORTANT: Số dư khả dụng = Cashback đã đối soát (chưa thanh toán) - Đã thanh toán - Đang chờ xử lý
-    // available_balance = reconciled_cashback (unpaid) - total_withdrawn - pending_reserved
+    // Get balance from user_system_balance
+    // available_balance là GENERATED COLUMN = total_earned - total_withdrawn - pending_reserved
+    // Luôn chính xác, không cần tính lại thủ công
     const balanceQuery = `
       SELECT
-        usb.pending_balance,
-        usb.reserved_balance,
+        usb.available_balance,
+        usb.pending_reserved,
         usb.total_earned,
         usb.total_withdrawn,
-        usb.debt_balance,
-        usb.pending_reserved,
-        -- Tổng cashback đã duyệt (tất cả, bao gồm chưa đối soát)
+        -- Tổng cashback đã duyệt từ conversions (bao gồm chưa đối soát)
         COALESCE((
           SELECT SUM(cashback_amount)
           FROM system_conversions
           WHERE user_id = $1 AND status = 'approved'
         ), 0) as total_approved_cashback,
-        -- Cashback ĐÃ ĐỐI SOÁT và CHƯA THANH TOÁN
+        -- Cashback đã đối soát (reconciled)
         COALESCE((
           SELECT SUM(cashback_amount)
           FROM system_conversions
           WHERE user_id = $1
             AND status = 'approved'
             AND system_reconciliation_status = 'reconciled'
-            AND (payment_status IS NULL OR payment_status = 'unpaid')
-        ), 0) as reconciled_cashback,
-        -- SỐ DƯ KHẢ DỤNG = Đã đối soát (chưa TT) - Đã rút - Đang chờ xử lý
-        GREATEST(0,
-          COALESCE((
-            SELECT SUM(cashback_amount)
-            FROM system_conversions
-            WHERE user_id = $1
-              AND status = 'approved'
-              AND system_reconciliation_status = 'reconciled'
-              AND (payment_status IS NULL OR payment_status = 'unpaid')
-          ), 0) - COALESCE(usb.total_withdrawn, 0) - COALESCE(usb.pending_reserved, 0)
-        ) as available_balance,
-        COALESCE(
-          (SELECT SUM(requested_amount)
-           FROM payment_requests
-           WHERE user_id = $1
-             AND status IN ('pending', 'confirmed')
-             AND cancelled_at IS NULL),
-          0
-        ) as total_requested
+        ), 0) as reconciled_cashback
       FROM user_system_balance usb
       WHERE usb.user_id = $1
     `;
@@ -79,12 +58,11 @@ router.get('/stats', authenticateToken, async (req, res) => {
 
     let balanceStats;
     if (balanceResult.rows.length === 0) {
-      // No balance record - calculate from system_conversions directly
+      // Chưa có bản ghi balance → fallback tính trực tiếp
       const directQuery = `
         SELECT
           COALESCE(SUM(CASE WHEN status = 'approved' THEN cashback_amount ELSE 0 END), 0) as total_approved_cashback,
           COALESCE(SUM(CASE WHEN status = 'approved' AND system_reconciliation_status = 'reconciled'
-                            AND (payment_status IS NULL OR payment_status = 'unpaid')
                         THEN cashback_amount ELSE 0 END), 0) as reconciled_cashback
         FROM system_conversions
         WHERE user_id = $1
@@ -93,24 +71,21 @@ router.get('/stats', authenticateToken, async (req, res) => {
       const direct = directResult.rows[0];
 
       balanceStats = {
-        available_balance: parseFloat(direct.reconciled_cashback) || 0, // No withdrawn/pending when no balance record
-        pending_balance: 0,
-        reserved_balance: 0,
-        total_earned: parseFloat(direct.total_approved_cashback) || 0,
-        total_withdrawn: 0,
-        total_requested: 0,
+        available_balance: parseFloat(direct.reconciled_cashback) || 0,
         pending_reserved: 0,
+        total_earned: parseFloat(direct.reconciled_cashback) || 0,
+        total_withdrawn: 0,
         total_approved_cashback: parseFloat(direct.total_approved_cashback) || 0,
         reconciled_cashback: parseFloat(direct.reconciled_cashback) || 0
       };
       console.log('[Dashboard Stats] No balance record, calculated from conversions');
     } else {
       balanceStats = balanceResult.rows[0];
-      console.log('[Dashboard Stats] Balance calculated:', {
+      console.log('[Dashboard Stats] Balance from user_system_balance:', {
         availableBalance: balanceStats.available_balance,
-        totalApprovedCashback: balanceStats.total_approved_cashback,
-        reconciledCashback: balanceStats.reconciled_cashback,
-        totalWithdrawn: balanceStats.total_withdrawn
+        totalEarned: balanceStats.total_earned,
+        totalWithdrawn: balanceStats.total_withdrawn,
+        pendingReserved: balanceStats.pending_reserved
       });
     }
 
@@ -135,16 +110,20 @@ router.get('/stats', authenticateToken, async (req, res) => {
     const responseData = {
       success: true,
       stats: {
-        // Số dư khả dụng = Đã đối soát - Đã thanh toán
+        // Số dư khả dụng = GENERATED COLUMN: total_earned - total_withdrawn - pending_reserved
         availableBalance: parseFloat(balanceStats.available_balance) || 0,
-        pendingBalance: parseFloat(balanceStats.pending_balance) || 0,
-        // Tổng cashback = Tất cả cashback đã duyệt (bao gồm chưa đối soát)
+        // Tổng cashback đã đối soát (nguồn của available_balance)
+        totalEarned: parseFloat(balanceStats.total_earned) || 0,
+        // Chờ xử lý = tiền đang bị giữ bởi payment request confirmed
+        pendingReserved: parseFloat(balanceStats.pending_reserved) || 0,
+        pendingBalance: parseFloat(balanceStats.pending_reserved) || 0, // alias cho backward compat
+        // Tổng cashback đã duyệt (bao gồm chưa đối soát) - cho bảng conversion
         totalCashback: parseFloat(balanceStats.total_approved_cashback) || parseFloat(conversionStats.total_approved_cashback) || 0,
-        // Cashback đã đối soát (có thể rút)
+        // Cashback đã đối soát
         reconciledCashback: parseFloat(balanceStats.reconciled_cashback) || 0,
-        // Đã thanh toán
+        // Đã rút
         totalWithdrawn: parseFloat(balanceStats.total_withdrawn) || 0,
-        approvedBalance: parseFloat(conversionStats.total_approved_cashback) || 0, // Alias for totalApprovedCashback
+        approvedBalance: parseFloat(conversionStats.total_approved_cashback) || 0,
         totalConversions: parseInt(conversionStats.total_conversions) || 0,
         approvedConversions: parseInt(conversionStats.approved_conversions) || 0,
         pendingConversions: parseInt(conversionStats.pending_conversions) || 0,
@@ -399,7 +378,11 @@ router.post('/generate-link', authenticateToken, async (req, res) => {
       // ========================================
       let linkData;
       let linkSource = 'diy';
-      const useApiMode = process.env.USE_ACCESSTRADE_API === 'true';
+      // Read from DB for persistence across restarts (fallback to env var)
+      const apiModeEnabled = await SystemSettings.get('api_mode_enabled', null);
+      const useApiMode = apiModeEnabled !== null
+        ? !!apiModeEnabled
+        : process.env.USE_ACCESSTRADE_API === 'true';
 
       // Detect TikTok Shop
       const isTikTokShopMerchant = merchant.api_type === 'tiktok_v2';

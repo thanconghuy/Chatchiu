@@ -76,6 +76,9 @@ class AutoSyncService {
       }
     });
 
+    // node-cron v4 requires explicit .start() call
+    this.cronJob.start();
+
     logger.info('Cron job scheduled', { schedule, syncDays });
   }
 
@@ -127,7 +130,7 @@ class AutoSyncService {
   /**
    * Trigger manual sync (test run)
    */
-  async triggerManualSync(syncDays = 2) {
+  async triggerManualSync(syncDays = 2, syncType = 'manual') {
     if (this.isRunning) {
       throw new Error('Sync already running');
     }
@@ -136,9 +139,9 @@ class AutoSyncService {
       this.isRunning = true;
       await AutoSyncConfig.updateLastRun('running', 'Manual test sync in progress...');
 
-      logger.info('Manual sync triggered', { syncDays });
+      logger.info('Manual sync triggered', { syncDays, syncType });
 
-      const result = await syncConversions(syncDays);
+      const result = await syncConversions(syncDays, syncType);
 
       // Save last run info with full details
       const message = `Đã import ${result.imported} conversions, ${result.duplicates} trùng lặp`;

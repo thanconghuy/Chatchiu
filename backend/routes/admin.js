@@ -310,8 +310,8 @@ router.get('/stats', authenticateAdmin, async (req, res) => {
         (SELECT COALESCE(SUM(commission), 0) FROM system_conversions WHERE status = 'approved') as total_commission,
         (SELECT COALESCE(SUM(cashback_amount), 0) FROM system_conversions WHERE status = 'approved') as total_cashback_paid,
         (SELECT COALESCE(SUM(cashback_amount), 0) FROM system_conversions WHERE status = 'pending') as pending_cashback,
-        (SELECT COALESCE(SUM(available_balance), 0) FROM users) as total_user_balance,
-        (SELECT COALESCE(SUM(pending_balance), 0) FROM users) as total_pending_balance,
+        (SELECT COALESCE(SUM(GREATEST(0, available_balance)), 0) FROM user_system_balance) as total_user_balance,
+        (SELECT COALESCE(SUM(pending_reserved), 0) FROM user_system_balance) as total_pending_balance,
         (SELECT COUNT(*) FROM clicks) as total_clicks
     `;
 
@@ -3139,19 +3139,14 @@ router.post('/auto-sync/run', authenticateAdmin, async (req, res) => {
       adminId: req.userId
     });
 
-    // Import conversions directly
-    const { syncConversions } = require('../jobs/syncConversions');
-    const result = await syncConversions(days);
+    // Use triggerManualSync to enforce isRunning lock and prevent concurrent syncs
+    const result = await autoSyncService.triggerManualSync(days);
 
-    logger.success('Manual auto-sync completed', {
+    logger.info('Manual auto-sync completed', {
       imported: result.imported,
       duplicates: result.duplicates,
       adminId: req.userId
     });
-
-    // Update last run status in database
-    const message = `Đã import ${result.imported} conversions, ${result.duplicates} trùng lặp`;
-    await AutoSyncConfig.updateLastRun('success', message);
 
     res.json({
       success: true,
@@ -3229,7 +3224,7 @@ router.post('/auto-sync/test', authenticateAdmin, async (req, res) => {
       adminId: req.userId
     });
 
-    const result = await autoSyncService.triggerManualSync(days);
+    const result = await autoSyncService.triggerManualSync(days, 'manual');
 
     res.json({
       success: true,
@@ -3327,7 +3322,7 @@ async function handleCronAutoSync(req, res) {
     });
 
     // STEP 1: Sync from AccessTrade API
-    const syncResult = await autoSyncService.triggerManualSync(syncDays);
+    const syncResult = await autoSyncService.triggerManualSync(syncDays, 'auto');
 
     // STEP 2: Sync matched conversions to system_conversions
     let systemSyncCount = 0;
@@ -3415,8 +3410,9 @@ router.post('/cron/auto-sync', handleCronAutoSync);
  */
 router.get('/tools/link-mode-status', authenticateAdmin, async (req, res) => {
   try {
-    const useApiMode = process.env.USE_ACCESSTRADE_API === 'true';
-    const apiAvailable = accessTradeLinkService.isAvailable();
+    const apiModeEnabled = await SystemSettings.get('api_mode_enabled', null);
+    const useApiMode = apiModeEnabled !== null ? !!apiModeEnabled : process.env.USE_ACCESSTRADE_API === 'true';
+    const apiAvailable = await accessTradeLinkService.isAvailable();
 
     res.json({
       success: true,
@@ -4128,12 +4124,14 @@ router.get('/settings', authenticateAdmin, async (req, res) => {
     // Read from database for persistence (default: true for auto_cron_enabled)
     const autoCronEnabled = await SystemSettings.get('auto_cron_enabled', true);
     const apiModeEnabled = await SystemSettings.get('api_mode_enabled', false);
+    const dbToken = await SystemSettings.get('accesstrade_api_token', null);
 
     const settings = {
       AUTO_CRON_ENABLED: autoCronEnabled ? 'true' : 'false',
       RETRY_CRON_SCHEDULE: process.env.RETRY_CRON_SCHEDULE || '0 */6 * * *',
       USE_ACCESSTRADE_API: apiModeEnabled ? 'true' : 'false',
       ACCESSTRADE_API_URL: process.env.ACCESSTRADE_API_URL || 'https://api.accesstrade.vn/v1',
+      ACCESSTRADE_ACCESS_TOKEN: dbToken || process.env.ACCESSTRADE_ACCESS_TOKEN || '',
       COMMISSION_SPLIT: process.env.COMMISSION_SPLIT || '0.7',
       PORT: process.env.PORT || '3007'
     };
@@ -4421,17 +4419,23 @@ router.post('/settings/api-token', authenticateAdmin, async (req, res) => {
       });
     }
 
+    // Save to database for persistence across restarts
+    await SystemSettings.set('accesstrade_api_token', token, req.userId);
+
     // Update runtime value
     process.env.ACCESSTRADE_ACCESS_TOKEN = token;
 
-    logger.info('API token updated', {
+    // Hot-reload the token in the service instance
+    await accessTradeLinkService.loadToken();
+
+    logger.info('API token updated and persisted to DB', {
       tokenLength: token.length,
       adminId: req.userId
     });
 
     res.json({
       success: true,
-      message: 'Cập nhật thành công. Vui lòng update file .env và restart server để áp dụng vĩnh viễn.'
+      message: 'Cập nhật thành công và đã lưu vĩnh viễn.'
     });
   } catch (error) {
     logger.error('Update API token error:', error);
