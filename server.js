@@ -191,7 +191,7 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Start server
+// Start server - update 150326
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
   console.log(`API Token configured: ${API_TOKEN ? 'Yes' : 'No'}`);
