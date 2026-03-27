@@ -152,14 +152,14 @@ class PaymentRequestService {
         SELECT
           usb.total_withdrawn,
           usb.pending_reserved,
-          -- Tính từ conversions ĐÃ ĐỐI SOÁT (reconciled)
+          -- Tính TẤT CẢ conversions ĐÃ ĐỐI SOÁT (không lọc payment_status)
+          -- vì total_withdrawn đã xử lý phần đã rút, không cần loại trừ 2 lần
           COALESCE((
             SELECT SUM(cashback_amount)
             FROM system_conversions
             WHERE user_id = $1
               AND status = 'approved'
               AND system_reconciliation_status = 'reconciled'
-              AND (payment_status IS NULL OR payment_status = 'unpaid')
           ), 0) as reconciled_balance
         FROM user_system_balance usb
         WHERE usb.user_id = $1

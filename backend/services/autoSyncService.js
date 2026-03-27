@@ -7,27 +7,64 @@ class AutoSyncService {
   constructor() {
     this.cronJob = null;
     this.isRunning = false;
+    this.watchdogTimer = null;
   }
 
   /**
-   * Initialize auto-sync service
+   * Initialize auto-sync service with retry for DB cold start (Neon)
    */
   async initialize() {
-    try {
-      const config = await AutoSyncConfig.getConfig();
+    // Retry up to 5 times with 3s delay to handle Neon DB cold start
+    const maxRetries = 5;
+    const retryDelay = 3000;
 
-      if (config.enabled) {
-        await this.start(config.cron_schedule, config.sync_days);
-        logger.info('Auto-sync initialized and started', {
-          schedule: config.cron_schedule,
-          syncDays: config.sync_days
-        });
-      } else {
-        logger.info('Auto-sync is disabled');
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const config = await AutoSyncConfig.getConfig();
+
+        if (config.enabled) {
+          await this.start(config.cron_schedule, config.sync_days);
+          logger.info('Auto-sync initialized and started', {
+            schedule: config.cron_schedule,
+            syncDays: config.sync_days
+          });
+          this._startWatchdog();
+        } else {
+          logger.info('Auto-sync is disabled');
+        }
+        return; // success, exit retry loop
+      } catch (error) {
+        if (attempt < maxRetries) {
+          logger.warn(`Auto-sync init attempt ${attempt} failed, retrying in ${retryDelay/1000}s...`, { error: error.message });
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+        } else {
+          logger.error('Failed to initialize auto-sync after all retries', { error: error.message });
+        }
       }
-    } catch (error) {
-      logger.error('Failed to initialize auto-sync', { error: error.message });
     }
+  }
+
+  /**
+   * Watchdog: check every 10 minutes if cron is still running, restart if not
+   */
+  _startWatchdog() {
+    if (this.watchdogTimer) {
+      clearInterval(this.watchdogTimer);
+    }
+    this.watchdogTimer = setInterval(async () => {
+      if (this.cronJob !== null) return; // cron is running, nothing to do
+
+      logger.warn('Auto-sync watchdog: cron job not running, attempting restart...');
+      try {
+        const config = await AutoSyncConfig.getConfig();
+        if (config.enabled) {
+          await this.start(config.cron_schedule, config.sync_days);
+          logger.info('Auto-sync watchdog: cron job restarted successfully');
+        }
+      } catch (error) {
+        logger.error('Auto-sync watchdog: failed to restart cron job', { error: error.message });
+      }
+    }, 10 * 60 * 1000); // every 10 minutes
   }
 
   /**
@@ -103,9 +140,14 @@ class AutoSyncService {
 
       if (updated.enabled) {
         await this.start(updated.cron_schedule, updated.sync_days);
+        this._startWatchdog();
         logger.info('Auto-sync config updated and restarted', updated);
       } else {
         this.stop();
+        if (this.watchdogTimer) {
+          clearInterval(this.watchdogTimer);
+          this.watchdogTimer = null;
+        }
         logger.info('Auto-sync disabled');
       }
 
@@ -123,7 +165,8 @@ class AutoSyncService {
   getStatus() {
     return {
       isRunning: this.isRunning,
-      hasScheduledJob: this.cronJob !== null
+      hasScheduledJob: this.cronJob !== null,
+      watchdogActive: this.watchdogTimer !== null
     };
   }
 

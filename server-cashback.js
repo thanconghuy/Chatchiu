@@ -380,7 +380,7 @@ if (process.env.VERCEL !== '1') {
       const autoSyncService = require('./backend/services/autoSyncService');
       await autoSyncService.initialize();
       const status = autoSyncService.getStatus();
-      console.log(`🔄 Auto-Sync: ${status.hasScheduledJob ? 'Enabled' : 'Disabled'}`);
+      console.log(`🔄 Auto-Sync: ${status.hasScheduledJob ? 'Enabled (watchdog active)' : 'Disabled'}`);
     } catch (error) {
       logger.error('Failed to initialize Auto-Sync service', { error: error.message });
     }
