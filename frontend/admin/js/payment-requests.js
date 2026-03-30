@@ -737,16 +737,16 @@ function toggleDropdown(requestId) {
         const button = dropdown.querySelector('.action-dropdown-btn');
         const rect = button.getBoundingClientRect();
 
-        // Position below the button
-        menu.style.top = `${rect.bottom + window.scrollY}px`;
+        // Position below the button (position: fixed uses viewport coords, no scroll offset)
+        menu.style.top = `${rect.bottom}px`;
 
         // Position to align with button, but check if it goes off screen
         const menuWidth = 160; // min-width from CSS
-        let leftPosition = rect.left + window.scrollX;
+        let leftPosition = rect.left;
 
         // If menu would go off right edge, align to right side of button
         if (leftPosition + menuWidth > window.innerWidth) {
-            leftPosition = rect.right + window.scrollX - menuWidth;
+            leftPosition = rect.right - menuWidth;
         }
 
         menu.style.left = `${leftPosition}px`;
